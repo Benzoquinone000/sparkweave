@@ -1,0 +1,14 @@
+﻿# ============================================
+# SparkWeave Math Animator — Addon
+# ============================================
+# Install: pip install -r requirements/math-animator.txt
+# Addon for `sparkweave animate`. Install alongside cli.txt or server.txt.
+#
+# System prerequisites (installed outside pip):
+# - FFmpeg for video encoding
+# - MiKTeX/LaTeX runtime (`latex`, `dvisvgm`) for Tex/MathTex rendering
+# - MiKTeX package `preview` (`mpm --install=preview`)
+# - pkg-config, cairo, cmake (for pycairo/manimpango build paths)
+
+manim>=0.19.0
+

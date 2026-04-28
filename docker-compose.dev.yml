@@ -1,0 +1,50 @@
+# ============================================
+# SparkWeave Docker Compose - Development Override
+# ============================================
+# Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# This override file provides:
+#   - Hot-reload for both frontend and backend
+#   - Source code mounting for live editing
+#   - Development-friendly logging
+# ============================================
+
+services:
+  sparkweave:
+    build:
+      target: development
+
+    volumes:
+      # Mount backend source code for hot-reload
+      - ./sparkweave:/app/sparkweave:ro
+      - ./sparkweave_cli:/app/sparkweave_cli:ro
+      - ./scripts:/app/scripts:ro
+
+      # Mount frontend source for hot-reload
+      - ./web/src:/app/web/src:ro
+      - ./web/public:/app/web/public:ro
+      - ./web/index.html:/app/web/index.html:ro
+      - ./web/vite.config.ts:/app/web/vite.config.ts:ro
+      - ./web/tailwind.config.js:/app/web/tailwind.config.js:ro
+      - ./web/postcss.config.js:/app/web/postcss.config.js:ro
+
+      # Mount data directories (writable) - output to local ./data
+      - ./data/user:/app/data/user
+      - ./data/knowledge_bases:/app/data/knowledge_bases
+
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE=http://localhost:${BACKEND_PORT:-8001}
+      - NEXT_PUBLIC_API_BASE=http://localhost:${BACKEND_PORT:-8001}
+
+    # In development, we might want to see logs directly
+    # Uncomment the following to disable log files and see everything in console
+    # logging:
+    #   driver: "json-file"
+    #   options:
+    #     max-size: "10m"
+    #     max-file: "3"
+
+    networks:
+      - sparkweave-network
+

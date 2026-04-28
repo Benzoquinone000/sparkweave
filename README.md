@@ -41,6 +41,13 @@ SparkWeave 星火织学围绕“对话式学习画像自主构建、多智能体
 
 ## 系统架构
 
+<p align="center">
+  <img src="assets/architecture.svg" alt="SparkWeave 系统架构图" />
+</p>
+
+<details>
+<summary>查看 Mermaid 架构源码</summary>
+
 ```mermaid
 flowchart LR
     U[学生 / 教师] --> W[Web 学习工作台]
@@ -57,6 +64,8 @@ flowchart LR
     API --> Bot[SparkBot 长期智能体]
     Anim --> Manim[Manim + FFmpeg + LaTeX]
 ```
+
+</details>
 
 ## 演示路线
 

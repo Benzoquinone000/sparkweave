@@ -178,6 +178,13 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, object]] = {
         "supports_vision": True,
         "system_in_messages": True,
     },
+    "iflytek_spark_ws": {
+        "supports_response_format": False,
+        "supports_streaming": True,
+        "supports_tools": False,
+        "supports_vision": False,
+        "system_in_messages": True,
+    },
     "ollama": {
         "supports_response_format": True,
         "supports_streaming": True,

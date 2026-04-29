@@ -7,6 +7,7 @@ True LlamaIndex integration using official llama-index library.
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -21,12 +22,34 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.bridge.pydantic import PrivateAttr
 
 from sparkweave.services.embedding_support import get_embedding_client, get_embedding_config
+from sparkweave.services.ocr import OcrUnavailable, is_iflytek_ocr_configured, ocr_pdf_with_iflytek
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
     Path(__file__).resolve().parent.parent.parent.parent.parent / "data" / "knowledge_bases"
 )
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = _env(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logging.getLogger("sparkweave.rag.llamaindex").warning("Ignoring invalid %s=%r", name, raw)
+        return default
+    return value if value > 0 else default
+
+
+def _env(name: str, default: str = "") -> str:
+    try:
+        from sparkweave.services.config import get_env_store
+
+        return get_env_store().get(name, default)
+    except Exception:
+        return os.getenv(name, default)
 
 
 class CustomEmbedding(BaseEmbedding):
@@ -73,18 +96,18 @@ class CustomEmbedding(BaseEmbedding):
 
     async def _aget_query_embedding(self, query: str) -> List[float]:
         """Get embedding for a query."""
-        embeddings = await self._client.embed([query])
+        embeddings = await self._client.embed([query], input_type="search_query")
         return embeddings[0]
 
     async def _aget_text_embedding(self, text: str) -> List[float]:
         """Get embedding for a text."""
-        embeddings = await self._client.embed([text])
+        embeddings = await self._client.embed([text], input_type="search_document")
         return embeddings[0]
 
     async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Get embeddings for multiple texts."""
         return await self._client.embed(
-            texts, progress_callback=self._progress_callback
+            texts, progress_callback=self._progress_callback, input_type="search_document"
         )
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -260,7 +283,42 @@ class LlamaIndexPipeline:
                 Settings.embed_model.set_progress_callback(None)
 
     def _extract_pdf_text(self, file_path: Path) -> str:
-        """Extract text from PDF using PyMuPDF."""
+        """Extract text from PDF.
+
+        Strategy:
+        - ``SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first``: try iFlyTek OCR first,
+          then fall back to the default PyMuPDF text-layer parser.
+        - default/auto: use PyMuPDF first; if the extracted text is too short and
+          iFlyTek OCR is configured, try OCR as a scanned-PDF fallback.
+        """
+        strategy = _env("SPARKWEAVE_PDF_OCR_STRATEGY", "auto").strip().lower()
+        if strategy in {"iflytek_first", "ocr_first", "iflytek"}:
+            try:
+                text = ocr_pdf_with_iflytek(file_path)
+                if text.strip():
+                    self.logger.info("Extracted PDF text with iFlyTek OCR: %s", file_path.name)
+                    return text
+                self.logger.warning("iFlyTek OCR returned empty text for %s; falling back to PyMuPDF", file_path.name)
+            except OcrUnavailable as exc:
+                self.logger.warning("iFlyTek OCR unavailable for %s; falling back to PyMuPDF: %s", file_path.name, exc)
+            return self._extract_pdf_text_default(file_path)
+
+        text = self._extract_pdf_text_default(file_path)
+        min_chars = _env_int("SPARKWEAVE_OCR_MIN_TEXT_CHARS", 80)
+        if len(text.strip()) >= min_chars or not is_iflytek_ocr_configured():
+            return text
+
+        try:
+            ocr_text = ocr_pdf_with_iflytek(file_path)
+            if ocr_text.strip():
+                self.logger.info("Used iFlyTek OCR fallback for scanned PDF: %s", file_path.name)
+                return ocr_text
+        except OcrUnavailable as exc:
+            self.logger.warning("iFlyTek OCR fallback failed for %s: %s", file_path.name, exc)
+        return text
+
+    def _extract_pdf_text_default(self, file_path: Path) -> str:
+        """Extract text from a PDF text layer using PyMuPDF."""
         try:
             import fitz  # PyMuPDF
 
@@ -308,6 +366,8 @@ class LlamaIndexPipeline:
                 "answer": "No documents indexed. Please upload documents first.",
                 "content": "",
                 "provider": "llamaindex",
+                "success": False,
+                "error": "no_documents_indexed",
             }
 
         embedding_mismatch_warning = ""
@@ -368,6 +428,7 @@ class LlamaIndexPipeline:
                 "content": content,
                 "sources": sources,
                 "provider": "llamaindex",
+                "success": True,
             }
             if embedding_mismatch_warning:
                 result["warning"] = embedding_mismatch_warning
@@ -383,6 +444,8 @@ class LlamaIndexPipeline:
                 "answer": f"Search failed: {str(e)}",
                 "content": "",
                 "provider": "llamaindex",
+                "success": False,
+                "error": str(e),
             }
 
     async def add_documents(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:

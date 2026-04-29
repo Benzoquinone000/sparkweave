@@ -45,6 +45,8 @@ const SERVICES = [
   { id: "search" as const, label: "联网搜索" },
 ];
 
+const CUSTOM_MODEL_VALUE = "__sparkweave_custom_model__";
+
 const SYSTEM_PROBES = [
   { id: "llm" as const, label: "问答模型", detail: "测试问答模型" },
   { id: "embeddings" as const, label: "向量模型", detail: "测试向量模型" },
@@ -54,16 +56,23 @@ const SYSTEM_PROBES = [
 type ServiceId = (typeof SERVICES)[number]["id"];
 type SystemProbeId = (typeof SYSTEM_PROBES)[number]["id"];
 type TestStatus = "idle" | "running" | "completed" | "failed" | "cancelled";
+type IflytekLlmAuthMode = "api_password" | "ak_sk";
 
 type LlmForm = {
   binding: string;
   baseUrl: string;
   apiKey: string;
   model: string;
+  iflytekAuthMode: IflytekLlmAuthMode;
+  iflytekAppId: string;
+  iflytekApiSecret: string;
 };
 
 type EmbeddingForm = LlmForm & {
   dimension: string;
+  iflytekAppId: string;
+  iflytekApiSecret: string;
+  iflytekDomain: string;
 };
 
 type SearchForm = {
@@ -592,24 +601,45 @@ function SettingsCatalogEditor({
   const searchProfile = activeProfile(settings.catalog.services.search);
   const llmModel = activeModel(settings.catalog.services.llm, llmProfile);
   const embeddingModel = activeModel(settings.catalog.services.embedding, embeddingProfile);
+  const initialLlmBinding = llmProfile?.binding || "openai";
+  const initialLlmProvider = settings.providers.llm.find((provider) => provider.value === initialLlmBinding);
+  const initialLlmKeyShape = (llmProfile?.api_key || "").includes(":") ? "ak_sk" : "api_password";
+  const initialEmbeddingBinding = embeddingProfile?.binding || "openai";
+  const initialEmbeddingProvider = settings.providers.embedding.find((provider) => provider.value === initialEmbeddingBinding);
   const [llm, setLlm] = useState<LlmForm>({
-    binding: llmProfile?.binding || "openai",
+    binding: initialLlmBinding,
     baseUrl: llmProfile?.base_url || "",
     apiKey: "",
-    model: llmModel?.model || "",
+    model: llmModel?.model || initialLlmProvider?.default_model || initialLlmProvider?.models?.[0] || "",
+    iflytekAuthMode: initialLlmKeyShape,
+    iflytekAppId: llmProfile?.extra_headers?.app_id || "",
+    iflytekApiSecret: "",
   });
   const [embedding, setEmbedding] = useState<EmbeddingForm>({
-    binding: embeddingProfile?.binding || "openai",
+    binding: initialEmbeddingBinding,
     baseUrl: embeddingProfile?.base_url || "",
     apiKey: "",
-    model: embeddingModel?.model || "",
-    dimension: embeddingModel?.dimension || "3072",
+    model: embeddingModel?.model || initialEmbeddingProvider?.default_model || initialEmbeddingProvider?.models?.[0] || "",
+    dimension: embeddingModel?.dimension || initialEmbeddingProvider?.default_dim || "",
+    iflytekAuthMode: "api_password",
+    iflytekAppId: embeddingProfile?.extra_headers?.app_id || "",
+    iflytekApiSecret: "",
+    iflytekDomain: embeddingProfile?.extra_headers?.domain || "para",
   });
   const [search, setSearch] = useState<SearchForm>({
     provider: searchProfile?.provider || "tavily",
     baseUrl: searchProfile?.base_url || "",
     apiKey: "",
   });
+  const activeLlmProvider = useMemo(
+    () => settings.providers.llm.find((provider) => provider.value === llm.binding),
+    [llm.binding, settings.providers.llm],
+  );
+  const llmModelOptions = activeLlmProvider?.models ?? [];
+  const hasLlmModelOptions = llmModelOptions.length > 0;
+  const llmModelIsPreset = llmModelOptions.includes(llm.model);
+  const llmModelSelectValue = llmModelIsPreset ? llm.model : CUSTOM_MODEL_VALUE;
+  const isIflytekLlm = llm.binding === "iflytek_spark_ws";
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -667,7 +697,17 @@ function SettingsCatalogEditor({
             value={llm.binding}
             providers={settings.providers.llm}
             onChange={(value, provider) =>
-              setLlm((current) => ({ ...current, binding: value, baseUrl: provider?.base_url || current.baseUrl }))
+              setLlm((current) => ({
+                ...current,
+                binding: value,
+                baseUrl: provider?.base_url || current.baseUrl,
+                iflytekAuthMode: value === "iflytek_spark_ws" ? current.iflytekAuthMode : "api_password",
+                model: chooseProviderModel(
+                  current.model,
+                  provider,
+                  settings.providers.llm.find((item) => item.value === current.binding),
+                ),
+              }))
             }
           />
           <FieldShell label="服务地址">
@@ -677,21 +717,95 @@ function SettingsCatalogEditor({
               data-testid="settings-llm-base-url"
             />
           </FieldShell>
-          <FieldShell label="模型名称">
-            <TextInput
-              value={llm.model}
-              onChange={(event) => setLlm((current) => ({ ...current, model: event.target.value }))}
-              data-testid="settings-llm-model"
-            />
+          <FieldShell label="模型名称" hint={hasLlmModelOptions ? "按供应商预置，可切换自定义" : "输入模型 ID"}>
+            {hasLlmModelOptions ? (
+              <SelectInput
+                value={llmModelSelectValue}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLlm((current) => ({
+                    ...current,
+                    model: value === CUSTOM_MODEL_VALUE ? current.model : value,
+                  }));
+                }}
+                data-testid="settings-llm-model-select"
+              >
+                {llmModelOptions.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+                <option value={CUSTOM_MODEL_VALUE}>自定义模型...</option>
+              </SelectInput>
+            ) : null}
+            {!hasLlmModelOptions || !llmModelIsPreset ? (
+              <TextInput
+                className={hasLlmModelOptions ? "mt-2" : undefined}
+                value={llm.model}
+                onChange={(event) => setLlm((current) => ({ ...current, model: event.target.value }))}
+                data-testid="settings-llm-model"
+              />
+            ) : null}
           </FieldShell>
-          <FieldShell label="密钥" hint={llmProfile?.api_key ? "已配置，留空保留" : "尚未配置"}>
-            <TextInput
-              type="password"
-              value={llm.apiKey}
-              onChange={(event) => setLlm((current) => ({ ...current, apiKey: event.target.value }))}
-              data-testid="settings-llm-api-key"
-            />
-          </FieldShell>
+          {isIflytekLlm ? (
+            <>
+              <FieldShell label="讯飞鉴权方式" hint="HTTP APIPassword 或 APIKey + APISecret">
+                <SelectInput
+                  value={llm.iflytekAuthMode}
+                  onChange={(event) =>
+                    setLlm((current) => ({
+                      ...current,
+                      iflytekAuthMode: event.target.value as IflytekLlmAuthMode,
+                      apiKey: "",
+                      iflytekApiSecret: "",
+                    }))
+                  }
+                  data-testid="settings-llm-iflytek-auth-mode"
+                >
+                  <option value="api_password">HTTP APIPassword</option>
+                  <option value="ak_sk">APIKey + APISecret</option>
+                </SelectInput>
+              </FieldShell>
+              {llm.iflytekAuthMode === "api_password" ? (
+                <FieldShell label="APIPassword" hint={llmProfile?.api_key ? "已配置，留空保留" : "填写 HTTP 协议 APIPassword"}>
+                  <TextInput
+                    type="password"
+                    value={llm.apiKey}
+                    onChange={(event) => setLlm((current) => ({ ...current, apiKey: event.target.value }))}
+                    data-testid="settings-llm-api-key"
+                  />
+                </FieldShell>
+              ) : (
+                <>
+                  <FieldShell label="APIKey" hint="保存时自动拼接为 APIKey:APISecret">
+                    <TextInput
+                      type="password"
+                      value={llm.apiKey}
+                      onChange={(event) => setLlm((current) => ({ ...current, apiKey: event.target.value }))}
+                      data-testid="settings-llm-api-key"
+                    />
+                  </FieldShell>
+                  <FieldShell label="APISecret" hint={llmProfile?.api_key ? "已配置，修改时请两项都填写" : "填写同一应用的 APISecret"}>
+                    <TextInput
+                      type="password"
+                      value={llm.iflytekApiSecret}
+                      onChange={(event) => setLlm((current) => ({ ...current, iflytekApiSecret: event.target.value }))}
+                      data-testid="settings-llm-iflytek-api-secret"
+                    />
+                  </FieldShell>
+                </>
+              )}
+            </>
+          ) : (
+            <FieldShell label="密钥" hint={llmProfile?.api_key ? "已配置，留空保留" : "尚未配置"}>
+              <TextInput
+                type="password"
+                value={llm.apiKey}
+                onChange={(event) => setLlm((current) => ({ ...current, apiKey: event.target.value }))}
+                data-testid="settings-llm-api-key"
+              />
+            </FieldShell>
+          )}
         </ConfigBlock>
 
         <ConfigBlock title="向量模型">
@@ -699,12 +813,15 @@ function SettingsCatalogEditor({
             label="服务提供方"
             value={embedding.binding}
             providers={settings.providers.embedding}
+            testId="settings-embedding-provider"
             onChange={(value, provider) =>
               setEmbedding((current) => ({
                 ...current,
                 binding: value,
-                baseUrl: provider?.base_url || current.baseUrl,
-                dimension: provider?.default_dim || current.dimension,
+                baseUrl: provider?.base_url ?? "",
+                model: provider?.default_model || provider?.models?.[0] || "",
+                dimension: provider?.default_dim ?? "",
+                iflytekDomain: value === "iflytek_spark" ? current.iflytekDomain || "para" : current.iflytekDomain,
               }))
             }
           />
@@ -729,6 +846,38 @@ function SettingsCatalogEditor({
               data-testid="settings-embedding-dimension"
             />
           </FieldShell>
+          {embedding.binding === "iflytek_spark" ? (
+            <>
+              <FieldShell label="讯飞 APPID" hint="Embedding 签名必填">
+                <TextInput
+                  value={embedding.iflytekAppId}
+                  onChange={(event) => setEmbedding((current) => ({ ...current, iflytekAppId: event.target.value }))}
+                  data-testid="settings-embedding-iflytek-appid"
+                />
+              </FieldShell>
+              <FieldShell
+                label="讯飞 APISecret"
+                hint={embeddingProfile?.extra_headers?.api_secret ? "已配置，留空保留" : "Embedding 签名必填"}
+              >
+                <TextInput
+                  type="password"
+                  value={embedding.iflytekApiSecret}
+                  onChange={(event) => setEmbedding((current) => ({ ...current, iflytekApiSecret: event.target.value }))}
+                  data-testid="settings-embedding-iflytek-api-secret"
+                />
+              </FieldShell>
+              <FieldShell label="讯飞向量域">
+                <SelectInput
+                  value={embedding.iflytekDomain}
+                  onChange={(event) => setEmbedding((current) => ({ ...current, iflytekDomain: event.target.value }))}
+                  data-testid="settings-embedding-iflytek-domain"
+                >
+                  <option value="para">para：资料入库</option>
+                  <option value="query">query：查询向量</option>
+                </SelectInput>
+              </FieldShell>
+            </>
+          ) : null}
           <FieldShell label="密钥" hint={embeddingProfile?.api_key ? "已配置，留空保留" : "尚未配置"}>
             <TextInput
               type="password"
@@ -744,8 +893,9 @@ function SettingsCatalogEditor({
             label="服务提供方"
             value={search.provider}
             providers={settings.providers.search}
+            testId="settings-search-provider"
             onChange={(value, provider) =>
-              setSearch((current) => ({ ...current, provider: value, baseUrl: provider?.base_url || current.baseUrl }))
+              setSearch((current) => ({ ...current, provider: value, baseUrl: provider?.base_url ?? "" }))
             }
           />
           <FieldShell label="服务地址">
@@ -1143,16 +1293,19 @@ function ProviderSelect({
   value,
   providers,
   onChange,
+  testId,
 }: {
   label: string;
   value: string;
   providers: ProviderChoice[];
   onChange: (value: string, provider?: ProviderChoice) => void;
+  testId?: string;
 }) {
   return (
     <FieldShell label={label}>
       <SelectInput
         value={value}
+        data-testid={testId}
         onChange={(event) => {
           const provider = providers.find((item) => item.value === event.target.value);
           onChange(event.target.value, provider);
@@ -1166,6 +1319,23 @@ function ProviderSelect({
       </SelectInput>
     </FieldShell>
   );
+}
+
+function chooseProviderModel(currentModel: string, provider?: ProviderChoice, previousProvider?: ProviderChoice) {
+  const defaultModel = provider?.default_model?.trim();
+  if (!defaultModel) return currentModel;
+  const previousDefault = previousProvider?.default_model?.trim();
+  const previousOptions = previousProvider?.models ?? [];
+  const normalizedCurrent = currentModel.trim();
+  if (
+    !normalizedCurrent ||
+    normalizedCurrent === previousDefault ||
+    previousOptions.includes(normalizedCurrent) ||
+    normalizedCurrent === "gpt-4o-mini"
+  ) {
+    return defaultModel;
+  }
+  return currentModel;
 }
 
 function activeProfile(service: ServiceCatalog): EndpointProfile | undefined {
@@ -1202,9 +1372,28 @@ function applyLlmForm(service: ServiceCatalog, form: LlmForm) {
   const model = ensureModel(service, profile, "llm-model-default");
   profile.binding = form.binding;
   profile.base_url = form.baseUrl.trim();
-  if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+  const apiKey = buildLlmApiKey(form);
+  if (apiKey) profile.api_key = apiKey;
+  if (form.binding === "iflytek_spark_ws" && profile.extra_headers) {
+    const extraHeaders = { ...profile.extra_headers };
+    delete extraHeaders.app_id;
+    delete extraHeaders.appid;
+    delete extraHeaders.api_secret;
+    delete extraHeaders.domain;
+    profile.extra_headers = extraHeaders;
+  }
   model.name = form.model.trim();
   model.model = form.model.trim();
+}
+
+function buildLlmApiKey(form: LlmForm) {
+  const apiKey = form.apiKey.trim();
+  if (form.binding !== "iflytek_spark_ws") return apiKey;
+  if (form.iflytekAuthMode === "api_password") return apiKey;
+  if (apiKey.includes(":")) return apiKey;
+  const apiSecret = form.iflytekApiSecret.trim();
+  if (!apiKey || !apiSecret) return "";
+  return `${apiKey}:${apiSecret}`;
 }
 
 function applyEmbeddingForm(service: ServiceCatalog, form: EmbeddingForm) {
@@ -1213,6 +1402,13 @@ function applyEmbeddingForm(service: ServiceCatalog, form: EmbeddingForm) {
   profile.binding = form.binding;
   profile.base_url = form.baseUrl.trim();
   if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+  if (form.binding === "iflytek_spark") {
+    const extraHeaders = { ...(profile.extra_headers || {}) };
+    if (form.iflytekAppId.trim()) extraHeaders.app_id = form.iflytekAppId.trim();
+    if (form.iflytekApiSecret.trim()) extraHeaders.api_secret = form.iflytekApiSecret.trim();
+    extraHeaders.domain = form.iflytekDomain.trim() || "para";
+    profile.extra_headers = extraHeaders;
+  }
   model.name = form.model.trim();
   model.model = form.model.trim();
   model.dimension = form.dimension.trim();

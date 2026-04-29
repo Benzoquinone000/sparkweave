@@ -99,6 +99,7 @@ class TestProviderRegistry:
         assert isinstance(providers, list)
         assert providers == sorted(providers)
         assert "duckduckgo" in providers
+        assert "iflytek_spark" in providers
 
     def test_get_provider_raises_on_unknown(self) -> None:
         with pytest.raises(ValueError, match="Unknown provider"):
@@ -116,6 +117,7 @@ class TestProviderRegistry:
         assert "deprecated" in statuses
         ids = {item["id"] for item in info}
         assert "duckduckgo" in ids
+        assert "iflytek_spark" in ids
 
     def test_duckduckgo_no_api_key_required(self) -> None:
         provider = get_provider("duckduckgo")

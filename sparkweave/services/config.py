@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = PROJECT_ROOT / ".env"
+IFLYTEK_SPARK_MODEL = "spark-x"
+IFLYTEK_SPARK_X2_BASE_URL = "https://spark-api-open.xf-yun.com/x2/"
+IFLYTEK_SPARK_X15_BASE_URL = "https://spark-api-open.xf-yun.com/v2/"
 
 
 class LLMConfigError(RuntimeError):
@@ -54,6 +57,8 @@ class ProviderSpec:
     strip_model_prefix: bool = False
     supports_max_completion_tokens: bool = False
     supports_prompt_caching: bool = False
+    default_model: str = ""
+    model_options: tuple[str, ...] = ()
     model_overrides: tuple[tuple[str, dict[str, Any]], ...] = ()
     is_oauth: bool = False
     is_direct: bool = False
@@ -89,6 +94,35 @@ PROVIDER_ALIASES = {
     "byteplusCodingPlan": "byteplus_coding_plan",
     "github-copilot": "github_copilot",
     "openai-codex": "openai_codex",
+    "iflytek": "iflytek_spark_ws",
+    "xfyun": "iflytek_spark_ws",
+    "xunfei": "iflytek_spark_ws",
+    "spark": "iflytek_spark_ws",
+    "sparkdesk": "iflytek_spark_ws",
+    "iflytek_spark": "iflytek_spark_ws",
+    "iflytek_ws": "iflytek_spark_ws",
+    "xfyun_ws": "iflytek_spark_ws",
+    "xunfei_ws": "iflytek_spark_ws",
+    "spark_ws": "iflytek_spark_ws",
+    "sparkdesk_ws": "iflytek_spark_ws",
+    "spark_x2": "iflytek_spark_ws",
+    "iflytek_x2": "iflytek_spark_ws",
+    "xfyun_x2": "iflytek_spark_ws",
+    "xunfei_x2": "iflytek_spark_ws",
+    "x2": "iflytek_spark_ws",
+    "iflytek_spark_x2": "iflytek_spark_ws",
+    "spark_x15": "iflytek_spark_ws",
+    "spark_x1_5": "iflytek_spark_ws",
+    "iflytek_x15": "iflytek_spark_ws",
+    "iflytek_x1_5": "iflytek_spark_ws",
+    "xfyun_x15": "iflytek_spark_ws",
+    "xfyun_x1_5": "iflytek_spark_ws",
+    "xunfei_x15": "iflytek_spark_ws",
+    "xunfei_x1_5": "iflytek_spark_ws",
+    "x15": "iflytek_spark_ws",
+    "x1_5": "iflytek_spark_ws",
+    "x1.5": "iflytek_spark_ws",
+    "iflytek_spark_x15": "iflytek_spark_ws",
 }
 
 
@@ -112,6 +146,14 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="openrouter",
         default_api_base="https://openrouter.ai/api/v1",
         supports_prompt_caching=True,
+        default_model="openai/gpt-5.2",
+        model_options=(
+            "openai/gpt-5.2",
+            "anthropic/claude-opus-4-1-20250805",
+            "anthropic/claude-sonnet-4-20250514",
+            "google/gemini-3-pro-preview",
+            "deepseek/deepseek-reasoner",
+        ),
     ),
     ProviderSpec(
         "aihubmix",
@@ -122,6 +164,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="aihubmix",
         default_api_base="https://aihubmix.com/v1",
         strip_model_prefix=True,
+        default_model="gpt-5.2",
+        model_options=("gpt-5.2", "gpt-5-mini", "claude-opus-4-1-20250805", "gemini-3-pro-preview"),
     ),
     ProviderSpec(
         "siliconflow",
@@ -131,6 +175,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         is_gateway=True,
         detect_by_base_keyword="siliconflow",
         default_api_base="https://api.siliconflow.cn/v1",
+        default_model="deepseek-ai/DeepSeek-R1",
+        model_options=("deepseek-ai/DeepSeek-R1", "deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B"),
     ),
     ProviderSpec(
         "volcengine",
@@ -177,6 +223,13 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         backend="anthropic",
         default_api_base="https://api.anthropic.com/v1",
         supports_prompt_caching=True,
+        default_model="claude-opus-4-1-20250805",
+        model_options=(
+            "claude-opus-4-1-20250805",
+            "claude-opus-4-20250514",
+            "claude-sonnet-4-20250514",
+            "claude-3-5-haiku-20241022",
+        ),
     ),
     ProviderSpec(
         "openai",
@@ -185,6 +238,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="OpenAI",
         default_api_base="https://api.openai.com/v1",
         supports_max_completion_tokens=True,
+        default_model="gpt-5.2",
+        model_options=("gpt-5.2", "gpt-5.2-pro", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini"),
     ),
     ProviderSpec(
         "openai_codex",
@@ -211,6 +266,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "DEEPSEEK_API_KEY",
         display_name="DeepSeek",
         default_api_base="https://api.deepseek.com",
+        default_model="deepseek-chat",
+        model_options=("deepseek-chat", "deepseek-reasoner"),
     ),
     ProviderSpec(
         "gemini",
@@ -218,6 +275,14 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "GEMINI_API_KEY",
         display_name="Gemini",
         default_api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
+        default_model="gemini-3-pro-preview",
+        model_options=(
+            "gemini-3-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash-lite",
+        ),
     ),
     ProviderSpec(
         "zhipu",
@@ -226,6 +291,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Zhipu AI",
         env_extras=(("ZHIPUAI_API_KEY", "{api_key}"),),
         default_api_base="https://open.bigmodel.cn/api/paas/v4",
+        default_model="glm-4.5",
+        model_options=("glm-4.5", "glm-4.5-air", "glm-4-plus", "glm-4-air"),
     ),
     ProviderSpec(
         "dashscope",
@@ -233,6 +300,36 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "DASHSCOPE_API_KEY",
         display_name="DashScope",
         default_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        default_model="qwen3.6-plus",
+        model_options=(
+            "qwen3.6-plus",
+            "qwen3.6-flash",
+            "qwen3.6-max-preview",
+            "qwen3.5-plus",
+            "qwen3.5-flash",
+            "qwen3-coder-plus",
+        ),
+    ),
+    ProviderSpec(
+        "iflytek_spark_ws",
+        (
+            "iflytek",
+            "xfyun",
+            "xunfei",
+            "spark",
+            "websocket",
+            "spark-x",
+            "spark-x2",
+            "spark-x1.5",
+        ),
+        "IFLYTEK_SPARK_API_KEY",
+        display_name="iFlytek Spark X",
+        backend="openai_compat",
+        is_direct=True,
+        detect_by_base_keyword="spark-api-open.xf-yun",
+        default_api_base=IFLYTEK_SPARK_X2_BASE_URL,
+        default_model=IFLYTEK_SPARK_MODEL,
+        model_options=(IFLYTEK_SPARK_MODEL,),
     ),
     ProviderSpec(
         "moonshot",
@@ -240,6 +337,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "MOONSHOT_API_KEY",
         display_name="Moonshot",
         default_api_base="https://api.moonshot.ai/v1",
+        default_model="kimi-k2.5",
+        model_options=("kimi-k2.5", "kimi-k2-turbo-preview", "moonshot-v1-128k", "moonshot-v1-32k"),
         model_overrides=(("kimi-k2.5", {"temperature": 1.0}),),
     ),
     ProviderSpec(
@@ -248,6 +347,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "MINIMAX_API_KEY",
         display_name="MiniMax",
         default_api_base="https://api.minimax.io/v1",
+        default_model="MiniMax-M2.7",
+        model_options=("MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2"),
     ),
     ProviderSpec(
         "mistral",
@@ -255,6 +356,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "MISTRAL_API_KEY",
         display_name="Mistral",
         default_api_base="https://api.mistral.ai/v1",
+        default_model="mistral-large-2512",
+        model_options=("mistral-large-2512", "mistral-medium-2508", "mistral-small-2603", "magistral-medium-2509"),
     ),
     ProviderSpec(
         "stepfun",
@@ -262,6 +365,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "STEPFUN_API_KEY",
         display_name="Step Fun",
         default_api_base="https://api.stepfun.com/v1",
+        default_model="step-3.5-flash",
+        model_options=("step-3.5-flash", "step-2-16k", "step-1-32k"),
     ),
     ProviderSpec(
         "xiaomi_mimo",
@@ -269,6 +374,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "XIAOMIMIMO_API_KEY",
         display_name="Xiaomi MIMO",
         default_api_base="https://api.xiaomimimo.com/v1",
+        default_model="MiMo-VL-7B-RL",
+        model_options=("MiMo-VL-7B-RL", "MiMo-7B-RL"),
     ),
     ProviderSpec(
         "vllm",
@@ -320,6 +427,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "GROQ_API_KEY",
         display_name="Groq",
         default_api_base="https://api.groq.com/openai/v1",
+        default_model="openai/gpt-oss-120b",
+        model_options=("openai/gpt-oss-120b", "llama-3.1-8b-instant", "meta-llama/llama-4-scout-17b-16e-instruct"),
     ),
     ProviderSpec(
         "qianfan",
@@ -327,6 +436,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "QIANFAN_API_KEY",
         display_name="Qianfan",
         default_api_base="https://qianfan.baidubce.com/v2",
+        default_model="ernie-4.5-turbo-128k",
+        model_options=("ernie-4.5-turbo-128k", "ernie-x1-turbo-32k", "ernie-4.0-turbo-8k"),
     ),
 )
 
@@ -340,6 +451,7 @@ SUPPORTED_SEARCH_PROVIDERS = {
     "duckduckgo",
     "perplexity",
     "serper",
+    "iflytek_spark",
 }
 DEPRECATED_SEARCH_PROVIDERS = {"exa", "baidu", "openrouter"}
 SEARCH_ENV_FALLBACK = {
@@ -348,11 +460,25 @@ SEARCH_ENV_FALLBACK = {
     "jina": ("JINA_API_KEY",),
     "perplexity": ("PERPLEXITY_API_KEY",),
     "serper": ("SERPER_API_KEY",),
+    "iflytek_spark": (
+        "IFLYTEK_SEARCH_API_PASSWORD",
+        "IFLYTEK_SPARK_SEARCH_API_PASSWORD",
+        "XFYUN_SEARCH_API_PASSWORD",
+        "IFLYTEK_SEARCH_APIPASSWORD",
+    ),
 }
 
 EMBEDDING_PROVIDER_ALIASES = {
     "google": "openai",
     "gemini": "openai",
+    "iflytek": "iflytek_spark",
+    "xfyun": "iflytek_spark",
+    "xunfei": "iflytek_spark",
+    "spark": "iflytek_spark",
+    "spark_embedding": "iflytek_spark",
+    "iflytek_embedding": "iflytek_spark",
+    "xfyun_embedding": "iflytek_spark",
+    "xunfei_embedding": "iflytek_spark",
     "huggingface": "custom",
     "lm_studio": "vllm",
     "llama_cpp": "vllm",
@@ -412,6 +538,21 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=("JINA_API_KEY",),
         default_model="jina-embeddings-v3",
         default_dim=1024,
+    ),
+    "iflytek_spark": EmbeddingProviderSpec(
+        label="iFlytek Spark Embedding",
+        adapter="iflytek_spark",
+        default_api_base="https://emb-cn-huabei-1.xf-yun.com/",
+        keywords=("iflytek", "xfyun", "xunfei", "llm-embedding"),
+        is_local=False,
+        api_key_envs=(
+            "IFLYTEK_EMBEDDING_API_KEY",
+            "IFLYTEK_SPARK_EMBEDDING_API_KEY",
+            "XFYUN_EMBEDDING_API_KEY",
+            "SPARK_EMBEDDING_API_KEY",
+        ),
+        default_model="llm-embedding",
+        default_dim=2560,
     ),
     "ollama": EmbeddingProviderSpec(
         label="Ollama",
@@ -1061,12 +1202,42 @@ class ModelCatalogService:
                     profile["models"] = []
                 else:
                     profile.setdefault("binding", "openai")
+                    llm_spec = None
+                    legacy_iflytek_hint: str | None = None
+                    if service_name == "llm":
+                        raw_binding = _as_str(profile.get("binding")).lower().replace("-", "_")
+                        if _is_iflytek_x2_alias(raw_binding):
+                            legacy_iflytek_hint = "x2"
+                        elif _is_iflytek_x15_alias(raw_binding):
+                            legacy_iflytek_hint = "x1.5"
+                        canonical = canonical_provider_name(_as_str(profile.get("binding")))
+                        if canonical and any(spec.name == canonical for spec in PROVIDERS):
+                            profile["binding"] = canonical
+                            llm_spec = find_by_name(canonical)
+                        if llm_spec and llm_spec.name == "iflytek_spark_ws":
+                            base_url = _as_str(profile.get("base_url"))
+                            selected_model = ((profile.get("models") or [{}])[0] or {}).get(
+                                "model"
+                            )
+                            profile["base_url"] = _iflytek_ws_default_base(
+                                legacy_iflytek_hint or selected_model,
+                                base_url,
+                                profile.get("binding"),
+                            )
                     profile.setdefault("extra_headers", {})
                     models = profile.setdefault("models", [])
                     for model in models:
                         model.setdefault("id", f"{service_name}-model-{uuid4().hex[:8]}")
                         model.setdefault("name", model.get("model") or "Untitled Model")
                         model.setdefault("model", "")
+                        if service_name == "llm" and llm_spec and llm_spec.name == "iflytek_spark_ws":
+                            normalized_model = _normalize_iflytek_ws_model(
+                                model.get("model"),
+                                profile.get("base_url"),
+                                profile.get("binding"),
+                            )
+                            model["name"] = normalized_model
+                            model["model"] = normalized_model
                         if service_name == "embedding":
                             model.setdefault("dimension", "3072")
             if profiles and not service.get("active_profile_id"):
@@ -1427,6 +1598,129 @@ def _collect_provider_pool(catalog: dict[str, Any]) -> dict[str, NormalizedProvi
     return providers
 
 
+def _llm_provider_env_key(spec: ProviderSpec, env: EnvStore) -> str:
+    """Return a provider-specific LLM credential when the generic key is empty."""
+    env_names = [spec.env_key] if spec.env_key else []
+    if spec.name == "iflytek_spark_ws":
+        env_names.extend(
+            [
+                "IFLYTEK_SPARK_API_PASSWORD",
+                "IFLYTEK_SPARK_API_KEY",
+                "XFYUN_SPARK_API_PASSWORD",
+                "XFYUN_SPARK_API_KEY",
+                "IFLYTEK_SPARK_WS_API_KEY",
+                "IFLYTEK_WS_API_KEY",
+                "XFYUN_WS_API_KEY",
+                "SPARK_WS_API_KEY",
+            ]
+        )
+    for key in env_names:
+        value = env.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _iflytek_ws_env(env: EnvStore) -> dict[str, str]:
+    values: dict[str, str] = {}
+    candidates = {
+        "app_id": (
+            "IFLYTEK_SPARK_WS_APPID",
+            "IFLYTEK_SPARK_WS_APP_ID",
+            "IFLYTEK_WS_APPID",
+            "IFLYTEK_APPID",
+            "XFYUN_WS_APPID",
+            "SPARK_WS_APPID",
+        ),
+        "api_secret": (
+            "IFLYTEK_SPARK_WS_API_SECRET",
+            "IFLYTEK_WS_API_SECRET",
+            "XFYUN_WS_API_SECRET",
+            "SPARK_WS_API_SECRET",
+        ),
+        "domain": (
+            "IFLYTEK_SPARK_WS_DOMAIN",
+            "IFLYTEK_WS_DOMAIN",
+            "SPARK_WS_DOMAIN",
+        ),
+    }
+    for field, env_names in candidates.items():
+        for env_name in env_names:
+            value = env.get(env_name, "").strip()
+            if value:
+                values[field] = value
+                break
+    return values
+
+
+def _iflytek_ws_default_base(
+    model: str | None,
+    base_url: str | None = "",
+    binding_hint: str | None = "",
+) -> str:
+    return _iflytek_spark_default_base(model, base_url, binding_hint)
+
+
+def _normalize_iflytek_ws_model(
+    model: str | None,
+    base_url: str | None = "",
+    binding_hint: str | None = "",
+) -> str:
+    """Keep iFlytek OpenAI-compatible runtime on the official Spark-X model id."""
+    del model, base_url, binding_hint
+    return IFLYTEK_SPARK_MODEL
+
+
+def _iflytek_spark_default_base(
+    model: str | None = "",
+    base_url: str | None = "",
+    binding_hint: str | None = "",
+) -> str:
+    """Resolve X2/X1.5 by base URL or legacy aliases while keeping model=spark-x."""
+    key = (model or "").strip().lower()
+    binding_key = (binding_hint or "").strip().lower()
+    base_lower = (base_url or "").strip().lower()
+    if (
+        key in {"spark-x1.5", "spark-x15", "x1.5", "x15"}
+        or _is_iflytek_x15_alias(binding_key)
+        or "/v1/x1" in base_lower
+        or "spark-api-open.xf-yun.com/v2" in base_lower
+        or base_lower.rstrip("/").endswith("/v2")
+    ):
+        return IFLYTEK_SPARK_X15_BASE_URL
+    return IFLYTEK_SPARK_X2_BASE_URL
+
+
+def _is_iflytek_ws_supported_base_url(base_url: str | None) -> bool:
+    value = (base_url or "").strip().lower()
+    if not value.startswith("https://spark-api-open.xf-yun.com/"):
+        return False
+    return value.rstrip("/").endswith(("/x2", "/v2"))
+
+
+def _is_iflytek_x2_alias(value: str | None) -> bool:
+    key = (value or "").strip().lower().replace("-", "_")
+    return key in {"iflytek_spark_x2", "spark_x2", "iflytek_x2", "xfyun_x2", "xunfei_x2", "x2"}
+
+
+def _is_iflytek_x15_alias(value: str | None) -> bool:
+    key = (value or "").strip().lower().replace("-", "_")
+    return key in {
+        "iflytek_spark_x15",
+        "spark_x15",
+        "spark_x1_5",
+        "iflytek_x15",
+        "iflytek_x1_5",
+        "xfyun_x15",
+        "xfyun_x1_5",
+        "xunfei_x15",
+        "xunfei_x1_5",
+        "x15",
+        "x1_5",
+        "x1.5",
+    }
+
+
 def _choose_resolved_provider(
     *,
     hint: str | None,
@@ -1514,14 +1808,31 @@ def resolve_llm_runtime_config(
     )
 
     mapped = provider_pool.get(spec.name)
+    iflytek_model_hint = resolved_model
+    if spec.name == "iflytek_spark_ws":
+        resolved_model = _normalize_iflytek_ws_model(
+            resolved_model,
+            active_api_base,
+            binding_hint_raw,
+        )
     api_key = active_api_key or (mapped.api_key if mapped else "")
+    if not api_key and not spec.is_local and not spec.is_oauth:
+        api_key = _llm_provider_env_key(spec, env)
     api_base = active_api_base or ((mapped.api_base or "") if mapped else "")
     api_version = active_api_version or ((mapped.api_version or "") if mapped else "")
-    if not api_base and spec.default_api_base:
+    if spec.name == "iflytek_spark_ws":
+        api_base = _iflytek_ws_default_base(iflytek_model_hint, api_base, binding_hint_raw)
+    elif not api_base and spec.default_api_base:
         api_base = spec.default_api_base
     if not api_key and spec.is_local:
         api_key = "sk-no-key-required"
     extra_headers = active_extra_headers or ((mapped.extra_headers or {}) if mapped else {})
+    if spec.name == "iflytek_spark_ws":
+        extra_headers = {
+            key: value
+            for key, value in extra_headers.items()
+            if key.lower().replace("-", "_") not in {"app_id", "appid", "api_secret", "domain"}
+        }
 
     return ResolvedLLMConfig(
         model=resolved_model,
@@ -1624,6 +1935,38 @@ def _embedding_provider_env_key(provider: str, env: EnvStore) -> str:
     return ""
 
 
+def _iflytek_embedding_env(env: EnvStore) -> dict[str, str]:
+    values: dict[str, str] = {}
+    candidates = {
+        "app_id": (
+            "IFLYTEK_EMBEDDING_APPID",
+            "IFLYTEK_EMBEDDING_APP_ID",
+            "IFLYTEK_APPID",
+            "XFYUN_EMBEDDING_APPID",
+            "SPARK_EMBEDDING_APPID",
+        ),
+        "api_secret": (
+            "IFLYTEK_EMBEDDING_API_SECRET",
+            "IFLYTEK_SPARK_EMBEDDING_API_SECRET",
+            "XFYUN_EMBEDDING_API_SECRET",
+            "SPARK_EMBEDDING_API_SECRET",
+        ),
+        "domain": (
+            "IFLYTEK_EMBEDDING_DOMAIN",
+            "SPARK_EMBEDDING_DOMAIN",
+        ),
+    }
+    for field, env_names in candidates.items():
+        if field == "domain":
+            values[field] = "para"
+        for env_name in env_names:
+            value = env.get(env_name, "").strip()
+            if value:
+                values[field] = value
+                break
+    return values
+
+
 def resolve_embedding_runtime_config(
     catalog: dict[str, Any] | None = None,
     *,
@@ -1679,6 +2022,9 @@ def resolve_embedding_runtime_config(
         api_base = spec.default_api_base
     api_version = active_api_version or ((mapped.api_version or "") if mapped else "")
     extra_headers = active_extra_headers or ((mapped.extra_headers or {}) if mapped else {})
+
+    if provider_name == "iflytek_spark":
+        extra_headers = {**_iflytek_embedding_env(env), **extra_headers}
 
     if spec.is_local and not api_key:
         api_key = "sk-no-key-required"
@@ -1769,11 +2115,13 @@ def resolve_search_runtime_config(
 
     if provider == "searxng" and not base_url:
         base_url = env.get("SEARXNG_BASE_URL", "").strip()
+    elif provider == "iflytek_spark" and not base_url:
+        base_url = "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search"
 
     if provider in SEARCH_ENV_FALLBACK and not api_key:
         api_key = _provider_env_key(provider, env)
 
-    if provider in {"perplexity", "serper"} and not api_key:
+    if provider in {"perplexity", "serper", "iflytek_spark"} and not api_key:
         missing_credentials = True
 
     if unsupported:
@@ -1866,7 +2214,12 @@ def _get_llm_config_from_env() -> LLMConfig:
     api_key = _strip_value(env_store.get("LLM_API_KEY")) or ""
     base_url = _strip_value(env_store.get("LLM_HOST")) or None
     api_version = _strip_value(env_store.get("LLM_API_VERSION"))
-    spec = find_by_name(binding) or find_by_name("openai") or PROVIDERS[0]
+    spec = find_by_name(canonical_provider_name(binding) or binding) or find_by_name("openai") or PROVIDERS[0]
+    if spec.name == "iflytek_spark_ws":
+        if not api_key:
+            api_key = _llm_provider_env_key(spec, env_store)
+        base_url = _iflytek_ws_default_base(model, base_url, binding)
+        model = IFLYTEK_SPARK_MODEL
     if not base_url:
         base_url = spec.default_api_base or None
     if spec.is_local and not api_key:

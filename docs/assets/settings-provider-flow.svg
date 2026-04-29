@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="660" viewBox="0 0 1180 660" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave settings and provider resolution flow</title>
+  <desc id="desc">Settings page saves a model catalog, applies it to .env, invalidates runtime caches, and runtime resolvers produce effective LLM, embedding, and search configs.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 10; }
+      .ui { fill: #eef6ff; stroke: #3b82f6; }
+      .file { fill: #f2fbf5; stroke: #16a34a; }
+      .runtime { fill: #fff7ed; stroke: #f97316; }
+      .cache { fill: #fef2f2; stroke: #ef4444; }
+      .out { fill: #f5f3ff; stroke: #8b5cf6; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .h { font: 700 15px Arial, sans-serif; fill: #0f172a; }
+      .t { font: 13px Arial, sans-serif; fill: #334155; }
+      .mono { font: 12px Consolas, monospace; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="660"/>
+  <text class="title" x="40" y="46">设置与 Provider 配置流</text>
+  <text class="t" x="40" y="72">设置页维护 catalog；apply 会写回 .env 并让运行时重新解析。</text>
+
+  <rect class="box ui" x="45" y="112" width="240" height="126"/>
+  <text class="h" x="68" y="143">Settings Page</text>
+  <text class="mono" x="68" y="169">LLM profile + model</text>
+  <text class="mono" x="68" y="191">Embedding profile + model</text>
+  <text class="mono" x="68" y="213">Search profile</text>
+
+  <rect class="box ui" x="365" y="112" width="235" height="126"/>
+  <text class="h" x="388" y="143">Settings API</text>
+  <text class="mono" x="388" y="169">PUT /settings/catalog</text>
+  <text class="mono" x="388" y="191">POST /settings/apply</text>
+  <text class="mono" x="388" y="213">SSE tests/{service}</text>
+
+  <rect class="box file" x="680" y="112" width="225" height="126"/>
+  <text class="h" x="703" y="143">Persisted Config</text>
+  <text class="mono" x="703" y="169">model_catalog.json</text>
+  <text class="mono" x="703" y="191">interface.json</text>
+  <text class="mono" x="703" y="213">.env</text>
+
+  <rect class="box cache" x="965" y="112" width="175" height="126"/>
+  <text class="h" x="988" y="143">Cache Reset</text>
+  <text class="mono" x="988" y="169">LLM config</text>
+  <text class="mono" x="988" y="191">LLM client</text>
+  <text class="mono" x="988" y="213">Embedding + RAG</text>
+
+  <path class="line" d="M 285 175 L 365 175"/>
+  <path class="line" d="M 600 175 L 680 175"/>
+  <path class="soft" d="M 905 175 L 965 175"/>
+
+  <rect class="box runtime" x="95" y="330" width="255" height="150"/>
+  <text class="h" x="118" y="361">EnvStore</text>
+  <text class="mono" x="118" y="387">load .env -> os.environ</text>
+  <text class="mono" x="118" y="409">render active catalog</text>
+  <text class="mono" x="118" y="431">write legacy env keys</text>
+  <text class="t" x="118" y="456">兼容 CLI、旧入口和外部环境变量</text>
+
+  <rect class="box runtime" x="460" y="330" width="260" height="150"/>
+  <text class="h" x="483" y="361">Runtime Resolvers</text>
+  <text class="mono" x="483" y="387">resolve_llm_runtime_config</text>
+  <text class="mono" x="483" y="409">resolve_embedding_runtime_config</text>
+  <text class="mono" x="483" y="431">resolve_search_runtime_config</text>
+  <text class="t" x="483" y="456">provider 推断、默认地址、fallback</text>
+
+  <rect class="box out" x="830" y="330" width="260" height="150"/>
+  <text class="h" x="853" y="361">Effective Runtime</text>
+  <text class="mono" x="853" y="387">LLMConfig</text>
+  <text class="mono" x="853" y="409">EmbeddingConfig + adapter</text>
+  <text class="mono" x="853" y="431">ResolvedSearchConfig</text>
+  <text class="t" x="853" y="456">图节点、RAG、搜索工具实际使用</text>
+
+  <path class="line" d="M 792 238 C 760 288 530 285 350 360"/>
+  <path class="line" d="M 350 405 L 460 405"/>
+  <path class="line" d="M 720 405 L 830 405"/>
+
+  <rect class="box cache" x="210" y="548" width="760" height="70"/>
+  <text class="h" x="233" y="578">Apply 的关键副作用</text>
+  <text class="t" x="233" y="602">保存 catalog、写 .env、更新 os.environ，然后清理 LLM config/client、Embedding client、RAG pipeline cache。</text>
+</svg>

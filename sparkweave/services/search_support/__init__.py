@@ -36,6 +36,8 @@ _PROVIDER_KEY_ENV = {
     "tavily": "TAVILY_API_KEY",
     "jina": "JINA_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
+    "serper": "SERPER_API_KEY",
+    "iflytek_spark": "IFLYTEK_SEARCH_API_PASSWORD",
 }
 
 
@@ -72,7 +74,7 @@ def _assert_provider_supported(provider_name: str) -> None:
     if provider_name in _DEPRECATED_UNSUPPORTED:
         raise ValueError(
             f"Search provider `{provider_name}` is deprecated/unsupported. "
-            "Please switch to brave, tavily, jina, searxng, duckduckgo, perplexity, or serper."
+            "Please switch to brave, tavily, jina, searxng, duckduckgo, perplexity, serper, or iflytek_spark."
         )
     if provider_name not in SUPPORTED_SEARCH_PROVIDERS:
         allowed = ", ".join(sorted(SUPPORTED_SEARCH_PROVIDERS))
@@ -117,12 +119,18 @@ def web_search(
             provider_name = "duckduckgo"
         else:
             provider_kwargs.setdefault("api_key", api_key)
-    elif provider_name in {"perplexity", "serper"}:
+    elif provider_name in {"perplexity", "serper", "iflytek_spark"}:
         api_key = _resolve_provider_key(provider_name, resolved.api_key)
         if not api_key:
-            env_hint = "PERPLEXITY_API_KEY" if provider_name == "perplexity" else "SERPER_API_KEY"
+            env_hint = {
+                "perplexity": "PERPLEXITY_API_KEY",
+                "serper": "SERPER_API_KEY",
+                "iflytek_spark": "IFLYTEK_SEARCH_API_PASSWORD",
+            }[provider_name]
             raise ValueError(f"{provider_name} requires api_key (profile.api_key or {env_hint}).")
         provider_kwargs.setdefault("api_key", api_key)
+        if provider_name == "iflytek_spark" and resolved.base_url:
+            provider_kwargs.setdefault("base_url", resolved.base_url)
     elif provider_name == "searxng":
         base_url = provider_kwargs.get("base_url") or resolved.base_url
         if not base_url:

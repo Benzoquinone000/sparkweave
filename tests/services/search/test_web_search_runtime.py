@@ -62,6 +62,26 @@ def test_web_search_perplexity_missing_key_hard_fails(monkeypatch) -> None:
         web_search("hello")
 
 
+def test_web_search_iflytek_spark_missing_key_hard_fails(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sparkweave.services.search_support._get_web_search_config",
+        lambda: {"enabled": True},
+    )
+    monkeypatch.setattr(
+        "sparkweave.services.search_support.resolve_search_runtime_config",
+        lambda: ResolvedSearchConfig(
+            provider="iflytek_spark",
+            requested_provider="iflytek_spark",
+            api_key="",
+            max_results=5,
+            missing_credentials=True,
+        ),
+    )
+    monkeypatch.setattr("sparkweave.services.search_support._resolve_provider_key", lambda _p, _k: "")
+    with pytest.raises(ValueError, match="IFLYTEK_SEARCH_API_PASSWORD"):
+        web_search("hello")
+
+
 def test_web_search_missing_key_falls_back_to_duckduckgo(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
@@ -122,4 +142,35 @@ def test_web_search_searxng_uses_base_url(monkeypatch) -> None:
     assert captured["kwargs"]["base_url"] == "https://searx.example.com"
     assert captured["kwargs"]["max_results"] == 4
     assert result["provider"] == "searxng"
+
+
+def test_web_search_iflytek_spark_uses_base_url(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_get_provider(name: str, **kwargs):
+        captured["provider"] = name
+        captured["kwargs"] = kwargs
+        return _FakeProvider(name)
+
+    monkeypatch.setattr(
+        "sparkweave.services.search_support._get_web_search_config",
+        lambda: {"enabled": True},
+    )
+    monkeypatch.setattr(
+        "sparkweave.services.search_support.resolve_search_runtime_config",
+        lambda: ResolvedSearchConfig(
+            provider="iflytek_spark",
+            requested_provider="iflytek_spark",
+            api_key="api-password",
+            base_url="https://search-api-open.cn-huabei-1.xf-yun.com/v2/search",
+            max_results=6,
+        ),
+    )
+    monkeypatch.setattr("sparkweave.services.search_support.get_provider", _fake_get_provider)
+    result = web_search("hello")
+    assert captured["provider"] == "iflytek_spark"
+    assert captured["kwargs"]["api_key"] == "api-password"
+    assert captured["kwargs"]["base_url"] == "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search"
+    assert captured["kwargs"]["max_results"] == 6
+    assert result["provider"] == "iflytek_spark"
 

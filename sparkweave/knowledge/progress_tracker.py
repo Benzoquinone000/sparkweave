@@ -83,6 +83,13 @@ class ProgressTracker:
 
     def _save_progress(self, progress: dict):
         """Save progress to kb_config.json and local .progress.json file"""
+        try:
+            self.kb_dir.mkdir(parents=True, exist_ok=True)
+            with open(self.progress_file, "w", encoding="utf-8") as f:
+                json.dump(progress, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            _get_logger().warning("Failed to save progress file for %s: %s", self.kb_name, e)
+
         # Save to kb_config.json (centralized config)
         try:
             from sparkweave.knowledge.manager import KnowledgeBaseManager

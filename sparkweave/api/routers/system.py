@@ -9,10 +9,12 @@ import time
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from sparkweave.services.config import resolve_search_runtime_config
-from sparkweave.services.embedding import get_embedding_client, get_embedding_config
+from sparkweave.services.config import clear_llm_config_cache, resolve_search_runtime_config
+from sparkweave.services.diagnostics import explain_provider_error
+from sparkweave.services.embedding import EmbeddingClient, get_embedding_config, reset_embedding_client
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.llm import get_llm_config, get_token_limit_kwargs
+from sparkweave.services.rag_support.factory import reset_pipeline_cache
 from sparkweave.services.search import web_search
 
 router = APIRouter()
@@ -108,19 +110,19 @@ async def get_system_status():
                 result["search"]["status"] = "unsupported"
                 result["search"]["error"] = (
                     f"{search_config.requested_provider} is deprecated/unsupported. "
-                    "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity."
+                    "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity/serper/iflytek_spark."
                 )
             elif search_config.deprecated_provider:
                 result["search"]["status"] = "deprecated"
                 result["search"]["error"] = (
                     f"{search_config.requested_provider} is deprecated. "
-                    "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity."
+                    "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity/serper/iflytek_spark."
                 )
             elif search_config.missing_credentials:
                 result["search"]["status"] = "not_configured"
                 result["search"]["error"] = (
                     f"{search_config.requested_provider} requires api_key. "
-                    "Set profile.api_key or PERPLEXITY_API_KEY."
+                    "Set profile.api_key or the provider-specific API key env var."
                 )
             else:
                 result["search"]["status"] = "configured"
@@ -145,6 +147,7 @@ async def test_llm_connection():
     start_time = time.time()
 
     try:
+        clear_llm_config_cache()
         llm_config = get_llm_config()
         model = llm_config.model
         base_url = llm_config.base_url.rstrip("/")
@@ -191,14 +194,16 @@ async def test_llm_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"LLM configuration error: {e!s}", error=str(e))
+        detail = explain_provider_error("llm", e)
+        return TestResponse(success=False, message=f"LLM configuration error: {detail}", error=detail)
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
+        detail = explain_provider_error("llm", e)
         return TestResponse(
             success=False,
-            message=f"LLM connection failed: {e!s}",
+            message=f"LLM connection failed: {detail}",
             response_time_ms=round(response_time, 2),
-            error=str(e),
+            error=detail,
         )
 
 
@@ -213,8 +218,10 @@ async def test_embeddings_connection():
     start_time = time.time()
 
     try:
+        reset_embedding_client()
+        reset_pipeline_cache()
         embedding_config = get_embedding_config()
-        embedding_client = get_embedding_client()
+        embedding_client = EmbeddingClient(embedding_config)
 
         model = embedding_config.model
         binding = embedding_config.binding
@@ -240,16 +247,18 @@ async def test_embeddings_connection():
         )
 
     except ValueError as e:
+        detail = explain_provider_error("embedding", e)
         return TestResponse(
-            success=False, message=f"Embeddings configuration error: {e!s}", error=str(e)
+            success=False, message=f"Embeddings configuration error: {detail}", error=detail
         )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
+        detail = explain_provider_error("embedding", e)
         return TestResponse(
             success=False,
-            message=f"Embeddings connection failed: {e!s}",
+            message=f"Embeddings connection failed: {detail}",
             response_time_ms=round(response_time, 2),
-            error=str(e),
+            error=detail,
         )
 
 
@@ -271,13 +280,13 @@ async def test_search_connection():
                 message=(
                     f"Search provider `{search_config.requested_provider}` is deprecated/unsupported."
                 ),
-                error="Switch to brave/tavily/jina/searxng/duckduckgo/perplexity",
+                error="Switch to brave/tavily/jina/searxng/duckduckgo/perplexity/serper/iflytek_spark",
             )
         if search_config.missing_credentials:
             return TestResponse(
                 success=False,
                 message=f"Search provider `{search_config.requested_provider}` missing credentials.",
-                error="Set profile.api_key or PERPLEXITY_API_KEY",
+                error="Set profile.api_key or the provider-specific API key env var.",
             )
         result = await web_search(query="SparkWeave health check", provider=search_config.provider)
         response_time = (time.time() - start_time) * 1000
@@ -295,11 +304,12 @@ async def test_search_connection():
         return TestResponse(success=False, message=f"Search configuration error: {e!s}", error=str(e))
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
+        detail = explain_provider_error("search", e)
         return TestResponse(
             success=False,
-            message=f"Search connection check failed: {e!s}",
+            message=f"Search connection check failed: {detail}",
             response_time_ms=round(response_time, 2),
-            error=str(e),
+            error=detail,
         )
 
 

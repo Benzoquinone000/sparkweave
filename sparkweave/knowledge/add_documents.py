@@ -23,6 +23,18 @@ logger = get_logger("KnowledgeInit")
 DEFAULT_BASE_DIR = "./data/knowledge_bases"
 
 
+class DocumentAddError(RuntimeError):
+    """Base error for incremental document add failures."""
+
+
+class DocumentNameCollisionError(DocumentAddError):
+    """Raised when a different document already exists under the same raw filename."""
+
+
+class DocumentIndexingError(DocumentAddError):
+    """Raised when no staged document could be indexed successfully."""
+
+
 class DocumentAdder:
     """Add documents to an existing llamaindex knowledge base."""
 
@@ -109,8 +121,11 @@ class DocumentAdder:
                     files_to_process.append(dest_path)
                     continue
                 if not allow_duplicates:
-                    logger.info(f"Skipped (filename collision): {source_path.name}")
-                    continue
+                    raise DocumentNameCollisionError(
+                        f"File name collision for '{source_path.name}': a different file "
+                        "with the same name already exists in this knowledge base. "
+                        "Rename the file or rebuild the knowledge base to replace it."
+                    )
 
             shutil.copy2(source_path, dest_path)
             logger.info(f"Staged to raw: {source_path.name}")
@@ -256,6 +271,8 @@ async def add_documents(
             )
             return 0
         processed = await adder.process_new_documents(new_files)
+        if new_files and not processed:
+            raise DocumentIndexingError("No staged documents were indexed successfully.")
         adder.extract_numbered_items_for_new_docs(processed)
         adder.update_metadata(len(processed))
 

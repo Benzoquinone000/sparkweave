@@ -50,6 +50,16 @@ def _env(tmp_path: Path, lines: list[str]) -> EnvStore:
         "AZURE_API_KEY=",
         "COHERE_API_KEY=",
         "JINA_API_KEY=",
+        "IFLYTEK_EMBEDDING_APPID=",
+        "IFLYTEK_EMBEDDING_API_KEY=",
+        "IFLYTEK_EMBEDDING_API_SECRET=",
+        "IFLYTEK_SPARK_EMBEDDING_API_KEY=",
+        "IFLYTEK_SPARK_EMBEDDING_API_SECRET=",
+        "XFYUN_EMBEDDING_API_KEY=",
+        "XFYUN_EMBEDDING_API_SECRET=",
+        "SPARK_EMBEDDING_API_KEY=",
+        "SPARK_EMBEDDING_API_SECRET=",
+        "IFLYTEK_EMBEDDING_DOMAIN=",
         "HOSTED_VLLM_API_KEY=",
     ]
     env_path = tmp_path / ".env"
@@ -179,5 +189,54 @@ def test_embedding_provider_env_key_fallback(tmp_path: Path) -> None:
     resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=env)
     assert resolved.provider_name == "cohere"
     assert resolved.api_key == "cohere-test-key"
+
+
+def test_embedding_iflytek_spark_provider_defaults(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "iflytek_spark",
+            "base_url": "",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [{"id": "embedding-m", "name": "m", "model": "llm-embedding", "dimension": "2560"}],
+        }
+    )
+    env = _env(
+        tmp_path,
+        [
+            "IFLYTEK_EMBEDDING_APPID=iflytek-appid",
+            "IFLYTEK_EMBEDDING_API_KEY=iflytek-embedding-key",
+            "IFLYTEK_EMBEDDING_API_SECRET=iflytek-secret",
+        ],
+    )
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=env)
+    assert resolved.provider_name == "iflytek_spark"
+    assert resolved.effective_url == "https://emb-cn-huabei-1.xf-yun.com/"
+    assert resolved.api_key == "iflytek-embedding-key"
+    assert resolved.dimension == 2560
+    assert resolved.extra_headers["app_id"] == "iflytek-appid"
+    assert resolved.extra_headers["api_secret"] == "iflytek-secret"
+    assert resolved.extra_headers["domain"] == "para"
+
+
+def test_embedding_iflytek_alias_canonicalization(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "xfyun_embedding",
+            "base_url": "",
+            "api_key": "iflytek-key",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [{"id": "embedding-m", "name": "m", "model": "llm-embedding", "dimension": "2560"}],
+        }
+    )
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=_env(tmp_path, []))
+    assert resolved.provider_name == "iflytek_spark"
+    assert resolved.binding == "iflytek_spark"
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 from pathlib import Path
 
@@ -74,6 +75,13 @@ class _FakeInitializer:
 
 def _upload_payload() -> list[tuple[str, tuple[str, bytes, str]]]:
     return [("files", ("demo.txt", b"hello", "text/plain"))]
+
+
+def _duplicate_upload_payload() -> list[tuple[str, tuple[str, bytes, str]]]:
+    return [
+        ("files", ("demo.txt", b"hello", "text/plain")),
+        ("files", ("demo.txt", b"second", "text/plain")),
+    ]
 
 
 def test_rag_providers_returns_llamaindex_only() -> None:
@@ -181,6 +189,75 @@ def test_upload_ready_kb_returns_task_id(monkeypatch, tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body.get("task_id"), str) and body["task_id"]
+    kb_path = tmp_path / "knowledge_bases" / "ready-kb"
+    assert not (kb_path / "raw" / "demo.txt").exists()
+    staged_files = list((kb_path / ".uploads").glob("*/demo.txt"))
+    assert len(staged_files) == 1
+
+
+def test_upload_duplicate_filename_returns_400_and_rolls_back_staging(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    manager = _FakeKBManager(tmp_path / "knowledge_bases")
+    manager.config["knowledge_bases"]["ready-kb"] = {
+        "path": "ready-kb",
+        "rag_provider": "llamaindex",
+        "needs_reindex": False,
+        "status": "ready",
+    }
+    monkeypatch.setattr(knowledge_router_module, "get_kb_manager", lambda: manager)
+    monkeypatch.setattr(knowledge_router_module, "_kb_base_dir", tmp_path / "knowledge_bases")
+
+    with TestClient(_build_app()) as client:
+        response = client.post(
+            "/api/v1/knowledge/ready-kb/upload",
+            files=_duplicate_upload_payload(),
+        )
+
+    assert response.status_code == 400
+    assert "duplicate filename" in response.json()["detail"].lower()
+    assert not list((tmp_path / "knowledge_bases" / "ready-kb" / ".uploads").rglob("demo.txt"))
+
+
+def test_upload_processing_marks_error_when_no_staged_file_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    base_dir = tmp_path / "knowledge_bases"
+    kb_dir = base_dir / "ready-kb"
+    staging_dir = kb_dir / ".uploads" / "task-1"
+    staging_dir.mkdir(parents=True)
+    staged_file = staging_dir / "demo.txt"
+    staged_file.write_text("hello", encoding="utf-8")
+
+    class _FailingAdder:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def add_documents(self, file_paths, allow_duplicates=False):
+            return [Path(file_paths[0])]
+
+        async def process_new_documents(self, _staged_files):
+            return []
+
+    monkeypatch.setattr(knowledge_router_module, "DocumentAdder", _FailingAdder)
+
+    asyncio.run(
+        knowledge_router_module.run_upload_processing_task(
+            kb_name="ready-kb",
+            base_dir=str(base_dir),
+            uploaded_file_paths=[str(staged_file)],
+            task_id="kb_upload_test_no_indexed_files",
+            rag_provider="llamaindex",
+        )
+    )
+
+    progress = knowledge_router_module.ProgressTracker("ready-kb", base_dir).get_progress()
+    assert progress is not None
+    assert progress["stage"] == "error"
+    assert "No staged files were indexed successfully" in progress["error"]
+    assert not staging_dir.exists()
 
 
 def test_update_config_coerces_legacy_provider_to_llamaindex() -> None:

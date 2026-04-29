@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="640" viewBox="0 0 1180 640" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave question generation workflow</title>
+  <desc id="desc">Custom topic generation and mimic generation both converge into DeepQuestionGraph, then write structured quiz results and optional notebook entries.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 10; }
+      .input { fill: #eef6ff; stroke: #3b82f6; }
+      .graph { fill: #f2fbf5; stroke: #16a34a; }
+      .compat { fill: #fff7ed; stroke: #f97316; }
+      .store { fill: #f5f3ff; stroke: #8b5cf6; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .h { font: 700 15px Arial, sans-serif; fill: #0f172a; }
+      .t { font: 13px Arial, sans-serif; fill: #334155; }
+      .mono { font: 12px Consolas, monospace; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="640"/>
+  <text class="title" x="40" y="46">题目生成工作流</text>
+  <text class="t" x="40" y="72">新入口和旧兼容入口最终都落到 DeepQuestionGraph。</text>
+
+  <rect class="box input" x="45" y="115" width="250" height="116"/>
+  <text class="h" x="68" y="146">Main Runtime</text>
+  <text class="mono" x="68" y="172">/api/v1/ws</text>
+  <text class="mono" x="68" y="194">capability=deep_question</text>
+  <text class="mono" x="68" y="216">mode=custom or mimic</text>
+
+  <rect class="box compat" x="45" y="300" width="250" height="116"/>
+  <text class="h" x="68" y="331">Compatibility WS</text>
+  <text class="mono" x="68" y="357">/question/generate</text>
+  <text class="mono" x="68" y="379">/question/mimic</text>
+  <text class="mono" x="68" y="401">AgentCoordinator facade</text>
+
+  <rect class="box graph" x="390" y="115" width="250" height="116"/>
+  <text class="h" x="413" y="146">Custom Inputs</text>
+  <text class="mono" x="413" y="172">topic + preference</text>
+  <text class="mono" x="413" y="194">difficulty + type</text>
+  <text class="mono" x="413" y="216">optional RAG context</text>
+
+  <rect class="box graph" x="390" y="300" width="250" height="116"/>
+  <text class="h" x="413" y="331">Mimic Inputs</text>
+  <text class="mono" x="413" y="357">PDF + MinerU</text>
+  <text class="mono" x="413" y="379">parsed directory</text>
+  <text class="mono" x="413" y="401">questions JSON</text>
+
+  <rect class="box graph" x="735" y="115" width="270" height="301"/>
+  <text class="h" x="760" y="146">DeepQuestionGraph</text>
+  <text class="mono" x="760" y="178">1. ideation</text>
+  <text class="t" x="782" y="199">templates or reference questions</text>
+  <text class="mono" x="760" y="232">2. generation</text>
+  <text class="t" x="782" y="253">question + answer + explanation</text>
+  <text class="mono" x="760" y="286">3. validation</text>
+  <text class="t" x="782" y="307">schema check by question_type</text>
+  <text class="mono" x="760" y="340">4. repair</text>
+  <text class="t" x="782" y="361">only invalid payloads</text>
+  <text class="mono" x="760" y="394">5. write summary</text>
+
+  <path class="line" d="M 295 173 L 390 173"/>
+  <path class="line" d="M 295 358 L 390 358"/>
+  <path class="line" d="M 640 173 L 735 210"/>
+  <path class="line" d="M 640 358 L 735 320"/>
+
+  <rect class="box store" x="155" y="505" width="250" height="92"/>
+  <text class="h" x="178" y="536">Structured Result</text>
+  <text class="mono" x="178" y="562">summary.results[]</text>
+  <text class="mono" x="178" y="584">qa_pair + validation</text>
+
+  <rect class="box store" x="515" y="505" width="250" height="92"/>
+  <text class="h" x="538" y="536">Question Notebook</text>
+  <text class="mono" x="538" y="562">/question-notebook/entries</text>
+  <text class="mono" x="538" y="584">bookmarks + categories</text>
+
+  <rect class="box store" x="875" y="505" width="250" height="92"/>
+  <text class="h" x="898" y="536">Frontend Quiz UI</text>
+  <text class="mono" x="898" y="562">render by question_type</text>
+  <text class="mono" x="898" y="584">save attempts to notebook</text>
+
+  <path class="line" d="M 870 416 C 790 470 540 470 405 530"/>
+  <path class="line" d="M 405 551 L 515 551"/>
+  <path class="line" d="M 765 551 L 875 551"/>
+  <path class="soft" d="M 170 416 C 180 470 220 490 280 505"/>
+</svg>

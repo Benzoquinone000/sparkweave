@@ -93,6 +93,11 @@ def get_pipeline(
     return _PIPELINE_CACHE[kb_base_dir]
 
 
+def reset_pipeline_cache() -> None:
+    """Drop cached RAG pipelines so runtime config changes take effect."""
+    _PIPELINE_CACHE.clear()
+
+
 def list_pipelines() -> List[Dict[str, str]]:
     """Return the single available pipeline (kept for callers that still ask)."""
     return [
@@ -109,5 +114,6 @@ __all__ = [
     "get_pipeline",
     "list_pipelines",
     "normalize_provider_name",
+    "reset_pipeline_cache",
 ]
 

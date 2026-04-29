@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave Tool Execution Flow</title>
+  <desc id="desc">A diagram showing how SparkWeave capabilities call the shared tool registry, built-in tool wrappers, service layer, StreamBus events, and the separate SparkBot workspace registry.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="softArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .band { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .cap { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .registry { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .tool { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .service { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; }
+      .event { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .sparkbot { fill: #f1f5f9; stroke: #475569; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 24px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#softArrow); }
+      .dash { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#softArrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="760"/>
+  <text class="title" x="40" y="44">SparkWeave Level 1 Tools 执行链路</text>
+  <text class="t" x="40" y="70">Tools 是轻量单步能力；Capabilities 负责决定何时调用它们，并把调用轨迹写入事件流。</text>
+
+  <rect class="band" x="40" y="105" width="210" height="90" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="62" y="135">Turn Request</text>
+  <text class="mono" x="62" y="160">tools: ["rag", "web_search"]</text>
+  <text class="mono" x="62" y="178">knowledge_bases: ["math"]</text>
+
+  <rect class="cap" x="315" y="90" width="270" height="210" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="337" y="120">Capability Graphs</text>
+  <text class="t" x="337" y="148">ChatGraph: tool calling + parallel run</text>
+  <text class="t" x="337" y="172">DeepSolve: select or fallback tools</text>
+  <text class="t" x="337" y="196">DeepResearch: sources map to tools</text>
+  <text class="t" x="337" y="220">DeepQuestion: RAG during ideation</text>
+  <text class="small" x="337" y="256">负责补齐 kb_name、session_id、turn_id、feature</text>
+  <text class="small" x="337" y="276">并发、轮次上限和 warning 也在图内处理</text>
+
+  <rect class="registry" x="660" y="90" width="230" height="210" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="682" y="120">LangChainToolRegistry</text>
+  <text class="t" x="682" y="148">get_tools(names)</text>
+  <text class="t" x="682" y="172">bind_tools(model)</text>
+  <text class="t" x="682" y="196">execute(name, args)</text>
+  <line class="soft" x1="690" y1="220" x2="860" y2="220"/>
+  <text class="h" x="682" y="250">ToolRegistry</text>
+  <text class="small" x="682" y="274">aliases, schemas, prompt hints</text>
+
+  <rect class="tool" x="960" y="90" width="200" height="210" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="982" y="120">Built-in Tools</text>
+  <text class="t" x="982" y="148">rag</text>
+  <text class="t" x="982" y="170">web_search</text>
+  <text class="t" x="982" y="192">code_execution</text>
+  <text class="t" x="982" y="214">reason / brainstorm</text>
+  <text class="t" x="982" y="236">paper_search</text>
+  <text class="t" x="982" y="258">geogebra_analysis</text>
+
+  <path class="line" d="M250 150 C280 150, 285 150, 315 150"/>
+  <path class="line" d="M585 175 C620 175, 625 175, 660 175"/>
+  <path class="line" d="M890 175 C920 175, 930 175, 960 175"/>
+
+  <rect class="service" x="80" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="102" y="412">RAG Service</text>
+  <text class="small" x="102" y="438">services/rag.py</text>
+  <text class="small" x="102" y="458">LlamaIndex pipeline</text>
+
+  <rect class="service" x="270" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="292" y="412">Search Service</text>
+  <text class="small" x="292" y="438">services/search.py</text>
+  <text class="small" x="292" y="458">provider + citations</text>
+
+  <rect class="service" x="460" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="482" y="412">Code Runner</text>
+  <text class="small" x="482" y="438">services/code_execution.py</text>
+  <text class="small" x="482" y="458">task workspace</text>
+
+  <rect class="service" x="650" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="672" y="412">LLM Helpers</text>
+  <text class="small" x="672" y="438">reasoning.py</text>
+  <text class="small" x="672" y="458">reason / brainstorm</text>
+
+  <rect class="service" x="840" y="380" width="150" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="862" y="412">Paper Search</text>
+  <text class="small" x="862" y="438">services/papers.py</text>
+  <text class="small" x="862" y="458">arXiv metadata</text>
+
+  <rect class="service" x="1020" y="380" width="140" height="100" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1042" y="412">Vision</text>
+  <text class="small" x="1042" y="438">services/vision.py</text>
+  <text class="small" x="1042" y="458">GeoGebra pipeline</text>
+
+  <path class="soft" d="M1045 300 C1010 330, 210 330, 160 380"/>
+  <path class="soft" d="M1055 300 C1010 345, 400 340, 350 380"/>
+  <path class="soft" d="M1065 300 C1025 355, 590 350, 540 380"/>
+  <path class="soft" d="M1075 300 C1030 365, 780 355, 730 380"/>
+  <path class="soft" d="M1085 300 C1040 365, 950 350, 915 380"/>
+  <path class="soft" d="M1095 300 C1110 330, 1110 350, 1090 380"/>
+
+  <rect class="event" x="360" y="575" width="480" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="382" y="608">ToolResult + StreamBus Events</text>
+  <text class="t" x="382" y="636">ToolResult(content, sources, metadata, success)</text>
+  <text class="t" x="382" y="660">tool_call / progress / tool_result / sources / result</text>
+
+  <path class="line" d="M160 480 C245 540, 300 585, 360 625"/>
+  <path class="line" d="M350 480 C395 530, 430 560, 470 575"/>
+  <path class="line" d="M540 480 C555 525, 575 550, 590 575"/>
+  <path class="line" d="M730 480 C705 525, 685 550, 660 575"/>
+  <path class="line" d="M915 480 C855 530, 805 560, 750 575"/>
+  <path class="line" d="M1090 480 C990 540, 900 570, 840 610"/>
+
+  <rect class="registry" x="40" y="575" width="250" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="62" y="608">Prompt Hints</text>
+  <text class="small" x="62" y="634">services/prompt_hints/{zh,en}</text>
+  <text class="small" x="62" y="654">list / table / aliases / phased</text>
+  <path class="dash" d="M165 575 C250 480, 420 360, 710 290"/>
+
+  <rect class="sparkbot" x="910" y="575" width="250" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="932" y="608">SparkBot Registry</text>
+  <text class="small" x="932" y="634">workspace file/edit/exec/web_fetch</text>
+  <text class="small" x="932" y="654">adapts selected NG tools</text>
+  <text class="small" x="932" y="674">separate from default Level 1 runtime</text>
+  <path class="dash" d="M1035 575 C1000 510, 975 405, 985 300"/>
+</svg>

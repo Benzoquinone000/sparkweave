@@ -9,6 +9,7 @@ import asyncio
 from datetime import datetime
 import os
 from pathlib import Path
+import shutil
 import traceback
 from uuid import uuid4
 
@@ -28,7 +29,7 @@ from pydantic import BaseModel
 from sparkweave.api.utils.progress_broadcaster import ProgressBroadcaster
 from sparkweave.api.utils.task_id_manager import TaskIDManager
 from sparkweave.api.utils.task_log_stream import capture_task_logs, get_task_stream_manager
-from sparkweave.knowledge.add_documents import DocumentAdder
+from sparkweave.knowledge.add_documents import DocumentAdder, DocumentIndexingError
 from sparkweave.knowledge.initializer import KnowledgeBaseInitializer
 from sparkweave.knowledge.manager import KnowledgeBaseManager
 from sparkweave.knowledge.progress_tracker import ProgressStage, ProgressTracker
@@ -112,6 +113,8 @@ def _save_uploaded_files(
 ) -> tuple[list[str], list[str]]:
     uploaded_files: list[str] = []
     uploaded_file_paths: list[str] = []
+    seen_names: set[str] = set()
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     for file in files:
         file_path = None
@@ -121,6 +124,9 @@ def _save_uploaded_files(
                 original_filename, None, allowed_extensions=allowed_extensions
             )
             file.filename = sanitized_filename
+            if sanitized_filename in seen_names:
+                raise ValueError(f"Duplicate filename in upload batch: {sanitized_filename}")
+            seen_names.add(sanitized_filename)
 
             file_path = target_dir / sanitized_filename
             max_size = DocumentValidator.MAX_FILE_SIZE
@@ -148,6 +154,11 @@ def _save_uploaded_files(
                     os.unlink(file_path)
                 except OSError:
                     pass
+            for staged_path in uploaded_file_paths:
+                try:
+                    os.unlink(staged_path)
+                except OSError:
+                    pass
 
             error_message = (
                 f"Validation failed for file '{original_filename}': {format_exception_message(e)}"
@@ -156,6 +167,31 @@ def _save_uploaded_files(
             raise HTTPException(status_code=400, detail=error_message) from e
 
     return uploaded_files, uploaded_file_paths
+
+
+def _cleanup_upload_staging(uploaded_file_paths: list[str], base_dir: str, kb_name: str) -> None:
+    """Remove per-task upload staging dirs without touching raw or linked folders."""
+    staging_root = (Path(base_dir) / kb_name / ".uploads").resolve()
+    candidate_dirs: set[Path] = set()
+
+    for file_path in uploaded_file_paths:
+        try:
+            parent = Path(file_path).resolve().parent
+        except OSError:
+            continue
+        if parent == staging_root:
+            continue
+        if staging_root in parent.parents:
+            candidate_dirs.add(parent)
+
+    for directory in candidate_dirs:
+        try:
+            resolved = directory.resolve()
+            if staging_root not in resolved.parents:
+                continue
+            shutil.rmtree(resolved, ignore_errors=True)
+        except OSError:
+            logger.debug(f"Failed to remove upload staging directory: {directory}", exc_info=True)
 
 
 def _task_log(task_id: str, message: str, level: str = "info") -> None:
@@ -328,6 +364,8 @@ async def run_upload_processing_task(
 
             processed_files = await adder.process_new_documents(staged_files)
             _task_log(task_id, f"Indexed {len(processed_files)} file(s)")
+            if staged_files and not processed_files:
+                raise DocumentIndexingError("No staged files were indexed successfully.")
 
             if processed_files:
                 progress_tracker.update(
@@ -373,6 +411,8 @@ async def run_upload_processing_task(
                 ProgressStage.ERROR, f"Processing failed: {error_msg}", error=error_msg
             )
             task_stream_manager.emit_failed(task_id, error_msg)
+        finally:
+            _cleanup_upload_staging(uploaded_file_paths, base_dir, kb_name)
 
 
 @router.get("/health")
@@ -631,12 +671,14 @@ async def upload_files(
                     "Update KB config first."
                 ),
             )
-        allowed_extensions = FileTypeRouter.get_supported_extensions()
-        uploaded_files, uploaded_file_paths = _save_uploaded_files(
-            files, raw_dir, allowed_extensions=allowed_extensions
-        )
         task_id = _build_unique_task_id("kb_upload", kb_name)
         get_task_stream_manager().ensure_task(task_id)
+
+        allowed_extensions = FileTypeRouter.get_supported_extensions()
+        staging_dir = kb_path / ".uploads" / task_id
+        uploaded_files, uploaded_file_paths = _save_uploaded_files(
+            files, staging_dir, allowed_extensions=allowed_extensions
+        )
 
         logger.info(f"Uploading {len(uploaded_files)} files to KB '{kb_name}'")
 

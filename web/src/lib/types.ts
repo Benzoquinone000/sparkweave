@@ -608,6 +608,8 @@ export interface ProviderChoice {
   value: string;
   label: string;
   base_url?: string;
+  default_model?: string;
+  models?: string[];
   default_dim?: string;
 }
 

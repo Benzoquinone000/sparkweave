@@ -10,6 +10,12 @@ from .math_animator import (
 )
 from .memory import create_memory_service, get_memory
 from .notebook import create_notebook_manager, get_notebooks
+from .ocr import (
+    OcrUnavailable,
+    is_iflytek_ocr_configured,
+    ocr_pdf_with_iflytek,
+    recognize_image_with_iflytek,
+)
 from .papers import search_arxiv_papers
 from .paths import get_path_service, get_research_checkpoint_db_path
 from .prompting import load_prompt_hints
@@ -43,6 +49,7 @@ __all__ = [
     "CompatibilityRuntimeUnavailable",
     "LegacyRuntimeUnavailable",
     "NotebookAnalysisAgent",
+    "OcrUnavailable",
     "QuestionParsingUnavailable",
     "SQLiteSessionStore",
     "analyze_geogebra_image",
@@ -58,6 +65,7 @@ __all__ = [
     "get_llm_config",
     "get_memory",
     "get_notebooks",
+    "is_iflytek_ocr_configured",
     "get_path_service",
     "get_research_checkpoint_db_path",
     "get_runtime_manager",
@@ -73,6 +81,8 @@ __all__ = [
     "run_python_code",
     "search_arxiv_papers",
     "parse_pdf_with_mineru",
+    "ocr_pdf_with_iflytek",
+    "recognize_image_with_iflytek",
     "validate_capability_config",
     "web_search",
 ]

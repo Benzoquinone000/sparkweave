@@ -44,7 +44,7 @@ def test_load_hydrates_empty_catalog_from_env(tmp_path: Path, monkeypatch):
     service = ModelCatalogService(path=catalog_path)
     catalog = service.load()
 
-    assert catalog["services"]["llm"]["profiles"][0]["binding"] == "google"
+    assert catalog["services"]["llm"]["profiles"][0]["binding"] == "gemini"
     assert catalog["services"]["llm"]["profiles"][0]["extra_headers"] == {}
     assert catalog["services"]["llm"]["profiles"][0]["models"][0]["model"] == "gemini-3-flash-preview"
     assert catalog["services"]["embedding"]["profiles"][0]["models"][0]["dimension"] == "3072"

@@ -235,6 +235,18 @@ LLM_API_KEY=your-api-key
 LLM_HOST=https://api.openai.com/v1
 ```
 
+如果希望使用科大讯飞星火大模型，请在设置页选择 `iFlytek Spark X`，或直接配置：
+
+```env
+LLM_BINDING=iflytek_spark_ws
+LLM_MODEL=spark-x
+LLM_API_KEY=your-iflytek-api-password-or-ak-sk
+LLM_HOST=https://spark-api-open.xf-yun.com/x2/
+```
+
+讯飞星火大模型在本项目中仅保留 X2 与 X1.5 两个 OpenAI 兼容 HTTP 入口，模型名统一为 `spark-x`。X2 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/x2/`，X1.5 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/v2/`。`LLM_API_KEY` 可填写 HTTP 协议的 APIPassword，或按官方说明填写 `APIKey:APISecret`。
+设置页选择 `iFlytek Spark X` 后会提供两种鉴权方式：直接填写 `APIPassword`，或分别填写 `APIKey` 与 `APISecret`，保存时会自动拼接为 `APIKey:APISecret`。
+
 使用知识库 RAG 时，还需要配置 Embedding：
 
 ```env
@@ -245,6 +257,32 @@ EMBEDDING_HOST=https://api.openai.com/v1
 EMBEDDING_DIMENSION=3072
 ```
 
+也可以在设置页选择 `iFlytek Spark Embedding`，或直接配置科大讯飞向量服务：
+
+```env
+EMBEDDING_BINDING=iflytek_spark
+EMBEDDING_MODEL=llm-embedding
+EMBEDDING_API_KEY=your-iflytek-embedding-apikey
+EMBEDDING_HOST=https://emb-cn-huabei-1.xf-yun.com/
+EMBEDDING_DIMENSION=2560
+IFLYTEK_EMBEDDING_APPID=your-iflytek-appid
+IFLYTEK_EMBEDDING_API_SECRET=your-iflytek-embedding-apisecret
+```
+
+讯飞 llm Embedding 使用独立签名鉴权，同样配置 `APPID`、`APIKey`、`APISecret` 三项；在设置页选择 `iFlytek Spark Embedding` 后也会出现对应输入框。系统会按文档自动为文档向量使用 `domain=para`，为查询向量使用 `domain=query`，返回 2560 维 float32 向量。官方文档：https://www.xfyun.cn/doc/spark/Embedding_api.html
+
+如需让扫描版 PDF 优先走科大讯飞 OCR，可配置：
+
+```env
+SPARKWEAVE_OCR_PROVIDER=iflytek
+SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first
+IFLYTEK_OCR_APPID=your-appid
+IFLYTEK_OCR_API_KEY=your-api-key
+IFLYTEK_OCR_API_SECRET=your-api-secret
+```
+
+`iflytek_first` 表示知识库 PDF 会先调用讯飞 OCR；当 OCR 未配置、网络失败、接口报错或返回为空时，会自动回退到默认 PyMuPDF 文本层解析。若希望优先使用默认解析，只在文本过少时 OCR，可设为 `SPARKWEAVE_PDF_OCR_STRATEGY=auto`。
+
 常用端口：
 
 ```env
@@ -254,6 +292,16 @@ VITE_API_BASE=http://localhost:8001
 ```
 
 本地模型可把 `LLM_HOST` 或 `EMBEDDING_HOST` 指向 LM Studio、Ollama、vLLM 等兼容服务。
+
+联网搜索支持 DuckDuckGo、SearXNG、Jina、Brave、Tavily、Perplexity、Serper 和科大讯飞 ONE SEARCH。讯飞搜索按官方 Search API 使用 `APIPassword`：
+
+```env
+SEARCH_PROVIDER=iflytek_spark
+SEARCH_API_KEY=your-iflytek-search-apipassword
+SEARCH_BASE_URL=https://search-api-open.cn-huabei-1.xf-yun.com/v2/search
+```
+
+也可以把讯飞搜索密钥写入 `IFLYTEK_SEARCH_API_PASSWORD`，设置页选择 `iFlytek ONE SEARCH` 后保存即可。官方文档：https://www.xfyun.cn/doc/spark/Search_API/search_API.html
 
 ## Web 前端
 
@@ -345,6 +393,8 @@ sparkweave kb upload code --file .\notes.md
 ```
 
 在前端可以进入 `/knowledge` 上传资料、查看索引进度并设置默认知识库。RAG 失败时优先检查 `.env` 中的 `EMBEDDING_*` 配置、文件 MIME 类型和后端日志。
+
+扫描版 PDF 的知识库索引支持可选讯飞 OCR：配置 `IFLYTEK_OCR_*` 后，`SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first` 会先识别页面图像，再写入 LlamaIndex；OCR 不可用时仍保留默认 PyMuPDF 回退，不会阻断知识库创建。
 
 ## SparkBot
 

@@ -114,6 +114,26 @@ def _reconcile_embedding_flags(knowledge_bases: dict) -> bool:
     return changed
 
 
+def _is_llamaindex_storage_ready(storage_dir: Path | None) -> bool:
+    """Return True when the persisted LlamaIndex index has its core files."""
+    if storage_dir is None or not storage_dir.exists() or not storage_dir.is_dir():
+        return False
+
+    required_files = (
+        "docstore.json",
+        "index_store.json",
+        "default__vector_store.json",
+    )
+    for file_name in required_files:
+        path = storage_dir / file_name
+        try:
+            if not path.is_file() or path.stat().st_size <= 0:
+                return False
+        except OSError:
+            return False
+    return True
+
+
 class KnowledgeBaseManager:
     """Manager for knowledge bases"""
 
@@ -305,7 +325,7 @@ class KnowledgeBaseManager:
                 llamaindex_storage = item / "llamaindex_storage"
                 is_valid_kb = (
                     (rag_storage.exists() and rag_storage.is_dir()) or
-                    (llamaindex_storage.exists() and llamaindex_storage.is_dir())
+                    _is_llamaindex_storage_ready(llamaindex_storage)
                 )
                 
                 if is_valid_kb:
@@ -360,7 +380,7 @@ class KnowledgeBaseManager:
         if "rag_provider" not in kb_entry:
             rag_storage = kb_dir / "rag_storage"
             llamaindex_storage = kb_dir / "llamaindex_storage"
-            if llamaindex_storage.exists():
+            if _is_llamaindex_storage_ready(llamaindex_storage):
                 kb_entry["rag_provider"] = DEFAULT_PROVIDER
             elif rag_storage.exists():
                 kb_entry["rag_provider"] = DEFAULT_PROVIDER
@@ -545,14 +565,18 @@ class KnowledgeBaseManager:
 
         # KB might not have a directory yet if still initializing
         dir_exists = kb_dir.exists()
+        llamaindex_storage_dir = kb_dir / "llamaindex_storage" if dir_exists else None
 
-        # For old KBs without status field, determine status from rag_storage
+        storage_ready = _is_llamaindex_storage_ready(llamaindex_storage_dir)
+
+        # For old KBs without status field, determine status from storage.
         if needs_reindex:
             status = "needs_reindex"
+        elif status == "ready" and not storage_ready:
+            status = "unknown"
         elif not status and dir_exists:
             rag_storage_dir = kb_dir / "rag_storage"
-            llamaindex_storage_dir = kb_dir / "llamaindex_storage"
-            if llamaindex_storage_dir.exists() and any(llamaindex_storage_dir.iterdir()):
+            if storage_ready:
                 status = "ready"
             elif rag_storage_dir.exists() and any(rag_storage_dir.iterdir()):
                 status = "needs_reindex"
@@ -593,7 +617,6 @@ class KnowledgeBaseManager:
         images_dir = kb_dir / "images" if dir_exists else None
         content_list_dir = kb_dir / "content_list" if dir_exists else None
         rag_storage_dir = kb_dir / "rag_storage" if dir_exists else None
-        llamaindex_storage_dir = kb_dir / "llamaindex_storage" if dir_exists else None
 
         raw_count = 0
         images_count = 0
@@ -624,9 +647,7 @@ class KnowledgeBaseManager:
                 pass
 
         # Check rag_initialized (llamaindex storage only)
-        rag_initialized = (
-            (dir_exists and llamaindex_storage_dir and llamaindex_storage_dir.exists() and llamaindex_storage_dir.is_dir())
-        )
+        rag_initialized = storage_ready
 
         info["statistics"] = {
             "raw_documents": raw_count,

@@ -52,7 +52,11 @@ async def test_rag_tool_forwards_query_and_extra_kwargs(monkeypatch: pytest.Monk
 
     async def fake_rag_search(**kwargs: Any) -> dict[str, Any]:
         captured.update(kwargs)
-        return {"answer": "grounded answer", "provider": "fake"}
+        return {
+            "answer": "grounded answer",
+            "provider": "fake",
+            "sources": [{"title": "Demo", "source": "demo.txt"}],
+        }
 
     monkeypatch.setattr("sparkweave.services.rag.rag_search", fake_rag_search)
 
@@ -68,6 +72,38 @@ async def test_rag_tool_forwards_query_and_extra_kwargs(monkeypatch: pytest.Monk
     assert captured["kb_name"] == "demo-kb"
     assert captured["mode"] == "hybrid"
     assert captured["only_need_context"] is True
+    assert result.sources == [{"title": "Demo", "source": "demo.txt"}]
+    assert result.success is True
+
+
+@pytest.mark.asyncio
+async def test_rag_tool_skips_when_no_kb_selected() -> None:
+    result = await RAGTool().execute(query="what is a tensor")
+
+    assert result.success is False
+    assert result.metadata["reason"] == "no_kb_selected"
+    assert "no knowledge base" in result.content.lower()
+
+
+@pytest.mark.asyncio
+async def test_rag_tool_propagates_backend_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_rag_search(**_kwargs: Any) -> dict[str, Any]:
+        return {
+            "answer": "Search failed: boom",
+            "content": "",
+            "provider": "fake",
+            "success": False,
+            "error": "boom",
+            "sources": [{"title": "Demo", "source": "demo.txt"}],
+        }
+
+    monkeypatch.setattr("sparkweave.services.rag.rag_search", fake_rag_search)
+
+    result = await RAGTool().execute(query="what is a tensor", kb_name="demo-kb")
+
+    assert result.success is False
+    assert result.metadata["error"] == "boom"
+    assert result.sources == [{"title": "Demo", "source": "demo.txt"}]
 
 
 @pytest.mark.asyncio

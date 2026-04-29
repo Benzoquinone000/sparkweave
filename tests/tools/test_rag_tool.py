@@ -14,7 +14,9 @@ from sparkweave.services.rag_support.factory import (
     get_pipeline,
     list_pipelines,
     normalize_provider_name,
+    reset_pipeline_cache,
 )
+from sparkweave.services.rag_support import factory as rag_factory
 
 
 class TestNormalizeProviderName:
@@ -52,6 +54,13 @@ class TestPipelineFactory:
         except (ValueError, ImportError) as exc:
             pytest.skip(f"LlamaIndex optional dependency missing: {exc}")
         assert a is b is c
+
+    def test_reset_pipeline_cache_clears_cached_instances(self) -> None:
+        rag_factory._PIPELINE_CACHE["demo"] = object()
+
+        reset_pipeline_cache()
+
+        assert rag_factory._PIPELINE_CACHE == {}
 
 
 class TestRAGServiceClassHelpers:

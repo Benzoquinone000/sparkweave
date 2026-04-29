@@ -1092,6 +1092,19 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
   await page.getByTestId("settings-llm-base-url").fill("https://updated-llm.example/v1");
   await page.getByTestId("settings-llm-model").fill("gpt-updated");
   await page.getByTestId("settings-llm-api-key").fill("sk-updated");
+  await page.getByTestId("settings-search-provider").selectOption("tavily");
+  await expect(page.getByTestId("settings-search-base-url")).toHaveValue("https://api.tavily.com/search");
+  await page.getByTestId("settings-embedding-provider").selectOption("cohere");
+  await expect(page.getByTestId("settings-embedding-base-url")).toHaveValue("https://api.cohere.ai");
+  await expect(page.getByTestId("settings-embedding-model")).toHaveValue("embed-v4.0");
+  await expect(page.getByTestId("settings-embedding-dimension")).toHaveValue("1024");
+  await page.getByTestId("settings-embedding-provider").selectOption("iflytek_spark");
+  await expect(page.getByTestId("settings-embedding-base-url")).toHaveValue("https://emb-cn-huabei-1.xf-yun.com/");
+  await expect(page.getByTestId("settings-embedding-model")).toHaveValue("llm-embedding");
+  await expect(page.getByTestId("settings-embedding-dimension")).toHaveValue("2560");
+  await page.getByTestId("settings-embedding-iflytek-appid").fill("iflytek-appid");
+  await page.getByTestId("settings-embedding-iflytek-api-secret").fill("iflytek-secret");
+  await page.getByTestId("settings-embedding-iflytek-domain").selectOption("para");
   await page.getByTestId("settings-embedding-model").fill("embedding-updated");
   await page.getByTestId("settings-embedding-dimension").fill("2048");
   await page.getByTestId("settings-save-apply").click();
@@ -1104,6 +1117,11 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
     "gpt-updated",
   );
   await expect.poll(() => settings.catalogPayload?.catalog?.services?.embedding?.profiles?.[0]?.models?.[0]?.dimension).toBe("2048");
+  await expect.poll(() => settings.catalogPayload?.catalog?.services?.embedding?.profiles?.[0]?.extra_headers).toEqual({
+    app_id: "iflytek-appid",
+    api_secret: "iflytek-secret",
+    domain: "para",
+  });
   await expect.poll(() => settings.applyPayload?.catalog?.services?.llm?.profiles?.[0]?.models?.[0]?.model).toBe("gpt-updated");
   await expect.poll(() => settings.uiPayload).toEqual({ language: "zh", theme: "light" });
   await expect(page.getByText("配置已保存并应用到运行时。")).toBeVisible();
@@ -4589,8 +4607,37 @@ async function mockSettingsTourApis(page: import("@playwright/test").Page) {
     },
     providers: {
       llm: [{ value: "openai", label: "OpenAI Compatible", base_url: "https://llm.example/v1" }],
-      embedding: [{ value: "openai", label: "OpenAI Compatible", base_url: "https://embedding.example/v1", default_dim: "1024" }],
-      search: [{ value: "tavily", label: "Tavily", base_url: "" }],
+      embedding: [
+        {
+          value: "openai",
+          label: "OpenAI Compatible",
+          base_url: "https://embedding.example/v1",
+          default_model: "text-embedding-3-large",
+          models: ["text-embedding-3-large"],
+          default_dim: "3072",
+        },
+        {
+          value: "cohere",
+          label: "Cohere",
+          base_url: "https://api.cohere.ai",
+          default_model: "embed-v4.0",
+          models: ["embed-v4.0"],
+          default_dim: "1024",
+        },
+        {
+          value: "iflytek_spark",
+          label: "iFlytek Spark Embedding",
+          base_url: "https://emb-cn-huabei-1.xf-yun.com/",
+          default_model: "llm-embedding",
+          models: ["llm-embedding"],
+          default_dim: "2560",
+        },
+      ],
+      search: [
+        { value: "tavily", label: "Tavily", base_url: "https://api.tavily.com/search" },
+        { value: "jina", label: "Jina", base_url: "https://s.jina.ai" },
+        { value: "perplexity", label: "Perplexity", base_url: "https://api.perplexity.ai" },
+      ],
     },
   };
   state.tourStatus = { active: true, status: "waiting", launch_at: null, redirect_at: null };

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave Session and Turn Lifecycle</title>
+  <desc id="desc">A diagram showing WebSocket and SDK requests flowing through runtime routing, turn preparation, context enrichment, LangGraph execution, event persistence, live subscribers, materialized messages, memory refresh, and replay.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <marker id="softArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .client { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .runtime { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .context { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .graph { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .store { fill: #ffffff; stroke: #64748b; stroke-width: 1.2; }
+      .event { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .memory { fill: #f0fdfa; stroke: #0f766e; stroke-width: 1.2; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 24px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#softArrow); }
+      .dash { stroke: #64748b; stroke-width: 1.4; fill: none; stroke-dasharray: 5 5; marker-end: url(#softArrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="780"/>
+  <text class="title" x="40" y="44">Session / Turn / Event 生命周期</text>
+  <text class="t" x="40" y="70">`turn_events` 是可回放事实流，`messages` 是 turn 完成后汇总出的会话视图。</text>
+
+  <rect class="client" x="40" y="105" width="210" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="62" y="136">Client Entrypoints</text>
+  <text class="t" x="62" y="162">WebSocket /api/v1/ws</text>
+  <text class="t" x="62" y="184">SparkWeaveApp.start_turn()</text>
+  <text class="t" x="62" y="206">CLI run/chat</text>
+
+  <rect class="runtime" x="310" y="105" width="230" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="332" y="136">Runtime Router</text>
+  <text class="t" x="332" y="162">RuntimeRoutingTurnManager</text>
+  <text class="t" x="332" y="184">select_runtime()</text>
+  <text class="small" x="332" y="206">langgraph / compatibility</text>
+
+  <rect class="runtime" x="600" y="90" width="250" height="150" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="622" y="122">Prepare Turn</text>
+  <text class="t" x="622" y="150">ensure/create session</text>
+  <text class="t" x="622" y="172">validate config</text>
+  <text class="t" x="622" y="194">save preferences</text>
+  <text class="t" x="622" y="216">create running turn</text>
+
+  <rect class="store" x="930" y="90" width="210" height="150" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="952" y="122">SQLite Store</text>
+  <text class="mono" x="952" y="150">sessions</text>
+  <text class="mono" x="952" y="172">turns</text>
+  <text class="mono" x="952" y="194">messages</text>
+  <text class="mono" x="952" y="216">turn_events</text>
+
+  <path class="line" d="M250 165 C280 165, 285 165, 310 165"/>
+  <path class="line" d="M540 165 C570 165, 575 165, 600 165"/>
+  <path class="line" d="M850 165 C885 165, 895 165, 930 165"/>
+
+  <rect class="context" x="120" y="320" width="260" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="142" y="352">Context Enrichment</text>
+  <text class="t" x="142" y="380">ContextBuilder history</text>
+  <text class="t" x="142" y="402">Memory context</text>
+  <text class="t" x="142" y="424">Notebook references</text>
+  <text class="t" x="142" y="446">History references</text>
+  <text class="t" x="142" y="468">Attachments + metadata</text>
+
+  <rect class="graph" x="470" y="320" width="250" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="492" y="352">LangGraphRunner</text>
+  <text class="t" x="492" y="380">dispatch capability graph</text>
+  <text class="t" x="492" y="402">StreamBus events</text>
+  <text class="t" x="492" y="424">content / result / done</text>
+  <text class="small" x="492" y="462">runner SESSION events are ignored</text>
+
+  <rect class="event" x="810" y="300" width="270" height="210" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="832" y="332">Persist + Fan Out</text>
+  <text class="t" x="832" y="360">append_turn_event()</text>
+  <text class="t" x="832" y="382">assign seq</text>
+  <text class="t" x="832" y="404">notify live subscribers</text>
+  <line class="soft" x1="838" y1="428" x2="1048" y2="428"/>
+  <text class="h" x="832" y="458">Subscribers</text>
+  <text class="t" x="832" y="484">subscribe_turn(after_seq)</text>
+
+  <path class="soft" d="M720 240 C620 275, 360 280, 250 320"/>
+  <path class="line" d="M380 405 C420 405, 430 405, 470 405"/>
+  <path class="line" d="M720 405 C760 405, 770 405, 810 405"/>
+  <path class="dash" d="M945 300 C970 255, 1000 240, 1020 240"/>
+
+  <rect class="store" x="80" y="595" width="230" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="102" y="628">Materialized Messages</text>
+  <text class="t" x="102" y="654">user message before graph</text>
+  <text class="t" x="102" y="676">assistant message after graph</text>
+  <text class="small" x="102" y="696">assistant.events excludes session/done</text>
+
+  <rect class="memory" x="380" y="595" width="210" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="402" y="628">Memory Refresh</text>
+  <text class="t" x="402" y="654">refresh_from_turn()</text>
+  <text class="t" x="402" y="676">SUMMARY.md</text>
+  <text class="t" x="402" y="696">PROFILE.md</text>
+
+  <rect class="event" x="660" y="595" width="220" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="682" y="628">Replay</text>
+  <text class="t" x="682" y="654">read turn_events</text>
+  <text class="t" x="682" y="676">seq > after_seq</text>
+  <text class="t" x="682" y="696">then attach live queue</text>
+
+  <rect class="client" x="950" y="595" width="190" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="972" y="628">Frontend View</text>
+  <text class="t" x="972" y="654">append content chunks</text>
+  <text class="t" x="972" y="676">fallback to result text</text>
+  <text class="t" x="972" y="696">hydrate session messages</text>
+
+  <path class="line" d="M810 510 C660 560, 410 570, 310 625"/>
+  <path class="soft" d="M310 650 C340 650, 350 650, 380 650"/>
+  <path class="line" d="M945 510 C885 555, 825 575, 770 595"/>
+  <path class="line" d="M880 650 C910 650, 920 650, 950 650"/>
+
+  <text class="small" x="44" y="750">Terminal states: completed, failed, cancelled. Cancelled detached turns get synthetic error + done events so replay still terminates.</text>
+</svg>

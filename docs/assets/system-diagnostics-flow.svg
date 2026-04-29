@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="title desc">
+  <title id="title">系统诊断与 Provider 健康检查</title>
+  <desc id="desc">System status, quick probes, streamed settings tests, provider resolvers, embedding adapters, and frontend settings panels.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .ui { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .api { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .config { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .probe { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .adapter { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .cache { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 25px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1240" height="820"/>
+  <text class="title" x="42" y="46">系统诊断与 Provider 健康检查</text>
+  <text class="t" x="42" y="72">运行期短探针和设置页流式测试共享 resolver，但服务边界不同。</text>
+
+  <rect class="ui" x="45" y="110" width="230" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="140">Settings Page</text>
+  <text class="small" x="67" y="166">状态条 / 拓扑面板</text>
+  <text class="mono" x="67" y="188">SystemStatus</text>
+  <text class="mono" x="67" y="208">SystemTestResponse</text>
+
+  <rect class="api" x="340" y="95" width="240" height="130" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="362" y="125">System Router</text>
+  <text class="mono" x="362" y="151">GET /status</text>
+  <text class="mono" x="362" y="173">GET /runtime-topology</text>
+  <text class="mono" x="362" y="195">POST /test/llm</text>
+  <text class="mono" x="362" y="217">POST /test/embeddings/search</text>
+
+  <rect class="api" x="340" y="285" width="240" height="130" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="362" y="315">Settings Test Router</text>
+  <text class="mono" x="362" y="341">POST /tests/{service}/start</text>
+  <text class="mono" x="362" y="363">GET /events</text>
+  <text class="mono" x="362" y="385">POST /cancel</text>
+  <text class="small" x="362" y="405">SSE + heartbeat</text>
+
+  <path class="line" d="M275 160 L340 160"/>
+  <path class="line" d="M275 182 C310 220, 312 330, 340 350"/>
+
+  <rect class="config" x="655" y="90" width="240" height="150" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="677" y="120">Runtime Resolvers</text>
+  <text class="mono" x="677" y="148">resolve_llm_runtime_config</text>
+  <text class="mono" x="677" y="170">resolve_embedding_runtime_config</text>
+  <text class="mono" x="677" y="192">resolve_search_runtime_config</text>
+  <text class="small" x="677" y="218">catalog + .env + provider spec</text>
+
+  <rect class="config" x="655" y="300" width="240" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="677" y="330">ConfigTestRunner</text>
+  <text class="small" x="677" y="356">后台线程测试 catalog 草稿</text>
+  <text class="mono" x="677" y="378">temporary_env()</text>
+  <text class="mono" x="677" y="400">info/config/response/failed</text>
+
+  <path class="line" d="M580 160 L655 165"/>
+  <path class="line" d="M580 350 L655 360"/>
+  <path class="soft" d="M775 300 L775 240"/>
+
+  <rect class="probe" x="975" y="85" width="220" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="997" y="115">LLM Probe</text>
+  <text class="small" x="997" y="141">短 completion</text>
+  <text class="mono" x="997" y="163">get_token_limit_kwargs</text>
+  <text class="mono" x="997" y="185">OK prompt</text>
+
+  <rect class="probe" x="975" y="245" width="220" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="997" y="275">Embedding Probe</text>
+  <text class="small" x="997" y="301">EmbeddingClient.embed</text>
+  <text class="mono" x="997" y="323">["test"]</text>
+  <text class="mono" x="997" y="345">dimension check in SSE test</text>
+
+  <rect class="probe" x="975" y="405" width="220" height="115" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="997" y="435">Search Probe</text>
+  <text class="small" x="997" y="461">web_search()</text>
+  <text class="mono" x="997" y="483">fallback / missing creds</text>
+  <text class="mono" x="997" y="505">answer or search_results</text>
+
+  <path class="line" d="M895 152 L975 142"/>
+  <path class="line" d="M895 182 C930 210, 940 280, 975 302"/>
+  <path class="line" d="M895 210 C935 270, 940 430, 975 462"/>
+  <path class="line" d="M895 360 C930 350, 940 315, 975 302"/>
+  <path class="line" d="M895 382 C930 395, 940 445, 975 462"/>
+
+  <rect class="adapter" x="170" y="590" width="245" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="192" y="620">Embedding Adapters</text>
+  <text class="mono" x="192" y="646">openai_compat / cohere</text>
+  <text class="mono" x="192" y="668">jina / ollama</text>
+  <text class="mono" x="192" y="690">iflytek_spark</text>
+
+  <rect class="adapter" x="500" y="590" width="245" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="522" y="620">iFlytek Spark Embedding</text>
+  <text class="small" x="522" y="646">APPID + APIKey + APISecret</text>
+  <text class="mono" x="522" y="668">HMAC-SHA256 signed URL</text>
+  <text class="mono" x="522" y="690">base64 float32 vector</text>
+
+  <rect class="cache" x="830" y="590" width="245" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="852" y="620">Runtime Caches</text>
+  <text class="mono" x="852" y="646">clear_llm_config_cache</text>
+  <text class="mono" x="852" y="668">reset_embedding_client</text>
+  <text class="mono" x="852" y="690">reset_pipeline_cache</text>
+
+  <path class="line" d="M1085 360 C1060 560, 520 540, 292 590"/>
+  <path class="line" d="M415 650 L500 650"/>
+  <path class="soft" d="M952 590 C930 530, 850 470, 785 420"/>
+
+  <rect class="cache" x="45" y="760" width="1150" height="36" rx="8"/>
+  <text class="small" x="65" y="783">经验法则：/status 只看配置形态；/system/test 使用已生效配置；/settings/tests 可以测试未应用的 catalog 草稿。</text>
+</svg>

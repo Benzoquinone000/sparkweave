@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="620" viewBox="0 0 1180 620" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave knowledge base lifecycle</title>
+  <desc id="desc">A knowledge base is created from uploaded documents, parsed, embedded, persisted in LlamaIndex storage, and queried by RAG tools.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 10; }
+      .api { fill: #eef6ff; stroke: #3b82f6; }
+      .file { fill: #f2fbf5; stroke: #16a34a; }
+      .pipe { fill: #fff7ed; stroke: #f97316; }
+      .store { fill: #f5f3ff; stroke: #8b5cf6; }
+      .warn { fill: #fef2f2; stroke: #ef4444; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .h { font: 700 15px Arial, sans-serif; fill: #0f172a; }
+      .t { font: 13px Arial, sans-serif; fill: #334155; }
+      .mono { font: 12px Consolas, monospace; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="620"/>
+  <text class="title" x="40" y="46">知识库生命周期</text>
+  <text class="t" x="40" y="72">从上传文件到 RAG 检索，进度状态同时写入本地文件和集中配置。</text>
+
+  <rect class="box api" x="40" y="112" width="210" height="112"/>
+  <text class="h" x="62" y="143">Create / Upload</text>
+  <text class="mono" x="62" y="169">POST /knowledge/create</text>
+  <text class="mono" x="62" y="191">POST /{kb}/upload</text>
+  <text class="mono" x="62" y="213">sparkweave kb create/add</text>
+
+  <rect class="box file" x="320" y="112" width="190" height="112"/>
+  <text class="h" x="342" y="143">Validate and Stage</text>
+  <text class="mono" x="342" y="169">DocumentValidator</text>
+  <text class="mono" x="342" y="191">FileTypeRouter</text>
+  <text class="mono" x="342" y="213">raw/</text>
+
+  <rect class="box pipe" x="580" y="112" width="220" height="112"/>
+  <text class="h" x="602" y="143">Parse Documents</text>
+  <text class="mono" x="602" y="169">PDF: PyMuPDF / OCR</text>
+  <text class="mono" x="602" y="191">Text: encoding fallback</text>
+  <text class="mono" x="602" y="213">unsupported -> skip</text>
+
+  <rect class="box pipe" x="870" y="112" width="230" height="112"/>
+  <text class="h" x="892" y="143">Embed and Index</text>
+  <text class="mono" x="892" y="169">connectivity smoke test</text>
+  <text class="mono" x="892" y="191">VectorStoreIndex</text>
+  <text class="mono" x="892" y="213">chunk_size=512</text>
+
+  <path class="line" d="M 250 168 L 320 168"/>
+  <path class="line" d="M 510 168 L 580 168"/>
+  <path class="line" d="M 800 168 L 870 168"/>
+
+  <rect class="box store" x="115" y="325" width="245" height="126"/>
+  <text class="h" x="138" y="356">Persisted KB Files</text>
+  <text class="mono" x="138" y="382">data/knowledge_bases/{kb}/</text>
+  <text class="mono" x="138" y="404">llamaindex_storage/</text>
+  <text class="mono" x="138" y="426">metadata.json + file_hashes</text>
+
+  <rect class="box store" x="455" y="325" width="250" height="126"/>
+  <text class="h" x="478" y="356">Progress and Config</text>
+  <text class="mono" x="478" y="382">.progress.json</text>
+  <text class="mono" x="478" y="404">kb_config.json</text>
+  <text class="mono" x="478" y="426">WS progress + SSE logs</text>
+
+  <rect class="box api" x="800" y="325" width="245" height="126"/>
+  <text class="h" x="823" y="356">RAG Search</text>
+  <text class="mono" x="823" y="382">rag tool</text>
+  <text class="mono" x="823" y="404">similarity_top_k=5</text>
+  <text class="mono" x="823" y="426">answer + sources</text>
+
+  <path class="line" d="M 985 224 C 985 280 880 300 800 342"/>
+  <path class="line" d="M 870 224 C 760 292 500 300 360 342"/>
+  <path class="soft" d="M 690 224 L 580 325"/>
+  <path class="line" d="M 360 388 L 455 388"/>
+  <path class="line" d="M 705 388 L 800 388"/>
+
+  <rect class="box warn" x="115" y="500" width="930" height="72"/>
+  <text class="h" x="138" y="530">Reindex Gate</text>
+  <text class="t" x="138" y="554">旧 rag_storage 或 embedding model/dimension 变化会标记 needs_reindex=true，增量上传和 linked folder sync 会返回 409。</text>
+</svg>

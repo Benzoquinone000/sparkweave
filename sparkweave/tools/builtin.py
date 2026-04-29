@@ -65,7 +65,8 @@ class RAGTool(_PromptHintsMixin, BaseTool):
             name="rag",
             description=(
                 "Search a knowledge base using Retrieval-Augmented Generation. "
-                "Returns relevant passages and an LLM-synthesised answer."
+                "Returns relevant passages, sources, and grounded context for the "
+                "agent to synthesize."
             ),
             parameters=[
                 ToolParameter(name="query", type="string", description="Search query."),
@@ -84,6 +85,16 @@ class RAGTool(_PromptHintsMixin, BaseTool):
         query = kwargs.get("query", "")
         kb_name = kwargs.get("kb_name")
         event_sink = kwargs.get("event_sink")
+        if not kb_name:
+            return ToolResult(
+                content=(
+                    "RAG retrieval was requested, but no knowledge base is configured "
+                    "for this turn."
+                ),
+                sources=[{"type": "rag", "query": query, "kb_name": kb_name}],
+                metadata={"skipped": True, "reason": "no_kb_selected"},
+                success=False,
+            )
         extra_kwargs = {
             key: value
             for key, value in kwargs.items()
@@ -97,10 +108,18 @@ class RAGTool(_PromptHintsMixin, BaseTool):
             **extra_kwargs,
         )
         content = result.get("answer") or result.get("content", "")
+        success = bool(result.get("success", True))
+        sources = result.get("sources")
+        if not isinstance(sources, list):
+            sources = []
+        sources = [source for source in sources if isinstance(source, dict)]
+        if not sources:
+            sources = [{"type": "rag", "query": query, "kb_name": kb_name}]
         return ToolResult(
             content=content,
-            sources=[{"type": "rag", "query": query, "kb_name": kb_name}],
+            sources=sources,
             metadata=result,
+            success=success,
         )
 
 

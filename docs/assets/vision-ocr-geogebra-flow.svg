@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="840" viewBox="0 0 1240 840" role="img" aria-labelledby="title desc">
+  <title id="title">视觉输入、OCR 与 GeoGebra 图像分析</title>
+  <desc id="desc">Knowledge base OCR, VisionPage REST and WebSocket analysis, and the geogebra_analysis tool share OCR, image input normalization, and VisionSolverAgent stages.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .entry { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .input { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .vision { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .ocr { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .out { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .note { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 25px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1240" height="840"/>
+  <text class="title" x="42" y="46">视觉输入、OCR 与 GeoGebra 图像分析</text>
+  <text class="t" x="42" y="72">扫描 PDF、图像题页面和聊天工具分别进入不同入口，但共享图像规范化、OCR 和视觉分析服务。</text>
+
+  <rect class="entry" x="45" y="112" width="225" height="105" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="142">Knowledge Base PDF</text>
+  <text class="small" x="67" y="168">上传或增量索引 PDF</text>
+  <text class="mono" x="67" y="190">LlamaIndexPipeline</text>
+
+  <rect class="entry" x="45" y="288" width="225" height="125" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="318">VisionPage</text>
+  <text class="mono" x="67" y="344">POST /vision/analyze</text>
+  <text class="mono" x="67" y="366">WS /vision/solve</text>
+  <text class="small" x="67" y="392">上传图片或图片 URL</text>
+
+  <rect class="entry" x="45" y="488" width="225" height="105" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="518">Tool Call</text>
+  <text class="mono" x="67" y="544">geogebra_analysis</text>
+  <text class="small" x="67" y="570">聊天附件注入 image_base64</text>
+
+  <rect class="ocr" x="345" y="96" width="250" height="138" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="367" y="126">PDF Text Extraction</text>
+  <text class="mono" x="367" y="154">PyMuPDF text layer</text>
+  <text class="mono" x="367" y="176">SPARKWEAVE_PDF_OCR_STRATEGY</text>
+  <text class="small" x="367" y="200">auto 或 iflytek_first</text>
+  <text class="small" x="367" y="220">失败时 fallback，不中断索引</text>
+
+  <rect class="ocr" x="665" y="96" width="250" height="138" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="687" y="126">iFlytek OCR</text>
+  <text class="small" x="687" y="154">PDF page -> PNG</text>
+  <text class="mono" x="687" y="176">HMAC signed URL</text>
+  <text class="mono" x="687" y="198">extract_iflytek_text()</text>
+  <text class="small" x="687" y="220">whole_text / lines / pages</text>
+
+  <rect class="input" x="345" y="300" width="250" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="367" y="330">Image Input</text>
+  <text class="mono" x="367" y="356">resolve_image_input()</text>
+  <text class="small" x="367" y="382">data:image/...;base64</text>
+  <text class="small" x="367" y="402">or HTTP(S) URL, max 10 MB</text>
+
+  <rect class="vision" x="665" y="300" width="250" height="205" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="687" y="330">VisionSolverAgent</text>
+  <text class="mono" x="687" y="358">1. bbox</text>
+  <text class="mono" x="687" y="382">2. analysis</text>
+  <text class="mono" x="687" y="406">3. ggbscript</text>
+  <text class="mono" x="687" y="430">4. reflection</text>
+  <text class="mono" x="687" y="454">5. tutor response</text>
+  <text class="small" x="687" y="482">multimodal LLM stream</text>
+
+  <rect class="out" x="990" y="100" width="205" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1012" y="130">RAG Documents</text>
+  <text class="small" x="1012" y="156">PDF text becomes Document</text>
+  <text class="mono" x="1012" y="178">VectorStoreIndex</text>
+  <text class="mono" x="1012" y="200">search_document embedding</text>
+
+  <rect class="out" x="990" y="305" width="205" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1012" y="335">GeoGebra Result</text>
+  <text class="mono" x="1012" y="361">final_ggb_commands</text>
+  <text class="mono" x="1012" y="383">```ggbscript</text>
+  <text class="small" x="1012" y="405">summary + commands_count</text>
+
+  <rect class="out" x="990" y="500" width="205" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1012" y="530">Notebook / ToolResult</text>
+  <text class="small" x="1012" y="556">保存图像题解析</text>
+  <text class="mono" x="1012" y="578">metadata.commands</text>
+  <text class="mono" x="1012" y="600">constraints / relations</text>
+
+  <path class="line" d="M270 164 L345 165"/>
+  <path class="line" d="M595 165 L665 165"/>
+  <path class="line" d="M915 165 L990 160"/>
+
+  <path class="line" d="M270 350 L345 360"/>
+  <path class="line" d="M270 540 C310 510, 320 400, 345 360"/>
+  <path class="line" d="M595 360 L665 392"/>
+  <path class="line" d="M915 392 L990 365"/>
+  <path class="line" d="M1092 425 L1092 500"/>
+
+  <path class="soft" d="M470 234 C500 270, 535 292, 665 332"/>
+  <path class="soft" d="M790 300 C800 260, 800 235, 790 234"/>
+
+  <rect class="note" x="45" y="735" width="1150" height="58" rx="8"/>
+  <text class="small" x="65" y="759">关键契约：直接传 image_base64 时必须是 data URI；裸 base64 要先补 data:image/png;base64, 前缀。</text>
+  <text class="small" x="65" y="779">OCR 的失败应抛 OcrUnavailable，让知识库解析可以回退到 PyMuPDF 或空文本，而不是让索引任务崩溃。</text>
+</svg>

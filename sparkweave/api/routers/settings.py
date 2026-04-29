@@ -26,6 +26,7 @@ from sparkweave.services.config import (
 from sparkweave.services.embedding import reset_embedding_client
 from sparkweave.services.llm import reset_llm_client
 from sparkweave.services.paths import get_path_service
+from sparkweave.services.rag_support.factory import reset_pipeline_cache
 
 router = APIRouter()
 
@@ -82,6 +83,7 @@ def _invalidate_runtime_caches() -> None:
     clear_llm_config_cache()
     reset_llm_client()
     reset_embedding_client()
+    reset_pipeline_cache()
 
 
 def load_ui_settings() -> dict[str, Any]:
@@ -104,7 +106,16 @@ def save_ui_settings(settings: dict[str, Any]) -> None:
 def _provider_choices() -> dict[str, list[dict[str, str]]]:
     """Build dropdown options for provider selection, keyed by service type."""
     llm = sorted(
-        [{"value": s.name, "label": s.label, "base_url": s.default_api_base} for s in PROVIDERS],
+        [
+            {
+                "value": s.name,
+                "label": s.label,
+                "base_url": s.default_api_base,
+                "default_model": s.default_model,
+                "models": list(s.model_options),
+            }
+            for s in PROVIDERS
+        ],
         key=lambda p: p["label"].lower(),
     )
     embedding = sorted(
@@ -113,6 +124,8 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
                 "value": name,
                 "label": spec.label,
                 "base_url": spec.default_api_base,
+                "default_model": spec.default_model,
+                "models": [spec.default_model] if spec.default_model else [],
                 "default_dim": str(spec.default_dim) if spec.default_dim else "",
             }
             for name, spec in EMBEDDING_PROVIDERS.items()
@@ -120,12 +133,18 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         key=lambda p: p["label"].lower(),
     )
     search = [
-        {"value": "brave", "label": "Brave", "base_url": ""},
-        {"value": "tavily", "label": "Tavily", "base_url": ""},
-        {"value": "jina", "label": "Jina", "base_url": ""},
-        {"value": "searxng", "label": "SearXNG", "base_url": ""},
-        {"value": "duckduckgo", "label": "DuckDuckGo", "base_url": ""},
-        {"value": "perplexity", "label": "Perplexity", "base_url": ""},
+        {"value": "brave", "label": "Brave", "base_url": "https://api.search.brave.com/res/v1/web/search"},
+        {"value": "tavily", "label": "Tavily", "base_url": "https://api.tavily.com/search"},
+        {"value": "jina", "label": "Jina", "base_url": "https://s.jina.ai"},
+        {"value": "searxng", "label": "SearXNG", "base_url": "http://localhost:8080"},
+        {"value": "duckduckgo", "label": "DuckDuckGo", "base_url": "https://duckduckgo.com"},
+        {"value": "perplexity", "label": "Perplexity", "base_url": "https://api.perplexity.ai"},
+        {"value": "serper", "label": "Serper", "base_url": "https://google.serper.dev"},
+        {
+            "value": "iflytek_spark",
+            "label": "iFlytek ONE SEARCH",
+            "base_url": "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search",
+        },
     ]
     return {"llm": llm, "embedding": embedding, "search": search}
 

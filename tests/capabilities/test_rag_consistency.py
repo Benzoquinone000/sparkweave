@@ -9,6 +9,7 @@ import pytest
 
 from sparkweave.core.contracts import StreamBus, StreamEventType, UnifiedContext
 from sparkweave.core.tool_protocol import ToolResult
+from sparkweave.graphs.chat import ChatGraph
 from sparkweave.graphs.deep_research import DeepResearchGraph
 from sparkweave.graphs.deep_solve import DeepSolveGraph
 
@@ -68,6 +69,32 @@ async def test_deep_solve_strips_rag_when_no_knowledge_base() -> None:
     context = UnifiedContext(
         user_message="solve x^2 = 4",
         active_capability="deep_solve",
+        enabled_tools=["rag", "web_search"],
+        knowledge_bases=[],
+    )
+
+    await graph.run(context, bus)
+
+    assert "rag" not in model.bound_tool_names
+    assert "web_search" in model.bound_tool_names
+    assert registry.calls == []
+    warnings = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.PROGRESS
+        and event.metadata.get("reason") == "rag_without_kb"
+    ]
+    assert warnings
+
+
+@pytest.mark.asyncio
+async def test_chat_strips_rag_when_no_knowledge_base() -> None:
+    model = FakeModel(["No retrieval this turn."])
+    registry = FakeToolRegistry(["rag", "web_search"])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="hello",
         enabled_tools=["rag", "web_search"],
         knowledge_bases=[],
     )

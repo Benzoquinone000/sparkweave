@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="title desc">
+  <title id="title">试卷解析与仿题素材链路</title>
+  <desc id="desc">PDF, parsed directories, and question JSON converge into DeepQuestionGraph mimic templates, then structured quiz results are streamed to the frontend and notebook.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .entry { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .input { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .parse { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .graph { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .out { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .note { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 25px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1240" height="820"/>
+  <text class="title" x="42" y="46">试卷解析与仿题素材链路</text>
+  <text class="t" x="42" y="72">旧 QuestionLab、统一 WebSocket 和 Python facade 最终都会汇入 DeepQuestionGraph 的 mimic 模式。</text>
+
+  <rect class="entry" x="45" y="110" width="250" height="116" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="140">入口</text>
+  <text class="mono" x="67" y="166">/api/v1/ws deep_question</text>
+  <text class="mono" x="67" y="188">/question/mimic</text>
+  <text class="mono" x="67" y="210">QuestionLabPage</text>
+
+  <rect class="input" x="365" y="90" width="230" height="90" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="387" y="120">PDF</text>
+  <text class="small" x="387" y="146">upload base64 或 attachment</text>
+  <text class="mono" x="387" y="166">*.pdf</text>
+
+  <rect class="input" x="365" y="220" width="230" height="90" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="387" y="250">解析目录</text>
+  <text class="small" x="387" y="276">MinerU output folder</text>
+  <text class="mono" x="387" y="296">auto/ hybrid_auto/</text>
+
+  <rect class="input" x="365" y="350" width="230" height="90" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="387" y="380">题目 JSON</text>
+  <text class="small" x="387" y="406">最稳定的输入格式</text>
+  <text class="mono" x="387" y="426">questions[]</text>
+
+  <path class="line" d="M295 168 C322 168, 338 135, 365 135"/>
+  <path class="line" d="M295 168 C323 190, 337 265, 365 265"/>
+  <path class="line" d="M295 168 C320 220, 336 395, 365 395"/>
+
+  <rect class="parse" x="675" y="90" width="240" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="697" y="120">parse_pdf_with_mineru()</text>
+  <text class="small" x="697" y="146">查找 magic-pdf / mineru</text>
+  <text class="small" x="697" y="166">应用 args 和 timeout</text>
+  <text class="mono" x="697" y="188">output_root/pdf_stem</text>
+
+  <rect class="parse" x="675" y="238" width="240" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="697" y="268">load_parsed_paper()</text>
+  <text class="small" x="697" y="294">读取 markdown</text>
+  <text class="small" x="697" y="314">读取 content_list 和 images</text>
+  <text class="mono" x="697" y="336">*.md + *_content_list.json</text>
+
+  <rect class="parse" x="675" y="386" width="240" height="110" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="697" y="416">extract_questions_with_llm()</text>
+  <text class="small" x="697" y="442">从 markdown 抽取题目</text>
+  <text class="small" x="697" y="462">保存 timestamp JSON</text>
+  <text class="mono" x="697" y="484">*_questions.json</text>
+
+  <path class="line" d="M595 135 L675 145"/>
+  <path class="line" d="M795 200 L795 238"/>
+  <path class="line" d="M595 265 L675 293"/>
+  <path class="line" d="M795 348 L795 386"/>
+  <path class="line" d="M595 395 L675 441"/>
+
+  <rect class="graph" x="995" y="190" width="205" height="210" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1017" y="220">DeepQuestionGraph</text>
+  <text class="mono" x="1017" y="248">_read_question_json</text>
+  <text class="mono" x="1017" y="272">_normalize_mimic_templates</text>
+  <text class="mono" x="1017" y="296">_generate_node</text>
+  <text class="mono" x="1017" y="320">_validate_node</text>
+  <text class="mono" x="1017" y="344">_repair_node</text>
+  <text class="mono" x="1017" y="368">_write_node</text>
+
+  <path class="line" d="M915 441 C950 424, 965 340, 995 300"/>
+  <path class="line" d="M915 293 C950 293, 965 294, 995 294"/>
+  <path class="line" d="M915 145 C960 160, 970 230, 995 252"/>
+
+  <rect class="out" x="140" y="595" width="235" height="118" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="162" y="625">StreamEvent</text>
+  <text class="small" x="162" y="651">progress / thinking / result</text>
+  <text class="mono" x="162" y="673">metadata.summary</text>
+  <text class="mono" x="162" y="695">trace.paper_dir</text>
+
+  <rect class="out" x="500" y="595" width="235" height="118" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="522" y="625">Quiz Preview</text>
+  <text class="small" x="522" y="651">summary.results[].qa_pair</text>
+  <text class="mono" x="522" y="673">QuizQuestion[]</text>
+  <text class="mono" x="522" y="695">QuizViewer</text>
+
+  <rect class="out" x="860" y="595" width="235" height="118" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="882" y="625">Notebook Record</text>
+  <text class="small" x="882" y="651">前端转 markdown 保存</text>
+  <text class="mono" x="882" y="673">record_type=question</text>
+  <text class="mono" x="882" y="695">metadata.summary</text>
+
+  <path class="line" d="M1097 400 C1065 515, 410 520, 258 595"/>
+  <path class="line" d="M375 654 L500 654"/>
+  <path class="line" d="M735 654 L860 654"/>
+
+  <rect class="note" x="44" y="760" width="1152" height="36" rx="8"/>
+  <text class="small" x="64" y="783">实现注意：旧路由会保存上传 PDF 到 mimic_papers 批次目录；Graph 内部 PDF 解析当前使用临时目录，题目 JSON 是最推荐的可复用素材边界。</text>
+</svg>

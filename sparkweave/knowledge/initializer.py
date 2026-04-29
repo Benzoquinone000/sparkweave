@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from datetime import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -136,6 +137,36 @@ class KnowledgeBaseInitializer:
             copied_files.append(str(dest_path))
         return copied_files
 
+    @staticmethod
+    def _get_file_hash(file_path: Path) -> str:
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(65536), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+
+    def _record_initial_hashes(self, files: list[Path]) -> None:
+        """Record initial raw file hashes for future duplicate detection."""
+        metadata_file = self.kb_dir / "metadata.json"
+        metadata: dict = {}
+        if metadata_file.exists():
+            try:
+                with open(metadata_file, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+            except Exception:
+                metadata = {}
+
+        file_hashes = metadata.setdefault("file_hashes", {})
+        for file_path in files:
+            try:
+                if file_path.exists() and file_path.is_file():
+                    file_hashes[file_path.name] = self._get_file_hash(file_path)
+            except OSError as exc:
+                logger.warning(f"Failed to hash indexed file {file_path}: {exc}")
+
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+
     async def process_documents(
         self,
     ) -> bool:
@@ -198,6 +229,7 @@ class KnowledgeBaseInitializer:
                 raise RuntimeError("RAG pipeline returned failure")
 
             self._update_metadata_with_provider(provider)
+            self._record_initial_hashes(doc_files)
             self.progress_tracker.update(
                 ProgressStage.PROCESSING_DOCUMENTS,
                 "Documents processed successfully",

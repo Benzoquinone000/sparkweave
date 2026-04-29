@@ -5,6 +5,7 @@ from .factory import (
     get_pipeline,
     list_pipelines,
     normalize_provider_name,
+    reset_pipeline_cache,
 )
 from .file_routing import DocumentType, FileClassification, FileTypeRouter
 from .service import RAGService
@@ -27,6 +28,7 @@ __all__ = [
     "get_pipeline",
     "list_pipelines",
     "normalize_provider_name",
+    "reset_pipeline_cache",
     "DEFAULT_PROVIDER",
     "LlamaIndexPipeline",
 ]

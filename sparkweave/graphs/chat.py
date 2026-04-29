@@ -199,6 +199,13 @@ class ChatGraph:
     async def _agent_node(self, state: TutorState) -> dict[str, Any]:
         stream = state.get("stream")
         enabled_tools = self._enabled_tools(state)
+        if "rag" in (state.get("enabled_tools") or []) and not state.get("knowledge_bases"):
+            await stream.progress(
+                "RAG was enabled, but no knowledge base is attached; skipping RAG for this turn.",
+                source=self.source,
+                stage="thinking",
+                metadata={"trace_kind": "warning", "reason": "rag_without_kb"},
+            )
         model = self.model or create_chat_model(temperature=0.2)
         tools = self.tool_registry.get_tools(enabled_tools) if enabled_tools else []
         if tools and hasattr(model, "bind_tools"):
@@ -484,6 +491,8 @@ class ChatGraph:
         if not enabled:
             return []
         known = set(self.tool_registry.names())
+        if "rag" in enabled and not state.get("knowledge_bases"):
+            enabled = [name for name in enabled if name != "rag"]
         return [name for name in enabled if name in known]
 
     @staticmethod

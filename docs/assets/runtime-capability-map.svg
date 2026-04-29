@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave runtime and capability map</title>
+  <desc id="desc">Entry points flow into SparkWeaveApp, the runtime manager, LangGraphRunner, capability graphs, tools, services, and persisted data.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3f4a5a"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 10; }
+      .primary { fill: #eef6ff; stroke: #3b82f6; }
+      .cap { fill: #f2fbf5; stroke: #22a35a; }
+      .tool { fill: #fff7ed; stroke: #f97316; }
+      .service { fill: #f5f3ff; stroke: #8b5cf6; }
+      .data { fill: #fef2f2; stroke: #ef4444; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .h { font: 700 16px Arial, sans-serif; fill: #0f172a; }
+      .t { font: 13px Arial, sans-serif; fill: #334155; }
+      .mono { font: 12px Consolas, monospace; fill: #475569; }
+      .line { stroke: #3f4a5a; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1120" height="620"/>
+  <text class="title" x="40" y="46">SparkWeave 运行时与能力图</text>
+  <text class="t" x="40" y="72">统一入口请求被转换为 UnifiedContext，再由 LangGraph 图输出 StreamEvent。</text>
+
+  <rect class="box primary" x="40" y="110" width="260" height="116"/>
+  <text class="h" x="64" y="142">Entry Points</text>
+  <text class="mono" x="64" y="168">CLI: sparkweave run</text>
+  <text class="mono" x="64" y="190">WebSocket: /api/v1/ws</text>
+  <text class="mono" x="64" y="212">Python facade</text>
+
+  <rect class="box primary" x="410" y="110" width="300" height="116"/>
+  <text class="h" x="434" y="142">SparkWeaveApp</text>
+  <text class="mono" x="434" y="168">TurnRequest -> payload</text>
+  <text class="mono" x="434" y="190">capability manifest</text>
+  <text class="mono" x="434" y="212">config validation</text>
+
+  <rect class="box primary" x="810" y="110" width="270" height="116"/>
+  <text class="h" x="834" y="142">Runtime Manager</text>
+  <text class="mono" x="834" y="168">session + turn</text>
+  <text class="mono" x="834" y="190">UnifiedContext</text>
+  <text class="mono" x="834" y="212">persist events</text>
+
+  <path class="line" d="M 300 168 L 410 168"/>
+  <path class="line" d="M 710 168 L 810 168"/>
+
+  <rect class="box primary" x="410" y="282" width="300" height="92"/>
+  <text class="h" x="434" y="314">LangGraphRunner</text>
+  <text class="mono" x="434" y="340">active_capability -> graph</text>
+  <text class="mono" x="434" y="362">StreamBus -> StreamEvent</text>
+  <path class="line" d="M 945 226 L 945 254 L 560 254 L 560 282"/>
+
+  <rect class="box cap" x="40" y="430" width="300" height="142"/>
+  <text class="h" x="64" y="462">Capability Graphs</text>
+  <text class="mono" x="64" y="488">chat / deep_solve</text>
+  <text class="mono" x="64" y="510">deep_question / deep_research</text>
+  <text class="mono" x="64" y="532">visualize / math_animator</text>
+  <text class="t" x="64" y="556">多阶段 agent pipeline</text>
+
+  <rect class="box tool" x="410" y="430" width="300" height="142"/>
+  <text class="h" x="434" y="462">Level 1 Tools</text>
+  <text class="mono" x="434" y="488">rag / web_search / paper_search</text>
+  <text class="mono" x="434" y="510">code_execution / reason</text>
+  <text class="mono" x="434" y="532">brainstorm / geogebra_analysis</text>
+  <text class="t" x="434" y="556">由图节点按需调用</text>
+
+  <rect class="box service" x="780" y="430" width="300" height="142"/>
+  <text class="h" x="804" y="462">Services and Data</text>
+  <text class="mono" x="804" y="488">LLM / Embedding / RAG</text>
+  <text class="mono" x="804" y="510">SQLite sessions / memory</text>
+  <text class="mono" x="804" y="532">KB index / workspace artifacts</text>
+  <text class="t" x="804" y="556">统一配置和持久化</text>
+
+  <path class="line" d="M 485 374 C 420 406 340 418 250 430"/>
+  <path class="line" d="M 560 374 L 560 430"/>
+  <path class="line" d="M 635 374 C 720 408 790 420 860 430"/>
+  <path class="soft" d="M 340 500 L 410 500"/>
+  <path class="soft" d="M 710 500 L 780 500"/>
+</svg>

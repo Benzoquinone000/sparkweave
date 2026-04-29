@@ -9,6 +9,7 @@ from sparkweave.services.config import EMBEDDING_PROVIDERS
 
 from .adapters.base import BaseEmbeddingAdapter, EmbeddingRequest
 from .adapters.cohere import CohereEmbeddingAdapter
+from .adapters.iflytek_spark import IflytekSparkEmbeddingAdapter
 from .adapters.jina import JinaEmbeddingAdapter
 from .adapters.ollama import OllamaEmbeddingAdapter
 from .adapters.openai_compatible import OpenAICompatibleEmbeddingAdapter
@@ -17,6 +18,7 @@ from .config import EmbeddingConfig, get_embedding_config
 _ADAPTER_MAP: dict[str, type[BaseEmbeddingAdapter]] = {
     "openai_compat": OpenAICompatibleEmbeddingAdapter,
     "cohere": CohereEmbeddingAdapter,
+    "iflytek_spark": IflytekSparkEmbeddingAdapter,
     "jina": JinaEmbeddingAdapter,
     "ollama": OllamaEmbeddingAdapter,
 }
@@ -60,7 +62,7 @@ class EmbeddingClient:
         )
 
     async def embed(
-        self, texts: List[str], progress_callback=None
+        self, texts: List[str], progress_callback=None, input_type: str | None = None
     ) -> List[List[float]]:
         if not texts:
             return []
@@ -79,6 +81,7 @@ class EmbeddingClient:
                     texts=batch,
                     model=self.config.model,
                     dimensions=self.config.dim,
+                    input_type=input_type,
                 )
                 response = await self.adapter.embed(request)
                 all_embeddings.extend(response.embeddings)

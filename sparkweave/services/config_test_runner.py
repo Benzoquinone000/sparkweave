@@ -24,6 +24,7 @@ from sparkweave.services.config import (
     resolve_llm_runtime_config,
     resolve_search_runtime_config,
 )
+from sparkweave.services.diagnostics import explain_provider_error
 
 
 def _redact(value: str) -> str:
@@ -147,7 +148,7 @@ class ConfigTestRunner:
                 run.emit("completed", f"{service.upper()} test completed successfully.")
         except Exception as exc:
             run.status = "failed"
-            run.emit("failed", str(exc))
+            run.emit("failed", explain_provider_error(run.service, exc))
 
     async def _test_llm(self, run: TestRun, catalog: dict[str, Any]) -> None:
         from sparkweave.services.llm import complete as llm_complete
@@ -245,7 +246,7 @@ class ConfigTestRunner:
         if resolved.unsupported_provider:
             raise ValueError(
                 f"Search provider `{resolved.requested_provider}` is deprecated/unsupported. "
-                "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity/serper."
+                "Switch to brave/tavily/jina/searxng/duckduckgo/perplexity/serper/iflytek_spark."
             )
         if resolved.missing_credentials:
             raise ValueError(

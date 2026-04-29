@@ -66,6 +66,7 @@ def test_resolve_adapter_class_supports_canonical_providers() -> None:
     assert _resolve_adapter_class("custom").__name__ == "OpenAICompatibleEmbeddingAdapter"
     assert _resolve_adapter_class("azure_openai").__name__ == "OpenAICompatibleEmbeddingAdapter"
     assert _resolve_adapter_class("cohere").__name__ == "CohereEmbeddingAdapter"
+    assert _resolve_adapter_class("iflytek_spark").__name__ == "IflytekSparkEmbeddingAdapter"
     assert _resolve_adapter_class("jina").__name__ == "JinaEmbeddingAdapter"
     assert _resolve_adapter_class("ollama").__name__ == "OllamaEmbeddingAdapter"
     assert _resolve_adapter_class("vllm").__name__ == "OpenAICompatibleEmbeddingAdapter"

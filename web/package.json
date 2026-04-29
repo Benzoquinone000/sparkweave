@@ -7,6 +7,7 @@
     "dev": "node ./scripts/dev.mjs",
     "build": "tsc -b && node ./scripts/build.mjs",
     "preview": "node ./scripts/preview.mjs",
+    "screenshots": "node ./scripts/capture-screenshots.mjs",
     "check:design": "node ./scripts/check-design.mjs",
     "check:api-contract": "python ../scripts/check_web_api_contract.py",
     "check:replacement": "python ../scripts/check_ng_replacement.py",

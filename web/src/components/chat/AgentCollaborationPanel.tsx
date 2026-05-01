@@ -415,7 +415,7 @@ function AgentStepRow({ step, index }: { step: AgentStep; index: number }) {
           <span className="mt-1 flex flex-wrap gap-1">
             {step.tools.slice(0, 4).map((tool) => (
               <span key={tool} className="rounded-md bg-white px-1.5 py-0.5 text-[11px] text-brand-blue">
-                {tool}
+                {toolDisplayName(tool)}
               </span>
             ))}
           </span>
@@ -529,8 +529,9 @@ function isCompleteEvent(event: StreamEvent) {
 function meaningfulContent(event: StreamEvent) {
   const content = String(event.content ?? "").trim();
   if (!content || content.toLowerCase() === "thinking...") return "";
-  if (content.length > 120) return `${content.slice(0, 120)}...`;
-  return content;
+  const readable = normalizeTraceContent(content);
+  if (readable.length > 120) return `${readable.slice(0, 120)}...`;
+  return readable;
 }
 
 function getToolName(event: StreamEvent) {
@@ -556,11 +557,11 @@ function buildReadableTraceItems(events: StreamEvent[], status: "streaming" | "d
       items.push({ label: "画像触发", detail: `按画像改成：${profilePrompt}` });
     }
     if (event.type === "tool_call") {
-      items.push({ label: "调用工具", detail: tool ? `正在使用 ${tool}` : content || "正在补充必要信息。" });
+      items.push({ label: "调用工具", detail: tool ? `正在使用 ${toolDisplayName(tool)}` : content || "正在补充必要信息。" });
       return;
     }
     if (event.type === "tool_result") {
-      items.push({ label: "工具返回", detail: tool ? `${tool} 已返回结果` : content || "外部信息已经返回。" });
+      items.push({ label: "工具返回", detail: tool ? `${toolDisplayName(tool)} 已返回结果` : content || "外部信息已经返回。" });
       return;
     }
     if (event.type === "sources") {
@@ -626,6 +627,52 @@ function findProfileGuidedPrompt(events: StreamEvent[]) {
 function metadataText(metadata: StreamEvent["metadata"] | undefined, key: string) {
   const value = metadata?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function toolDisplayName(tool: string) {
+  const normalized = tool.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const labels: Record<string, string> = {
+    rag_search: "知识库检索",
+    kb_search: "知识库检索",
+    knowledge_search: "知识库检索",
+    web_search: "联网搜索",
+    search: "联网搜索",
+    tavily_search: "联网搜索",
+    iflytek_search: "联网搜索",
+    external_video_search: "视频检索",
+    video_search: "视频检索",
+    python: "代码运行",
+    python_repl: "代码运行",
+    code_interpreter: "代码运行",
+    calculator: "计算验证",
+    math: "计算验证",
+    visualize: "图解生成",
+    math_animator: "动画生成",
+  };
+  if (labels[normalized]) return labels[normalized];
+  if (normalized.includes("rag") || normalized.includes("knowledge") || normalized.includes("kb")) return "知识库检索";
+  if (normalized.includes("video")) return "视频检索";
+  if (normalized.includes("search")) return "联网搜索";
+  if (normalized.includes("python") || normalized.includes("code")) return "代码运行";
+  return tool.includes("_") ? "学习工具" : tool;
+}
+
+function normalizeTraceContent(content: string) {
+  const awakened = content.match(/^awakened\s+(.+?)\s+agent\.?$/i);
+  if (awakened) {
+    return `已唤醒${agentDisplayName(awakened[1])}。`;
+  }
+  return content;
+}
+
+function agentDisplayName(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("knowledge") || normalized.includes("visual")) return "知识可视化智能体";
+  if (normalized.includes("video")) return "视频检索智能体";
+  if (normalized.includes("math") || normalized.includes("animator")) return "数学动画智能体";
+  if (normalized.includes("question")) return "出题智能体";
+  if (normalized.includes("research")) return "研究智能体";
+  return `${value.trim()}智能体`;
 }
 
 function readableStageLabel(event: StreamEvent) {

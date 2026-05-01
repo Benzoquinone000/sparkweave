@@ -2883,6 +2883,8 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
           rewritten_prompt: "围绕梯度下降安排下一步学习材料。",
         },
       },
+      { type: "tool_call", stage: "retrieval", metadata: { tool: "rag_search" } },
+      { type: "tool_result", stage: "retrieval", metadata: { tool: "rag_search" } },
       { type: "stage_start", stage: "thinking" },
       { type: "progress", stage: "thinking", content: "Thinking..." },
       { type: "stage_end", stage: "thinking" },
@@ -2904,7 +2906,9 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
   await expect(collaboration).toContainText("画像触发");
   await expect(collaboration).toContainText("画像已参与");
   await expect(collaboration).toContainText("对话协调智能体");
+  await expect(collaboration).toContainText("知识库检索");
   await expect(collaboration).toContainText("讲解智能体");
+  await expect(collaboration).not.toContainText("rag_search");
   await expect(route).toContainText("接力路线");
   await expect(route).toContainText("围绕梯度下降安排下一步学习材料。");
   await expect(route).toContainText("对话协调");
@@ -2912,8 +2916,10 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
   await expect(messageTrace).toContainText("协作明细");
   await expect(messageTrace).toContainText("画像触发");
   await expect(messageTrace).toContainText("识别任务");
+  await expect(messageTrace).toContainText("知识库检索");
   await expect(messageTrace).toContainText("按画像改成：围绕梯度下降安排下一步学习材料。");
   await expect(messageTrace).toContainText("形成回答");
+  await expect(messageTrace).not.toContainText("rag_search");
   await expect(messageTrace).not.toContainText("stage_start · thinking");
   await expect(messageTrace).not.toContainText("Thinking...");
   await expect(messageTrace).not.toContainText("Writing final polish");

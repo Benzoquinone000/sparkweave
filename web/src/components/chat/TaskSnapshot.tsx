@@ -202,7 +202,12 @@ function getStageDetail(stage?: string) {
   if (!value) return undefined;
   if (value === "thinking") return "思考";
   if (value === "responding") return "回答";
-  return stage;
+  if (value.includes("coordinating") || value.includes("planning")) return "规划";
+  if (value.includes("retrieval") || value.includes("search")) return "检索";
+  if (value.includes("reasoning") || value.includes("solve")) return "推理";
+  if (value.includes("writing") || value.includes("final")) return "整理";
+  if (value.includes("render") || value.includes("visual")) return "生成";
+  return "进度";
 }
 
 function getOutputLabel({

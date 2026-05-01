@@ -72,10 +72,11 @@ export function CoWriterPage() {
       );
       setResult(output.edited_text || streamed);
       if (output.operation_id) setSelectedOperationId(output.operation_id);
-      setStreamLogs((current) => [...current, `done: ${output.operation_id || "stream"}`].slice(-24));
+      setStreamLogs((current) => [...current, withLegacyText(`生成完成：${output.operation_id || "stream"}`, `done: ${output.operation_id || "stream"}`)].slice(-24));
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
-        setStreamLogs((current) => [...current, `error: ${error instanceof Error ? error.message : "stream failed"}`].slice(-24));
+        const message = error instanceof Error ? error.message : "stream failed";
+        setStreamLogs((current) => [...current, withLegacyText(`生成失败：${message}`, `error: ${message}`)].slice(-24));
       }
     } finally {
       setIsStreaming(false);
@@ -89,7 +90,7 @@ export function CoWriterPage() {
     const output = await mutations.automark.mutateAsync(text);
     setResult(output.marked_text || output.edited_text || "");
     if (output.operation_id) setSelectedOperationId(output.operation_id);
-    setStreamLogs((current) => [...current, `automark done: ${output.operation_id || "automark"}`].slice(-24));
+    setStreamLogs((current) => [...current, withLegacyText(`自动批注完成：${output.operation_id || "automark"}`, `automark done: ${output.operation_id || "automark"}`)].slice(-24));
   };
 
   const runQuickEdit = async () => {
@@ -105,7 +106,7 @@ export function CoWriterPage() {
     });
     setResult(output.edited_text || "");
     if (output.operation_id) setSelectedOperationId(output.operation_id);
-    setStreamLogs((current) => [...current, `quick done: ${output.operation_id || "edit"}`].slice(-24));
+    setStreamLogs((current) => [...current, withLegacyText(`快速编辑完成：${output.operation_id || "edit"}`, `quick done: ${output.operation_id || "edit"}`)].slice(-24));
   };
 
   const exportMarkdown = async () => {
@@ -121,7 +122,7 @@ export function CoWriterPage() {
       link.click();
       URL.revokeObjectURL(url);
     }
-    setStreamLogs((current) => [...current, `export: ${filename}`].slice(-24));
+    setStreamLogs((current) => [...current, withLegacyText(`已导出 Markdown：${filename}`, `export: ${filename}`)].slice(-24));
   };
 
   const saveResult = async () => {
@@ -385,12 +386,35 @@ function formatStreamEvent(event: CoWriterStreamEvent) {
   if (event.type === "content") return "";
   const label = event.stage || event.source || event.type || "event";
   const content = event.content || event.type || "";
-  if (event.type === "tool_call") return `${label}: tool ${content}`;
-  if (event.type === "tool_result") return `${label}: tool result`;
-  if (event.type === "stage_start") return `${label}: start`;
-  if (event.type === "stage_end") return `${label}: done`;
-  if (event.type === "thinking" || event.type === "progress") return `${label}: ${content}`;
-  return content ? `${label}: ${content}` : label;
+  const legacy = content ? `${label}: ${event.type === "tool_call" ? `tool ${content}` : content}` : label;
+  if (event.type === "tool_call") return withLegacyText(`调用辅助工具：${formatCoWriterLogContent(content)}`, legacy);
+  if (event.type === "tool_result") return withLegacyText("辅助工具已返回结果", `${label}: tool result`);
+  if (event.type === "stage_start") return withLegacyText(`${coWriterStageLabel(label)}开始`, `${label}: start`);
+  if (event.type === "stage_end") return withLegacyText(`${coWriterStageLabel(label)}完成`, `${label}: done`);
+  if (event.type === "thinking" || event.type === "progress") {
+    return withLegacyText(`${coWriterStageLabel(label)}：${formatCoWriterLogContent(content)}`, `${label}: ${content}`);
+  }
+  return withLegacyText(content ? `进度更新：${formatCoWriterLogContent(content)}` : coWriterStageLabel(label), content ? `${label}: ${content}` : label);
+}
+
+function coWriterStageLabel(value: unknown) {
+  const stage = String(value || "").toLowerCase();
+  if (stage.includes("thinking") || stage.includes("plan")) return "规划修改";
+  if (stage.includes("respond")) return "生成结果";
+  if (stage.includes("tool")) return "调用工具";
+  if (stage.includes("rewrite")) return "润色文本";
+  if (stage.includes("shorten")) return "压缩文本";
+  if (stage.includes("expand")) return "扩展文本";
+  return "处理";
+}
+
+function formatCoWriterLogContent(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return "正在处理";
+  const lower = text.toLowerCase();
+  if (lower === "planning edit") return "正在分析原文和编辑指令";
+  if (lower === "stream failed") return "流式生成失败";
+  return text;
 }
 
 function getHistoryPreview(item: Record<string, unknown>) {

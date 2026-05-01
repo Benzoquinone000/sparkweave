@@ -279,8 +279,8 @@ test("knowledge creation listens to named SSE task logs", async ({ page }, testI
   });
   await page.getByRole("button", { name: /创建并索引/ }).click();
 
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("Saved 1 file, preparing index");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("complete: Knowledge base created");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: parsing 55% WS parsing files");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新：heartbeat");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("debug");
@@ -324,7 +324,7 @@ test("knowledge management covers upload default folders and deletion", async ({
   await expect.poll(() => knowledge.uploadTarget).toBe("geometry_mock");
   await expect.poll(() => knowledge.uploadBody?.includes('filename="triangles.md"')).toBe(true);
   await expect(page.getByTestId("knowledge-progress-details")).toContainText("完成");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：Upload complete");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：上传完成");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("Progress cleared for geometry_mock");
 
   await page.getByTestId("knowledge-active-delete").click();
@@ -1502,6 +1502,7 @@ test("mobile knowledge creation streams task progress", async ({ page }, testInf
   await installMockKnowledgeProgressWebSocket(page);
 
   await page.goto("/knowledge");
+  await page.getByTestId("knowledge-open-create").click();
   await page.getByTestId("knowledge-create-name").fill("calculus_mock");
   await page.getByTestId("knowledge-create-files").setInputFiles({
     name: "limits.md",
@@ -1510,8 +1511,8 @@ test("mobile knowledge creation streams task progress", async ({ page }, testInf
   });
   await page.getByTestId("knowledge-create-submit").click();
 
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("Saved 1 file, preparing index");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("complete: Knowledge base created");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: completed 100% WS index complete");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   await expect.poll(() => knowledge.createBody?.includes('filename="limits.md"')).toBe(true);
@@ -1535,9 +1536,9 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
 
   await page.goto("/knowledge");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/calculus_mock");
-  await page.getByTestId("knowledge-kb-default-geometry_mock").click();
-  await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
   await page.getByTestId("knowledge-kb-select-geometry_mock").click();
+  await page.getByTestId("knowledge-active-set-default").click();
+  await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
 
@@ -1545,7 +1546,7 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
   await page.getByTestId("knowledge-progress-toggle").click();
   await page.getByTestId("knowledge-progress-clear").click();
   await expect.poll(() => knowledge.clearedProgress).toBe("geometry_mock");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("Progress cleared for geometry_mock");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("已清理进度：geometry_mock");
 
   await page.getByTestId("knowledge-upload-files").setInputFiles({
     name: "mobile-triangles.md",
@@ -1555,7 +1556,7 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
   await page.getByTestId("knowledge-upload-submit").click();
   await expect.poll(() => knowledge.uploadTarget).toBe("geometry_mock");
   await expect.poll(() => knowledge.uploadBody?.includes('filename="mobile-triangles.md"')).toBe(true);
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("complete: Upload complete");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：上传完成");
 
   await page.getByTestId("knowledge-folder-toggle").click();
   await page.getByTestId("knowledge-folder-path").fill("C:\\course\\geometry-mobile");
@@ -1564,12 +1565,12 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
 
   await page.getByTestId("knowledge-folder-sync-folder-1").click();
   await expect.poll(() => knowledge.syncTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("complete: Folder sync complete");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：文件夹同步完成");
 
   await page.getByTestId("knowledge-folder-unlink-folder-1").click();
   await expect.poll(() => knowledge.unlinkTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
 
-  await page.getByTestId("knowledge-kb-delete-geometry_mock").click();
+  await page.getByTestId("knowledge-active-delete").click();
   await expect.poll(() => knowledge.deletedKb).toBe("geometry_mock");
   expect(errors).toEqual([]);
   expect(consoleDomErrors).toEqual([]);

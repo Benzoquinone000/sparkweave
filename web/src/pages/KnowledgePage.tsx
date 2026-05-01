@@ -247,7 +247,7 @@ export function KnowledgePage() {
 
   const syncKbConfigs = async () => {
     const result = await mutations.syncConfigs.mutateAsync();
-    pushTaskLog(result.message || "知识库配置已同步。");
+    pushTaskLog(result.message ? withLegacyText(formatKnowledgeLogLine(result.message), result.message) : "知识库配置已同步。");
   };
 
   const clearActiveProgress = async () => {
@@ -259,7 +259,7 @@ export function KnowledgePage() {
     setTaskProgress(null);
     setWsProgress(null);
     setWsStatus("idle");
-    setTaskLogs([result.message || `已清理 ${activeKb} 的进度状态。`]);
+    setTaskLogs([result.message ? withLegacyText(formatKnowledgeLogLine(result.message), result.message) : `已清理 ${activeKb} 的进度状态。`]);
   };
 
   const createKb = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -335,7 +335,7 @@ export function KnowledgePage() {
                 <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={() => void query.refetch()}>
                   {query.isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                 </Button>
-                <Button tone={view === "create" ? "primary" : "secondary"} className="min-h-8 px-2 text-xs" onClick={() => setView("create")}>
+                <Button tone={view === "create" ? "primary" : "secondary"} className="min-h-8 px-2 text-xs" onClick={() => setView("create")} data-testid="knowledge-open-create">
                   <UploadCloud size={14} />
                   新建
                 </Button>
@@ -693,7 +693,7 @@ export function KnowledgePage() {
           </div>
         </details>
 
-        <details className="hidden order-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-folder-details">
+        <details className="order-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-folder-details">
           <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="knowledge-folder-toggle">
             <div>
               <h2 className="text-base font-semibold text-ink">文件夹同步</h2>
@@ -800,7 +800,6 @@ export function KnowledgePage() {
               <motion.div
                 key={kb.name}
                 className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200"
-                data-testid={`knowledge-kb-${kb.name}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
@@ -817,7 +816,6 @@ export function KnowledgePage() {
                     tone="secondary"
                     className="min-h-9 text-xs"
                     onClick={() => setSelectedKb(kb.name)}
-                    data-testid={`knowledge-kb-select-${kb.name}`}
                   >
                     选择
                   </Button>
@@ -826,7 +824,6 @@ export function KnowledgePage() {
                     className="min-h-9 text-xs"
                     onClick={() => void mutations.setDefault.mutateAsync(kb.name)}
                     disabled={kb.is_default || mutations.setDefault.isPending}
-                    data-testid={`knowledge-kb-default-${kb.name}`}
                   >
                     <Star size={14} />
                     设为默认
@@ -838,7 +835,6 @@ export function KnowledgePage() {
                       if (window.confirm(`删除知识库 ${kb.name}？`)) void mutations.remove.mutateAsync(kb.name);
                     }}
                     disabled={mutations.remove.isPending}
-                    data-testid={`knowledge-kb-delete-${kb.name}`}
                   >
                     <Trash2 size={14} />
                     删除
@@ -868,7 +864,6 @@ export function KnowledgePage() {
                   value={createName}
                   onChange={(event) => setCreateName(event.target.value)}
                   placeholder="例如 calculus_notes"
-                  data-testid="knowledge-create-name"
                 />
               </FieldShell>
               <FieldShell label="检索引擎">
@@ -889,7 +884,6 @@ export function KnowledgePage() {
                   type="file"
                   multiple
                   onChange={(event) => setCreateFiles(Array.from(event.target.files ?? []))}
-                  data-testid="knowledge-create-files"
                 />
               </FieldShell>
               {createFiles.length ? <FileList files={createFiles} /> : null}
@@ -897,7 +891,6 @@ export function KnowledgePage() {
                 tone="primary"
                 type="submit"
                 disabled={!createName.trim() || !createFiles.length || mutations.create.isPending}
-                data-testid="knowledge-create-submit"
               >
                 {mutations.create.isPending ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
                 创建并索引
@@ -912,7 +905,6 @@ export function KnowledgePage() {
                 <SelectInput
                   value={activeKb}
                   onChange={(event) => setSelectedKb(event.target.value)}
-                  data-testid="knowledge-upload-target"
                 >
                   {bases.map((kb) => (
                     <option key={kb.name} value={kb.name}>
@@ -926,7 +918,6 @@ export function KnowledgePage() {
                   type="file"
                   multiple
                   onChange={(event) => setUploadFiles(Array.from(event.target.files ?? []))}
-                  data-testid="knowledge-upload-files"
                 />
               </FieldShell>
               {uploadFiles.length ? <FileList files={uploadFiles} /> : null}
@@ -934,7 +925,6 @@ export function KnowledgePage() {
                 tone="secondary"
                 type="submit"
                 disabled={!activeKb || !uploadFiles.length || mutations.upload.isPending}
-                data-testid="knowledge-upload-submit"
               >
                 {mutations.upload.isPending ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
                 上传并处理
@@ -944,7 +934,7 @@ export function KnowledgePage() {
         </div>
 
         <details
-          className="hidden order-6 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden"
+          className="order-6 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden"
           open={Boolean(taskId || taskLogs.length)}
           data-testid="knowledge-progress-details"
         >
@@ -1203,14 +1193,14 @@ function KnowledgeRuntimePanel({
 function formatTaskEvent(label: "log" | "complete" | "failed" | "message", raw: string) {
   const payload = parseTaskPayload(raw);
   if (payload) {
-    if (payload.line) return String(payload.line);
+    if (payload.line) return withLegacyText(formatKnowledgeLogLine(String(payload.line), label), String(payload.line));
     const labelText = formatTaskLabel(label);
     const legacyLabel = label;
-    if (payload.detail) return withLegacyText(`${labelText}：${payload.detail}`, `${legacyLabel}: ${payload.detail}`);
+    if (payload.detail) return withLegacyText(`${labelText}：${formatKnowledgeLogLine(String(payload.detail), label)}`, `${legacyLabel}: ${payload.detail}`);
     const serialized = JSON.stringify(payload);
     return withLegacyText(`${labelText}：${serialized}`, `${legacyLabel}: ${serialized}`);
   }
-  return raw || formatTaskLabel(label);
+  return raw ? withLegacyText(formatKnowledgeLogLine(raw, label), raw) : formatTaskLabel(label);
 }
 
 function parseTaskPayload(raw: string) {
@@ -1234,8 +1224,9 @@ function formatWsProgress(progress: KnowledgeProgress) {
   const rawState = progress.stage || progress.status || "progress";
   const state = formatProgressStage(rawState);
   const percent = typeof progress.percent === "number" ? ` ${clampPercent(progress.percent)}%` : "";
-  const message = progress.message ? ` ${progress.message}` : "";
-  return withLegacyText(`进度 ${state}${percent}${message}`.trim(), `ws: ${rawState}${percent}${message}`.trim());
+  const message = progress.message ? ` ${formatKnowledgeLogLine(progress.message)}` : "";
+  const legacyMessage = progress.message ? ` ${progress.message}` : "";
+  return withLegacyText(`进度 ${state}${percent}${message}`.trim(), `ws: ${rawState}${percent}${legacyMessage}`.trim());
 }
 
 function formatWsStatus(status: KnowledgeWsStatus) {
@@ -1303,7 +1294,7 @@ function formatProgressMessage(progress: KnowledgeProgress | undefined | null, a
 
 function formatKnowledgeWsMessage(payload: KnowledgeWsMessage) {
   if (payload.data) return formatWsProgress(payload.data);
-  if (payload.message) return `进度更新：${payload.message}`;
+  if (payload.message) return withLegacyText(`进度更新：${formatKnowledgeLogLine(payload.message)}`, `进度更新：${payload.message}`);
   if (payload.type === "complete" || payload.type === "failed" || payload.type === "log" || payload.type === "message") {
     return `进度更新：${formatTaskLabel(payload.type)}`;
   }
@@ -1315,7 +1306,49 @@ function formatKnowledgeWsText(raw: string) {
   const value = raw.trim();
   if (!value) return "收到进度更新";
   if (value.startsWith("{") || value.startsWith("[")) return "收到进度更新";
-  return `进度更新：${value}`;
+  return withLegacyText(`进度更新：${formatKnowledgeLogLine(value)}`, `进度更新：${value}`);
+}
+
+function formatKnowledgeLogLine(raw: string, label?: "log" | "complete" | "failed" | "message") {
+  const original = String(raw || "").trim();
+  if (!original) return formatTaskLabel(label || "message");
+  const text = original.replace(/^\[[^\]]+\]\s*/, "").trim();
+  const lower = text.toLowerCase();
+  const processed = text.match(/^successfully processed\s+(\d+)\s+files?\s+for\s+'([^']+)'/i);
+  if (processed) return `完成：已处理 ${processed[1]} 个文件（${processed[2]}）`;
+  const processedFiles = text.match(/^processed\s+(\d+)\s+file\(s\)\s+for\s+'([^']+)'/i);
+  if (processedFiles) return `已处理 ${processedFiles[1]} 个文件：${processedFiles[2]}`;
+  const processingFiles = text.match(/^processing\s+(\d+)\s+file\(s\)\s+for\s+kb\s+'([^']+)'/i);
+  if (processingFiles) return `正在处理 ${processingFiles[1]} 个文件：${processingFiles[2]}`;
+  const indexed = text.match(/^indexed\s+(\d+)\s+file\(s\)/i);
+  if (indexed) return `已写入索引：${indexed[1]} 个文件`;
+  const processedByProvider = text.match(/^processed\s+\(([^)]+)\):\s+(.+)/i);
+  if (processedByProvider) return `已索引：${processedByProvider[2]}`;
+  const indexing = text.match(/^indexing\s+\(([^)]+)\)\s+(.+?)(\s+\([^)]+\))?$/i);
+  if (indexing) return `正在索引：${indexing[2]}${indexing[3] || ""}`;
+  const staged = text.match(/^staged\s+(\d+)\s+new\s+file\(s\)/i);
+  if (staged) return `已暂存 ${staged[1]} 个新文件`;
+  const recovering = text.match(/^recovering staged file:\s+(.+)/i);
+  if (recovering) return `恢复待处理文件：${recovering[1]}`;
+  const validating = text.match(/^validating documents for\s+'([^']+)'/i);
+  if (validating) return `正在校验资料：${validating[1]}`;
+  const found = text.match(/^found\s+(\d+)\s+documents?,\s+starting to process/i);
+  if (found) return `找到 ${found[1]} 份资料，开始处理`;
+  const initializing = text.match(/^initializing knowledge base\s+'([^']+)'/i);
+  if (initializing) return `正在初始化资料库：${initializing[1]}`;
+  if (lower.includes("starting to process documents with")) return "正在调用解析与索引管线...";
+  if (lower.includes("extracting numbered items")) return "正在整理题目结构...";
+  if (lower.includes("skipping numbered items extraction")) return "已跳过题号提取";
+  if (lower.includes("saved") && lower.includes("preparing index")) return "资料已保存，正在准备索引";
+  if (lower.includes("knowledge base created")) return "资料库已创建";
+  if (lower.includes("upload complete")) return "上传完成";
+  if (lower.includes("folder sync complete")) return "文件夹同步完成";
+  const cleared = text.match(/^progress cleared for\s+(.+)/i);
+  if (cleared) return `已清理进度：${cleared[1]}`;
+  if (lower.includes("ws parsing files")) return "正在解析文件";
+  if (lower.includes("ws index complete")) return "索引已完成";
+  if (lower === "heartbeat") return "进度通道保持连接";
+  return text;
 }
 
 function isTerminalProgress(progress: KnowledgeProgress) {

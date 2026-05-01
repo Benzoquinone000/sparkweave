@@ -8,9 +8,13 @@ test("guide start page exposes full course templates", async ({ page }, testInfo
 
   await page.goto("/guide");
   await expect(page.getByTestId("guide-course-template-robotics_ros_foundations")).toBeVisible();
+  await expect(page.getByTestId("guide-course-template-higher_math_limits_derivatives")).toBeVisible();
   await page.getByTestId("guide-course-template-robotics_ros_foundations").click();
 
   await expect(page.getByTestId("guide-goal-input")).toHaveValue(/ROS|机器人|robot/i);
+
+  await page.getByTestId("guide-course-template-higher_math_limits_derivatives").click();
+  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/极限|导数|高等数学/i);
 });
 
 test("guide v2 stable demo runs from seed to wrap-up and course package", async ({ page }, testInfo) => {
@@ -476,6 +480,21 @@ async function mockGuideV2StableDemoApis(page: Page) {
             default_preferences: ["visual", "practice", "project"],
             default_time_budget_minutes: 60,
             tags: ["机器人", "ROS", "项目实践"],
+          },
+          {
+            id: "higher_math_limits_derivatives",
+            title: "高等数学极限与导数",
+            course_id: "MATH101",
+            course_name: "高等数学极限与导数",
+            description: "从函数直觉、极限定义到导数几何意义，适合展示公式、图解和 Manim 动画。",
+            level: "beginner",
+            suggested_weeks: 6,
+            credits: 2,
+            estimated_minutes: 420,
+            default_goal: "系统学习高等数学中的极限、连续和导数，并能用图像直觉解释典型题。",
+            default_preferences: ["visual", "practice", "video"],
+            default_time_budget_minutes: 40,
+            tags: ["高等数学", "极限", "导数"],
           },
         ],
       },

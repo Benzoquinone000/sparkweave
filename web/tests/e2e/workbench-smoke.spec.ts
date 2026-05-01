@@ -2842,10 +2842,14 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
 
   const messageTrace = page.locator("article").filter({ hasText: "协作明细" }).last();
   const collaboration = page.getByTestId("agent-collaboration").last();
+  const route = page.getByTestId("agent-collaboration-route").last();
   await expect(collaboration).toContainText("智能体协作");
   await expect(collaboration).toContainText("画像已参与");
   await expect(collaboration).toContainText("对话协调智能体");
   await expect(collaboration).toContainText("讲解智能体");
+  await expect(route).toContainText("接力路线");
+  await expect(route).toContainText("对话协调");
+  await expect(route).toContainText("讲解");
   await expect(messageTrace).toContainText("协作明细");
   await expect(messageTrace).toContainText("识别任务");
   await expect(messageTrace).toContainText("Awakened Knowledge Visualization Agent.");

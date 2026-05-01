@@ -297,6 +297,7 @@ export function AgentCollaborationPanel({
   const running = steps.some((step) => step.status === "running");
   const profileAware = events.some((event) => event.metadata?.profile_hints_applied);
   const readableEvents = useMemo(() => buildReadableTraceItems(events), [events]);
+  const routeSummary = summarizeCollaboration(displayedSteps, profileAware);
 
   if (!events.length) return null;
 
@@ -314,6 +315,26 @@ export function AgentCollaborationPanel({
           <Badge tone={hasError ? "danger" : running ? "warning" : "success"}>
             {hasError ? "异常" : running ? "协作中" : "已完成"}
           </Badge>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2" data-testid="agent-collaboration-route">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="font-medium text-ink">接力路线</span>
+          <span>{routeSummary}</span>
+        </div>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          {displayedSteps.map((step, index) => (
+            <div key={`${step.key}-route`} className="flex shrink-0 items-center gap-1.5">
+              <span
+                className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium ${routeChipTone(step.status)}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${routeDotTone(step.status)}`} />
+                {shortAgentName(step.title)}
+              </span>
+              {index < displayedSteps.length - 1 ? <span className="text-slate-300">→</span> : null}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -558,6 +579,32 @@ function iconTone(status: StepStatus) {
   if (status === "complete") return "bg-teal-50 text-brand-teal";
   if (status === "error") return "bg-white text-brand-red";
   return "bg-canvas text-slate-500";
+}
+
+function routeChipTone(status: StepStatus) {
+  if (status === "running") return "border-teal-200 bg-white text-brand-teal";
+  if (status === "complete") return "border-line bg-white text-ink";
+  if (status === "error") return "border-red-200 bg-white text-brand-red";
+  return "border-line bg-white text-slate-500";
+}
+
+function routeDotTone(status: StepStatus) {
+  if (status === "running") return "bg-brand-blue animate-pulse";
+  if (status === "complete") return "bg-brand-teal";
+  if (status === "error") return "bg-brand-red";
+  return "bg-slate-300";
+}
+
+function shortAgentName(title: string) {
+  return title.replace(/智能体$/, "");
+}
+
+function summarizeCollaboration(steps: AgentStep[], profileAware: boolean) {
+  const completed = steps.filter((step) => step.status === "complete").length;
+  const running = steps.find((step) => step.status === "running");
+  if (running) return `${shortAgentName(running.title)}正在处理，前序结果会继续传给下一位角色。`;
+  if (completed > 1) return profileAware ? "画像先参与判断，再由多个角色接力完成。" : "多个角色已按任务顺序完成接力。";
+  return profileAware ? "已带入画像，正在等待更多协作信号。" : "系统会按任务自动选择需要的角色。";
 }
 
 function statusText(status: StepStatus) {

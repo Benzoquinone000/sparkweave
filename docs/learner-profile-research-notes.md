@@ -277,6 +277,21 @@ P1 画像中心必须完成：
 - 异常/空状态友好：
   - “还没有足够证据，先完成一次导学或练习。”
 
+## 2026-05-02 调研补充：画像页必须可行动
+
+后续继续打磨画像、导学和报告时，优先遵循“可行动、可解释、可校准”三条。
+
+- 学生侧学习分析面板的核心挑战不是展示更多图表，而是把洞察转成可以执行的行动，并同时处理透明度和伦理问题。参考：Jivet 等关于 learner-facing dashboard 的综述与设计讨论，https://educationaltechnologyjournal.springeropen.com/articles/10.1186/s41239-021-00313-7
+- 面向学生的 dashboard 更适合服务自我调节学习：提醒目标、促进反思、降低“不知道下一步做什么”的焦虑。参考：Same graph, different data 可用性研究，https://open-publishing.org/publications/index.php/APUB/article/view/168
+- Open Learner Model 的价值在于让学习者看到、理解并修正系统对自己的判断。SparkWeave 因此必须保留“判断准确 / 不准 / 一句话修正”入口，而不是把画像做成不可协商的标签。参考：Supporting Learning with Open Learner Models，https://www.etpe.gr/wp-content/uploads/pdfs/etpe4.pdf
+
+落地约束：
+
+- 画像页首屏只回答“现在该做什么”和“为什么这么安排”。
+- 指标只在能帮助行动时出现，不展示 cost、tokens、内部 ID 或调试事件。
+- 每个评估结论都应该能导向一个动作：进入导学、生成资源、提交练习、修正画像或保存报告。
+- 多智能体协作只展示角色接力和学习意义，不展示原始协议字段。
+
 ## 风险清单
 
 | 风险 | 表现 | 规避 |

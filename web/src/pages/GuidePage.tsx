@@ -3768,6 +3768,9 @@ function QuestionPreview({
         is_correct: isGuideQuizCorrect(answer, correctAnswer, options),
       };
     });
+  const currentResults = buildResults();
+  const correctCount = currentResults.filter((item) => item.is_correct).length;
+  const scoreRatio = records.length ? correctCount / records.length : 0;
 
   const submitAll = () => {
     if (!allChecked || submitting) return;
@@ -3905,6 +3908,29 @@ function QuestionPreview({
           </div>
         );
       })}
+      {allChecked ? (
+        <div
+          className={`rounded-lg border p-3 text-sm leading-6 ${
+            scoreRatio >= 0.8
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : scoreRatio >= 0.5
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-red-200 bg-red-50 text-red-800"
+          }`}
+          data-testid="guide-quiz-score-preview"
+        >
+          <p className="font-semibold text-ink">
+            本组练习 {correctCount}/{records.length} 题正确
+          </p>
+          <p className="mt-1 text-xs">
+            {scoreRatio >= 0.8
+              ? "整体不错，提交后系统会把掌握证据写回路线。"
+              : scoreRatio >= 0.5
+                ? "有一部分已经掌握，提交后系统会根据错题安排补强。"
+                : "先别急着继续推进，提交后系统会优先帮你补错因。"}
+          </p>
+        </div>
+      ) : null}
       <Button tone="primary" className="w-full" disabled={!allChecked || submitting || submitted} onClick={submitAll}>
         {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
         {submitted ? "练习已回写" : allChecked ? "提交整组练习并更新路径" : "先逐题提交答案"}

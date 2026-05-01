@@ -355,7 +355,7 @@ export function CoWriterPage() {
                   <>
                     <AuditBlock title="输入" content={getOperationInput(operation.data)} />
                     <AuditBlock title="输出" content={getOperationOutput(operation.data)} />
-                    <AuditBlock title="修改依据" content={toolCalls.data ? JSON.stringify(toolCalls.data, null, 2) : "还没有修改依据。"} code />
+                    <AuditBlock title="修改依据" content={formatToolCallEvidence(toolCalls.data)} />
                   </>
                 ) : (
                   <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm leading-6 text-slate-500">
@@ -415,6 +415,32 @@ function formatCoWriterLogContent(value: unknown) {
   if (lower === "planning edit") return "正在分析原文和编辑指令";
   if (lower === "stream failed") return "流式生成失败";
   return text;
+}
+
+function formatToolCallEvidence(value: unknown) {
+  const record = isRecord(value) ? value : {};
+  const traces = Array.isArray(record.tool_traces) ? record.tool_traces : [];
+  if (!traces.length) return "这次修改主要根据原文和你的编辑要求完成，没有额外调用资料工具。";
+  return traces
+    .slice(0, 5)
+    .map((trace, index) => {
+      const item = isRecord(trace) ? trace : {};
+      const tool = formatToolName(item.tool ?? item.tool_name ?? item.name);
+      const output = String(item.output ?? item.result ?? item.summary ?? item.content ?? "").trim();
+      return `${index + 1}. ${tool}${output ? `：${output}` : " 已返回可参考信息。"}`;
+    })
+    .join("\n");
+}
+
+function formatToolName(value: unknown) {
+  const text = String(value || "").trim();
+  const lower = text.toLowerCase();
+  if (!text) return "辅助工具";
+  if (lower.includes("rag")) return "知识库检索";
+  if (lower.includes("search")) return "资料检索";
+  if (lower.includes("mark")) return "自动批注";
+  if (lower.includes("edit") || lower.includes("rewrite")) return "文本编辑";
+  return text.replace(/_/g, " ");
 }
 
 function getHistoryPreview(item: Record<string, unknown>) {

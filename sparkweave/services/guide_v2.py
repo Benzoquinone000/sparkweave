@@ -620,7 +620,7 @@ class GuideV2Manager:
         if bottleneck_label:
             recommendations.append(f"当前主要卡点是「{bottleneck_label}」，后续任务会优先围绕它安排资源和验证。")
         if preferred_resource:
-            labels = {"visual": "图解", "practice": "练习", "video": "短视频", "research": "资料"}
+            labels = {"visual": "图解", "practice": "练习", "video": "短视频", "external_video": "公开视频", "research": "资料"}
             recommendations.append(f"遇到阻塞时，优先生成{labels.get(preferred_resource, preferred_resource)}资源。")
         return recommendations[:4]
 
@@ -634,7 +634,7 @@ class GuideV2Manager:
         bottleneck_label: str,
     ) -> list[dict[str, Any]]:
         focus = weak_points[0] if weak_points else bottleneck_label or "当前目标"
-        resource_labels = {"visual": "图解", "practice": "练习", "video": "短视频", "research": "资料"}
+        resource_labels = {"visual": "图解", "practice": "练习", "video": "短视频", "external_video": "公开视频", "research": "资料"}
         preferred_label = resource_labels.get(preferred_resource, "图解或练习")
         strategy: list[dict[str, Any]] = []
         if readiness_label == "needs_foundation":
@@ -869,6 +869,8 @@ class GuideV2Manager:
         preferences: list[str] = []
         if any(token in lowered for token in ("图", "图解", "可视化", "visual", "diagram")):
             preferences.append("visual")
+        if any(token in lowered for token in ("公开视频", "公开课", "网课", "b站", "bilibili", "youtube", "external video")):
+            preferences.append("external_video")
         if any(token in lowered for token in ("视频", "动画", "manim", "video", "animation")):
             preferences.append("video")
         if any(token in lowered for token in ("题", "练习", "测试", "quiz", "exercise", "practice")):
@@ -1607,6 +1609,11 @@ class GuideV2Manager:
         question_count = int(evaluation.get("question_count") or 0)
         progress = int(evaluation.get("progress") or 0)
         preferences = {str(item).strip().lower() for item in session.profile.preferences}
+        prefers_external_video = "external_video" in preferences or any(
+            token in item
+            for item in preferences
+            for token in ("公开视频", "精选视频", "公开课", "bilibili", "youtube")
+        )
         effect_context = self._effect_context(session, evaluation=evaluation)
         effect_assessment = effect_context["effect_assessment"]
         mistake_review = effect_context["mistake_review"]
@@ -1782,6 +1789,16 @@ class GuideV2Manager:
                 title="先生成当前任务图解",
                 reason="当前路径还没有图解资源，先把概念关系可视化能降低后续练习难度。",
                 prompt="生成适合课堂投影的简洁图解：目标、关键概念、关系箭头、例子和注意事项。",
+            )
+
+        if prefers_external_video and resource_counts.get("external_video", 0) == 0:
+            add(
+                resource_type="external_video",
+                task=target_task,
+                priority="medium",
+                title="找一组公开视频补充视角",
+                reason="学习画像显示你会使用公开视频辅助理解，先筛选少量高相关讲解，再回到当前任务提交反馈。",
+                prompt="检索适合当前任务的公开视频或公开课片段，只保留 2-3 个高相关链接，并说明每个视频解决哪个卡点。",
             )
 
         if ("video" in preferences or "animation" in preferences) and resource_counts.get("video", 0) == 0:
@@ -3573,11 +3590,14 @@ class GuideV2Manager:
         pending = [task for task in tasks if task.status != "completed"]
         first = pending[0] if pending else None
         recommendations = []
+        preferences = {item.lower() for item in profile.preferences}
         if first:
             recommendations.append(f"先完成「{first.title}」，预计 {first.estimated_minutes} 分钟。")
-        if "visual" in {item.lower() for item in profile.preferences}:
+        if "visual" in preferences:
             recommendations.append("做题前先生成一张概念图，把术语、条件和常见误区放在同一张图里。")
-        if "video" in {item.lower() for item in profile.preferences}:
+        if "external_video" in preferences or any(token in item for item in preferences for token in ("公开视频", "精选视频", "bilibili", "youtube")):
+            recommendations.append("需要补充讲解视角时，优先找一两个公开视频，看完再回到练习提交反馈。")
+        if "video" in preferences:
             recommendations.append("遇到公式推导或过程变化时，优先生成一段短动画分步讲解。")
         if course_map.nodes:
             recommendations.append(f"本轮掌握目标：{course_map.nodes[0].mastery_target}")
@@ -7077,6 +7097,8 @@ class GuideV2Manager:
         prefs = []
         if any(token in lowered for token in ("图", "可视化", "visual")):
             prefs.append("visual")
+        if any(token in lowered for token in ("公开视频", "公开课", "网课", "b站", "bilibili", "youtube", "external video")):
+            prefs.append("external_video")
         if any(token in lowered for token in ("视频", "动画", "video", "animation")):
             prefs.append("video")
         if any(token in lowered for token in ("题", "练习", "quiz", "exercise")):

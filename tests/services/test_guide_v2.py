@@ -838,7 +838,7 @@ async def test_guide_v2_recommends_personalized_resources(tmp_path) -> None:
     created = await manager.create_session(
         GuideV2CreateInput(
             goal="学习线性代数特征值",
-            preferences=["visual", "video"],
+            preferences=["visual", "video", "external_video"],
         )
     )
     session_id = created["session"]["session_id"]
@@ -850,6 +850,7 @@ async def test_guide_v2_recommends_personalized_resources(tmp_path) -> None:
     assert initial["effect_assessment"]["dimensions"]
     assert "学习效果评估" in initial["summary"]
     assert any(item["resource_type"] == "quiz" for item in initial["recommendations"])
+    assert any(item["resource_type"] == "external_video" for item in initial["recommendations"])
     assert any(item["resource_type"] == "video" for item in initial["recommendations"])
     assert initial["recommendations"][0]["target_task_id"]
     assert initial["recommendations"][0]["effect_score"] == initial["effect_assessment"]["score"]

@@ -106,6 +106,7 @@ export function NotebookPage() {
       : questionEntries.data?.[0];
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
     if (routeTab === "questions" || routeQuestionKey) {
       setView("questions");
       questionSectionRef.current?.scrollIntoView({ block: "start" });
@@ -115,6 +116,8 @@ export function NotebookPage() {
       setView("browse");
       notebookSectionRef.current?.scrollIntoView({ block: "start" });
     }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [routeNotebookId, routeQuestionKey, routeRecordId, routeTab]);
 
   const createNotebook = async (event: React.FormEvent<HTMLFormElement>) => {

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -11,6 +13,14 @@ from pydantic import BaseModel, Field, field_validator
 from sparkweave.api.utils.task_log_stream import get_task_stream_manager
 from sparkweave.services.context import NotebookAnalysisAgent
 from sparkweave.services.guide_v2 import GuideV2CreateInput, GuideV2Manager
+from sparkweave.services.learner_evidence import (
+    build_guide_session_event,
+    build_guide_task_event,
+    build_notebook_record_event,
+    build_quiz_answer_events,
+    get_learner_evidence_service,
+)
+from sparkweave.services.learner_profile import get_learner_profile_service
 from sparkweave.services.llm import get_llm_config
 from sparkweave.services.notebook import notebook_manager
 from sparkweave.services.session_store import get_sqlite_session_store
@@ -18,6 +28,7 @@ from sparkweave.services.settings import get_ui_language
 
 router = APIRouter()
 _manager: GuideV2Manager | None = None
+logger = logging.getLogger(__name__)
 
 
 class CreateGuideV2SessionRequest(BaseModel):
@@ -31,6 +42,7 @@ class CreateGuideV2SessionRequest(BaseModel):
     course_template_id: str = ""
     notebook_references: list[dict] = Field(default_factory=list)
     use_memory: bool = True
+    source_action: dict = Field(default_factory=dict)
 
 
 class CompleteGuideV2TaskRequest(BaseModel):
@@ -82,6 +94,8 @@ class GuideV2QuizResultItem(BaseModel):
     question: str = Field(..., min_length=1)
     question_type: str = ""
     options: dict[str, str] | None = None
+    concepts: list[str] = Field(default_factory=list)
+    knowledge_points: list[str] = Field(default_factory=list)
     user_answer: str = ""
     correct_answer: str = ""
     explanation: str | None = ""
@@ -92,6 +106,15 @@ class GuideV2QuizResultItem(BaseModel):
     @classmethod
     def _coerce_options(cls, value):
         return value if isinstance(value, dict) else {}
+
+    @field_validator("concepts", "knowledge_points", mode="before")
+    @classmethod
+    def _coerce_string_list(cls, value):
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            return [item.strip() for item in re.split(r"\s*(?:,|，|、|;|；|\|)\s*", value) if item.strip()]
+        return []
 
     @field_validator("explanation", "difficulty", mode="before")
     @classmethod
@@ -111,6 +134,7 @@ def get_guide_v2_manager() -> GuideV2Manager:
 
     llm_config = get_llm_config()
     _manager = GuideV2Manager(
+        learner_profile_service=get_learner_profile_service(),
         llm_options={
             "api_key": llm_config.api_key,
             "base_url": llm_config.base_url,
@@ -129,6 +153,26 @@ async def _build_notebook_context(goal: str, references: list[dict]) -> str:
         return ""
     agent = NotebookAnalysisAgent(language=get_ui_language(default="zh"))
     return await agent.analyze(user_question=goal, records=selected_records)
+
+
+def _append_evidence_event(event: dict) -> dict:
+    try:
+        recorded = get_learner_evidence_service().append_events([event], dedupe=True)
+        return {"recorded": bool(recorded.get("added")), "count": int(recorded.get("added") or 0)}
+    except Exception:
+        logger.warning("Failed to append learner evidence event", exc_info=True)
+        return {"recorded": False, "count": 0}
+
+
+def _append_evidence_events(events: list[dict]) -> dict:
+    if not events:
+        return {"recorded": False, "count": 0}
+    try:
+        recorded = get_learner_evidence_service().append_events(events, dedupe=True)
+        return {"recorded": bool(recorded.get("added")), "count": int(recorded.get("added") or 0)}
+    except Exception:
+        logger.warning("Failed to append learner evidence events", exc_info=True)
+        return {"recorded": False, "count": 0}
 
 
 @router.get("/health")
@@ -170,9 +214,12 @@ async def create_session(request: CreateGuideV2SessionRequest):
                 notebook_context=notebook_context,
                 course_template_id=request.course_template_id,
                 use_memory=request.use_memory,
-            )        )
+                source_action=request.source_action,
+            )
+        )
         if not result.get("success"):
             raise HTTPException(status_code=400, detail=str(result.get("error") or "Create session failed"))
+        result["evidence"] = _append_evidence_event(build_guide_session_event(session=result.get("session") or {}))
         return result
     except HTTPException:
         raise
@@ -386,6 +433,14 @@ async def complete_task(session_id: str, task_id: str, request: CompleteGuideV2T
         )
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=str(result.get("error") or "Task not found"))
+        result["learner_evidence"] = _append_evidence_event(
+            build_guide_task_event(
+                session_id=session_id,
+                task=result.get("completed_task") or {},
+                evidence=result.get("evidence") or {},
+                session_goal=str((result.get("session") or {}).get("goal") or ""),
+            )
+        )
         return result
     except HTTPException:
         raise
@@ -528,6 +583,14 @@ async def save_artifact(
         )
         saved_record = result.get("record")
         added_to_notebooks = list(result.get("added_to_notebooks") or [])
+        if saved_record:
+            _append_evidence_event(
+                build_notebook_record_event(
+                    record=saved_record,
+                    notebook_ids=added_to_notebooks,
+                    source="guide_v2",
+                )
+            )
 
     question_result = {"saved": False, "count": 0, "session_id": ""}
     if request.save_questions and str(artifact.get("type") or "") == "quiz":
@@ -546,6 +609,17 @@ async def save_artifact(
                 "count": count,
                 "session_id": question_session_id,
             }
+            _append_evidence_events(
+                build_quiz_answer_events(
+                    questions,
+                    source="question_notebook",
+                    session_id=question_session_id,
+                    task_id=task_id,
+                    artifact_id=artifact_id,
+                    node_id=str(task.get("node_id") or ""),
+                    source_id_prefix=question_session_id,
+                )
+            )
 
     if not request.notebook_ids and not question_result["saved"]:
         raise HTTPException(status_code=400, detail="No save target selected")
@@ -599,9 +673,33 @@ async def submit_quiz_results(
             "session_id": question_session_id,
         }
 
+    session_payload = result.get("session") or {}
+    task_payload = _find_task(session_payload, task_id) or {}
+    evidence_events = [
+        build_guide_task_event(
+            session_id=session_id,
+            task=task_payload,
+            evidence=result.get("evidence") or {},
+            session_goal=str(session_payload.get("goal") or ""),
+        )
+    ]
+    evidence_events.extend(
+        build_quiz_answer_events(
+            answers,
+            source="guide_v2",
+            session_id=session_id,
+            task_id=task_id,
+            artifact_id=artifact_id,
+            node_id=str(task_payload.get("node_id") or ""),
+            source_id_prefix=f"guide_v2:{session_id}",
+        )
+    )
+    evidence_result = _append_evidence_events(evidence_events)
+
     return {
         **result,
         "question_notebook": question_result,
+        "learner_evidence": evidence_result,
     }
 
 
@@ -630,11 +728,20 @@ async def save_session_report(session_id: str, request: SaveGuideV2ReportRequest
         },
         kb_name=None,
     )
+    saved_record = result.get("record")
+    if saved_record:
+        _append_evidence_event(
+            build_notebook_record_event(
+                record=saved_record,
+                notebook_ids=list(result.get("added_to_notebooks") or []),
+                source="guide_v2_report",
+            )
+        )
     return {
         "success": True,
         "session_id": session_id,
         "notebook": {
-            "record": result.get("record"),
+            "record": saved_record,
             "added_to_notebooks": list(result.get("added_to_notebooks") or []),
         },
     }
@@ -665,11 +772,20 @@ async def save_session_course_package(session_id: str, request: SaveGuideV2Packa
         },
         kb_name=None,
     )
+    saved_record = result.get("record")
+    if saved_record:
+        _append_evidence_event(
+            build_notebook_record_event(
+                record=saved_record,
+                notebook_ids=list(result.get("added_to_notebooks") or []),
+                source="guide_v2_course_package",
+            )
+        )
     return {
         "success": True,
         "session_id": session_id,
         "notebook": {
-            "record": result.get("record"),
+            "record": saved_record,
             "added_to_notebooks": list(result.get("added_to_notebooks") or []),
         },
     }

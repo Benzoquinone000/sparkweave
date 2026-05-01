@@ -11,23 +11,34 @@
 5. [会话、Turn 与事件持久化](./sessions-and-turns.md)
 6. [Notebook、Memory 与上下文引用](./notebook-memory-context.md)
 7. [学习画像设计调研与实现方案](./learner-profile-design.md)
-8. [导学空间与 Guide V2](./guided-learning.md)
-9. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
-10. [Capabilities 详解](./capabilities.md)
-11. [Tools 工具系统](./tools.md)
-12. [CLI 与 API 使用](./cli-and-api.md)
-13. [知识库详解](./knowledge-base.md)
-14. [题目工作流](./question-workflows.md)
-15. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
-16. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
-17. [前端工作台](./frontend.md)
-18. [服务层与数据流](./services.md)
-19. [设置与 Provider 配置](./settings-and-providers.md)
-20. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
-21. [环境变量配置](./configuration.md)
-22. [插件开发](./plugin-development.md)
-23. [赛题对齐与后续开发路线](./competition-roadmap.md)
-24. [开发与维护](./development.md)
+8. [学习画像开发前调研笔记](./learner-profile-research-notes.md)
+9. [学习画像 P1 只读统一画像实施方案](./learner-profile-p1-implementation.md)
+10. [学习画像 P1 开发状态](./learner-profile-p1-status.md)
+11. [学习画像 P2 证据账本](./learner-profile-p2-evidence-ledger.md)
+12. [学习画像 P3 用户校准](./learner-profile-p3-calibration.md)
+13. [学习画像 P4 对话信号接入](./learner-profile-p4-chat-signals.md)
+14. [学习画像 P5 Guide V2 导学接入统一画像](./learner-profile-p5-guide-integration.md)
+15. [学习画像 P6 学习效果评估融合](./learner-profile-p6-effect-assessment.md)
+16. [学习画像 P7 知识点掌握度沉淀](./learner-profile-p7-concept-mastery.md)
+17. [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md)
+18. [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md)
+19. [导学空间与 Guide V2](./guided-learning.md)
+20. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
+21. [Capabilities 详解](./capabilities.md)
+22. [Tools 工具系统](./tools.md)
+23. [CLI 与 API 使用](./cli-and-api.md)
+24. [知识库详解](./knowledge-base.md)
+25. [题目工作流](./question-workflows.md)
+26. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
+27. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
+28. [前端工作台](./frontend.md)
+29. [服务层与数据流](./services.md)
+30. [设置与 Provider 配置](./settings-and-providers.md)
+31. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
+32. [环境变量配置](./configuration.md)
+33. [插件开发](./plugin-development.md)
+34. [赛题对齐与后续开发路线](./competition-roadmap.md)
+35. [开发与维护](./development.md)
 
 ## 文档定位
 
@@ -40,6 +51,17 @@
 | [会话、Turn 与事件持久化](./sessions-and-turns.md) | 后端开发者、前端集成方 | SQLite 会话模型、turn 生命周期、事件 seq、WebSocket 续流、消息汇总 |
 | [Notebook、Memory 与上下文引用](./notebook-memory-context.md) | 后端开发者、前端集成方、上下文能力维护者 | 主 Notebook JSON、题目本边界、两文件 Memory、引用分析、prompt 注入、前端/CLI 保存和排查 |
 | [学习画像设计调研与实现方案](./learner-profile-design.md) | 画像功能维护者、导学/评估开发者、比赛材料整理者 | 画像调研、统一数据模型、证据账本、前端画像中心、API 和分阶段实现计划 |
+| [学习画像开发前调研笔记](./learner-profile-research-notes.md) | 画像功能维护者、架构设计者、测试规划者 | 外部调研摘要、项目证据源盘点、事件词表、风险清单、测试矩阵和开发前检查 |
+| [学习画像 P1 只读统一画像实施方案](./learner-profile-p1-implementation.md) | 画像功能开发者、前端开发者、测试维护者 | P1 边界、数据结构、API 合约、聚合规则、前端页面结构、测试计划和开发顺序 |
+| [学习画像 P1 开发状态](./learner-profile-p1-status.md) | 画像功能开发者、联调者、验收者 | P1 已完成内容、当前 API、验证记录和下一步计划 |
+| [学习画像 P2 证据账本](./learner-profile-p2-evidence-ledger.md) | 画像功能开发者、导学/评估开发者、联调者 | 统一学习事件格式、证据账本 API、画像接入规则和后续模块接入点 |
+| [学习画像 P3 用户校准](./learner-profile-p3-calibration.md) | 画像功能开发者、前端开发者、导学/推荐开发者 | 画像确认、驳回、修正的 API、事件格式、前端入口和验证记录 |
+| [学习画像 P4 对话信号接入](./learner-profile-p4-chat-signals.md) | 画像功能开发者、运行时维护者、导学/推荐开发者 | 聊天中的目标、卡点、资源偏好如何低置信度写入统一画像证据账本 |
+| [学习画像 P5 Guide V2 导学接入统一画像](./learner-profile-p5-guide-integration.md) | 画像功能开发者、导学功能维护者、推荐策略开发者 | Guide V2 创建路线时如何读取统一画像、保留用户显式输入并补全导学画像 |
+| [学习画像 P6 学习效果评估融合](./learner-profile-p6-effect-assessment.md) | 画像功能开发者、导学评估维护者、比赛演示材料整理者 | 学习效果评估如何纳入统一画像、长期薄弱点、证据账本和前端解释 |
+| [学习画像 P7 知识点掌握度沉淀](./learner-profile-p7-concept-mastery.md) | 画像功能开发者、题目/导学/评估开发者 | 题目事件如何携带知识点、画像如何按概念合并 mastery 与 weak point |
+| [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md) | 画像功能开发者、导学功能维护者、前端开发者 | 画像中心如何给出“现在只做这一步”，并把行动来源带入导学创建 |
+| [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md) | 运行时维护者、能力开发者、画像功能开发者 | 画像如何被压缩成模型上下文，注入 LangGraph 回合并覆盖 Chat/解题/出题/图解/动画 |
 | [导学空间与 Guide V2](./guided-learning.md) | 导学功能维护者、前后端集成方 | 旧版导学、Guide V2 学习画像、课程模板、任务证据闭环、资源生成、报告和 Notebook/题目本保存 |
 | [SparkBot 与 Agents 工作台](./sparkbot-agents.md) | 长期智能体维护者、前端集成方、渠道开发者 | SparkBot 生命周期、工作区文件、渠道 schema、WebSocket 聊天、工具、heartbeat、cron、team 和排查路径 |
 | [Capabilities 详解](./capabilities.md) | 能力开发者、前后端集成方 | Chat、Deep Solve、Deep Question、Deep Research、Visualize、Math Animator 的配置、阶段和结果 |

@@ -72,11 +72,15 @@ class LangGraphTurnRuntimeManager:
         runner: LangGraphRunner | None = None,
         memory_service: Any | None = None,
         notebook_manager: Any | None = None,
+        evidence_service: Any | None = None,
+        profile_context_injector: Any | None = None,
     ) -> None:
         self.store = store or get_session_store()
         self.runner = runner or LangGraphRunner()
         self.memory_service = memory_service
         self.notebook_manager = notebook_manager
+        self.evidence_service = evidence_service
+        self.profile_context_injector = profile_context_injector
         self._lock = asyncio.Lock()
         self._executions: dict[str, _TurnExecution] = {}
 
@@ -340,6 +344,8 @@ class LangGraphTurnRuntimeManager:
             capability=prepared.capability,
             memory_service=self.memory_service,
             notebook_manager=self.notebook_manager,
+            evidence_service=self.evidence_service,
+            profile_context_injector=self.profile_context_injector,
             emit=emit,
         )
 

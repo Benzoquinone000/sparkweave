@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation, useParams } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BookOpenCheck,
@@ -36,6 +37,7 @@ import type {
   CapabilityId,
   ChatAttachment,
   ChatMessage,
+  LearnerProfileSnapshot,
   NotebookReference,
   NotebookSummary,
   SessionDetail,
@@ -44,7 +46,7 @@ import type {
 } from "@/lib/types";
 import { buildNotebookAsset, type NotebookAsset } from "@/lib/notebookAssets";
 import { useChatRuntime } from "@/hooks/useChatRuntime";
-import { useNotebookMutations, useNotebooks, useSessionMutations, useSessions } from "@/hooks/useApiQueries";
+import { useLearnerProfile, useLearnerProfileMutations, useNotebookMutations, useNotebooks, useSessionMutations, useSessions } from "@/hooks/useApiQueries";
 
 const CAPABILITY_IDS = new Set<CapabilityId>([
   "chat",
@@ -104,8 +106,13 @@ export function ChatPage() {
   const sessionMutations = useSessionMutations();
   const notebooks = useNotebooks();
   const notebookMutations = useNotebookMutations();
+  const learnerProfile = useLearnerProfile();
+  const learnerProfileMutations = useLearnerProfileMutations();
+  const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const refreshedProfileTurnRef = useRef<string | null>(null);
   const activeCapability = getCapability(capability);
+  const profileFocus = learnerProfile.data?.overview.current_focus?.trim();
   const saveAsset = useMemo(
     () =>
       saveMessage
@@ -147,6 +154,17 @@ export function ChatPage() {
   const stageLabel = useMemo(() => {
     return formatStageLabel(runtime.lastEvent, latestAssistant?.status);
   }, [latestAssistant?.status, runtime.lastEvent]);
+
+  useEffect(() => {
+    if (!latestAssistant || latestAssistant.status !== "done") return;
+    if (!runtime.turnId || refreshedProfileTurnRef.current === runtime.turnId) return;
+    refreshedProfileTurnRef.current = runtime.turnId;
+    void learnerProfileMutations.refresh
+      .mutateAsync({ force: true })
+      .catch(() => {
+        void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
+      });
+  }, [latestAssistant, learnerProfileMutations.refresh, queryClient, runtime.turnId]);
 
   const send = (content: string, attachments: ChatAttachment[]) => {
     runtime.send({
@@ -228,6 +246,15 @@ export function ChatPage() {
             <p className="hidden truncate text-xs text-slate-500 md:block">先输入问题，需要时再添加资料、工具或学习方式。</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {profileFocus ? (
+              <a
+                href="/memory"
+                className="hidden max-w-[220px] truncate rounded-lg border border-teal-100 bg-teal-50 px-2.5 py-1.5 text-xs font-medium text-brand-teal hover:border-teal-200 md:inline-flex"
+                title={`画像当前重点：${profileFocus}`}
+              >
+                画像：{profileFocus}
+              </a>
+            ) : null}
             <span className="hidden rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs font-medium text-slate-600 sm:inline-flex">
               {activeCapability.label} · {formatRuntimeStatus(runtime.status)}
             </span>
@@ -438,6 +465,8 @@ export function ChatPage() {
                     setHistoryReferences={setHistoryReferences}
                     notebookReferences={notebookReferences}
                     setNotebookReferences={setNotebookReferences}
+                    learnerProfile={learnerProfile.data}
+                    learnerProfileLoading={learnerProfile.isLoading}
                   />
                 </div>
               </div>
@@ -731,6 +760,8 @@ function ContextPanel({
   setHistoryReferences,
   notebookReferences,
   setNotebookReferences,
+  learnerProfile,
+  learnerProfileLoading,
 }: {
   capability: CapabilityId;
   setCapability: (value: CapabilityId) => void;
@@ -751,9 +782,13 @@ function ContextPanel({
   setHistoryReferences: (value: string[]) => void;
   notebookReferences: NotebookReference[];
   setNotebookReferences: (value: NotebookReference[]) => void;
+  learnerProfile?: LearnerProfileSnapshot;
+  learnerProfileLoading: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-white">
+      <ProfileMiniCard profile={learnerProfile} loading={learnerProfileLoading} />
+
       <section className="border-b border-line p-3">
         <div className="flex items-center gap-2">
           <Route size={17} className="text-brand-blue" />
@@ -818,6 +853,51 @@ function ContextPanel({
         </div>
       </section>
     </div>
+  );
+}
+
+function ProfileMiniCard({ profile, loading }: { profile?: LearnerProfileSnapshot; loading: boolean }) {
+  const weakPoints = profile?.learning_state.weak_points?.slice(0, 2) ?? [];
+  const nextAction = profile?.next_action?.title?.trim();
+
+  return (
+    <section className="border-b border-line bg-teal-50/70 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand-teal">
+            <Sparkles size={16} />
+            学习画像
+          </div>
+          {loading ? (
+            <p className="mt-2 text-sm text-teal-900">正在读取画像...</p>
+          ) : profile ? (
+            <>
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-teal-950">
+                {profile.overview.current_focus || "继续学习后，系统会整理你的当前重点。"}
+              </p>
+              {nextAction ? <p className="mt-1 text-xs text-teal-800">下一步：{nextAction}</p> : null}
+              {weakPoints.length ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {weakPoints.map((item) => (
+                    <span key={`${item.label}-${item.source_ids.join("-")}`} className="rounded-md bg-white px-2 py-1 text-xs text-teal-800">
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-2 text-sm leading-6 text-teal-900">完成一次导学或练习后，系统会自动形成画像。</p>
+          )}
+        </div>
+        <a
+          href="/memory"
+          className="dt-interactive shrink-0 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-teal hover:border-brand-teal"
+        >
+          修正
+        </a>
+      </div>
+    </section>
   );
 }
 

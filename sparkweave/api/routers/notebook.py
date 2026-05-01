@@ -4,16 +4,19 @@ Provides notebook creation, querying, updating, deletion, and record management 
 """
 
 import json
+import logging
 from typing import AsyncGenerator, Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from sparkweave.services.learner_evidence import build_notebook_record_event, get_learner_evidence_service
 from sparkweave.services.notebook import notebook_manager
 from sparkweave.services.notebook_summary import NotebookSummarizeAgent
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # === Request/Response Models ===
@@ -116,6 +119,7 @@ async def _stream_add_record_with_summary(
             metadata=request.metadata,
             kb_name=request.kb_name,
         )
+        _append_notebook_evidence(result)
         payload = {
             "type": "result",
             "success": True,
@@ -278,6 +282,7 @@ async def add_record(request: AddRecordRequest):
             metadata=request.metadata,
             kb_name=request.kb_name,
         )
+        _append_notebook_evidence(result)
         return {
             "success": True,
             "summary": summary,
@@ -286,6 +291,25 @@ async def add_record(request: AddRecordRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _append_notebook_evidence(result: dict) -> None:
+    record = result.get("record") if isinstance(result, dict) else None
+    if not isinstance(record, dict):
+        return
+    try:
+        get_learner_evidence_service().append_events(
+            [
+                build_notebook_record_event(
+                    record=record,
+                    notebook_ids=list(result.get("added_to_notebooks") or []),
+                    source="notebook",
+                )
+            ],
+            dedupe=True,
+        )
+    except Exception:
+        logger.warning("Failed to append notebook learner evidence", exc_info=True)
 
 
 @router.post("/add_record_with_summary")

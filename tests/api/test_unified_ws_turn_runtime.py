@@ -32,6 +32,15 @@ class FakeRunner:
             yield event
 
 
+class FakeEvidence:
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def append_events(self, events: list[dict], *, dedupe: bool = True):  # noqa: ANN001, ANN201
+        self.events.extend(events)
+        return {"added": len(events), "skipped": 0, "events": events}
+
+
 @pytest.mark.asyncio
 async def test_turn_runtime_replays_events_and_materializes_messages(tmp_path) -> None:
     store = create_session_store(tmp_path / "chat_history.db")
@@ -85,6 +94,43 @@ async def test_turn_runtime_replays_events_and_materializes_messages(tmp_path) -
     persisted_turn = await store.get_turn(turn["id"])
     assert persisted_turn is not None
     assert persisted_turn["status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_turn_runtime_appends_chat_statement_evidence(tmp_path) -> None:
+    store = create_session_store(tmp_path / "chat_history.db")
+    evidence = FakeEvidence()
+    runtime = LangGraphTurnRuntimeManager(
+        store=store,
+        runner=FakeRunner(
+            [
+                StreamEvent(type=StreamEventType.CONTENT, source="chat", content="ok"),
+                StreamEvent(type=StreamEventType.DONE, source="langgraph"),
+            ]
+        ),
+        memory_service=FakeMemory(),
+        evidence_service=evidence,
+    )
+
+    _session, turn = await runtime.start_turn(
+        {
+            "type": "start_turn",
+            "content": "I want to master gradient descent, but I am confused. I prefer visual videos.",
+            "session_id": None,
+            "capability": "chat",
+            "tools": [],
+            "knowledge_bases": [],
+            "attachments": [],
+            "language": "en",
+            "config": {},
+        }
+    )
+    _events = [event async for event in runtime.subscribe_turn(turn["id"], after_seq=0)]
+
+    object_types = {event["object_type"] for event in evidence.events}
+    assert "learning_goal" in object_types
+    assert "learning_blocker" in object_types
+    assert "learning_preference" in object_types
 
 
 @pytest.mark.asyncio

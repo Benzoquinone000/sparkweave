@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
+from sparkweave.services.learner_evidence import build_quiz_answer_events, get_learner_evidence_service
 from sparkweave.services.session_store import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -125,6 +126,18 @@ async def record_quiz_results(session_id: str, payload: QuizResultsRequest):
         )
     except Exception:
         logger.warning("Failed to upsert notebook entries for session %s", session_id, exc_info=True)
+    try:
+        get_learner_evidence_service().append_events(
+            build_quiz_answer_events(
+                [item.model_dump() for item in payload.answers],
+                source="question_notebook",
+                session_id=session_id,
+                source_id_prefix=session_id,
+            ),
+            dedupe=True,
+        )
+    except Exception:
+        logger.warning("Failed to append quiz learner evidence for session %s", session_id, exc_info=True)
     return {
         "recorded": True,
         "session_id": session_id,

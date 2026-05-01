@@ -27,6 +27,8 @@ class RuntimeRoutingTurnManager:
         legacy: Any | None = None,
         langgraph: Any | None = None,
         store: SQLiteSessionStore | None = None,
+        evidence_service: Any | None = None,
+        profile_context_injector: Any | None = None,
     ) -> None:
         if compatibility is not None and legacy is not None and compatibility is not legacy:
             raise ValueError("Pass only one of compatibility= or legacy=.")
@@ -39,7 +41,11 @@ class RuntimeRoutingTurnManager:
         )
         self.legacy = self.compatibility
         self.store = store or getattr(self.compatibility, "store", None) or get_session_store()
-        self.langgraph = langgraph or LangGraphTurnRuntimeManager(store=self.store)
+        self.langgraph = langgraph or LangGraphTurnRuntimeManager(
+            store=self.store,
+            evidence_service=evidence_service,
+            profile_context_injector=profile_context_injector,
+        )
         self._turn_runtimes: dict[str, str] = {}
 
     async def start_turn(self, payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:

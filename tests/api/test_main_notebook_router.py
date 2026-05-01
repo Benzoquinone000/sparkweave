@@ -21,6 +21,11 @@ notebook_router = importlib.import_module("sparkweave.api.routers.notebook").rou
 from sparkweave.services.notebook import NotebookManager
 
 
+class _EvidenceRecorder:
+    def append_events(self, events: list[dict], *, dedupe: bool = True):
+        return {"added": len(events), "skipped": 0, "events": events}
+
+
 def _build_app(manager: NotebookManager) -> FastAPI:
     app = FastAPI()
     app.include_router(notebook_router, prefix="/api/v1/notebook")
@@ -32,6 +37,10 @@ def manager(tmp_path, monkeypatch) -> NotebookManager:
     instance = NotebookManager(base_dir=str(tmp_path / "notebooks"))
     monkeypatch.setattr(
         "sparkweave.api.routers.notebook.notebook_manager", instance,
+    )
+    monkeypatch.setattr(
+        "sparkweave.api.routers.notebook.get_learner_evidence_service",
+        lambda: _EvidenceRecorder(),
     )
     return instance
 

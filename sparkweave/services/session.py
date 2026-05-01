@@ -69,11 +69,18 @@ def get_legacy_turn_runtime_manager() -> Any:
 
 def create_turn_runtime_manager(
     store: SQLiteSessionStore | None = None,
+    evidence_service: Any | None = None,
 ) -> Any:
     """Create a turn runtime manager with an explicit or shared store."""
     from sparkweave.runtime.turn_runtime import LangGraphTurnRuntimeManager
+    from sparkweave.services.learner_evidence import get_learner_evidence_service
+    from sparkweave.services.profile_context import get_profile_context_injector
 
-    return LangGraphTurnRuntimeManager(store=store)
+    return LangGraphTurnRuntimeManager(
+        store=store,
+        evidence_service=evidence_service or get_learner_evidence_service(),
+        profile_context_injector=get_profile_context_injector(),
+    )
 
 
 def create_runtime_router(
@@ -82,15 +89,20 @@ def create_runtime_router(
     legacy: Any | None = None,
     langgraph: Any | None = None,
     store: SQLiteSessionStore | None = None,
+    evidence_service: Any | None = None,
 ) -> Any:
     """Create a router that selects compatibility or LangGraph turn execution."""
     from sparkweave.runtime.routing import RuntimeRoutingTurnManager
+    from sparkweave.services.learner_evidence import get_learner_evidence_service
+    from sparkweave.services.profile_context import get_profile_context_injector
 
     return RuntimeRoutingTurnManager(
         compatibility=compatibility,
         legacy=legacy,
         langgraph=langgraph,
         store=store,
+        evidence_service=evidence_service or get_learner_evidence_service(),
+        profile_context_injector=get_profile_context_injector() if langgraph is None else None,
     )
 
 

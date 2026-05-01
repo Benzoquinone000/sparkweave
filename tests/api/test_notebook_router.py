@@ -18,6 +18,11 @@ sessions_router = importlib.import_module("sparkweave.api.routers.sessions").rou
 from sparkweave.services.session_store import SQLiteSessionStore
 
 
+class _EvidenceRecorder:
+    def append_events(self, events: list[dict], *, dedupe: bool = True):
+        return {"added": len(events), "skipped": 0, "events": events}
+
+
 def _build_app(store: SQLiteSessionStore) -> FastAPI:
     app = FastAPI()
     app.include_router(notebook_router, prefix="/api/v1/question-notebook")
@@ -35,6 +40,15 @@ def store(tmp_path: Path, monkeypatch) -> SQLiteSessionStore:
     monkeypatch.setattr(
         "sparkweave.api.routers.sessions.get_sqlite_session_store",
         lambda: instance,
+    )
+    recorder = _EvidenceRecorder()
+    monkeypatch.setattr(
+        "sparkweave.api.routers.question_notebook.get_learner_evidence_service",
+        lambda: recorder,
+    )
+    monkeypatch.setattr(
+        "sparkweave.api.routers.sessions.get_learner_evidence_service",
+        lambda: recorder,
     )
     return instance
 

@@ -191,6 +191,7 @@ class GuideV2CreateInput:
     notebook_context: str = ""
     course_template_id: str = ""
     use_memory: bool = True
+    source_action: dict[str, Any] = field(default_factory=dict)
 
 
 class GuideV2Manager:
@@ -202,6 +203,7 @@ class GuideV2Manager:
         output_dir: str | Path | None = None,
         completion_fn: CompletionFn | None = None,
         capability_runner: CapabilityRunnerFn | None = None,
+        learner_profile_service: Any | None = None,
         llm_options: dict[str, Any] | None = None,
     ) -> None:
         base_dir = Path(output_dir) if output_dir else get_path_service().get_guide_dir() / "v2"
@@ -214,6 +216,7 @@ class GuideV2Manager:
         ]
         self.completion_fn = completion_fn or llm_complete
         self.capability_runner = capability_runner or _run_langgraph_capability
+        self.learner_profile_service = learner_profile_service
         self.llm_options = dict(llm_options or {})
         self.logger = get_logger("GuideV2")
         self._sessions: dict[str, GuideSessionV2] = {}
@@ -225,12 +228,20 @@ class GuideV2Manager:
 
         session_id = uuid.uuid4().hex[:10]
         learner_memory = self.build_learner_memory(refresh=True) if request.use_memory else {}
+        unified_profile = await self._read_unified_learner_profile() if request.use_memory else {}
         profile = self._build_profile(request, learner_memory)
+        self._apply_unified_profile_to_profile(profile, unified_profile, request=request)
         plan_payload = self._build_template_plan(request.course_template_id, profile)
         if not plan_payload:
             plan_payload = await self._build_plan_with_llm(profile, request.notebook_context)
         course_map = self._normalize_course_map(plan_payload, profile)
+        source_action = self._normalize_source_action(request.source_action, goal=goal)
+        if source_action:
+            course_map.metadata["source_action"] = source_action
+            course_map.metadata["created_from"] = source_action.get("source") or "learner_profile"
         tasks = self._normalize_tasks(plan_payload, course_map)
+        if source_action and tasks:
+            tasks[0].metadata["source_action"] = source_action
         learning_path = self._build_learning_path(plan_payload, profile, course_map, tasks)
         mastery = {
             node.node_id: MasteryState(node_id=node.node_id)
@@ -252,8 +263,13 @@ class GuideV2Manager:
             recommendations=recommendations,
             notebook_context=request.notebook_context,
         )
+        self._attach_unified_profile_snapshot(session, unified_profile)
         if self._apply_memory_to_new_session(session, learner_memory):
             session.recommendations = self._build_session_recommendations(session)
+        if source_action:
+            label = str(source_action.get("source_label") or source_action.get("title") or "").strip()
+            prefix = f"已根据学习画像建议「{label}」创建本路线。" if label else "已根据学习画像建议创建本路线。"
+            session.recommendations.insert(0, prefix)
         self._save_session(session)
         return {"success": True, "session": self.get_session(session_id)}
 
@@ -332,10 +348,11 @@ class GuideV2Manager:
                 "default_goal": "我想系统学习机器学习基础，并完成一个端到端建模课程项目。",
                 "default_preferences": ["visual", "practice"],
                 "default_time_budget_minutes": 45,
-                "learning_outcomes": ml_metadata.get("learning_outcomes", []),
-                "assessment": ml_metadata.get("assessment", []),
-                "project_milestones": ml_metadata.get("project_milestones", []),
-            }
+            "learning_outcomes": ml_metadata.get("learning_outcomes", []),
+            "assessment": ml_metadata.get("assessment", []),
+            "project_milestones": ml_metadata.get("project_milestones", []),
+            "demo_seed": ml_metadata.get("demo_seed", {}),
+        }
         ]
 
     def _load_course_template_files(self) -> list[dict[str, Any]]:
@@ -1163,6 +1180,17 @@ class GuideV2Manager:
             + average_evidence_score * 100 * 0.35
             + average_mastery * 100 * 0.30
         )
+        learner_profile_context = self._evaluation_profile_context(session)
+        risk_signals = self._risk_signals(session)
+        next_actions = self._evaluation_next_actions(
+            session,
+            progress=progress,
+            average_evidence_score=average_evidence_score,
+            question_count=question_count,
+            resource_counts=resource_counts,
+        )
+        risk_signals = self._profile_risk_signals(risk_signals, learner_profile_context)
+        next_actions = self._profile_next_actions(next_actions, learner_profile_context)
         evaluation = {
             "success": True,
             "session_id": session.session_id,
@@ -1183,14 +1211,9 @@ class GuideV2Manager:
             "evidence_trend": self._evidence_trend(session),
             "node_evaluations": self._node_evaluations(session),
             "strengths": self._strengths(session),
-            "risk_signals": self._risk_signals(session),
-            "next_actions": self._evaluation_next_actions(
-                session,
-                progress=progress,
-                average_evidence_score=average_evidence_score,
-                question_count=question_count,
-                resource_counts=resource_counts,
-            ),
+            "risk_signals": risk_signals,
+            "next_actions": next_actions,
+            "learner_profile_context": learner_profile_context,
         }
         return evaluation
 
@@ -1292,6 +1315,7 @@ class GuideV2Manager:
         behavior_summary = effect_context["behavior_summary"]
         feedback_digest = effect_context["feedback_digest"]
         effect_assessment = effect_context["effect_assessment"]
+        learner_profile_context = effect_context.get("learner_profile_context", {})
         recent_events = sorted(timeline_events, key=lambda item: float(item.get("created_at") or 0), reverse=True)[:5]
         resource_plan = self.recommend_resources(session_id)
         resource_shortcuts = list(resource_plan.get("recommendations") or [])[:3] if resource_plan.get("success") else []
@@ -1335,6 +1359,7 @@ class GuideV2Manager:
             "behavior_summary": behavior_summary,
             "feedback_digest": feedback_digest,
             "effect_assessment": effect_assessment,
+            "learner_profile_context": learner_profile_context,
             "strategy_adjustments": effect_assessment.get("strategy_adjustments", []),
             "recent_events": recent_events,
         }
@@ -1352,6 +1377,7 @@ class GuideV2Manager:
             return evaluation
         effect_context = self._effect_context(session, evaluation=evaluation)
         effect_assessment = effect_context["effect_assessment"]
+        learner_profile_context = effect_context.get("learner_profile_context", {})
         blocks = self._study_blocks(session)
         checkpoints = self._study_checkpoints(session, blocks)
         current_block = next(
@@ -1400,6 +1426,7 @@ class GuideV2Manager:
             "current_block": current_block,
             "next_checkpoint": next_checkpoint,
             "effect_assessment": effect_assessment,
+            "learner_profile_context": learner_profile_context,
             "strategy_adjustments": effect_assessment.get("strategy_adjustments", []),
             "rules": rules[:5],
         }
@@ -1582,6 +1609,7 @@ class GuideV2Manager:
         effect_context = self._effect_context(session, evaluation=evaluation)
         effect_assessment = effect_context["effect_assessment"]
         mistake_review = effect_context["mistake_review"]
+        learner_profile_context = effect_context.get("learner_profile_context", {})
         effect_dimensions = {
             str(item.get("id") or ""): item
             for item in effect_assessment.get("dimensions") or []
@@ -1798,6 +1826,7 @@ class GuideV2Manager:
             "generated_at": time.time(),
             "summary": summary,
             "effect_assessment": effect_assessment,
+            "learner_profile_context": learner_profile_context,
             "recommendations": ordered,
         }
 
@@ -1852,6 +1881,26 @@ class GuideV2Manager:
             behavior_summary=behavior_summary,
             mistake_payload=mistake_payload,
             feedback_digest=feedback_digest,
+            profile_context=evaluation.get("learner_profile_context"),
+        )
+        node_cards = self._report_node_cards(session)
+        action_brief = self._report_action_brief(
+            session=session,
+            evaluation=evaluation,
+            overview=overview,
+            effect_assessment=effect_assessment,
+            feedback_digest=feedback_digest,
+            mistake_payload=mistake_payload,
+            node_cards=node_cards,
+        )
+        demo_readiness = self._report_demo_readiness(
+            session=session,
+            evaluation=evaluation,
+            overview=overview,
+            behavior_summary=behavior_summary,
+            resource_summary=evaluation.get("resource_counts", {}),
+            feedback_digest=feedback_digest,
+            action_brief=action_brief,
         )
         report: dict[str, Any] = {
             "success": True,
@@ -1861,13 +1910,16 @@ class GuideV2Manager:
             "summary": self._report_summary(session, evaluation),
             "overview": overview,
             "profile": asdict(session.profile),
-            "node_cards": self._report_node_cards(session),
+            "node_cards": node_cards,
             "resource_summary": evaluation.get("resource_counts", {}),
             "evidence_summary": evidence_summary,
             "behavior_summary": behavior_summary,
             "behavior_tags": behavior_tags,
             "feedback_digest": feedback_digest,
             "effect_assessment": effect_assessment,
+            "action_brief": action_brief,
+            "demo_readiness": demo_readiness,
+            "learner_profile_context": evaluation.get("learner_profile_context", {}),
             "timeline_events": sorted(
                 timeline_events,
                 key=lambda item: float(item.get("created_at") or 0),
@@ -1895,6 +1947,24 @@ class GuideV2Manager:
             return evaluation
         report = self.build_learning_report(session_id)
         node_cards = list(report.get("node_cards") or []) if report.get("success") else []
+        portfolio = self._course_portfolio(session)
+        demo_blueprint = self._course_demo_blueprint(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+        )
+        demo_fallback_kit = self._course_demo_fallback_kit(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+        )
+        demo_seed_pack = self._course_demo_seed_pack(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -1904,9 +1974,12 @@ class GuideV2Manager:
             "course_metadata": session.course_map.metadata,
             "capstone_project": self._capstone_project(session, evaluation),
             "rubric": self._course_rubric(session, evaluation),
-            "portfolio": self._course_portfolio(session),
+            "portfolio": portfolio,
             "review_plan": self._course_review_plan(node_cards),
             "demo_outline": self._course_demo_outline(session, evaluation),
+            "demo_blueprint": demo_blueprint,
+            "demo_fallback_kit": demo_fallback_kit,
+            "demo_seed_pack": demo_seed_pack,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -1915,6 +1988,7 @@ class GuideV2Manager:
                 "behavior_tags": report.get("behavior_tags", []),
                 "feedback_digest": report.get("feedback_digest", {}),
                 "effect_assessment": report.get("effect_assessment", {}),
+                "demo_readiness": report.get("demo_readiness", {}),
                 "recent_timeline_events": report.get("timeline_events", [])[:5],
                 "mistake_summary": (report.get("mistake_review") or {}).get("summary", {}),
                 "mistake_clusters": (report.get("mistake_review") or {}).get("clusters", [])[:3],
@@ -2003,6 +2077,7 @@ class GuideV2Manager:
             "created_at": time.time(),
             "status": "ready",
             "config": config,
+            "personalization": context.metadata.get("learner_profile_hints"),
             "result": result,
         }
         task.artifact_refs.append(artifact)
@@ -2049,6 +2124,8 @@ class GuideV2Manager:
         score = round(correct / total, 3) if total else 0.0
         wrong_items = [item for item in normalized_answers if not bool(item.get("is_correct"))]
         mistake_types = self._quiz_mistake_types(wrong_items)
+        concept_labels = self._quiz_concept_labels(normalized_answers)
+        concept_feedback = self._quiz_concept_feedback(normalized_answers, fallback_concept=task.title)
         attempt = {
             "attempt_id": uuid.uuid4().hex[:10],
             "created_at": time.time(),
@@ -2056,6 +2133,8 @@ class GuideV2Manager:
             "correct_count": correct,
             "total_count": total,
             "answers": normalized_answers,
+            "concepts": concept_labels,
+            "concept_feedback": concept_feedback,
         }
         attempts = artifact.setdefault("quiz_attempts", [])
         if isinstance(attempts, list):
@@ -2076,6 +2155,8 @@ class GuideV2Manager:
                 "question_count": total,
                 "correct_count": correct,
                 "wrong_count": len(wrong_items),
+                "concepts": concept_labels,
+                "concept_feedback": concept_feedback,
             },
         )
         evidence.metadata["evidence_quality"] = self._evidence_quality_profile(task, evidence)
@@ -2126,6 +2207,7 @@ class GuideV2Manager:
     ) -> Any:
         from sparkweave.core.contracts import UnifiedContext
 
+        learner_profile_hints = self._resource_profile_hints(session, task, node)
         user_message = self._resource_prompt(
             session=session,
             task=task,
@@ -2145,6 +2227,7 @@ class GuideV2Manager:
                 "guide_task_id": task.task_id,
                 "guide_node_id": task.node_id,
                 "guide_resource_type": resource_type,
+                "learner_profile_hints": learner_profile_hints,
             },
         )
 
@@ -2205,6 +2288,7 @@ class GuideV2Manager:
                     "difficulty": "medium",
                     "question_type": "mixed",
                     "preference": "包含选择题、判断题、填空题和简答题，答案解析要能指出常见误区。",
+                    "response_schema_hint": "Each question must include concepts: string[] and knowledge_points: string[] so learner profile mastery can be updated by concept.",
                 },
             )
         return (
@@ -2265,12 +2349,80 @@ class GuideV2Manager:
             f"学习总目标：{session.goal}\n"
             f"{node_text}\n"
             f"{memory_text}"
+            f"{GuideV2Manager._resource_profile_prompt(session, task, node, resource_type)}"
             f"当前任务：{task.title}\n"
             f"任务说明：{task.instruction}\n"
             f"成功标准：{'; '.join(task.success_criteria) if task.success_criteria else '完成后能解释关键思想并做一次自测'}\n"
             f"资源目标：{resource_goals.get(resource_type, '生成实用学习资源')}\n"
             f"请面向高校学生，表达清楚、可执行、不要空泛。{extra}"
         )
+
+    @staticmethod
+    def _resource_profile_hints(
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+    ) -> dict[str, Any]:
+        profile = session.profile
+        mastery = session.mastery.get(task.node_id)
+        task_memory = task.metadata.get("learner_memory") if isinstance(task.metadata.get("learner_memory"), dict) else {}
+        preferred_from_task = (
+            task.metadata.get("preferred_resource_types")
+            if isinstance(task.metadata.get("preferred_resource_types"), list)
+            else []
+        )
+        avoid_mistakes = task.metadata.get("avoid_mistakes") if isinstance(task.metadata.get("avoid_mistakes"), list) else []
+        hints = {
+            "level": profile.level,
+            "time_budget_minutes": profile.time_budget_minutes,
+            "preferences": GuideV2Manager._dedupe_strings(
+                [str(item) for item in list(profile.preferences or []) + list(preferred_from_task or [])]
+            )[:6],
+            "weak_points": GuideV2Manager._dedupe_strings([str(item) for item in profile.weak_points or []])[:6],
+            "avoid_mistakes": GuideV2Manager._dedupe_strings(
+                [str(item) for item in list(avoid_mistakes or []) + list(task_memory.get("common_mistakes") or [])]
+            )[:6],
+            "node_title": node.title if node else "",
+            "mastery_status": mastery.status if mastery else "",
+            "mastery_score": mastery.score if mastery else None,
+            "profile_context": profile.source_context_summary,
+        }
+        return {key: value for key, value in hints.items() if value not in ("", None, [], {})}
+
+    @staticmethod
+    def _resource_profile_prompt(
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+        resource_type: str,
+    ) -> str:
+        hints = GuideV2Manager._resource_profile_hints(session, task, node)
+        if not hints:
+            return ""
+        lines = ["Learner personalization:"]
+        if hints.get("level"):
+            lines.append(f"- level: {hints['level']}")
+        if hints.get("time_budget_minutes"):
+            lines.append(f"- time budget: {hints['time_budget_minutes']} minutes")
+        if hints.get("preferences"):
+            lines.append(f"- resource preferences: {', '.join(map(str, hints['preferences']))}")
+        if hints.get("weak_points"):
+            lines.append(f"- weak points to address: {', '.join(map(str, hints['weak_points']))}")
+        if hints.get("avoid_mistakes"):
+            lines.append(f"- common mistakes to prevent: {', '.join(map(str, hints['avoid_mistakes']))}")
+        if hints.get("mastery_status"):
+            lines.append(f"- current mastery: {hints['mastery_status']} ({hints.get('mastery_score', 'unknown')})")
+        if hints.get("profile_context"):
+            lines.append(f"- profile context: {str(hints['profile_context'])[:240]}")
+
+        guidance = {
+            "visual": "Make the diagram resolve the listed weak points first; prefer comparison, flow, formula meaning, and one small example over dense text.",
+            "video": "Write a short step-by-step script and Manim plan; keep formulas LaTeX-safe, introduce symbols before using them, and avoid oversized formula blocks.",
+            "quiz": "Generate mixed interactive questions: choice, true/false, fill-in, and short-answer when appropriate; each question must include concepts:string[] and knowledge_points:string[] plus answers, explanations, difficulty, and tested concept.",
+            "research": "Keep resources practical and sequenced; recommend only materials directly useful for the current task.",
+        }
+        lines.append(f"- generation rule: {guidance.get(resource_type, 'Adapt the resource to the learner profile and current task.')}")
+        return "\n".join(lines) + "\n"
 
     def _session_path(self, session_id: str) -> Path:
         safe_id = re.sub(r"[^A-Za-z0-9_-]", "", session_id)
@@ -2502,6 +2654,309 @@ class GuideV2Manager:
             source_context_summary=" ".join(item for item in context_parts if item).strip(),
         )
 
+    async def _read_unified_learner_profile(self) -> dict[str, Any]:
+        service = self.learner_profile_service
+        if service is None:
+            return {}
+        try:
+            profile = await service.read_profile(auto_refresh=True)
+        except Exception as exc:
+            self.logger.warning("Failed to read unified learner profile for guide planning: %s", exc)
+            return {}
+        return profile if isinstance(profile, dict) else {}
+
+    def _attach_unified_profile_snapshot(
+        self,
+        session: GuideSessionV2,
+        unified_profile: dict[str, Any],
+    ) -> None:
+        context = self._unified_profile_assessment_context(unified_profile)
+        if context.get("available"):
+            session.course_map.metadata["unified_learner_profile"] = context
+
+    @staticmethod
+    def _normalize_source_action(source_action: dict[str, Any] | None, *, goal: str) -> dict[str, Any]:
+        if not isinstance(source_action, dict) or not source_action:
+            return {}
+        allowed = {
+            "source",
+            "kind",
+            "title",
+            "source_type",
+            "source_label",
+            "confidence",
+            "estimated_minutes",
+            "suggested_prompt",
+            "href",
+        }
+        normalized: dict[str, Any] = {}
+        for key in allowed:
+            value = source_action.get(key)
+            if value in (None, "", [], {}):
+                continue
+            if key in {"confidence"}:
+                try:
+                    normalized[key] = max(0.0, min(float(value), 1.0))
+                except (TypeError, ValueError):
+                    continue
+            elif key in {"estimated_minutes"}:
+                try:
+                    normalized[key] = max(1, min(int(value), 240))
+                except (TypeError, ValueError):
+                    continue
+            else:
+                text = " ".join(str(value).split()).strip()
+                if text:
+                    normalized[key] = text[:500]
+        if not normalized:
+            return {}
+        normalized.setdefault("source", "learner_profile")
+        normalized.setdefault("kind", "next_action")
+        normalized.setdefault("suggested_prompt", goal[:500])
+        return normalized
+
+    def _apply_unified_profile_to_profile(
+        self,
+        profile: LearnerProfile,
+        unified_profile: dict[str, Any],
+        *,
+        request: GuideV2CreateInput,
+    ) -> bool:
+        hints = self._unified_profile_hints(unified_profile)
+        if not hints:
+            return False
+
+        changed = False
+        if not request.level.strip() and hints.get("level"):
+            profile.level = str(hints["level"])
+            changed = True
+        if request.time_budget_minutes is None and hints.get("time_budget_minutes"):
+            profile.time_budget_minutes = max(5, min(int(hints["time_budget_minutes"]), 240))
+            changed = True
+
+        for preference in hints.get("preferences") or []:
+            before = len(profile.preferences)
+            self._append_unique(profile.preferences, preference, limit=8)
+            changed = changed or len(profile.preferences) != before
+        for weak_point in hints.get("weak_points") or []:
+            before = len(profile.weak_points)
+            self._append_unique(profile.weak_points, weak_point, limit=8)
+            changed = changed or len(profile.weak_points) != before
+
+        context = self._unified_profile_context(hints)
+        if context:
+            profile.source_context_summary = " ".join(
+                item for item in [profile.source_context_summary, context] if item
+            ).strip()
+            changed = True
+        return changed
+
+    def _evaluation_profile_context(self, session: GuideSessionV2) -> dict[str, Any]:
+        latest = self._read_cached_unified_profile()
+        context = self._unified_profile_assessment_context(latest)
+        if not context.get("available"):
+            cached = session.course_map.metadata.get("unified_learner_profile")
+            context = dict(cached) if isinstance(cached, dict) else {}
+        if not context.get("available"):
+            return {"available": False}
+
+        session_weak = {str(item).strip().lower() for item in session.profile.weak_points if str(item).strip()}
+        profile_weak = [str(item) for item in context.get("weak_points") or [] if str(item).strip()]
+        overlap = [item for item in profile_weak if item.lower() in session_weak]
+        signal_score = int(context.get("signal_score") or 0)
+        if overlap:
+            signal_score = min(100, signal_score + 8)
+        if context.get("calibration_count"):
+            signal_score = min(100, signal_score + 5)
+        context["session_weak_overlap"] = overlap[:4]
+        context["signal_score"] = max(0, min(signal_score, 100))
+        context["assessment_notes"] = self._profile_assessment_notes(context)
+        return context
+
+    def _read_cached_unified_profile(self) -> dict[str, Any]:
+        service = self.learner_profile_service
+        profile_path = getattr(service, "_profile_path", None)
+        if not profile_path:
+            return {}
+        try:
+            path = Path(profile_path)
+            if not path.exists():
+                return {}
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            self.logger.warning("Failed to read cached unified learner profile: %s", exc)
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _unified_profile_assessment_context(unified_profile: dict[str, Any]) -> dict[str, Any]:
+        if not unified_profile:
+            return {"available": False}
+        overview = unified_profile.get("overview") if isinstance(unified_profile.get("overview"), dict) else {}
+        stable = unified_profile.get("stable_profile") if isinstance(unified_profile.get("stable_profile"), dict) else {}
+        learning_state = (
+            unified_profile.get("learning_state")
+            if isinstance(unified_profile.get("learning_state"), dict)
+            else {}
+        )
+        data_quality = (
+            unified_profile.get("data_quality")
+            if isinstance(unified_profile.get("data_quality"), dict)
+            else {}
+        )
+        evidence_count = GuideV2Manager._coerce_int(data_quality.get("evidence_count"), default=0)
+        source_count = GuideV2Manager._coerce_int(data_quality.get("source_count"), default=0)
+        calibration_count = GuideV2Manager._coerce_int(data_quality.get("calibration_count"), default=0)
+        weak_points = GuideV2Manager._extract_label_list(learning_state.get("weak_points"), limit=6)
+        preferences = GuideV2Manager._extract_label_list(stable.get("preferences"), limit=6)
+        mastery = GuideV2Manager._extract_label_list(learning_state.get("mastery"), limit=6)
+        recommendations = GuideV2Manager._extract_label_list(unified_profile.get("recommendations"), limit=5)
+        signal_score = min(100, 45 + min(evidence_count, 18) * 2 + min(source_count, 5) * 7 + min(calibration_count, 4) * 8)
+        if weak_points:
+            signal_score = min(100, signal_score + 5)
+        if not evidence_count and not source_count:
+            signal_score = 45
+        return {
+            "available": True,
+            "confidence": unified_profile.get("confidence"),
+            "current_focus": str(overview.get("current_focus") or "").strip(),
+            "summary": str(overview.get("summary") or "").strip(),
+            "suggested_level": str(overview.get("suggested_level") or "").strip(),
+            "preferred_time_budget_minutes": overview.get("preferred_time_budget_minutes"),
+            "preferences": preferences,
+            "weak_points": weak_points,
+            "mastery": mastery,
+            "recommendations": recommendations,
+            "evidence_count": evidence_count,
+            "source_count": source_count,
+            "calibration_count": calibration_count,
+            "read_only": bool(data_quality.get("read_only")),
+            "signal_score": signal_score,
+        }
+
+    @staticmethod
+    def _profile_assessment_notes(context: dict[str, Any]) -> list[str]:
+        notes: list[str] = []
+        if context.get("weak_points"):
+            notes.append(f"长期画像仍提示薄弱点：{context['weak_points'][0]}")
+        if context.get("session_weak_overlap"):
+            notes.append(f"本次路线与长期薄弱点重合：{context['session_weak_overlap'][0]}")
+        if context.get("recommendations"):
+            notes.append(str(context["recommendations"][0]))
+        if context.get("read_only"):
+            notes.append("画像尚未经过用户校准，建议确认关键判断。")
+        if not notes:
+            notes.append("长期画像已纳入评估，但暂未发现需要额外干预的信号。")
+        return notes[:4]
+
+    @staticmethod
+    def _profile_risk_signals(items: list[str], context: dict[str, Any]) -> list[str]:
+        signals = list(items or [])
+        if not context.get("available"):
+            return signals
+        if context.get("weak_points"):
+            signals.append(f"长期画像仍显示薄弱点：{context['weak_points'][0]}。")
+        if context.get("read_only"):
+            signals.append("学习画像尚未校准，个性化判断需要用户确认。")
+        return GuideV2Manager._dedupe_strings(signals)[:6]
+
+    @staticmethod
+    def _profile_next_actions(items: list[str], context: dict[str, Any]) -> list[str]:
+        actions = list(items or [])
+        if context.get("available"):
+            if context.get("recommendations"):
+                actions.insert(0, str(context["recommendations"][0]))
+            elif context.get("weak_points"):
+                actions.insert(0, f"先用图解或混合题补齐长期薄弱点：{context['weak_points'][0]}。")
+            if context.get("read_only"):
+                actions.append("到画像中心确认或修正系统对你的判断。")
+        return GuideV2Manager._dedupe_strings(actions)[:6]
+
+    @staticmethod
+    def _profile_effect_evidence(context: dict[str, Any]) -> str:
+        if not context.get("available"):
+            return "尚未形成可用于长期评估的统一画像，当前主要依据本次路线证据。"
+        weak = context.get("weak_points") or []
+        pref = context.get("preferences") or []
+        evidence_count = int(context.get("evidence_count") or 0)
+        source_count = int(context.get("source_count") or 0)
+        calibration_count = int(context.get("calibration_count") or 0)
+        parts = [f"统一画像含 {source_count} 类来源、{evidence_count} 条证据"]
+        if calibration_count:
+            parts.append(f"已校准 {calibration_count} 次")
+        if weak:
+            parts.append(f"重点薄弱点：{weak[0]}")
+        if pref:
+            parts.append(f"偏好资源：{pref[0]}")
+        return "；".join(parts) + "。"
+
+    @staticmethod
+    def _unified_profile_hints(unified_profile: dict[str, Any]) -> dict[str, Any]:
+        if not unified_profile:
+            return {}
+        overview = unified_profile.get("overview") if isinstance(unified_profile.get("overview"), dict) else {}
+        stable = unified_profile.get("stable_profile") if isinstance(unified_profile.get("stable_profile"), dict) else {}
+        learning_state = (
+            unified_profile.get("learning_state")
+            if isinstance(unified_profile.get("learning_state"), dict)
+            else {}
+        )
+
+        level = str(overview.get("suggested_level") or "").strip()
+        if level in {"", "unknown"}:
+            level = ""
+
+        time_budget = GuideV2Manager._coerce_int(overview.get("preferred_time_budget_minutes"), default=0)
+        weak_points = GuideV2Manager._extract_label_list(learning_state.get("weak_points"), limit=6)
+        preferences = GuideV2Manager._extract_label_list(stable.get("preferences"), limit=6)
+        goals = GuideV2Manager._extract_label_list(stable.get("goals"), limit=3)
+        strengths = GuideV2Manager._extract_label_list(stable.get("strengths"), limit=3)
+
+        hints = {
+            "level": level,
+            "time_budget_minutes": time_budget if time_budget > 0 else None,
+            "current_focus": str(overview.get("current_focus") or "").strip(),
+            "summary": str(overview.get("summary") or "").strip(),
+            "preferences": preferences,
+            "weak_points": weak_points,
+            "goals": goals,
+            "strengths": strengths,
+            "confidence": unified_profile.get("confidence"),
+        }
+        return {key: value for key, value in hints.items() if value not in ("", None, [], {})}
+
+    @staticmethod
+    def _extract_label_list(value: Any, *, limit: int = 6) -> list[str]:
+        items = value if isinstance(value, list) else []
+        labels: list[str] = []
+        for item in items:
+            if isinstance(item, dict):
+                label = str(item.get("label") or item.get("title") or item.get("value") or "").strip()
+            else:
+                label = str(item or "").strip()
+            if label and label.lower() not in {existing.lower() for existing in labels}:
+                labels.append(label)
+            if len(labels) >= limit:
+                break
+        return labels
+
+    @staticmethod
+    def _unified_profile_context(hints: dict[str, Any]) -> str:
+        parts: list[str] = []
+        if hints.get("current_focus"):
+            parts.append(f"focus={hints['current_focus']}")
+        if hints.get("level"):
+            parts.append(f"level={hints['level']}")
+        if hints.get("weak_points"):
+            parts.append(f"weak={', '.join(hints['weak_points'][:3])}")
+        if hints.get("preferences"):
+            parts.append(f"preferences={', '.join(hints['preferences'][:3])}")
+        if hints.get("goals"):
+            parts.append(f"goals={', '.join(hints['goals'][:2])}")
+        if hints.get("confidence") is not None:
+            parts.append(f"confidence={hints['confidence']}")
+        return f"Unified learner profile: {'; '.join(parts)}." if parts else ""
+
     def _apply_memory_to_new_session(self, session: GuideSessionV2, memory: dict[str, Any]) -> bool:
         if not memory or int(memory.get("evidence_count") or 0) <= 0:
             return False
@@ -2629,6 +3084,73 @@ class GuideV2Manager:
                 {"stage": "数据方案", "checkpoint": "列出字段、特征、标签、划分方式和潜在数据泄漏风险。"},
                 {"stage": "模型选择", "checkpoint": "至少比较一个线性模型和一个可解释模型。"},
                 {"stage": "评估反思", "checkpoint": "报告指标、错误案例、局限性和下一步改进。"},
+            ],
+            "demo_seed": GuideV2Manager._ml_foundations_demo_seed(profile),
+        }
+
+    @staticmethod
+    def _ml_foundations_demo_seed(profile: LearnerProfile) -> dict[str, Any]:
+        """Stable sample data for recording the built-in ML course demo."""
+
+        return {
+            "title": "机器学习基础稳定演示样例",
+            "scenario": "一名跨专业学生想在 7 分钟内体验从画像、导学、资源生成到学习报告的完整闭环。",
+            "persona": {
+                "name": "跨专业初学者",
+                "level": profile.level or "beginner",
+                "goal": "理解机器学习基础，并能解释梯度下降和模型评估。",
+                "weak_points": ["概念边界不清", "公式直觉不足", "指标容易混淆"],
+                "preferences": ["图解", "短练习", "分步讲解"],
+            },
+            "task_chain": [
+                {
+                    "task_id": "T1",
+                    "title": "建立机器学习全景图",
+                    "stage": "画像与路线",
+                    "show": "展示目标、偏好、薄弱点和知识地图。",
+                    "sample_score": 0.72,
+                    "sample_reflection": "我能区分监督学习和无监督学习，但还不确定特征、标签与样本的边界。",
+                },
+                {
+                    "task_id": "T4",
+                    "title": "画出梯度下降过程",
+                    "stage": "多模态资源",
+                    "resource_type": "visual",
+                    "prompt": "围绕梯度下降生成一张图解：损失曲线、当前位置、负梯度方向、学习率过大/过小的对比。",
+                    "sample_score": 0.58,
+                    "sample_reflection": "我知道要沿下降方向走，但容易把梯度方向和参数更新方向说反。",
+                },
+                {
+                    "task_id": "T6",
+                    "title": "从混淆矩阵计算指标",
+                    "stage": "交互练习",
+                    "resource_type": "quiz",
+                    "prompt": "生成一组模型评估混合题，包含准确率、精确率、召回率、F1 的选择、判断、填空和一道简答。",
+                    "sample_score": 0.86,
+                    "sample_reflection": "我能算出四个指标，也能解释召回率更适合漏诊代价高的场景。",
+                },
+            ],
+            "resource_prompts": [
+                {
+                    "type": "visual",
+                    "title": "梯度下降图解",
+                    "prompt": "用山坡或损失曲线比喻梯度下降，突出负梯度、学习率和收敛。",
+                },
+                {
+                    "type": "video",
+                    "title": "梯度下降短视频",
+                    "prompt": "用 Manim 分 4 步讲解梯度下降：目标、斜率、更新、学习率影响。",
+                },
+                {
+                    "type": "quiz",
+                    "title": "模型评估混合题",
+                    "prompt": "围绕混淆矩阵生成选择、判断、填空、简答各 1 道，并附答案解析。",
+                },
+            ],
+            "rehearsal_notes": [
+                "优先演示 T1 -> T4 -> T6，覆盖画像、图解/动画、练习反馈和学习报告。",
+                "如果现场时间不够，跳过完整课程项目，只展示课程产出包和演示就绪度。",
+                "如果模型响应慢，直接展示兜底包中的历史产物和提示词。",
             ],
         }
 
@@ -3327,6 +3849,7 @@ class GuideV2Manager:
             behavior_summary=behavior_summary,
             mistake_payload=mistake_payload,
             feedback_digest=feedback_digest,
+            profile_context=evaluation_payload.get("learner_profile_context"),
         )
         return {
             "timeline_events": events,
@@ -3334,6 +3857,7 @@ class GuideV2Manager:
             "feedback_digest": feedback_digest,
             "mistake_review": mistake_payload,
             "effect_assessment": effect_assessment,
+            "learner_profile_context": evaluation_payload.get("learner_profile_context", {}),
         }
 
     @staticmethod
@@ -3343,6 +3867,7 @@ class GuideV2Manager:
         behavior_summary: dict[str, Any],
         mistake_payload: dict[str, Any],
         feedback_digest: dict[str, Any],
+        profile_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         progress = int(evaluation.get("progress") or 0)
         overall_score = int(evaluation.get("overall_score") or 0)
@@ -3373,6 +3898,9 @@ class GuideV2Manager:
             remediation_loop = max(20, remediation_loop - pending_remediation * 12 - pending_retest * 8)
         else:
             remediation_loop = 80 if evidence_count else 35
+        profile_payload = profile_context if isinstance(profile_context, dict) else {}
+        profile_available = bool(profile_payload.get("available"))
+        profile_signal_score = int(profile_payload.get("signal_score") or (72 if profile_available else 60))
 
         dimensions = [
             {
@@ -3413,13 +3941,24 @@ class GuideV2Manager:
                 "status": GuideV2Manager._effect_status(remediation_loop),
                 "evidence": f"{closed_count}/{cluster_count} 类错因已关闭，待补救 {pending_remediation} 个，待复测 {pending_retest} 个。",
             },
+            {
+                "id": "longitudinal_profile",
+                "label": "长期画像",
+                "score": profile_signal_score,
+                "status": GuideV2Manager._effect_status(profile_signal_score),
+                "evidence": GuideV2Manager._profile_effect_evidence(profile_payload),
+            },
         ]
+        weights = {
+            "progress": 0.16,
+            "mastery": 0.27,
+            "evidence": 0.2,
+            "engagement": 0.14,
+            "remediation": 0.13,
+            "longitudinal_profile": 0.1,
+        }
         effect_score = round(
-            dimensions[0]["score"] * 0.18
-            + dimensions[1]["score"] * 0.3
-            + dimensions[2]["score"] * 0.22
-            + dimensions[3]["score"] * 0.15
-            + dimensions[4]["score"] * 0.15
+            sum(int(item.get("score") or 0) * weights.get(str(item.get("id") or ""), 0) for item in dimensions)
         )
         label = GuideV2Manager._effect_label(effect_score, evidence_count=evidence_count, warning_count=warning_count)
         strategy: list[str] = []
@@ -3431,6 +3970,10 @@ class GuideV2Manager:
             strategy.append("优先完成补救和复测，让错因从待处理变成已关闭。")
         if resource_count == 0:
             strategy.append("为当前薄弱点生成图解或短视频，降低理解门槛。")
+        if profile_available and profile_payload.get("weak_points"):
+            strategy.append(f"长期画像提示优先补齐「{profile_payload['weak_points'][0]}」，避免单次路线结束后问题反复出现。")
+        if profile_available and profile_payload.get("read_only"):
+            strategy.append("画像仍缺少用户校准，建议在画像中心确认或修正系统判断。")
         if effect_score >= 80 and progress >= 60:
             strategy.append("进入迁移应用或课程项目，把掌握转化为产出。")
         if not strategy:
@@ -3777,6 +4320,17 @@ class GuideV2Manager:
             if isinstance(evidence.metadata.get("evidence_quality"), dict)
             else {}
         )
+        concept_feedback = (
+            evidence.metadata.get("concept_feedback")
+            if isinstance(evidence.metadata.get("concept_feedback"), list)
+            else []
+        )
+        resource_actions = GuideV2Manager._concept_feedback_resource_actions(
+            task,
+            concept_feedback,
+            next_task=next_task,
+            adjustment_types=adjustment_types,
+        )
         actions: list[str] = []
         tone = "brand"
 
@@ -3821,6 +4375,16 @@ class GuideV2Manager:
 
         if evidence.mistake_types:
             actions.append(f"重点关注错因：{'、'.join(evidence.mistake_types[:3])}。")
+        if concept_feedback:
+            weakest = next(
+                (
+                    item for item in concept_feedback
+                    if isinstance(item, dict) and str(item.get("status") or "") == "needs_support"
+                ),
+                None,
+            )
+            if weakest:
+                actions.append(f"优先补齐知识点：{weakest.get('concept')}。{weakest.get('next_action') or ''}")
         if evidence_quality.get("next_evidence_prompt"):
             actions.append(str(evidence_quality["next_evidence_prompt"]))
         if next_task is not None:
@@ -3837,9 +4401,105 @@ class GuideV2Manager:
             "next_task_title": next_task.title if next_task else "",
             "adjustment_types": adjustment_types,
             "evidence_quality": evidence_quality,
+            "concept_feedback": concept_feedback,
+            "resource_actions": resource_actions,
             "actions": actions[:4],
             "session_status": session.status,
         }
+
+    @staticmethod
+    def _concept_feedback_resource_actions(
+        task: LearningTask,
+        concept_feedback: list[Any],
+        *,
+        next_task: LearningTask | None = None,
+        adjustment_types: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if not concept_feedback:
+            return []
+        rows = [item for item in concept_feedback if isinstance(item, dict)]
+        if not rows:
+            return []
+        status_rank = {"needs_support": 0, "developing": 1, "stable": 2}
+        rows.sort(key=lambda item: (status_rank.get(str(item.get("status") or ""), 1), float(item.get("score") or 0)))
+        target = rows[0]
+        concept = " ".join(str(target.get("concept") or task.title).split()).strip() or task.title
+        status = str(target.get("status") or "")
+        score_percent = int(target.get("score_percent") or round(float(target.get("score") or 0) * 100))
+        adjustment_set = set(adjustment_types or [])
+        adaptive_next_origins = {
+            "adaptive_remediation",
+            "diagnostic_remediation",
+            "adaptive_retest",
+            "adaptive_transfer",
+        }
+        action_task = task
+        if next_task is not None and (
+            "insert_remediation" in adjustment_set
+            or "insert_transfer" in adjustment_set
+            or next_task.origin in adaptive_next_origins
+        ):
+            action_task = next_task
+
+        def action(
+            suffix: str,
+            *,
+            title: str,
+            resource_type: str,
+            prompt: str,
+            primary: bool,
+        ) -> dict[str, Any]:
+            return {
+                "id": f"{action_task.task_id}-concept-{suffix}",
+                "action_type": "resource",
+                "label": title,
+                "title": title,
+                "resource_type": resource_type,
+                "target_task_id": action_task.task_id,
+                "target_task_title": action_task.title,
+                "prompt": prompt,
+                "primary": primary,
+                "concept": concept,
+                "concept_status": status,
+                "concept_score_percent": score_percent,
+            }
+
+        if status == "stable":
+            return [
+                action(
+                    "transfer-quiz",
+                    title=f"挑战「{concept}」变式题",
+                    resource_type="quiz",
+                    primary=True,
+                    prompt=(
+                        f"围绕知识点「{concept}」生成 2 道迁移应用题，难度略高于当前练习。"
+                        "题目必须包含 concepts、knowledge_points、答案、解析、评分标准和常见误区。"
+                    ),
+                )
+            ]
+
+        return [
+            action(
+                "visual",
+                title=f"补「{concept}」图解",
+                resource_type="visual",
+                primary=True,
+                prompt=(
+                    f"围绕知识点「{concept}」生成一张补基图解。"
+                    "必须包含：概念定义、和当前任务的关系、最小例子、常见误区、三步纠正方法。"
+                ),
+            ),
+            action(
+                "quiz",
+                title=f"做「{concept}」低门槛复测",
+                resource_type="quiz",
+                primary=False,
+                prompt=(
+                    f"围绕知识点「{concept}」生成 4 道低门槛复测题。"
+                    "题型包含选择、判断、填空和简答；每题必须带 concepts、knowledge_points、答案、解析和错因提示。"
+                ),
+            ),
+        ]
 
     @staticmethod
     def _coach_actions(
@@ -4454,6 +5114,282 @@ class GuideV2Manager:
             return "尚未开始：先完成该知识点的最小任务，留下反思证据。"
         return "继续巩固：完成剩余任务，并记录错因或关键收获。"
 
+    @staticmethod
+    def _report_action_brief(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        overview: dict[str, Any],
+        effect_assessment: dict[str, Any],
+        feedback_digest: dict[str, Any],
+        mistake_payload: dict[str, Any],
+        node_cards: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Compress the report into one learner-facing next action."""
+
+        progress = int(overview.get("progress") or 0)
+        overall_score = int(overview.get("overall_score") or 0)
+        effect_score = int(effect_assessment.get("score") or overall_score)
+        completed = int(overview.get("completed_tasks") or 0)
+        total = int(overview.get("total_tasks") or 0)
+        evidence_count = int((evaluation.get("evidence_count") or completed) or 0)
+        latest_feedback = dict(feedback_digest.get("latest") or {})
+        latest_score = latest_feedback.get("score_percent")
+        warning_count = int(feedback_digest.get("warning_count") or 0)
+        mistake_summary = dict(mistake_payload.get("summary") or {})
+        pending_remediation = int(mistake_summary.get("pending_remediation_count") or 0)
+        clusters = [item for item in mistake_payload.get("clusters") or [] if isinstance(item, dict)]
+        weak_cluster = clusters[0] if clusters else {}
+        weak_node = next(
+            (
+                item
+                for item in node_cards
+                if str(item.get("status") or "") == "needs_support"
+                or float(item.get("mastery_score") or 0) < 0.65
+            ),
+            {},
+        )
+        current = GuideV2Manager._current_task(session)
+        weak_label = (
+            str(weak_cluster.get("label") or "").strip()
+            or str(weak_node.get("title") or "").strip()
+            or (session.profile.weak_points[0] if session.profile.weak_points else "")
+        )
+        last_evidence = max(session.evidence, key=lambda item: item.created_at, default=None)
+        target_task = current
+        if target_task is None and last_evidence is not None:
+            target_task = next((task for task in session.tasks if task.task_id == last_evidence.task_id), None)
+        if target_task is None and weak_node.get("node_id"):
+            target_task = GuideV2Manager._task_for_node(session, str(weak_node.get("node_id") or ""))
+        if target_task is None and session.tasks:
+            target_task = session.tasks[-1]
+
+        signals: list[dict[str, Any]] = [
+            {"label": "综合掌握", "value": f"{overall_score} 分", "tone": GuideV2Manager._report_signal_tone(overall_score)},
+            {"label": "学习进度", "value": f"{completed}/{total} 个任务", "tone": "brand" if progress else "neutral"},
+        ]
+        if weak_label:
+            signals.append({"label": "优先卡点", "value": weak_label, "tone": "warning"})
+        if latest_score is not None:
+            signals.append(
+                {
+                    "label": "最近反馈",
+                    "value": f"{round(float(latest_score))} 分",
+                    "tone": GuideV2Manager._report_signal_tone(float(latest_score)),
+                }
+            )
+
+        secondary: list[dict[str, str]] = []
+
+        def resource_for(kind: str) -> str:
+            if kind in {"quiz", "retest", "transfer"}:
+                return "quiz"
+            if kind in {"remediate", "visual"}:
+                return "visual"
+            if kind == "video":
+                return "video"
+            return ""
+
+        def action(label: str, detail: str, kind: str) -> dict[str, str]:
+            payload = {"label": label, "detail": detail, "kind": kind}
+            resource_type = resource_for(kind)
+            if resource_type and target_task is not None:
+                topic = weak_label or target_task.title or session.goal
+                payload["target_task_id"] = target_task.task_id
+                payload["resource_type"] = resource_type
+                if kind == "retest":
+                    payload["prompt"] = f"围绕「{topic}」生成一组低门槛复测题，包含选择题、判断题和1道简答题。"
+                elif kind == "transfer":
+                    payload["prompt"] = f"围绕「{topic}」生成一组迁移应用练习，题目要换一个新场景验证理解。"
+                elif kind == "remediate":
+                    payload["prompt"] = f"围绕「{topic}」生成一份补救图解，重点解释概念边界、常见错因和正确步骤。"
+                elif kind == "visual":
+                    payload["prompt"] = f"围绕「{topic}」生成一张概念图解，突出关键关系和学习顺序。"
+                else:
+                    payload["prompt"] = f"围绕「{topic}」生成一组混合题型练习，提交后可用于评估掌握情况。"
+            return payload
+
+        if evidence_count == 0 or progress == 0:
+            title = "先拿到第一条真实学习证据"
+            summary = "现在还不能急着评价掌握程度，先完成一个可评分小任务，让系统知道你真实卡在哪里。"
+            primary = action(
+                "完成第一个任务",
+                current.title if current else "选择路线中的第一个任务，完成后提交掌握评分和一句反思。",
+                "current_task",
+            )
+            secondary.extend(
+                [
+                    action("做一组短练习", "用选择、判断或填空题快速产生可评分证据。", "quiz"),
+                    action("看路线结构", "如果不知道从哪开始，先打开完整路线确认学习顺序。", "route_map"),
+                ]
+            )
+        elif pending_remediation or warning_count or (latest_score is not None and float(latest_score) < 60):
+            focus = weak_label or "刚暴露出来的错因"
+            title = f"先补「{focus}」"
+            summary = "这轮学习最怕继续往前冲。先把错因补清楚，再用复测确认它真的被改掉。"
+            primary = action("生成补救图解", f"围绕「{focus}」生成一张图解或短讲解，先把概念边界讲清楚。", "remediate")
+            secondary.extend(
+                [
+                    action("做一轮复测", "补完后立即做一组短题，确认不是只是看懂。", "retest"),
+                    action("回看完整路线", "确认系统插入的补救任务和后续任务顺序。", "route_map"),
+                ]
+            )
+        elif effect_score >= 80 and progress >= 70:
+            title = "进入迁移应用"
+            summary = "当前证据已经比较稳定，下一步应该把理解转成产出，而不是继续重复基础讲解。"
+            primary = action("做课程小项目", "选择一个新场景，用本轮知识解释、计算或实现一个小成果。", "course_package")
+            secondary.extend(
+                [
+                    action("保存学习报告", "把这轮掌握证据沉淀到 Notebook，作为比赛演示和复盘材料。", "save_report"),
+                    action("做一组迁移题", "用不同题面验证知识能不能迁移。", "transfer"),
+                ]
+            )
+        elif effect_score >= 60:
+            title = "稳一下再推进"
+            summary = "你已经有基础，但还不够稳。先用一轮短练习确认关键点，再进入下一步更保险。"
+            primary = action(
+                "做一组短练习",
+                f"优先围绕「{weak_label}」做混合题。" if weak_label else "围绕当前任务做一组混合题。",
+                "quiz",
+            )
+            secondary.extend(
+                [
+                    action("看一张概念图", "如果做题前仍不确定，先用图解把关系理顺。", "visual"),
+                    action("继续当前路线", current.title if current else "回到路线页继续下一个任务。", "current_task"),
+                ]
+            )
+        else:
+            title = "先重新建立直观理解"
+            summary = "当前掌握还比较松散，最需要的是降低理解门槛，而不是增加任务数量。"
+            primary = action(
+                "看图解或短视频",
+                f"先围绕「{weak_label}」建立直观理解。" if weak_label else "先把当前知识点讲清楚。",
+                "visual",
+            )
+            secondary.extend(
+                [
+                    action("补一条反思", "写清楚哪里不懂，帮助画像更新得更准。", "reflection"),
+                    action("做低门槛复测", "用判断题和选择题确认基础概念。", "retest"),
+                ]
+            )
+
+        return {
+            "title": title,
+            "summary": summary,
+            "primary_action": primary,
+            "secondary_actions": secondary[:2],
+            "signals": signals[:4],
+        }
+
+    @staticmethod
+    def _report_signal_tone(score: float) -> str:
+        if score >= 80:
+            return "success"
+        if score >= 60:
+            return "brand"
+        if score > 0:
+            return "warning"
+        return "neutral"
+
+    @staticmethod
+    def _report_demo_readiness(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        overview: dict[str, Any],
+        behavior_summary: dict[str, Any],
+        resource_summary: dict[str, Any],
+        feedback_digest: dict[str, Any],
+        action_brief: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Judge whether this guide session is ready for a short competition demo."""
+
+        profile_context = dict(evaluation.get("learner_profile_context") or {})
+        profile_updates = int(behavior_summary.get("profile_update_count") or 0)
+        evidence_count = int(behavior_summary.get("evidence_count") or evaluation.get("evidence_count") or 0)
+        resource_count = int(behavior_summary.get("resource_count") or 0)
+        quiz_attempts = int(behavior_summary.get("quiz_attempt_count") or 0)
+        completed = int(overview.get("completed_tasks") or 0)
+        progress = int(overview.get("progress") or 0)
+        feedback_count = int(feedback_digest.get("count") or 0)
+        has_profile_signal = bool(profile_updates or profile_context or session.profile.preferences or session.profile.weak_points)
+        has_visual_resource = bool(
+            resource_summary.get("visual")
+            or resource_summary.get("video")
+            or resource_summary.get("animation")
+            or resource_count >= 2
+        )
+        has_quiz_loop = bool(resource_summary.get("quiz") or quiz_attempts)
+        has_report_action = bool((action_brief.get("primary_action") or {}).get("label"))
+        has_portfolio = bool(any(task.artifact_refs for task in session.tasks) or completed)
+
+        checks: list[dict[str, str]] = [
+            {
+                "id": "profile",
+                "label": "画像证据",
+                "status": "ready" if has_profile_signal else "missing",
+                "detail": "已有画像、前测或对话证据。" if has_profile_signal else "先完成一次画像对话或前测，让系统有个性化依据。",
+            },
+            {
+                "id": "resource",
+                "label": "多模态资源",
+                "status": "ready" if has_visual_resource else ("partial" if resource_count else "missing"),
+                "detail": "已有图解、动画或多种资源产物。" if has_visual_resource else "建议至少生成一份图解或短视频，体现多智能体资源生成。",
+            },
+            {
+                "id": "practice",
+                "label": "练习闭环",
+                "status": "ready" if has_quiz_loop else "missing",
+                "detail": "已有交互练习或答题回写。" if has_quiz_loop else "补一组选择/判断/填空练习，并提交结果回写画像。",
+            },
+            {
+                "id": "prescription",
+                "label": "学习处方",
+                "status": "ready" if has_report_action and feedback_count else ("partial" if has_report_action else "missing"),
+                "detail": "报告已能给出下一步处方，并有反馈依据。" if has_report_action and feedback_count else "完成任务提交后，让报告产出可执行的学习处方。",
+            },
+            {
+                "id": "portfolio",
+                "label": "可展示产物",
+                "status": "ready" if has_portfolio and progress >= 30 else ("partial" if has_portfolio else "missing"),
+                "detail": "已有可保存到 Notebook 的任务证据或产物。" if has_portfolio else "至少保留一份资源、练习记录或报告，作为录屏兜底材料。",
+            },
+        ]
+
+        weights = {"ready": 20, "partial": 10, "missing": 0}
+        score = sum(weights.get(item["status"], 0) for item in checks)
+        if progress >= 70 and score >= 70:
+            label = "可录屏"
+            summary = "核心证据已经成链，可以录制画像、导学、资源、练习和报告的完整闭环。"
+        elif score >= 50:
+            label = "演示准备中"
+            summary = "主线已经成型，再补齐缺口证据后更适合录制 7 分钟演示。"
+        else:
+            label = "需要补齐"
+            summary = "目前还缺少关键学习证据，建议先跑通一次画像、资源生成和练习提交。"
+
+        next_steps: list[str] = []
+        if not has_profile_signal:
+            next_steps.append("先做画像对话或前测诊断。")
+        if not has_visual_resource:
+            next_steps.append("围绕当前任务生成一份图解或短视频。")
+        if not has_quiz_loop:
+            next_steps.append("生成一组交互练习并提交答案。")
+        if not has_report_action:
+            next_steps.append("完成任务后刷新学习报告，确认学习处方出现。")
+        if not has_portfolio:
+            next_steps.append("保存一份报告或资源到 Notebook 作为演示证据。")
+        if not next_steps:
+            next_steps.append("按演示脚本串联画像、任务、资源、练习、报告和产出包。")
+
+        return {
+            "score": max(0, min(score, 100)),
+            "label": label,
+            "summary": summary,
+            "checks": checks,
+            "next_steps": next_steps[:3],
+        }
+
     def _report_demo_script(self, session: GuideSessionV2, evaluation: dict[str, Any]) -> list[str]:
         current = self._current_task(session)
         script = [
@@ -4479,6 +5415,13 @@ class GuideV2Manager:
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         feedback_digest = dict(report.get("feedback_digest") or {})
         feedback_items = [item for item in feedback_digest.get("items") or [] if isinstance(item, dict)]
+        action_brief = dict(report.get("action_brief") or {})
+        primary_action = dict(action_brief.get("primary_action") or {})
+        secondary_actions = [item for item in action_brief.get("secondary_actions") or [] if isinstance(item, dict)]
+        action_signals = [item for item in action_brief.get("signals") or [] if isinstance(item, dict)]
+        demo_readiness = dict(report.get("demo_readiness") or {})
+        demo_checks = [item for item in demo_readiness.get("checks") or [] if isinstance(item, dict)]
+        demo_next_steps = [str(item) for item in demo_readiness.get("next_steps") or []]
         timeline_events = [item for item in report.get("timeline_events") or [] if isinstance(item, dict)]
         mistake_review = dict(report.get("mistake_review") or {})
         mistake_summary = dict(mistake_review.get("summary") or {})
@@ -4511,6 +5454,32 @@ class GuideV2Manager:
             )
         for item in effect_assessment.get("strategy_adjustments") or []:
             lines.append(f"- 策略调整：{item}")
+        if action_brief:
+            lines.extend(["", "## 学习处方", ""])
+            lines.append(f"- 先做：{action_brief.get('title') or '-'}")
+            lines.append(f"- 原因：{action_brief.get('summary') or '-'}")
+            if primary_action:
+                lines.append(
+                    f"- 立即行动：{primary_action.get('label') or '-'} - {primary_action.get('detail') or '-'}"
+                )
+            for item in secondary_actions[:2]:
+                lines.append(f"- 备选：{item.get('label') or '-'} - {item.get('detail') or '-'}")
+            if action_signals:
+                signal_text = "；".join(
+                    f"{item.get('label') or '-'}：{item.get('value') or '-'}" for item in action_signals[:4]
+                )
+                lines.append(f"- 依据：{signal_text}")
+        if demo_readiness:
+            lines.extend(["", "## 演示就绪度", ""])
+            lines.append(f"- 状态：{demo_readiness.get('label') or '-'}")
+            lines.append(f"- 分数：{demo_readiness.get('score', 0)}")
+            lines.append(f"- 说明：{demo_readiness.get('summary') or '-'}")
+            for item in demo_checks[:5]:
+                lines.append(
+                    f"- {item.get('label') or item.get('id') or '-'}：{item.get('status') or '-'} - {item.get('detail') or '-'}"
+                )
+            for item in demo_next_steps[:3]:
+                lines.append(f"- 补齐动作：{item}")
         lines.extend(
             [
             "",
@@ -4755,10 +5724,292 @@ class GuideV2Manager:
         ]
 
     @staticmethod
+    def _course_demo_blueprint(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Build a concrete recording plan for the competition demo."""
+
+        current = GuideV2Manager._current_task(session)
+        readiness = dict(report.get("demo_readiness") or {})
+        action_brief = dict(report.get("action_brief") or {})
+        primary_action = dict(action_brief.get("primary_action") or {})
+        resource_counts = dict(evaluation.get("resource_counts") or {})
+        completed = int(evaluation.get("completed_tasks") or 0)
+        total = int(evaluation.get("total_tasks") or 0)
+        score = int(evaluation.get("overall_score") or 0)
+        first_artifact = next((item for item in portfolio if item.get("title")), {})
+        resource_text = []
+        if resource_counts.get("visual"):
+            resource_text.append("图解")
+        if resource_counts.get("video"):
+            resource_text.append("短视频")
+        if resource_counts.get("quiz"):
+            resource_text.append("练习")
+        resource_summary = "、".join(resource_text) if resource_text else "图解或练习"
+
+        storyline = [
+            {
+                "minute": "0:00-0:40",
+                "title": "学习目标与画像入口",
+                "show": "打开导学首页，说明目标、水平、偏好和薄弱点如何进入画像。",
+                "talking_point": "系统先理解学生，再安排路径，避免一开始就让用户面对复杂工具。",
+                "requirement": "对话式学习画像自主构建",
+            },
+            {
+                "minute": "0:40-1:50",
+                "title": "个性化路线与当前任务",
+                "show": f"展示知识地图和当前任务：{current.title if current else session.goal}。",
+                "talking_point": f"路线包含 {len(session.course_map.nodes)} 个知识点、{len(session.tasks)} 个任务，当前进度 {completed}/{total}。",
+                "requirement": "个性化学习路径规划和资源推送",
+            },
+            {
+                "minute": "1:50-3:20",
+                "title": "多智能体生成资源",
+                "show": f"围绕当前任务生成或展示 {resource_summary}，说明画像智能体、资源智能体、评估智能体如何协作。",
+                "talking_point": "前端只展示协作摘要，不暴露日志，让评委看到多智能体协作但不干扰学习。",
+                "requirement": "多智能体协同的资源生成",
+            },
+            {
+                "minute": "3:20-4:50",
+                "title": "交互练习与即时辅导",
+                "show": "提交一组练习或任务反思，展示对错反馈、解析和下一步建议。",
+                "talking_point": "练习结果会回写画像和导学报告，形成真正的学习行为证据。",
+                "requirement": "智能辅导与学习效果评估",
+            },
+            {
+                "minute": "4:50-6:20",
+                "title": "学习报告与处方",
+                "show": f"展示学习处方：{action_brief.get('title') or primary_action.get('label') or '下一步建议'}。",
+                "talking_point": f"报告给出掌握分 {score}，并把错因、画像信号压缩成可执行行动。",
+                "requirement": "学习效果评估与动态调整",
+            },
+            {
+                "minute": "6:20-7:00",
+                "title": "课程产出包收尾",
+                "show": "展示课程项目、Rubric、作品集索引和演示就绪度。",
+                "talking_point": "最后把过程证据整理成可评分、可复盘、可提交的课程作品。",
+                "requirement": "配套文档与完整运行成果",
+            },
+        ]
+
+        fallbacks = [
+            "提前保存一份图解、练习结果和学习报告到 Notebook，模型波动时直接展示历史产物。",
+            "如果短视频渲染较慢，先展示 Manim 代码和已生成截图，再说明 FFmpeg/LaTeX 配置已完成。",
+            "如果 RAG 或联网搜索不可用，演示仍围绕导学画像、任务资源和练习反馈跑通主线。",
+        ]
+        if first_artifact:
+            fallbacks.insert(0, f"可优先展示已生成产物：{first_artifact.get('title')}。")
+
+        judge_mapping = [
+            {"requirement": "画像", "evidence": "画像页、导学画像、任务反思、练习回写。"},
+            {"requirement": "多智能体", "evidence": "资源卡协作链路、图解/动画/出题/评估智能体。"},
+            {"requirement": "路径规划", "evidence": "知识地图、当前任务、动态补基和学习处方。"},
+            {"requirement": "智能辅导", "evidence": "文字答疑、图解、短视频、交互练习和即时反馈。"},
+            {"requirement": "效果评估", "evidence": "学习报告、错因复测、演示就绪度和课程产出包。"},
+        ]
+
+        return {
+            "title": "7 分钟比赛演示路线",
+            "duration_minutes": 7,
+            "summary": readiness.get("summary")
+            or "按画像、路线、资源、练习、报告、产出包的顺序录制，能完整覆盖赛题主线。",
+            "readiness_label": readiness.get("label") or evaluation.get("readiness", "not_started"),
+            "readiness_score": readiness.get("score", 0),
+            "storyline": storyline,
+            "fallbacks": fallbacks[:4],
+            "judge_mapping": judge_mapping,
+        }
+
+    @staticmethod
+    def _course_demo_fallback_kit(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Prepare deterministic demo material when live generation is unstable."""
+
+        current = GuideV2Manager._current_task(session)
+        topic = session.course_map.metadata.get("course_name") or session.course_map.title or session.goal
+        weak_points = list(session.profile.weak_points or [])
+        preferences = list(session.profile.preferences or [])
+        first_artifact = next((item for item in portfolio if item.get("title")), {})
+        readiness = dict(report.get("demo_readiness") or {})
+        action_brief = dict(report.get("action_brief") or {})
+        action_title = str(action_brief.get("title") or "根据报告继续下一步").strip()
+
+        persona = {
+            "name": "跨专业初学者",
+            "goal": session.goal,
+            "level": session.profile.level or "beginner",
+            "weak_points": weak_points[:3] or ["概念边界不清", "公式直觉不足"],
+            "preferences": preferences[:3] or ["图解", "练习"],
+            "story": "学生希望用较短时间理解核心概念，并通过图解、练习和反思确认自己真的掌握。",
+        }
+
+        assets: list[dict[str, str]] = [
+            {
+                "type": "profile",
+                "title": "典型学习画像",
+                "status": "ready",
+                "show": "展示画像页或导学画像摘要，说明系统如何识别水平、偏好和薄弱点。",
+                "talking_point": "画像不是表单，而是由对话、任务、练习和反思持续更新。",
+                "fallback_prompt": "让系统用一句话解释当前学习者画像和优先卡点。",
+            },
+            {
+                "type": "visual",
+                "title": f"{current.title if current else topic} 图解",
+                "status": "ready" if any(item.get("type") == "visual" for item in portfolio) else "seed",
+                "show": "展示图解产物或点击生成图解按钮。",
+                "talking_point": "图解智能体把抽象概念转成可视结构，降低学习门槛。",
+                "fallback_prompt": f"围绕「{current.title if current else topic}」生成一张概念关系图，突出关键步骤和常见误区。",
+            },
+            {
+                "type": "quiz",
+                "title": "交互练习与反馈",
+                "status": "ready" if any(item.get("type") == "quiz" for item in portfolio) else "seed",
+                "show": "展示选择、判断、填空或简答题，并提交答案查看反馈。",
+                "talking_point": "练习不是孤立题目，提交后会回写画像、报告和下一步建议。",
+                "fallback_prompt": f"围绕「{current.title if current else topic}」生成一组低门槛混合题，包含选择、判断、填空和简答。",
+            },
+            {
+                "type": "report",
+                "title": "学习报告与处方",
+                "status": "ready" if action_brief else "seed",
+                "show": f"展示学习处方：{action_title}。",
+                "talking_point": "系统把掌握分、错因和画像信号压缩成一个可执行动作。",
+                "fallback_prompt": "打开学习报告，展示学习处方、演示就绪度和下一步补齐动作。",
+            },
+        ]
+        if first_artifact:
+            assets.insert(
+                0,
+                {
+                    "type": "saved",
+                    "title": str(first_artifact.get("title") or "已保存产物"),
+                    "status": "ready",
+                    "show": "模型波动时优先展示这份已生成产物。",
+                    "talking_point": "系统会把资源沉淀到作品集，不依赖现场重新生成。",
+                    "fallback_prompt": str(first_artifact.get("summary") or "打开作品集中的历史产物。"),
+                },
+            )
+
+        checklist = [
+            "打开或创建「机器学习基础」导学路线，确保当前任务可见。",
+            "准备一个画像证据：前测、画像对话或任务反思至少完成一项。",
+            "准备一个多模态产物：图解优先，短视频作为加分展示。",
+            "准备一组可提交练习，并确认提交后能看到反馈和画像回写。",
+            "最后打开学习报告和课程产出包，展示学习处方、演示就绪度和 7 分钟路线。",
+        ]
+
+        if readiness.get("next_steps"):
+            checklist.insert(0, f"先补齐：{readiness.get('next_steps', [''])[0]}")
+
+        fallback_script = [
+            "如果现场生成较慢，就切换到已保存产物，说明 SparkWeave 支持资源沉淀与复盘。",
+            "如果短视频没有及时渲染，就展示图解和 Manim 代码/历史视频，强调多模态生成链路。",
+            "如果外部知识库不可用，就演示画像、导学、练习、报告这条本地闭环。",
+        ]
+
+        return {
+            "title": "录屏兜底包",
+            "summary": "为比赛录屏准备一套稳定材料：固定画像、可展示产物、排练清单和兜底话术。",
+            "persona": persona,
+            "assets": assets[:5],
+            "checklist": checklist[:6],
+            "fallback_script": fallback_script,
+        }
+
+    @staticmethod
+    def _course_demo_seed_pack(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Expose a reproducible task chain for rehearsing the course demo."""
+
+        metadata_seed = dict(session.course_map.metadata.get("demo_seed") or {})
+        seed_chain = [item for item in metadata_seed.get("task_chain") or [] if isinstance(item, dict)]
+        seed_prompts = [item for item in metadata_seed.get("resource_prompts") or [] if isinstance(item, dict)]
+        task_lookup = {task.task_id: task for task in session.tasks}
+        current = GuideV2Manager._current_task(session)
+        if not seed_chain:
+            seed_chain = [
+                {
+                    "task_id": current.task_id if current else "",
+                    "title": current.title if current else session.goal,
+                    "stage": "当前任务",
+                    "show": "展示当前任务、生成一个资源、提交一次反馈。",
+                    "sample_score": 0.72,
+                    "sample_reflection": "我理解了大方向，但还需要用练习确认细节。",
+                }
+            ]
+
+        task_chain: list[dict[str, Any]] = []
+        for item in seed_chain[:4]:
+            task_id = str(item.get("task_id") or "")
+            task = task_lookup.get(task_id)
+            task_chain.append(
+                {
+                    "task_id": task_id,
+                    "title": task.title if task else str(item.get("title") or "演示任务"),
+                    "stage": str(item.get("stage") or "演示步骤"),
+                    "show": str(item.get("show") or task.instruction if task else item.get("show") or ""),
+                    "resource_type": str(item.get("resource_type") or ""),
+                    "prompt": str(item.get("prompt") or ""),
+                    "sample_score": float(item.get("sample_score") or 0.72),
+                    "sample_reflection": str(item.get("sample_reflection") or "我能说出核心思路，但还需要更多练习。"),
+                    "status": task.status if task else "seed",
+                }
+            )
+
+        return {
+            "title": metadata_seed.get("title") or "稳定 Demo 样例",
+            "scenario": metadata_seed.get("scenario")
+            or "使用固定学习者画像和任务链，稳定演示画像、资源、练习和报告闭环。",
+            "persona": metadata_seed.get("persona")
+            or {
+                "name": "演示学习者",
+                "level": session.profile.level or "beginner",
+                "goal": session.goal,
+                "weak_points": list(session.profile.weak_points or [])[:3],
+                "preferences": list(session.profile.preferences or [])[:3],
+            },
+            "task_chain": task_chain,
+            "resource_prompts": seed_prompts[:4],
+            "rehearsal_notes": list(metadata_seed.get("rehearsal_notes") or [])[:4],
+            "report_anchor": {
+                "score": evaluation.get("overall_score", 0),
+                "readiness": evaluation.get("readiness", "not_started"),
+                "action": (report.get("action_brief") or {}).get("title") or "",
+            },
+        }
+
+    @staticmethod
     def _course_package_markdown(package: dict[str, Any]) -> str:
         project = dict(package.get("capstone_project") or {})
         report = dict(package.get("learning_report") or {})
         metadata = dict(package.get("course_metadata") or {})
+        demo_blueprint = dict(package.get("demo_blueprint") or {})
+        demo_storyline = [item for item in demo_blueprint.get("storyline") or [] if isinstance(item, dict)]
+        demo_fallbacks = [str(item) for item in demo_blueprint.get("fallbacks") or []]
+        judge_mapping = [item for item in demo_blueprint.get("judge_mapping") or [] if isinstance(item, dict)]
+        fallback_kit = dict(package.get("demo_fallback_kit") or {})
+        fallback_persona = dict(fallback_kit.get("persona") or {})
+        fallback_assets = [item for item in fallback_kit.get("assets") or [] if isinstance(item, dict)]
+        fallback_checklist = [str(item) for item in fallback_kit.get("checklist") or []]
+        fallback_script = [str(item) for item in fallback_kit.get("fallback_script") or []]
+        seed_pack = dict(package.get("demo_seed_pack") or {})
+        seed_persona = dict(seed_pack.get("persona") or {})
+        seed_chain = [item for item in seed_pack.get("task_chain") or [] if isinstance(item, dict)]
+        seed_prompts = [item for item in seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
+        rehearsal_notes = [str(item) for item in seed_pack.get("rehearsal_notes") or []]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -4861,6 +6112,63 @@ class GuideV2Manager:
         lines.extend(["", "## 演示提纲", ""])
         for item in package.get("demo_outline") or []:
             lines.append(f"- {item}")
+        if demo_blueprint:
+            lines.extend(["", "## 7 分钟演示路线", ""])
+            lines.append(f"- 就绪状态：{demo_blueprint.get('readiness_label') or '-'}")
+            lines.append(f"- 就绪分：{demo_blueprint.get('readiness_score', 0)}")
+            lines.append(f"- 说明：{demo_blueprint.get('summary') or '-'}")
+            for item in demo_storyline[:6]:
+                lines.append(
+                    f"- {item.get('minute') or '-'}｜{item.get('title') or '-'}：{item.get('show') or '-'}"
+                )
+            if judge_mapping:
+                lines.extend(["", "### 赛题映射", ""])
+                for item in judge_mapping:
+                    lines.append(f"- {item.get('requirement') or '-'}：{item.get('evidence') or '-'}")
+            if demo_fallbacks:
+                lines.extend(["", "### 演示兜底", ""])
+                for item in demo_fallbacks[:4]:
+                    lines.append(f"- {item}")
+        if fallback_kit:
+            lines.extend(["", "## 录屏兜底包", ""])
+            lines.append(f"- 摘要：{fallback_kit.get('summary') or '-'}")
+            lines.append(f"- 学习者：{fallback_persona.get('name') or '-'}")
+            lines.append(f"- 目标：{fallback_persona.get('goal') or '-'}")
+            lines.append(f"- 卡点：{', '.join(fallback_persona.get('weak_points') or []) or '-'}")
+            if fallback_assets:
+                lines.extend(["", "### 稳定展示素材", ""])
+                for item in fallback_assets[:5]:
+                    lines.append(
+                        f"- [{item.get('status') or '-'}] {item.get('title') or '-'}：{item.get('show') or '-'}"
+                    )
+            if fallback_checklist:
+                lines.extend(["", "### 录屏前检查", ""])
+                for item in fallback_checklist[:6]:
+                    lines.append(f"- {item}")
+            if fallback_script:
+                lines.extend(["", "### 兜底话术", ""])
+                for item in fallback_script[:3]:
+                    lines.append(f"- {item}")
+        if seed_pack:
+            lines.extend(["", "## 稳定 Demo 样例", ""])
+            lines.append(f"- 场景：{seed_pack.get('scenario') or '-'}")
+            lines.append(f"- 学习者：{seed_persona.get('name') or '-'}")
+            lines.append(f"- 目标：{seed_persona.get('goal') or '-'}")
+            if seed_chain:
+                lines.extend(["", "### 可复现任务链", ""])
+                for item in seed_chain[:4]:
+                    lines.append(
+                        f"- {item.get('stage') or '-'}｜{item.get('title') or '-'}："
+                        f"{item.get('show') or '-'}；示例反思：{item.get('sample_reflection') or '-'}"
+                    )
+            if seed_prompts:
+                lines.extend(["", "### 稳定资源提示词", ""])
+                for item in seed_prompts[:4]:
+                    lines.append(f"- {item.get('title') or item.get('type') or '-'}：{item.get('prompt') or '-'}")
+            if rehearsal_notes:
+                lines.extend(["", "### 排练备注", ""])
+                for item in rehearsal_notes[:4]:
+                    lines.append(f"- {item}")
         return "\n".join(lines).strip() + "\n"
 
     def _fallback_nodes(self, profile: LearnerProfile) -> list[CourseNode]:
@@ -5019,6 +6327,7 @@ class GuideV2Manager:
                     "correct_answer": str(item.get("correct_answer") or ""),
                     "explanation": str(item.get("explanation") or ""),
                     "difficulty": str(item.get("difficulty") or ""),
+                    "concepts": GuideV2Manager._quiz_concept_labels([item]),
                     "is_correct": bool(item.get("is_correct")),
                 }
             )
@@ -5028,6 +6337,9 @@ class GuideV2Manager:
     def _quiz_mistake_types(wrong_items: list[dict[str, Any]]) -> list[str]:
         mistakes: list[str] = []
         for item in wrong_items[:6]:
+            for concept in GuideV2Manager._quiz_concept_labels([item])[:3]:
+                if concept and concept not in mistakes:
+                    mistakes.append(concept)
             question_type = str(item.get("question_type") or "").strip()
             difficulty = str(item.get("difficulty") or "").strip()
             question = str(item.get("question") or "").strip()
@@ -5035,6 +6347,120 @@ class GuideV2Manager:
             if label and label not in mistakes:
                 mistakes.append(label)
         return mistakes
+
+    @staticmethod
+    def _quiz_concept_labels(items: list[dict[str, Any]]) -> list[str]:
+        labels: list[str] = []
+        keys = (
+            "concepts",
+            "concept",
+            "tested_concepts",
+            "tested_concept",
+            "knowledge_points",
+            "knowledge_point",
+            "learning_points",
+            "learning_point",
+            "categories",
+            "category",
+            "tags",
+        )
+
+        def add(value: Any) -> None:
+            if value is None or value == "":
+                return
+            if isinstance(value, str):
+                parts = re.split(r"\s*(?:,|，|、|;|；|\|)\s*", value)
+                for part in parts:
+                    text = " ".join(part.split()).strip()
+                    if text and text not in labels:
+                        labels.append(text)
+                return
+            if isinstance(value, dict):
+                for key in ("label", "name", "title", "value", "concept", "concept_id", "id"):
+                    text = " ".join(str(value.get(key) or "").split()).strip()
+                    if text:
+                        if text not in labels:
+                            labels.append(text)
+                        return
+                return
+            if isinstance(value, (list, tuple, set)):
+                for item in value:
+                    add(item)
+                return
+            text = " ".join(str(value).split()).strip()
+            if text and text not in labels:
+                labels.append(text)
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            for key in keys:
+                add(item.get(key))
+            metadata = item.get("metadata")
+            if isinstance(metadata, dict):
+                for key in keys:
+                    add(metadata.get(key))
+        return labels[:8]
+
+    @staticmethod
+    def _quiz_concept_feedback(
+        answers: list[dict[str, Any]],
+        *,
+        fallback_concept: str = "",
+    ) -> list[dict[str, Any]]:
+        stats: dict[str, dict[str, Any]] = {}
+        fallback = " ".join(str(fallback_concept or "当前任务").split()).strip() or "当前任务"
+        for answer in answers:
+            labels = GuideV2Manager._quiz_concept_labels([answer]) or [fallback]
+            is_correct = bool(answer.get("is_correct"))
+            question = " ".join(str(answer.get("question") or "").split()).strip()
+            for label in labels[:4]:
+                item = stats.setdefault(
+                    label,
+                    {
+                        "concept": label,
+                        "correct_count": 0,
+                        "total_count": 0,
+                        "wrong_questions": [],
+                    },
+                )
+                item["total_count"] += 1
+                item["correct_count"] += int(is_correct)
+                if not is_correct and question and len(item["wrong_questions"]) < 3:
+                    item["wrong_questions"].append(question)
+
+        feedback: list[dict[str, Any]] = []
+        for item in stats.values():
+            total = int(item["total_count"] or 0)
+            correct = int(item["correct_count"] or 0)
+            score = round(correct / total, 3) if total else 0.0
+            if score >= 0.85:
+                status = "stable"
+                summary = "这个知识点表现稳定，可以进入迁移应用。"
+                next_action = "尝试用自己的话解释，并做一道变式题。"
+            elif score >= 0.6:
+                status = "developing"
+                summary = "这个知识点已有基础，但还需要再巩固边界。"
+                next_action = "回看错题解析，再补一题相近练习。"
+            else:
+                status = "needs_support"
+                summary = "这个知识点仍是当前卡点，需要先补基础再推进。"
+                next_action = "先生成图解或短讲解，再做低门槛复测。"
+            feedback.append(
+                {
+                    "concept": item["concept"],
+                    "score": score,
+                    "score_percent": round(score * 100),
+                    "status": status,
+                    "correct_count": correct,
+                    "total_count": total,
+                    "wrong_questions": item["wrong_questions"],
+                    "summary": summary,
+                    "next_action": next_action,
+                }
+            )
+        feedback.sort(key=lambda row: (float(row["score"]), -int(row["total_count"]), str(row["concept"])))
+        return feedback[:8]
 
     @staticmethod
     def _mistake_clusters(session: GuideSessionV2) -> list[dict[str, Any]]:

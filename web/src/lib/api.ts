@@ -39,6 +39,12 @@ import type {
   KnowledgeProgress,
   KnowledgeTaskResult,
   LinkedFolder,
+  LearnerEvidenceEvent,
+  LearnerEvidenceListResponse,
+  LearnerProfileCalibrationRequest,
+  LearnerProfileCalibrationResponse,
+  LearnerProfileEvidencePreviewResponse,
+  LearnerProfileSnapshot,
   MemoryFile,
   MemorySnapshot,
   NotebookDetail,
@@ -610,6 +616,70 @@ export function clearMemory(file?: MemoryFile | null) {
   return fetchJson<MemorySnapshot>("/api/v1/memory/clear", jsonBody({ file: file || null }));
 }
 
+export function getLearnerProfile() {
+  return fetchJson<LearnerProfileSnapshot>("/api/v1/learner-profile");
+}
+
+export function refreshLearnerProfile(input?: { includeSources?: string[] | null; force?: boolean }) {
+  return fetchJson<LearnerProfileSnapshot>(
+    "/api/v1/learner-profile/refresh",
+    jsonBody({
+      include_sources: input?.includeSources || null,
+      force: input?.force ?? true,
+    }),
+  );
+}
+
+export function getLearnerProfileEvidencePreview(input?: { source?: string | null; limit?: number }) {
+  const params = new URLSearchParams();
+  if (input?.source) params.set("source", input.source);
+  if (input?.limit) params.set("limit", String(input.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<LearnerProfileEvidencePreviewResponse>(`/api/v1/learner-profile/evidence-preview${suffix}`);
+}
+
+export function calibrateLearnerProfile(input: LearnerProfileCalibrationRequest) {
+  return fetchJson<LearnerProfileCalibrationResponse>(
+    "/api/v1/learner-profile/calibrations",
+    jsonBody({
+      action: input.action,
+      claim_type: input.claim_type,
+      value: input.value,
+      corrected_value: input.corrected_value || "",
+      note: input.note || "",
+      source_id: input.source_id || "",
+    }),
+  );
+}
+
+export function listLearnerEvidence(input?: {
+  source?: string | null;
+  verb?: string | null;
+  objectType?: string | null;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (input?.source) params.set("source", input.source);
+  if (input?.verb) params.set("verb", input.verb);
+  if (input?.objectType) params.set("object_type", input.objectType);
+  if (input?.limit) params.set("limit", String(input.limit));
+  if (input?.offset) params.set("offset", String(input.offset));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<LearnerEvidenceListResponse>(`/api/v1/learner-profile/evidence${suffix}`);
+}
+
+export function appendLearnerEvidence(input: Partial<LearnerEvidenceEvent>) {
+  return fetchJson<{ event: LearnerEvidenceEvent }>("/api/v1/learner-profile/evidence", jsonBody(input));
+}
+
+export function rebuildLearnerEvidence(input?: { clear?: boolean }) {
+  return fetchJson<{ added: number; skipped: number; events: LearnerEvidenceEvent[] }>(
+    "/api/v1/learner-profile/evidence/rebuild",
+    jsonBody({ clear: input?.clear ?? false }),
+  );
+}
+
 export async function listNotebooks() {
   const data = await fetchJson<{ notebooks: NotebookSummary[]; total: number }>("/api/v1/notebook/list");
   return data.notebooks ?? [];
@@ -1017,6 +1087,7 @@ export type CreateGuideV2SessionInput = {
   courseTemplateId?: string;
   notebookReferences?: NotebookReference[];
   useMemory?: boolean;
+  sourceAction?: Record<string, unknown>;
 };
 
 export function getGuideV2Health() {
@@ -1047,6 +1118,7 @@ export function createGuideV2Session(input: CreateGuideV2SessionInput) {
       course_template_id: input.courseTemplateId || "",
       notebook_references: input.notebookReferences ?? [],
       use_memory: input.useMemory ?? true,
+      source_action: input.sourceAction ?? {},
     }),
   );
 }

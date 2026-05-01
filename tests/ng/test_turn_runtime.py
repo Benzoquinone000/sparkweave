@@ -22,6 +22,19 @@ class FakeMemory:
         self.calls.append(kwargs)
 
 
+class FakeProfileContextInjector:
+    async def build_context(self) -> dict:
+        return {
+            "available": True,
+            "source": "learner_profile",
+            "text": "[Learner Profile Context]\n- current_focus: 梯度下降\n- weak_points: 概念边界不清",
+            "hints": {
+                "current_focus": "梯度下降",
+                "weak_points": ["概念边界不清"],
+            },
+        }
+
+
 class FakeRunner:
     def __init__(self, events: list[StreamEvent]) -> None:
         self.events = events
@@ -343,6 +356,36 @@ async def test_langgraph_turn_runtime_bootstraps_followup_and_memory_context(tmp
     ]
     assert "Question Follow-up Context" in detail["messages"][0]["content"]
     assert "Which criterion best describes density?" in detail["messages"][0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_langgraph_turn_runtime_merges_profile_context_into_memory_context(tmp_path):
+    store = create_session_store(tmp_path / "chat_history.db")
+    memory = FakeMemory(context="## Memory\n- Prefer concise examples.")
+    runner = FakeRunner([StreamEvent(type=StreamEventType.DONE, source="langgraph")])
+    runtime = LangGraphTurnRuntimeManager(
+        store=store,
+        runner=runner,
+        memory_service=memory,
+        profile_context_injector=FakeProfileContextInjector(),
+    )
+
+    await runtime.run_turn(
+        {
+            "content": "Explain gradient descent",
+            "session_id": "session-profile-context",
+            "capability": "chat",
+            "language": "zh",
+            "config": {"_persist_user_message": False},
+        }
+    )
+
+    context = runner.contexts[0]
+    assert "## Memory" in context.memory_context
+    assert "[Learner Profile Context]" in context.memory_context
+    assert "梯度下降" in context.memory_context
+    assert context.metadata["learner_profile_context"]["available"] is True
+    assert context.metadata["learner_profile_context"]["hints"]["weak_points"] == ["概念边界不清"]
 
 
 @pytest.mark.asyncio

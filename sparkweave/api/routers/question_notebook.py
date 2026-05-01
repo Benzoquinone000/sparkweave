@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from sparkweave.services.learner_evidence import build_quiz_answer_events, get_learner_evidence_service
 from sparkweave.services.session_store import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,18 @@ async def upsert_single_entry(payload: UpsertEntryRequest):
     entry = await store.find_notebook_entry(payload.session_id, payload.question_id)
     if entry is None:
         raise HTTPException(status_code=500, detail="Upsert failed")
+    try:
+        get_learner_evidence_service().append_events(
+            build_quiz_answer_events(
+                [payload.model_dump()],
+                source="question_notebook",
+                session_id=payload.session_id,
+                source_id_prefix=payload.session_id,
+            ),
+            dedupe=True,
+        )
+    except Exception:
+        logger.warning("Failed to append question notebook learner evidence", exc_info=True)
     return entry
 
 @router.get("/entries", response_model=NotebookEntryListResponse)

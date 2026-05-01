@@ -9,10 +9,21 @@ from sparkweave.api.routers import guide_v2
 from sparkweave.services.guide_v2 import GuideV2CreateInput, GuideV2Manager
 
 
-def _client_with_manager(manager: GuideV2Manager, monkeypatch) -> TestClient:
+class _EvidenceRecorder:
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def append_events(self, events: list[dict], *, dedupe: bool = True):
+        self.events.extend(events)
+        return {"added": len(events), "skipped": 0, "events": events}
+
+
+def _client_with_manager(manager: GuideV2Manager, monkeypatch, recorder: _EvidenceRecorder | None = None) -> TestClient:
+    evidence_recorder = recorder or _EvidenceRecorder()
     app = FastAPI()
     app.include_router(guide_v2.router, prefix="/api/v1/guide/v2")
     monkeypatch.setattr(guide_v2, "get_guide_v2_manager", lambda: manager)
+    monkeypatch.setattr(guide_v2, "get_learner_evidence_service", lambda: evidence_recorder)
     return TestClient(app)
 
 
@@ -34,6 +45,7 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
                             "correct_answer": "A",
                             "explanation": "sigmoid 输出可解释为概率。",
                             "difficulty": "medium",
+                            "concepts": ["逻辑回归"],
                         }
                     }
                 ],
@@ -48,13 +60,15 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
         completion_fn=_failing_completion,
         capability_runner=_runner,
     )
-    client = _client_with_manager(manager, monkeypatch)
+    evidence_recorder = _EvidenceRecorder()
+    client = _client_with_manager(manager, monkeypatch, evidence_recorder)
 
     templates_response = client.get("/api/v1/guide/v2/templates")
     assert templates_response.status_code == 200
     templates = templates_response.json()["templates"]
     assert templates[0]["id"] == "ml_foundations"
     assert templates[0]["course_id"] == "ML101"
+    assert templates[0]["demo_seed"]["task_chain"]
 
     create_response = client.post(
         "/api/v1/guide/v2/sessions",
@@ -62,12 +76,25 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
             "goal": "一周内掌握逻辑回归",
             "level": "beginner",
             "preferences": ["visual", "practice"],
+            "source_action": {
+                "source": "learner_profile",
+                "kind": "continue",
+                "source_label": "逻辑回归",
+                "suggested_prompt": "基于画像继续学习逻辑回归。",
+            },
         },
     )
     assert create_response.status_code == 200
-    created = create_response.json()["session"]
+    create_payload = create_response.json()
+    created = create_payload["session"]
     session_id = created["session_id"]
     task_id = created["tasks"][0]["task_id"]
+    assert created["course_map"]["metadata"]["source_action"]["source_label"] == "逻辑回归"
+    assert created["tasks"][0]["metadata"]["source_action"]["kind"] == "continue"
+    assert create_payload["evidence"]["recorded"] is True
+    assert evidence_recorder.events[0]["source"] == "guide_v2"
+    assert evidence_recorder.events[0]["object_type"] == "guide_session"
+    assert evidence_recorder.events[0]["metadata"]["source_action"]["source_label"] == "逻辑回归"
 
     detail_response = client.get(f"/api/v1/guide/v2/sessions/{session_id}")
     assert detail_response.status_code == 200
@@ -138,6 +165,7 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
                     "explanation": "sigmoid 输出可解释为概率。",
                     "difficulty": "medium",
                     "is_correct": True,
+                    "concepts": ["逻辑回归"],
                 }
             ]
         },
@@ -145,7 +173,17 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
     assert quiz_submit_response.status_code == 200
     quiz_submit = quiz_submit_response.json()
     assert quiz_submit["attempt"]["score"] == 1
+    assert quiz_submit["attempt"]["concepts"] == ["逻辑回归"]
+    assert quiz_submit["attempt"]["concept_feedback"][0]["concept"] == "逻辑回归"
+    assert quiz_submit["attempt"]["concept_feedback"][0]["status"] == "stable"
     assert quiz_submit["evidence"]["type"] == "quiz"
+    assert quiz_submit["evidence"]["metadata"]["concepts"] == ["逻辑回归"]
+    assert quiz_submit["learning_feedback"]["concept_feedback"][0]["concept"] == "逻辑回归"
+    assert quiz_submit["learning_feedback"]["resource_actions"][0]["resource_type"] == "quiz"
+    expected_action_target = task_id
+    if quiz_submit["adjustments"] and quiz_submit["adjustments"][0].get("inserted_task_ids"):
+        expected_action_target = quiz_submit["adjustments"][0]["inserted_task_ids"][0]
+    assert quiz_submit["learning_feedback"]["resource_actions"][0]["target_task_id"] == expected_action_target
     assert quiz_submit["learning_feedback"]["title"]
     assert quiz_submit["learning_feedback"]["evidence_quality"]["score"] > 0
     assert quiz_submit["evidence"]["metadata"]["learning_feedback"]["title"]
@@ -267,6 +305,9 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
     assert report["behavior_summary"]["event_count"] >= timeline["summary"]["event_count"]
     assert report["timeline_events"]
     assert report["effect_assessment"]["dimensions"]
+    assert report["action_brief"]["primary_action"]["label"]
+    assert report["demo_readiness"]["score"] >= 0
+    assert report["demo_readiness"]["checks"]
     assert "mistake_review" in report
     assert report["markdown"]
 
@@ -279,7 +320,13 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
     assert package["learning_report"]["behavior_summary"]["event_count"] >= timeline["summary"]["event_count"]
     assert package["learning_report"]["effect_assessment"]["dimensions"]
     assert "mistake_summary" in package["learning_report"]
+    assert package["learning_report"]["demo_readiness"]["checks"]
     assert package["rubric"]
+    assert package["demo_blueprint"]["storyline"]
+    assert package["demo_blueprint"]["judge_mapping"]
+    assert package["demo_fallback_kit"]["assets"]
+    assert package["demo_fallback_kit"]["checklist"]
+    assert package["demo_seed_pack"]["task_chain"]
 
     resource_recommendations_response = client.get(
         f"/api/v1/guide/v2/sessions/{session_id}/resource-recommendations"

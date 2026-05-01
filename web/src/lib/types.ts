@@ -233,6 +233,8 @@ export interface QuizResultItem {
   question: string;
   question_type?: string;
   options?: Record<string, string>;
+  concepts?: string[];
+  knowledge_points?: string[];
   user_answer: string;
   correct_answer: string;
   explanation?: string;
@@ -361,6 +363,162 @@ export interface MemorySnapshot {
   saved?: boolean;
   changed?: boolean;
   cleared?: boolean;
+}
+
+export interface LearnerProfileSource {
+  source_id: string;
+  label: string;
+  kind: string;
+  evidence_count: number;
+  updated_at?: string | null;
+  confidence: number;
+}
+
+export interface LearnerProfileClaim {
+  label: string;
+  value: string;
+  source_ids: string[];
+  confidence: number;
+  evidence_count: number;
+}
+
+export interface LearnerMastery {
+  concept_id: string;
+  title: string;
+  score?: number | null;
+  status: string;
+  source_ids: string[];
+  evidence_count: number;
+  updated_at?: string | null;
+}
+
+export interface LearnerWeakPoint {
+  label: string;
+  reason?: string;
+  severity: "low" | "medium" | "high" | string;
+  source_ids: string[];
+  evidence_count: number;
+  confidence: number;
+  updated_at?: string | null;
+}
+
+export interface LearnerEvidencePreview {
+  evidence_id: string;
+  source_id: string;
+  source_label: string;
+  title: string;
+  summary?: string;
+  created_at?: string | null;
+  score?: number | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LearnerProfileSnapshot {
+  version: number;
+  generated_at: string;
+  confidence: number;
+  overview: {
+    current_focus: string;
+    suggested_level?: string;
+    preferred_time_budget_minutes?: number;
+    assessment_accuracy?: number | null;
+    summary?: string;
+    [key: string]: unknown;
+  };
+  stable_profile: {
+    goals?: string[];
+    preferences?: string[];
+    strengths?: string[];
+    constraints?: string[];
+    [key: string]: unknown;
+  };
+  learning_state: {
+    weak_points?: LearnerWeakPoint[];
+    mastery?: LearnerMastery[];
+    [key: string]: unknown;
+  };
+  next_action?: {
+    kind?: string;
+    title?: string;
+    summary?: string;
+    primary_label?: string;
+    href?: string;
+    estimated_minutes?: number;
+    source_type?: string;
+    source_label?: string;
+    confidence?: number;
+    suggested_prompt?: string;
+    [key: string]: unknown;
+  };
+  recommendations: string[];
+  sources: LearnerProfileSource[];
+  evidence_preview: LearnerEvidencePreview[];
+  data_quality: {
+    source_count: number;
+    evidence_count: number;
+    warnings?: string[];
+    read_only?: boolean;
+    calibration_count?: number;
+    [key: string]: unknown;
+  };
+}
+
+export interface LearnerProfileEvidencePreviewResponse {
+  items: LearnerEvidencePreview[];
+  total: number;
+}
+
+export interface LearnerProfileCalibrationRequest {
+  action: "confirm" | "reject" | "correct" | string;
+  claim_type: string;
+  value: string;
+  corrected_value?: string;
+  note?: string;
+  source_id?: string;
+}
+
+export interface LearnerProfileCalibrationResponse {
+  event: LearnerEvidenceEvent;
+  profile: LearnerProfileSnapshot;
+}
+
+export interface LearnerEvidenceEvent {
+  id: string;
+  source: string;
+  source_id?: string;
+  actor: string;
+  verb: string;
+  object_type: string;
+  object_id?: string;
+  title: string;
+  summary?: string;
+  course_id?: string;
+  node_id?: string;
+  task_id?: string;
+  resource_type?: string;
+  score?: number | null;
+  is_correct?: boolean | null;
+  duration_seconds?: number | null;
+  confidence: number;
+  reflection?: string;
+  mistake_types: string[];
+  created_at: number;
+  weight: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LearnerEvidenceListResponse {
+  items: LearnerEvidenceEvent[];
+  total: number;
+  summary: {
+    event_count: number;
+    by_source?: Record<string, number>;
+    by_verb?: Record<string, number>;
+    by_object_type?: Record<string, number>;
+    average_score?: number | null;
+    accuracy?: number | null;
+    latest_event_at?: number | null;
+  };
 }
 
 export interface RagProvider {
@@ -609,6 +767,41 @@ export interface GuideV2CourseTemplate {
   learning_outcomes?: string[];
   assessment?: Array<Record<string, unknown>>;
   project_milestones?: Array<Record<string, unknown>>;
+  demo_seed?: GuideV2DemoSeedPack;
+}
+
+export interface GuideV2DemoSeedPack {
+  title?: string;
+  scenario?: string;
+  persona?: {
+    name?: string;
+    level?: string;
+    goal?: string;
+    weak_points?: string[];
+    preferences?: string[];
+  };
+  task_chain?: Array<{
+    task_id?: string;
+    title?: string;
+    stage?: string;
+    show?: string;
+    resource_type?: string;
+    prompt?: string;
+    sample_score?: number;
+    sample_reflection?: string;
+    status?: string;
+  }>;
+  resource_prompts?: Array<{
+    type?: string;
+    title?: string;
+    prompt?: string;
+  }>;
+  rehearsal_notes?: string[];
+  report_anchor?: {
+    score?: number;
+    readiness?: string;
+    action?: string;
+  };
 }
 
 export interface GuideV2StudyPlan {
@@ -893,6 +1086,31 @@ export interface GuideV2LearningFeedback {
   summary?: string;
   tone?: "neutral" | "success" | "warning" | "danger" | "brand" | string;
   score_percent?: number | null;
+  concept_feedback?: Array<{
+    concept?: string;
+    score?: number;
+    score_percent?: number;
+    status?: "stable" | "developing" | "needs_support" | string;
+    correct_count?: number;
+    total_count?: number;
+    wrong_questions?: string[];
+    summary?: string;
+    next_action?: string;
+  }>;
+  resource_actions?: Array<{
+    id?: string;
+    action_type?: string;
+    label?: string;
+    title?: string;
+    resource_type?: GuideV2ResourceType | string;
+    target_task_id?: string;
+    target_task_title?: string;
+    prompt?: string;
+    primary?: boolean;
+    concept?: string;
+    concept_status?: string;
+    concept_score_percent?: number;
+  }>;
   evidence_quality?: {
     score?: number;
     label?: string;
@@ -966,6 +1184,7 @@ export interface GuideV2Evaluation {
   strengths: string[];
   risk_signals: string[];
   next_actions: string[];
+  learner_profile_context?: Record<string, unknown>;
 }
 
 export interface GuideV2LearningReport {
@@ -1047,6 +1266,44 @@ export interface GuideV2LearningReport {
     }>;
     strategy_adjustments?: string[];
   };
+  action_brief?: {
+    title?: string;
+    summary?: string;
+    primary_action?: {
+      label?: string;
+      detail?: string;
+      kind?: string;
+      target_task_id?: string;
+      resource_type?: GuideV2ResourceType | string;
+      prompt?: string;
+    };
+    secondary_actions?: Array<{
+      label?: string;
+      detail?: string;
+      kind?: string;
+      target_task_id?: string;
+      resource_type?: GuideV2ResourceType | string;
+      prompt?: string;
+    }>;
+    signals?: Array<{
+      label?: string;
+      value?: string;
+      tone?: "neutral" | "brand" | "success" | "warning" | "danger" | string;
+    }>;
+  };
+  demo_readiness?: {
+    score?: number;
+    label?: string;
+    summary?: string;
+    checks?: Array<{
+      id?: string;
+      label?: string;
+      status?: "ready" | "partial" | "missing" | string;
+      detail?: string;
+    }>;
+    next_steps?: string[];
+  };
+  learner_profile_context?: Record<string, unknown>;
   timeline_events?: GuideV2LearningTimelineEvent[];
   mistake_review?: Pick<GuideV2MistakeReview, "summary" | "clusters" | "retest_plan">;
   interventions?: GuideV2PlanEvent[];
@@ -1096,6 +1353,48 @@ export interface GuideV2CoursePackage {
     mastery_score?: number;
   }>;
   demo_outline?: string[];
+  demo_blueprint?: {
+    title?: string;
+    duration_minutes?: number;
+    summary?: string;
+    readiness_label?: string;
+    readiness_score?: number;
+    storyline?: Array<{
+      minute?: string;
+      title?: string;
+      show?: string;
+      talking_point?: string;
+      requirement?: string;
+    }>;
+    fallbacks?: string[];
+    judge_mapping?: Array<{
+      requirement?: string;
+      evidence?: string;
+    }>;
+  };
+  demo_fallback_kit?: {
+    title?: string;
+    summary?: string;
+    persona?: {
+      name?: string;
+      goal?: string;
+      level?: string;
+      weak_points?: string[];
+      preferences?: string[];
+      story?: string;
+    };
+    assets?: Array<{
+      type?: string;
+      title?: string;
+      status?: string;
+      show?: string;
+      talking_point?: string;
+      fallback_prompt?: string;
+    }>;
+    checklist?: string[];
+    fallback_script?: string[];
+  };
+  demo_seed_pack?: GuideV2DemoSeedPack;
   learning_report?: {
     overall_score?: number;
     readiness?: string;
@@ -1104,6 +1403,7 @@ export interface GuideV2CoursePackage {
     behavior_tags?: string[];
     recent_timeline_events?: GuideV2LearningTimelineEvent[];
     effect_assessment?: GuideV2LearningReport["effect_assessment"];
+    demo_readiness?: GuideV2LearningReport["demo_readiness"];
     mistake_summary?: GuideV2MistakeReview["summary"];
     mistake_clusters?: GuideV2MistakeReview["clusters"];
     risks?: string[];

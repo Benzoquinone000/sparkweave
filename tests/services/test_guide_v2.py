@@ -8,6 +8,16 @@ import pytest
 from sparkweave.services.guide_v2 import GuideV2CreateInput, GuideV2Manager
 
 
+class _UnifiedProfileService:
+    def __init__(self, profile: dict[str, Any]) -> None:
+        self.profile = profile
+        self.calls: list[bool] = []
+
+    async def read_profile(self, *, auto_refresh: bool = True) -> dict[str, Any]:
+        self.calls.append(auto_refresh)
+        return self.profile
+
+
 @pytest.mark.asyncio
 async def test_guide_v2_creates_structured_session_with_fallback(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
@@ -19,6 +29,14 @@ async def test_guide_v2_creates_structured_session_with_fallback(tmp_path) -> No
         GuideV2CreateInput(
             goal="用 30 分钟学习梯度下降，需要图解和练习",
             preferences=["visual", "practice"],
+            source_action={
+                "source": "learner_profile",
+                "kind": "remediate",
+                "source_label": "学习率判断错误",
+                "suggested_prompt": "围绕学习率判断错误安排补基任务。",
+                "confidence": 0.76,
+                "estimated_minutes": 15,
+            },
         )
     )
 
@@ -30,6 +48,10 @@ async def test_guide_v2_creates_structured_session_with_fallback(tmp_path) -> No
     assert session["current_task"]["task_id"] == session["tasks"][0]["task_id"]
     assert "Build understanding" not in session["current_task"]["title"]
     assert session["learning_path"]["title"].endswith("导学路线")
+    assert session["course_map"]["metadata"]["created_from"] == "learner_profile"
+    assert session["course_map"]["metadata"]["source_action"]["source_label"] == "学习率判断错误"
+    assert session["tasks"][0]["metadata"]["source_action"]["kind"] == "remediate"
+    assert session["recommendations"][0].startswith("已根据学习画像建议")
     assert any("先完成" in item for item in session["recommendations"])
     assert session["progress"] == 0
 
@@ -89,6 +111,99 @@ async def test_guide_v2_builds_cross_session_learner_memory(tmp_path) -> None:
     briefing = manager.build_coach_briefing(inherited["session"]["session_id"])
     assert briefing["success"] is True
     assert any("长期学习画像" in item for item in briefing["evidence_reasons"])
+
+
+@pytest.mark.asyncio
+async def test_guide_v2_uses_unified_learner_profile_when_planning(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    unified_service = _UnifiedProfileService(
+        {
+            "confidence": 0.74,
+            "overview": {
+                "current_focus": "梯度下降直观理解",
+                "suggested_level": "beginner",
+                "preferred_time_budget_minutes": 15,
+                "summary": "需要先补齐优化直觉。",
+            },
+            "stable_profile": {
+                "goals": ["掌握机器学习优化基础"],
+                "preferences": ["video", "visual"],
+                "strengths": ["愿意做反思"],
+            },
+            "learning_state": {
+                "weak_points": [
+                    {"label": "概念边界不清"},
+                    {"label": "公式推导"},
+                ],
+            },
+        }
+    )
+    manager = GuideV2Manager(
+        output_dir=tmp_path,
+        completion_fn=_failing_completion,
+        learner_profile_service=unified_service,
+    )
+
+    result = await manager.create_session(GuideV2CreateInput(goal="学习梯度下降"))
+
+    assert result["success"] is True
+    profile = result["session"]["profile"]
+    assert unified_service.calls == [True]
+    assert profile["level"] == "beginner"
+    assert profile["time_budget_minutes"] == 15
+    assert "video" in profile["preferences"]
+    assert "visual" in profile["preferences"]
+    assert "概念边界不清" in profile["weak_points"]
+    assert "公式推导" in profile["weak_points"]
+    assert "Unified learner profile" in profile["source_context_summary"]
+    assert "梯度下降直观理解" in profile["source_context_summary"]
+    evaluation = manager.evaluate_session(result["session"]["session_id"])
+    assert evaluation["learner_profile_context"]["available"] is True
+    assert evaluation["learner_profile_context"]["weak_points"][0] == "概念边界不清"
+    assert any("长期画像" in item for item in evaluation["risk_signals"])
+    report = manager.build_learning_report(result["session"]["session_id"])
+    assert report["learner_profile_context"]["available"] is True
+    assert any(item["id"] == "longitudinal_profile" for item in report["effect_assessment"]["dimensions"])
+
+
+@pytest.mark.asyncio
+async def test_guide_v2_keeps_explicit_request_over_unified_profile(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    unified_service = _UnifiedProfileService(
+        {
+            "overview": {
+                "suggested_level": "beginner",
+                "preferred_time_budget_minutes": 15,
+            },
+            "stable_profile": {"preferences": ["video"]},
+            "learning_state": {"weak_points": [{"label": "公式推导"}]},
+        }
+    )
+    manager = GuideV2Manager(
+        output_dir=tmp_path,
+        completion_fn=_failing_completion,
+        learner_profile_service=unified_service,
+    )
+
+    result = await manager.create_session(
+        GuideV2CreateInput(
+            goal="学习反向传播",
+            level="advanced",
+            time_budget_minutes=60,
+            preferences=["practice"],
+            weak_points=["代码实现"],
+        )
+    )
+
+    profile = result["session"]["profile"]
+    assert profile["level"] == "advanced"
+    assert profile["time_budget_minutes"] == 60
+    assert profile["preferences"][:2] == ["practice", "video"]
+    assert profile["weak_points"][:2] == ["代码实现", "公式推导"]
 
 
 @pytest.mark.asyncio
@@ -189,6 +304,8 @@ def test_guide_v2_lists_course_templates(tmp_path) -> None:
     assert ml["default_goal"]
     assert ml["learning_outcomes"]
     assert ml["assessment"]
+    assert ml["demo_seed"]["task_chain"]
+    assert ml["demo_seed"]["resource_prompts"]
 
 
 def test_guide_v2_loads_json_course_templates(tmp_path) -> None:
@@ -375,7 +492,15 @@ async def test_guide_v2_generates_resource_and_attaches_artifact(tmp_path) -> No
         completion_fn=_failing_completion,
         capability_runner=_runner,
     )
-    created = await manager.create_session(GuideV2CreateInput(goal="学习牛顿第二定律"))
+    created = await manager.create_session(
+        GuideV2CreateInput(
+            goal="学习牛顿第二定律",
+            level="beginner",
+            time_budget_minutes=25,
+            preferences=["visual", "practice"],
+            weak_points=["公式含义"],
+        )
+    )
     session_id = created["session"]["session_id"]
     task_id = created["session"]["tasks"][0]["task_id"]
 
@@ -395,8 +520,16 @@ async def test_guide_v2_generates_resource_and_attaches_artifact(tmp_path) -> No
     assert calls[0][0] == "visualize"
     assert calls[0][1].config_overrides == {"render_mode": "svg"}
     assert "牛顿第二定律" in calls[0][1].user_message
+    assert "Learner personalization:" in calls[0][1].user_message
+    assert "weak points to address: 公式含义" in calls[0][1].user_message
+    hints = calls[0][1].metadata["learner_profile_hints"]
+    assert hints["level"] == "beginner"
+    assert hints["time_budget_minutes"] == 25
+    assert "visual" in hints["preferences"]
+    assert "公式含义" in hints["weak_points"]
     artifact = result["artifact"]
     assert artifact["type"] == "visual"
+    assert artifact["personalization"]["weak_points"] == ["公式含义"]
     assert artifact["result"]["render_type"] == "svg"
     updated = manager.get_session(session_id)
     assert updated["tasks"][0]["artifact_refs"][0]["id"] == artifact["id"]
@@ -419,6 +552,7 @@ async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None
                         "options": {"A": "Examples and features", "B": "Only labels"},
                         "correct_answer": "A",
                         "explanation": "Rows usually represent examples and columns represent features.",
+                        "concepts": ["feature matrix"],
                     }
                 },
                 {
@@ -429,6 +563,7 @@ async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None
                         "options": {"True": "正确", "False": "错误"},
                         "correct_answer": "True",
                         "explanation": "Labels are what supervised learning predicts.",
+                        "concepts": ["labels"],
                     }
                 },
             ],
@@ -458,6 +593,7 @@ async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None
                 "user_answer": "A",
                 "correct_answer": "A",
                 "is_correct": True,
+                "concepts": ["feature matrix"],
             },
             {
                 "question_id": "q2",
@@ -467,14 +603,26 @@ async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None
                 "user_answer": "False",
                 "correct_answer": "True",
                 "is_correct": False,
+                "concepts": ["labels"],
             },
         ],
     )
 
     assert result["success"] is True
     assert result["attempt"]["score"] == 0.5
+    assert result["attempt"]["concepts"] == ["feature matrix", "labels"]
+    assert result["attempt"]["concept_feedback"][0]["concept"] == "labels"
+    assert result["attempt"]["concept_feedback"][0]["status"] == "needs_support"
     assert result["evidence"]["type"] == "quiz"
+    assert result["evidence"]["metadata"]["concepts"] == ["feature matrix", "labels"]
+    assert result["evidence"]["metadata"]["concept_feedback"][0]["concept"] == "labels"
+    assert "labels" in result["evidence"]["mistake_types"]
     assert result["learning_feedback"]["tone"] == "warning"
+    assert result["learning_feedback"]["concept_feedback"][0]["concept"] == "labels"
+    assert result["learning_feedback"]["resource_actions"][0]["resource_type"] == "visual"
+    remediation_id = result["adjustments"][0]["inserted_task_ids"][0]
+    assert result["learning_feedback"]["resource_actions"][0]["target_task_id"] == remediation_id
+    assert "labels" in result["learning_feedback"]["resource_actions"][0]["prompt"]
     assert result["learning_feedback"]["actions"]
     assert result["learning_feedback"]["evidence_quality"]["score"] > 0
     assert result["evidence"]["metadata"]["evidence_quality"]["label"]
@@ -603,13 +751,26 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     assert report["feedback_digest"]["latest"]["summary"]
     assert report["effect_assessment"]["score"] >= 0
     assert report["effect_assessment"]["dimensions"]
+    assert any(item["id"] == "longitudinal_profile" for item in report["effect_assessment"]["dimensions"])
     assert report["effect_assessment"]["strategy_adjustments"]
+    assert report["action_brief"]["title"]
+    assert report["action_brief"]["primary_action"]["label"]
+    assert report["action_brief"]["primary_action"]["target_task_id"]
+    assert report["action_brief"]["primary_action"]["resource_type"] in {"visual", "quiz"}
+    assert report["action_brief"]["primary_action"]["prompt"]
+    assert report["action_brief"]["signals"]
+    assert report["demo_readiness"]["score"] >= 0
+    assert report["demo_readiness"]["label"]
+    assert report["demo_readiness"]["checks"]
+    assert report["demo_readiness"]["next_steps"]
     assert report["timeline_events"]
     assert report["mistake_review"]["summary"]["cluster_count"] >= 1
     assert report["interventions"]
     assert "markdown" in report
     assert "学习效果报告" in report["markdown"]
     assert "学习效果评估" in report["markdown"]
+    assert "学习处方" in report["markdown"]
+    assert "演示就绪度" in report["markdown"]
     assert "学习行为证据" in report["markdown"]
     assert "即时反馈摘要" in report["markdown"]
     assert "错因与复测闭环" in report["markdown"]
@@ -641,6 +802,17 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["rubric"]
     assert package["review_plan"]
     assert package["demo_outline"]
+    assert package["demo_blueprint"]["duration_minutes"] == 7
+    assert package["demo_blueprint"]["storyline"]
+    assert package["demo_blueprint"]["judge_mapping"]
+    assert package["demo_fallback_kit"]["persona"]["goal"]
+    assert package["demo_fallback_kit"]["assets"]
+    assert package["demo_fallback_kit"]["checklist"]
+    assert package["demo_fallback_kit"]["fallback_script"]
+    assert package["demo_seed_pack"]["task_chain"]
+    assert package["demo_seed_pack"]["resource_prompts"]
+    assert package["demo_seed_pack"]["report_anchor"]["score"] >= 0
+    assert package["learning_report"]["demo_readiness"]["checks"]
     assert package["learning_report"]["behavior_summary"]["event_count"] >= 2
     assert package["learning_report"]["feedback_digest"]["count"] >= 1
     assert package["learning_report"]["effect_assessment"]["dimensions"]
@@ -648,6 +820,9 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "mistake_summary" in package["learning_report"]
     assert "课程产出包" in package["markdown"]
     assert "最近学习轨迹" in package["markdown"]
+    assert "7 分钟演示路线" in package["markdown"]
+    assert "录屏兜底包" in package["markdown"]
+    assert "稳定 Demo 样例" in package["markdown"]
 
 
 @pytest.mark.asyncio

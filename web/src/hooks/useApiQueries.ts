@@ -4,6 +4,7 @@ import {
   addNotebookRecord,
   addNotebookRecordWithSummary,
   autoMarkText,
+  calibrateLearnerProfile,
   chatGuideSession,
   completeGuideSession,
   completeGuideV2Task,
@@ -62,6 +63,8 @@ import {
   getKnowledgeHealth,
   getKnowledgeConfig,
   getKnowledgeProgress,
+  getLearnerProfile,
+  getLearnerProfileEvidencePreview,
   getMemory,
   getNotebook,
   getNotebookHealth,
@@ -73,6 +76,7 @@ import {
   listCoWriterHistory,
   listDashboardActivities,
   listKnowledgeConfigs,
+  listLearnerEvidence,
   listGuideSessions,
   listGuideV2Sessions,
   listGuideV2Templates,
@@ -99,6 +103,7 @@ import {
   addQuestionEntryToCategory,
   navigateGuideSession,
   readSparkBotFile,
+  rebuildLearnerEvidence,
   saveGuideV2CoursePackage,
   saveGuideV2Artifact,
   saveGuideV2Report,
@@ -106,6 +111,7 @@ import {
   submitGuideV2Diagnostic,
   submitGuideV2ProfileDialogue,
   submitGuideV2QuizResults,
+  refreshLearnerProfile,
   refreshMemory,
   removeQuestionEntryFromCategory,
   renameQuestionCategory,
@@ -334,6 +340,27 @@ export function useMemory() {
   return useQuery({
     queryKey: ["memory"],
     queryFn: getMemory,
+  });
+}
+
+export function useLearnerProfile() {
+  return useQuery({
+    queryKey: ["learner-profile"],
+    queryFn: getLearnerProfile,
+  });
+}
+
+export function useLearnerProfileEvidencePreview(source?: string | null, limit = 30) {
+  return useQuery({
+    queryKey: ["learner-profile-evidence", source || "all", limit],
+    queryFn: () => getLearnerProfileEvidencePreview({ source: source || null, limit }),
+  });
+}
+
+export function useLearnerEvidence(source?: string | null, limit = 100) {
+  return useQuery({
+    queryKey: ["learner-evidence-ledger", source || "all", limit],
+    queryFn: () => listLearnerEvidence({ source: source || null, limit }),
   });
 }
 
@@ -777,6 +804,29 @@ export function useMemoryMutations() {
     }),
     clear: useMutation({
       mutationFn: (file?: MemoryFile | null) => clearMemory(file),
+      onSettled: settle,
+    }),
+  };
+}
+
+export function useLearnerProfileMutations() {
+  const queryClient = useQueryClient();
+  const settle = () => {
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+  };
+  return {
+    refresh: useMutation({
+      mutationFn: refreshLearnerProfile,
+      onSettled: settle,
+    }),
+    calibrate: useMutation({
+      mutationFn: calibrateLearnerProfile,
+      onSettled: settle,
+    }),
+    rebuildEvidence: useMutation({
+      mutationFn: rebuildLearnerEvidence,
       onSettled: settle,
     }),
   };

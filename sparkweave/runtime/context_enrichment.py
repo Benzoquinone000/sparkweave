@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+import inspect
 from typing import Any
 
 from sparkweave.core.contracts import Attachment, StreamEvent, UnifiedContext
 from sparkweave.services.config import get_llm_config
 from sparkweave.services.context import ContextBuilder, NotebookAnalysisAgent
+from sparkweave.services.learner_evidence import build_chat_statement_events
 from sparkweave.services.memory import get_memory
 from sparkweave.services.notebook import get_notebooks
 from sparkweave.services.session import SQLiteSessionStore
@@ -142,6 +144,8 @@ async def build_turn_context(
     capability: str,
     memory_service: Any | None = None,
     notebook_manager: Any | None = None,
+    evidence_service: Any | None = None,
+    profile_context_injector: Any | None = None,
     emit: EventSink | None = None,
 ) -> UnifiedContext:
     request_config = dict(payload.get("config", {}) or {})
@@ -175,6 +179,11 @@ async def build_turn_context(
     )
     memory = memory_service or get_memory()
     memory_context = _build_memory_context(memory)
+    learner_profile_context = await _build_learner_profile_context(profile_context_injector)
+    memory_context = _merge_memory_and_profile_context(
+        memory_context=memory_context,
+        learner_profile_text=str(learner_profile_context.get("text") or ""),
+    )
 
     notebook_context = await _build_notebook_context(
         user_question=raw_user_content,
@@ -204,6 +213,14 @@ async def build_turn_context(
             capability=capability,
             attachments=attachment_records,
         )
+        _append_chat_statement_evidence(
+            evidence_service=evidence_service,
+            message=raw_user_content,
+            session_id=session_id,
+            turn_id=turn_id,
+            capability=capability,
+            language=language,
+        )
 
     return UnifiedContext(
         session_id=session_id,
@@ -229,6 +246,7 @@ async def build_turn_context(
             "notebook_references": notebook_references,
             "history_references": history_references,
             "memory_context": memory_context,
+            "learner_profile_context": learner_profile_context,
         },
     )
 
@@ -250,6 +268,32 @@ def _attachment_records(payload: dict[str, Any]) -> list[dict[str, str]]:
     return records
 
 
+def _append_chat_statement_evidence(
+    *,
+    evidence_service: Any | None,
+    message: str,
+    session_id: str,
+    turn_id: str,
+    capability: str,
+    language: str,
+) -> None:
+    if evidence_service is None:
+        return
+    events = build_chat_statement_events(
+        message,
+        session_id=session_id,
+        turn_id=turn_id,
+        capability=capability or "chat",
+        language=language,
+    )
+    if not events:
+        return
+    try:
+        evidence_service.append_events(events, dedupe=True)
+    except Exception:
+        return
+
+
 def _build_memory_context(memory: Any) -> str:
     build = getattr(memory, "build_memory_context", None)
     if not callable(build):
@@ -258,6 +302,53 @@ def _build_memory_context(memory: Any) -> str:
         return str(build() or "")
     except Exception:
         return ""
+
+
+async def _build_learner_profile_context(profile_context_injector: Any | None) -> dict[str, Any]:
+    if profile_context_injector is None:
+        return {
+            "available": False,
+            "source": "learner_profile",
+            "text": "",
+            "hints": {},
+        }
+    build = getattr(profile_context_injector, "build_context", None)
+    if not callable(build):
+        return {
+            "available": False,
+            "source": "learner_profile",
+            "text": "",
+            "hints": {},
+        }
+    try:
+        result = build()
+        if inspect.isawaitable(result):
+            result = await result
+    except Exception as exc:
+        return {
+            "available": False,
+            "source": "learner_profile",
+            "text": "",
+            "hints": {},
+            "error": str(exc),
+        }
+    if not isinstance(result, dict):
+        return {
+            "available": False,
+            "source": "learner_profile",
+            "text": "",
+            "hints": {},
+        }
+    return result
+
+
+def _merge_memory_and_profile_context(
+    *,
+    memory_context: str,
+    learner_profile_text: str,
+) -> str:
+    parts = [str(memory_context or "").strip(), str(learner_profile_text or "").strip()]
+    return "\n\n".join(part for part in parts if part)
 
 
 async def _build_notebook_context(

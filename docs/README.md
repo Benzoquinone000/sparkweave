@@ -23,23 +23,24 @@
 17. [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md)
 18. [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md)
 19. [导学空间与 Guide V2](./guided-learning.md)
-20. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
-21. [Capabilities 详解](./capabilities.md)
-22. [Tools 工具系统](./tools.md)
-23. [CLI 与 API 使用](./cli-and-api.md)
-24. [知识库详解](./knowledge-base.md)
-25. [题目工作流](./question-workflows.md)
-26. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
-27. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
-28. [前端工作台](./frontend.md)
-29. [服务层与数据流](./services.md)
-30. [设置与 Provider 配置](./settings-and-providers.md)
-31. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
-32. [环境变量配置](./configuration.md)
-33. [插件开发](./plugin-development.md)
-34. [赛题对齐与后续开发路线](./competition-roadmap.md)
-35. [AI Coding 工具使用说明](./ai-coding-statement.md)
-36. [开发与维护](./development.md)
+20. [稳定课程 Demo 模板](./demo-course-templates.md)
+21. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
+22. [Capabilities 详解](./capabilities.md)
+23. [Tools 工具系统](./tools.md)
+24. [CLI 与 API 使用](./cli-and-api.md)
+25. [知识库详解](./knowledge-base.md)
+26. [题目工作流](./question-workflows.md)
+27. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
+28. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
+29. [前端工作台](./frontend.md)
+30. [服务层与数据流](./services.md)
+31. [设置与 Provider 配置](./settings-and-providers.md)
+32. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
+33. [环境变量配置](./configuration.md)
+34. [插件开发](./plugin-development.md)
+35. [赛题对齐与后续开发路线](./competition-roadmap.md)
+36. [AI Coding 工具使用说明](./ai-coding-statement.md)
+37. [开发与维护](./development.md)
 
 ## 文档定位
 
@@ -64,6 +65,7 @@
 | [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md) | 画像功能开发者、导学功能维护者、前端开发者 | 画像中心如何给出“现在只做这一步”，并把行动来源带入导学创建 |
 | [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md) | 运行时维护者、能力开发者、画像功能开发者 | 画像如何被压缩成模型上下文，注入 LangGraph 回合并覆盖 Chat/解题/出题/图解/动画 |
 | [导学空间与 Guide V2](./guided-learning.md) | 导学功能维护者、前后端集成方 | 旧版导学、Guide V2 学习画像、课程模板、任务证据闭环、资源生成、报告和 Notebook/题目本保存 |
+| [稳定课程 Demo 模板](./demo-course-templates.md) | 比赛材料整理者、录屏负责人、导学功能维护者 | 机器学习、ROS、高等数学三条可复现课程演示路线、任务链、兜底材料和扩展模板格式 |
 | [SparkBot 与 Agents 工作台](./sparkbot-agents.md) | 长期智能体维护者、前端集成方、渠道开发者 | SparkBot 生命周期、工作区文件、渠道 schema、WebSocket 聊天、工具、heartbeat、cron、team 和排查路径 |
 | [Capabilities 详解](./capabilities.md) | 能力开发者、前后端集成方 | Chat、Deep Solve、Deep Question、Deep Research、Visualize、Math Animator 的配置、阶段和结果 |
 | [Tools 工具系统](./tools.md) | 工具开发者、能力维护者 | Tool 协议、注册表、内置工具、能力图调用方式、SparkBot 工具边界 |

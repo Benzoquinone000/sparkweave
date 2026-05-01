@@ -230,6 +230,7 @@ python scripts/start_web.py
 
 - [赛题对齐与后续开发路线](docs/competition-roadmap.md)
 - [演示脚本：画像驱动导学闭环](docs/demo-script-profile-guide-loop.md)
+- [稳定课程 Demo 模板](docs/demo-course-templates.md)
 - [AI Coding 工具使用说明](docs/ai-coding-statement.md)
 
 ## 配置 `.env`

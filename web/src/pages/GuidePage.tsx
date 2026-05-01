@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { openGuideV2ResourceJobEvents } from "@/lib/api";
+import { questionDifficultyLabel } from "@/lib/learningLabels";
 import {
   useGuideV2CoursePackage,
   useGuideV2Diagnostic,
@@ -2415,7 +2416,7 @@ function KnowledgeMapVisualization({
               {selected.isCurrent ? "当前" : masteryStatusLabel(selected.status)}
             </Badge>
             <Badge tone="neutral">Step {selected.index + 1}</Badge>
-            <Badge tone="neutral">{selected.difficulty}</Badge>
+            <Badge tone="neutral">{questionDifficultyLabel(selected.difficulty)}</Badge>
           </div>
           <h3 className="mt-3 text-lg font-semibold text-ink">{selected.title}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">{selected.description}</p>

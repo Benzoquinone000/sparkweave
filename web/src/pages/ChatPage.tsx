@@ -1229,9 +1229,9 @@ function CapabilityConfigPanel({
               <FieldShell label="难度">
                 <SelectInput value={String(config.difficulty ?? "medium")} onChange={(event) => patch({ difficulty: event.target.value })}>
                   <option value="auto">自动</option>
-                  <option value="easy">简单</option>
+                  <option value="easy">基础</option>
                   <option value="medium">中等</option>
-                  <option value="hard">困难</option>
+                  <option value="hard">挑战</option>
                 </SelectInput>
               </FieldShell>
             </div>

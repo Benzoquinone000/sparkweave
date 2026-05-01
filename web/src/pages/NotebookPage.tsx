@@ -33,6 +33,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { Metric } from "@/components/ui/Metric";
+import { questionDifficultyLabel } from "@/lib/learningLabels";
 import type {
   ExternalVideoResult,
   MathAnimatorResult,
@@ -1196,9 +1197,9 @@ function QuickQuestionPanel({
         </FieldShell>
         <FieldShell label="难度">
           <SelectInput value={value.difficulty} onChange={(event) => patch({ difficulty: event.target.value })} data-testid="question-upsert-difficulty">
-            <option value="easy">简单</option>
+            <option value="easy">基础</option>
             <option value="medium">中等</option>
-            <option value="hard">困难</option>
+            <option value="hard">挑战</option>
           </SelectInput>
         </FieldShell>
       </div>
@@ -1218,14 +1219,6 @@ function QuickQuestionPanel({
       {status ? <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600">{status}</p> : null}
     </form>
   );
-}
-
-function questionDifficultyLabel(value: string | undefined) {
-  const normalized = String(value || "").toLowerCase();
-  if (normalized === "easy") return "简单";
-  if (normalized === "medium") return "中等";
-  if (normalized === "hard") return "困难";
-  return value || "未设置";
 }
 
 function QuestionCard({

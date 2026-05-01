@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { recordQuizResults } from "@/lib/api";
+import { questionDifficultyLabel } from "@/lib/learningLabels";
 import type { QuizQuestion, QuizResultItem } from "@/lib/types";
 
 type QuestionKind = "choice" | "true_false" | "fill_blank" | "written" | "coding";
@@ -182,7 +183,7 @@ export function QuizViewer({
           <Badge tone="neutral">
             {index + 1}/{total}
           </Badge>
-          {question.difficulty ? <Badge tone="warning">{question.difficulty}</Badge> : null}
+          {question.difficulty ? <Badge tone="warning">{questionDifficultyLabel(question.difficulty)}</Badge> : null}
           {recorded ? <Badge tone="success">已写入题目本</Badge> : null}
           {recorded ? <span className="sr-only" data-testid="quiz-recorded">recorded</span> : null}
           {recording ? (

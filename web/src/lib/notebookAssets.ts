@@ -1,5 +1,6 @@
 import { extractExternalVideoResult, extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
+import { questionDifficultyLabel } from "@/lib/learningLabels";
 import { extractQuizQuestions } from "@/lib/quiz";
 import type { CapabilityId, ChatMessage, NotebookRecord } from "@/lib/types";
 
@@ -164,7 +165,7 @@ function formatQuizSection(questions: NonNullable<ReturnType<typeof extractQuizQ
       options,
       `   - 参考答案：${question.correct_answer || "未提供"}`,
       question.explanation ? `   - 解析：${question.explanation}` : "",
-      question.difficulty ? `   - 难度：${question.difficulty}` : "",
+      question.difficulty ? `   - 难度：${questionDifficultyLabel(question.difficulty)}` : "",
     ]
       .filter(Boolean)
       .join("\n");

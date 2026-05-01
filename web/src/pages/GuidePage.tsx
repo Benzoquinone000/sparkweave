@@ -734,7 +734,7 @@ export function GuidePage() {
               >
                 <form
                   id="guide-setup-section"
-                  className={`space-y-4 rounded-xl transition-all duration-500 ${
+                  className={`space-y-4 rounded-lg transition-all duration-500 ${
                     highlightedSectionId === "guide-setup-section" ? "ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
                   }`}
                   onSubmit={createSession}
@@ -820,7 +820,7 @@ export function GuidePage() {
                 <div
                   id="guide-complete-task-section"
                   className={`grid gap-4 transition-all duration-500 lg:grid-cols-[minmax(0,1fr)_280px] ${
-                    highlightedSectionId === "guide-complete-task-section" ? "rounded-xl ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
+                    highlightedSectionId === "guide-complete-task-section" ? "rounded-lg ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
                   }`}
                 >
                   <div className="rounded-lg border border-line bg-canvas p-4">
@@ -1087,7 +1087,7 @@ export function GuidePage() {
             {session && guideStage === "feedback" ? (
               <div
                 id="guide-feedback-section"
-                className={`rounded-xl transition-all duration-500 ${
+                className={`rounded-lg transition-all duration-500 ${
                   highlightedSectionId === "guide-feedback-section" ? "ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
                 }`}
               >
@@ -2374,7 +2374,7 @@ function KnowledgeMapVisualization({
                   className={`min-h-40 w-40 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${style.card}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`flex size-9 items-center justify-center rounded-full border text-sm font-semibold ${style.dot}`}>
+                    <span className={`flex size-9 items-center justify-center rounded-lg border text-sm font-semibold ${style.dot}`}>
                       {done ? <CheckCircle2 size={17} /> : index + 1}
                     </span>
                     <Badge tone={item.isCurrent ? "brand" : masteryTone(item.status)}>{item.isCurrent ? "当前" : masteryStatusLabel(item.status)}</Badge>
@@ -2386,8 +2386,8 @@ function KnowledgeMapVisualization({
                       <span>掌握</span>
                       <span>{item.score}%</span>
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${item.score}%` }} />
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-sm bg-slate-100">
+                      <div className={`h-full rounded-sm ${style.bar}`} style={{ width: `${item.score}%` }} />
                     </div>
                   </div>
                   <span className="mt-3 block text-xs text-slate-500">{item.completedTasks}/{item.tasks.length || 0} 个任务完成</span>
@@ -2440,12 +2440,12 @@ function KnowledgeMapVisualization({
         </div>
         <div className="rounded-lg border border-line bg-white p-4">
           <div className="grid place-items-center">
-            <div className="relative grid size-28 place-items-center rounded-full border border-line bg-canvas">
+            <div className="relative grid size-28 place-items-center rounded-lg border border-line bg-canvas">
               <div
-                className="absolute inset-2 rounded-full"
+                className="absolute inset-2 rounded-lg"
                 style={{ background: `conic-gradient(#0F766E ${selected.score * 3.6}deg, #E2E8F0 0deg)` }}
               />
-              <div className="relative grid size-20 place-items-center rounded-full border border-line bg-white">
+              <div className="relative grid size-20 place-items-center rounded-lg border border-line bg-white">
                 <div className="text-center">
                   <p className="text-2xl font-semibold text-ink">{selected.score}%</p>
                   <p className="text-xs text-slate-500">掌握</p>
@@ -3268,8 +3268,8 @@ function CourseDemoRecordingChecklistCard({
 
 function ProgressBar({ value, className = "" }: { value: number; className?: string }) {
   return (
-    <div className={`h-2 overflow-hidden rounded-full bg-slate-100 ${className}`}>
-      <div className="h-full rounded-full bg-brand-teal transition-all" style={{ width: `${Math.max(0, Math.min(value, 100))}%` }} />
+    <div className={`h-2 overflow-hidden rounded-sm bg-slate-100 ${className}`}>
+      <div className="h-full rounded-sm bg-brand-teal transition-all" style={{ width: `${Math.max(0, Math.min(value, 100))}%` }} />
     </div>
   );
 }
@@ -3601,7 +3601,7 @@ function ArtifactAgentChain({
               transition={{ duration: 0.16, delay: index * 0.04 }}
             >
               <div className="flex items-center gap-2">
-                <span className={`h-1.5 w-1.5 rounded-full ${agentRouteDotTone(step.tone)}`} />
+                <span className={`h-1.5 w-1.5 rounded-sm ${agentRouteDotTone(step.tone)}`} />
                 <span className="text-xs font-semibold text-ink">{shortGuideAgentName(step.label)}</span>
               </div>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{step.detail}</p>

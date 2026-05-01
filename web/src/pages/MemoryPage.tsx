@@ -1142,8 +1142,8 @@ function MasteryItem({
         <span className="rounded-md bg-white px-2 py-1 text-xs text-slate-600">{statusLabel(item.status)}</span>
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-700">{copy}</p>
-      <div className="mt-3 h-2 rounded-full bg-canvas">
-        <div className={`h-2 rounded-full ${toneClass}`} style={{ width: `${Math.round(boundedScore * 100)}%` }} />
+      <div className="mt-3 h-2 rounded-sm bg-canvas">
+        <div className={`h-2 rounded-sm ${toneClass}`} style={{ width: `${Math.round(boundedScore * 100)}%` }} />
       </div>
       <p className="mt-2 text-xs text-slate-500">
         {item.score === null || item.score === undefined ? "暂无分数" : formatPercent(item.score)}

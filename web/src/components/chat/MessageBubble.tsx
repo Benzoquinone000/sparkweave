@@ -84,7 +84,6 @@ export function MessageBubble({
             ) : null}
           </div>
           {message.attachments?.length ? <AttachmentStrip attachments={message.attachments} /> : null}
-          {!isUser && canSaveAsset ? <span className="dt-test-legacy">最终回答</span> : null}
           {mathAnimatorResult ? (
             <MathAnimatorViewer result={mathAnimatorResult} />
           ) : externalVideoResult ? (

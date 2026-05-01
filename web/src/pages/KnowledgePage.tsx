@@ -500,9 +500,9 @@ export function KnowledgePage() {
                   </div>
                   <Badge tone={progressPercent >= 100 ? "success" : taskId ? "brand" : "neutral"}>{progressStage}</Badge>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                <div className="mt-3 h-2 overflow-hidden rounded-sm bg-white">
                   <motion.div
-                    className="h-full rounded-full bg-brand-teal"
+                    className="h-full rounded-sm bg-brand-teal"
                     initial={false}
                     animate={{ width: `${progressPercent}%` }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
@@ -947,7 +947,6 @@ export function KnowledgePage() {
               <Badge tone="brand">{progressStage}</Badge>
               <Badge tone={wsStatus === "live" ? "success" : wsStatus === "error" ? "danger" : "neutral"}>
                 {formatWsStatus(wsStatus)}
-                <LegacyText text={legacyWsStatus(wsStatus)} />
               </Badge>
             </div>
           </summary>
@@ -1025,8 +1024,7 @@ function KnowledgeStatusStrip({
     { label: "索引", value: refreshing ? "刷新中" : error ? "需检查" : "就绪", ok: !error },
   ];
   return (
-    <section className="px-1">
-      <span className="dt-test-legacy">/api/v1/knowledge/configs</span>
+    <section className="px-1" data-testid="knowledge-status-strip">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {items.map((item) => (
           <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
@@ -1092,7 +1090,6 @@ function KnowledgeDetailPanel({
           <>
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
             <ConfigFact label="资料库" value={activeKb} />
-            <LegacyText text={`/api/v1/knowledge/${activeKb}`} />
             <ConfigFact label="状态" value={formatProgressStage(status)} tone={status === "error" ? "warning" : undefined} />
             <ConfigFact label="文档数" value={formatOptionalCount(documentCount)} />
             <ConfigFact label="文件数" value={formatOptionalCount(fileCount)} />
@@ -1239,28 +1236,9 @@ function formatWsStatus(status: KnowledgeWsStatus) {
   }[status];
 }
 
-function legacyWsStatus(status: KnowledgeWsStatus) {
-  return {
-    idle: "",
-    connecting: "",
-    live: "WebSocket 实时",
-    closed: "WebSocket 已完成",
-    error: "WebSocket 异常",
-  }[status];
-}
-
 function LogText({ line }: { line: string }) {
-  const [visible, legacy] = line.split(LEGACY_TEXT_SEPARATOR);
-  return (
-    <>
-      {visible}
-      {legacy ? <LegacyText text={legacy} /> : null}
-    </>
-  );
-}
-
-function LegacyText({ text }: { text?: string }) {
-  return text ? <span className="dt-test-legacy">{text}</span> : null;
+  const [visible] = line.split(LEGACY_TEXT_SEPARATOR);
+  return <>{visible}</>;
 }
 
 function formatProgressStage(stage: string | undefined) {
@@ -1273,6 +1251,8 @@ function formatProgressStage(stage: string | undefined) {
       loading: "读取中",
       progress: "处理中",
       processing: "处理中",
+      parsing: "解析中",
+      indexing: "索引中",
       reindex: "待重建",
       complete: "完成",
       completed: "完成",
@@ -1298,6 +1278,7 @@ function formatKnowledgeWsMessage(payload: KnowledgeWsMessage) {
   if (payload.type === "complete" || payload.type === "failed" || payload.type === "log" || payload.type === "message") {
     return `进度更新：${formatTaskLabel(payload.type)}`;
   }
+  if (String(payload.type || "").toLowerCase() === "heartbeat") return "进度更新：进度通道保持连接";
   if (payload.type) return `进度更新：${payload.type}`;
   return "收到进度更新";
 }

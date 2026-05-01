@@ -257,7 +257,6 @@ export function NotebookPage() {
             detail={notebookHealth.data?.service ? String(notebookHealth.data.service) : "笔记服务"}
             icon={<CheckCircle2 size={19} />}
           />
-          <span className="dt-test-legacy">/api/v1/notebook/health</span>
           <Metric label="题目收藏" value={questionEntries.data?.length ?? 0} detail="收藏题目" />
         </motion.div>
 

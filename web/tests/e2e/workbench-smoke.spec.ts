@@ -5,7 +5,7 @@ test("renders the redesigned learning workbench", async ({ page }) => {
   await page.goto("/chat");
   await expect(page.getByRole("heading", { name: "AI 学习工作台" })).toBeVisible();
   await expect(page.getByTestId("runtime-status")).toBeVisible();
-  await expect(page.getByText("SparkWeave Workbench")).toBeVisible();
+  await expect(page.getByText("SparkWeave").first()).toBeAttached();
   await expect(page.getByTestId("chat-profile-starter")).toContainText("今天先做这一步");
   await expect(page.getByTestId("chat-profile-guide")).toBeVisible();
   await expect(page.getByRole("button", { name: /发送/ })).toBeVisible();
@@ -277,7 +277,7 @@ test("playground streams tool and capability executions", async ({ page }, testI
 
   await page.getByTestId("playground-tool-run-sync").click();
   await expect.poll(() => playground.syncToolPayload).toEqual({ params: { query: "limits" } });
-  await expect(page.getByTestId("playground-logs")).toContainText("sync: /api/v1/plugins/tools/mock_tool/execute");
+  await expect(page.getByTestId("playground-logs")).toContainText("正在执行：mock_tool");
   await expect(page.getByTestId("playground-result")).toContainText("sync tool result");
 
   await page.getByTestId("playground-mode-capability").click();
@@ -316,10 +316,10 @@ test("knowledge creation listens to named SSE task logs", async ({ page }, testI
 
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: parsing 55% WS parsing files");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新：heartbeat");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 解析中 55% 正在解析文件");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新：进度通道保持连接");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("debug");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: completed 100% WS index complete");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 完成 100% 索引已完成");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   const wsUrls = await page.evaluate(() => (window as typeof window & { __knowledgeWsUrls?: string[] }).__knowledgeWsUrls ?? []);
   expect(wsUrls.some((url) => url.includes("/api/v1/knowledge/calculus_mock/progress/ws"))).toBe(true);
@@ -339,12 +339,12 @@ test("knowledge management covers upload default folders and deletion", async ({
 
   await page.goto("/knowledge");
   await expect(page.getByRole("heading", { name: "资料库" })).toBeVisible();
-  await expect(page.getByText("/api/v1/knowledge/configs").first()).toBeVisible();
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/calculus_mock");
+  await expect(page.getByTestId("knowledge-status-strip")).toContainText("资料库");
+  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("calculus_mock");
   await page.getByRole("button", { name: "geometry_mock 就绪 选择" }).click();
   await page.getByTestId("knowledge-active-set-default").click();
   await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/geometry_mock");
+  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
   await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("索引摘要");
   await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("triangles");
@@ -631,7 +631,7 @@ test("legacy sparkbot chat links select the target bot", async ({ page }, testIn
   await page.getByTestId("sparkbot-soul-toggle").click();
   await page.getByTestId("sparkbot-soul-socratic").click();
   await expect.poll(() => sparkbot.soulDetailTarget).toBe("socratic");
-  await expect(page.getByTestId("sparkbot-soul-detail-source")).toContainText("/api/v1/sparkbot/souls/socratic");
+  await expect(page.getByTestId("sparkbot-soul-detail-source")).toContainText("已选择：Socratic Coach");
   await expect(page.getByTestId("sparkbot-soul-content")).toHaveValue(/guiding question/);
   await page.getByTestId("sparkbot-recent-writing_bot").click();
   await expect(page.getByText(/writing_bot.*未运行/).first()).toBeVisible();
@@ -838,7 +838,7 @@ test("sparkbot channel editor saves schema driven config", async ({ page }, test
       heartbeat: expect.objectContaining({ enabled: false, intervalS: 120 }),
     }),
   );
-  await expect(page.getByText("运行时已保存。")).toBeVisible();
+  await expect(page.getByText("运行设置已保存。")).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "渠道配置" })).toBeVisible();
   await page.getByLabel("Welcome text").fill("Hello from web");
@@ -1051,16 +1051,16 @@ test("co-writer streams edits and preserves notebook saving", async ({ page }, t
   await page.locator('button[type="submit"]').first().click();
   await expect(page.getByText("streamed polished text")).toBeVisible();
   await page.getByTestId("co-writer-stream-toggle").click();
-  await expect(page.getByText("thinking: Planning edit")).toBeVisible();
+  await expect(page.getByText("规划修改：正在分析原文和编辑指令")).toBeVisible();
 
   await page.getByTestId("co-writer-automark").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("marked rough note");
-  await expect(page.getByText("automark: /api/v1/co_writer/automark")).toBeVisible();
+  await expect(page.getByText("正在自动标注")).toBeVisible();
   await expect.poll(() => coWriter.automarkPayload).toEqual({ text: "rough note" });
 
   await page.getByTestId("co-writer-quick-edit").click();
   await expect(page.getByText("quick edited text")).toBeVisible();
-  await expect(page.getByText("quick: /api/v1/co_writer/edit")).toBeVisible();
+  await expect(page.getByText("正在快速编辑")).toBeVisible();
   await expect.poll(() => coWriter.quickEditPayload).toEqual(
     expect.objectContaining({
       text: "rough note",
@@ -1117,15 +1117,15 @@ test("settings tour mode completes through the legacy tour endpoint", async ({ p
   const tour = await mockSettingsTourApis(page);
 
   await page.goto("/settings?tour=true");
-  await expect(page.getByText("Setup Tour")).toBeVisible();
-  await page.getByRole("button", { name: /Complete & Launch/ }).click();
+  await expect(page.getByRole("heading", { name: "启动向导" }).first()).toBeVisible();
+  await page.getByRole("button", { name: /完成并启动/ }).click();
   await expect.poll(() => tour.completedPayload).toEqual(
     expect.objectContaining({
       catalog: expect.objectContaining({ version: 1 }),
       test_results: expect.objectContaining({ llm: "configured", embedding: "configured" }),
     }),
   );
-  await expect(page.getByRole("button", { name: "Tour completed" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "启动向导已完成" })).toBeDisabled();
 });
 
 test("settings saves workbench preferences", async ({ page }, testInfo) => {
@@ -1161,7 +1161,7 @@ test("settings shows NG runtime topology", async ({ page }, testInfo) => {
   await page.goto("/settings");
   await page.getByTestId("settings-diagnostics-toggle").click();
   await expect(page.getByRole("heading", { name: "NG 运行拓扑" })).toBeVisible();
-  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("/api/v1/settings/catalog");
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("服务配置概览");
   await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("llm-profile");
   await expect(page.getByText("LangGraphTurnRuntimeManager")).toBeVisible();
   await expect(page.getByText("LangGraphRunner")).toBeVisible();
@@ -1286,7 +1286,7 @@ test("notebook workbench writes records and question categories", async ({ page 
 
   await page.goto("/notebook");
   await expect(page.getByText("healthy").first()).toBeVisible();
-  await expect(page.getByText("/api/v1/notebook/health").first()).toBeVisible();
+  await expect(page.getByText("服务健康").first()).toBeVisible();
   await page.getByTestId("notebook-create-toggle").click();
   await page.getByTestId("notebook-create-name").fill("Competition Review");
   await page.getByTestId("notebook-create-description").fill("Polished learning assets");
@@ -1569,7 +1569,7 @@ test("mobile knowledge creation streams task progress", async ({ page }, testInf
 
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: completed 100% WS index complete");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 完成 100% 索引已完成");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   await expect.poll(() => knowledge.createBody?.includes('filename="limits.md"')).toBe(true);
   const wsUrls = await page.evaluate(() => (window as typeof window & { __knowledgeWsUrls?: string[] }).__knowledgeWsUrls ?? []);
@@ -1591,11 +1591,11 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
   const knowledge = await mockKnowledgeManagementApis(page);
 
   await page.goto("/knowledge");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/calculus_mock");
+  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("calculus_mock");
   await page.getByTestId("knowledge-kb-select-geometry_mock").click();
   await page.getByTestId("knowledge-active-set-default").click();
   await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/geometry_mock");
+  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
 
   await page.getByTestId("knowledge-upload-target").selectOption("geometry_mock");
@@ -1838,7 +1838,7 @@ test("mobile settings manages topology tour and cancellable checks without DOM e
 
   await page.goto("/settings");
   await page.getByTestId("settings-diagnostics-toggle").click();
-  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("/api/v1/settings/catalog");
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("服务配置概览");
   await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("llm-profile");
   await expect(page.getByText("LangGraphTurnRuntimeManager")).toBeVisible();
   await expect(page.getByText("CapabilityRegistry")).toBeVisible();
@@ -1858,14 +1858,14 @@ test("mobile settings manages topology tour and cancellable checks without DOM e
   await expect.poll(() => settings.cancelTarget).toEqual({ service: "search", runId: "run-search-cancel" });
 
   await page.goto("/settings?tour=true");
-  await page.getByRole("button", { name: /Complete & Launch/ }).click();
+  await page.getByRole("button", { name: /完成并启动/ }).click();
   await expect.poll(() => settings.completedPayload).toEqual(
     expect.objectContaining({
       catalog: expect.objectContaining({ version: 1 }),
       test_results: expect.objectContaining({ llm: "configured", embedding: "configured" }),
     }),
   );
-  await expect(page.getByRole("button", { name: "Tour completed" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "启动向导已完成" })).toBeDisabled();
 
   expect(errors).toEqual([]);
   expect(consoleDomErrors).toEqual([]);
@@ -1931,7 +1931,7 @@ test("mobile co-writer streams edits and saves output without DOM errors", async
   await page.getByTestId("co-writer-stream-submit").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("streamed polished text");
   await page.getByTestId("co-writer-stream-toggle").click();
-  await expect(page.getByText("thinking: Planning edit")).toBeVisible();
+  await expect(page.getByText("规划修改：正在分析原文和编辑指令")).toBeVisible();
 
   await page.getByTestId("co-writer-automark").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("marked rough note");
@@ -2862,7 +2862,6 @@ test("chat renders result-only websocket responses", async ({ page }, testInfo) 
   await expect(page.getByText("Result-only final answer from metadata.")).toBeVisible();
   await expect(page.locator(".katex").first()).toBeVisible();
   await expect(page.locator(".katex-error")).toHaveCount(0);
-  await expect(page.getByText("最终回答").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "保存当前结果" })).toBeVisible();
   await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
 });

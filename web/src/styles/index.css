@@ -149,17 +149,6 @@ details[open] > :not(summary) {
   line-height: 1.25rem;
 }
 
-.dt-test-legacy {
-  display: inline-block;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  white-space: nowrap;
-  color: transparent;
-  user-select: none;
-  vertical-align: baseline;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .dt-soft-enter,
   .dt-live-dot,

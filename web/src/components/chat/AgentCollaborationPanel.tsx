@@ -342,7 +342,7 @@ export function AgentCollaborationPanel({
               <span
                 className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium ${routeChipTone(step.status)}`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${routeDotTone(step.status)}`} />
+                <span className={`h-1.5 w-1.5 rounded-sm ${routeDotTone(step.status)}`} />
                 {shortAgentName(step.title)}
               </span>
               {index < displayedSteps.length - 1 ? <span className="text-slate-300">→</span> : null}

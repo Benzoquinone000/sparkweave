@@ -409,13 +409,8 @@ export function PlaygroundPage() {
 }
 
 function LogText({ line }: { line: string }) {
-  const [visible, legacy] = line.split(LEGACY_TEXT_SEPARATOR);
-  return (
-    <>
-      {visible}
-      {legacy ? <span className="dt-test-legacy">{legacy}</span> : null}
-    </>
-  );
+  const [visible] = line.split(LEGACY_TEXT_SEPARATOR);
+  return <>{visible}</>;
 }
 
 function RegistryList({

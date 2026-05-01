@@ -9,7 +9,6 @@ import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Fi
 import {
   cancelSettingsServiceTest,
   completeSetupTour,
-  getApiBase,
   openSettingsServiceTestEvents,
   startSettingsServiceTest,
 } from "@/lib/api";
@@ -260,7 +259,6 @@ export function SettingsPage() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             管理模型、搜索和界面偏好。
-            <span className="dt-test-legacy">当前 API：{getApiBase()}</span>
           </p>
         </motion.section>
 
@@ -273,7 +271,6 @@ export function SettingsPage() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-ink">启动向导</h2>
-                  <span className="dt-test-legacy">Setup Tour</span>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     配置问答模型、向量模型和可选搜索服务，完成后会启动 SparkWeave。
                   </p>
@@ -790,7 +787,7 @@ function SettingsCatalogEditor({
               tone="primary"
               type="submit"
               data-action="complete-tour"
-              aria-label={tourCompleted ? "Tour completed" : "Complete & Launch"}
+              aria-label={tourCompleted ? "启动向导已完成" : "完成并启动"}
               disabled={pending || tourPending || tourCompleted}
               className="border-brand-red bg-brand-red hover:bg-red-700"
             >
@@ -1294,7 +1291,6 @@ function CatalogSnapshotPanel({
           {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           刷新配置概览
         </Button>
-        <span className="dt-test-legacy">/api/v1/settings/catalog</span>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">

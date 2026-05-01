@@ -95,7 +95,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="h-screen overflow-hidden bg-canvas text-ink">
-      <span className="dt-test-legacy">SparkWeave Workbench</span>
       <div className="flex h-full">
         <nav
           aria-label="主导航"

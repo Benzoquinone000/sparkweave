@@ -978,7 +978,6 @@ function SoulLibrary({
                 : (
                     <>
                       已选择：{activeSoul.name}
-                      <span className="dt-test-legacy">/api/v1/sparkbot/souls/{activeSoul.id}</span>
                     </>
                   )
               : "选择一个模板后可查看内容。"}
@@ -1383,7 +1382,6 @@ function BotRuntimeForm({
         {saved ? (
           <span className="text-sm text-emerald-700">
             运行设置已保存。
-            <span className="dt-test-legacy">运行时已保存。</span>
           </span>
         ) : null}
       </div>

@@ -430,6 +430,8 @@ test("chat session panel loads renames and deletes sessions", async ({ page }, t
 
   await page.goto("/chat");
   await expect(page.getByTestId("chat-history-sidebar")).toHaveAttribute("data-collapsed", "false");
+  await expect(page.getByTestId("chat-sidebar-session-card-session-old-a")).toContainText("即时答疑 · 4 条消息");
+  await expect(page.getByTestId("chat-sidebar-session-card-session-old-a")).not.toContainText("chat · 4 条消息");
   await page.getByTestId("chat-sidebar-history-collapse").click();
   await expect(page.getByTestId("chat-history-sidebar")).toHaveAttribute("data-collapsed", "true");
   await expect(page.getByTestId("chat-sidebar-session-card-session-old-a")).toHaveCount(0);

@@ -903,7 +903,7 @@ function SessionHistoryPanel({
                     ) : null}
                   </span>
                   <span className="mt-1 block truncate text-xs text-slate-500">
-                    {session.preferences?.capability || "聊天"} · {session.message_count} 条消息
+                    {capabilityLabel(session.preferences?.capability)} · {session.message_count} 条消息
                   </span>
                 </button>
                 <div className="flex shrink-0 gap-1">

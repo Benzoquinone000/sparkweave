@@ -85,6 +85,7 @@ class ProfileContextInjector:
             "time_budget_minutes": _as_int(overview.get("preferred_time_budget_minutes")),
             "goals": _list_values(stable.get("goals"), self.max_items),
             "preferences": _list_values(stable.get("preferences"), self.max_items),
+            "preferred_resource": _preferred_resource_from_preferences(stable.get("preferences")),
             "strengths": _list_values(stable.get("strengths"), self.max_items),
             "weak_points": [item for item in weak_points if item][: self.max_items],
             "mastery_needs_attention": [
@@ -97,6 +98,7 @@ class ProfileContextInjector:
                 "estimated_minutes": _as_int(next_action.get("estimated_minutes")),
                 "source_type": _clean_text(next_action.get("source_type")),
                 "source_label": _clean_text(next_action.get("source_label")),
+                "suggested_prompt": _clean_text(next_action.get("suggested_prompt"), 260),
                 "confidence": next_action.get("confidence"),
             },
         }
@@ -118,6 +120,7 @@ class ProfileContextInjector:
         _append_line(lines, "time_budget_minutes", hints.get("time_budget_minutes"))
         _append_list(lines, "goals", hints.get("goals"))
         _append_list(lines, "preferences", hints.get("preferences"))
+        _append_line(lines, "preferred_resource", hints.get("preferred_resource"))
         _append_list(lines, "strengths", hints.get("strengths"))
         _append_list(lines, "weak_points", hints.get("weak_points"))
         _append_list(lines, "mastery_needs_attention", hints.get("mastery_needs_attention"))
@@ -141,6 +144,7 @@ class ProfileContextInjector:
             ]
             lines.append(f"- next_action: {'; '.join(bit for bit in action_bits if bit)}")
             _append_line(lines, "next_action_summary", action.get("summary"))
+            _append_line(lines, "next_action_prompt", action.get("suggested_prompt"))
         return "\n".join(lines).strip()
 
 
@@ -204,6 +208,19 @@ def _list_values(value: Any, limit: int) -> list[str]:
         if len(items) >= limit:
             break
     return items
+
+
+def _preferred_resource_from_preferences(value: Any) -> str:
+    preferences = {item.lower() for item in _list_values(value, 10)}
+    if "external_video" in preferences or "public_video" in preferences or any("公开" in item and "视频" in item for item in preferences):
+        return "curated_public_video"
+    if "video" in preferences or "short_video" in preferences or "短视频" in preferences:
+        return "short_video"
+    if "practice" in preferences or "quiz" in preferences or "练习" in preferences:
+        return "interactive_practice"
+    if "visual" in preferences or "图解" in preferences:
+        return "visual_explanation"
+    return ""
 
 
 def _list_of_dicts(value: Any) -> list[dict[str, Any]]:

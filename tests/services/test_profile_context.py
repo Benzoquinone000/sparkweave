@@ -33,7 +33,7 @@ async def test_profile_context_injector_builds_compact_prompt_block() -> None:
             },
             "stable_profile": {
                 "goals": ["机器学习入门"],
-                "preferences": ["visual", "practice"],
+                "preferences": ["external_video", "visual", "practice"],
                 "strengths": ["愿意做反思"],
             },
             "learning_state": {
@@ -53,6 +53,7 @@ async def test_profile_context_injector_builds_compact_prompt_block() -> None:
                 "estimated_minutes": 10,
                 "source_type": "weak_point",
                 "source_label": "概念边界不清",
+                "suggested_prompt": "围绕概念边界不清安排 10 分钟补基任务，先找精选公开视频，再用 3 道小题确认理解。",
                 "confidence": 0.76,
             },
             "data_quality": {"source_count": 3, "evidence_count": 9},
@@ -64,11 +65,15 @@ async def test_profile_context_injector_builds_compact_prompt_block() -> None:
     assert payload["available"] is True
     assert payload["source"] == "learner_profile"
     assert payload["hints"]["current_focus"] == "梯度下降"
+    assert payload["hints"]["preferred_resource"] == "curated_public_video"
+    assert "精选公开视频" in payload["hints"]["next_action"]["suggested_prompt"]
     assert payload["hints"]["weak_points"] == ["概念边界不清", "公式含义不稳"]
     assert payload["hints"]["mastery_needs_attention"] == ["梯度方向"]
     assert "[Learner Profile Context]" in payload["text"]
     assert "raw" not in payload["text"].lower()
     assert "梯度下降" in payload["text"]
+    assert "next_action_prompt" in payload["text"]
+    assert "curated_public_video" in payload["text"]
     assert service.calls == [{"auto_refresh": True}]
 
 

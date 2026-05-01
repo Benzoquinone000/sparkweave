@@ -982,6 +982,9 @@ function ContextPanel({
   learnerProfile?: LearnerProfileSnapshot;
   learnerProfileLoading: boolean;
 }) {
+  const readableSessionState = sessionId ? "已建立" : "发送消息后创建";
+  const readableTurnState = !turnId ? "等待提问" : stageLabel === "已完成" || stageLabel === "异常" ? stageLabel : "进行中";
+
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-white">
       <ProfileMiniCard profile={learnerProfile} loading={learnerProfileLoading} />
@@ -1043,8 +1046,8 @@ function ContextPanel({
             <summary className="cursor-pointer select-none text-slate-600">查看当前状态</summary>
             <div className="mt-2 grid gap-2">
               <InfoRow label="进度" value={stageLabel} />
-              <InfoRow label="会话" value={sessionId || "待创建"} />
-              <InfoRow label="轮次" value={turnId || "待创建"} />
+              <InfoRow label="学习会话" value={readableSessionState} />
+              <InfoRow label="当前回答" value={readableTurnState} />
             </div>
           </details>
         </div>

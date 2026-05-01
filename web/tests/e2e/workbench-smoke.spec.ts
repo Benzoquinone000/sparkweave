@@ -9,6 +9,12 @@ test("renders the redesigned learning workbench", async ({ page }) => {
   await expect(page.getByTestId("chat-profile-starter")).toContainText("今天先做这一步");
   await expect(page.getByTestId("chat-profile-guide")).toBeVisible();
   await expect(page.getByRole("button", { name: /发送/ })).toBeVisible();
+  await page.getByTestId("chat-context-toggle").click();
+  await page.getByText("查看当前状态").click();
+  await expect(page.getByTestId("chat-mobile-context-drawer")).toContainText("学习会话");
+  await expect(page.getByTestId("chat-mobile-context-drawer")).toContainText("发送消息后创建");
+  await expect(page.getByTestId("chat-mobile-context-drawer")).toContainText("当前回答");
+  await expect(page.getByTestId("chat-mobile-context-drawer")).not.toContainText("轮次");
 });
 
 test("chat profile starter turns learner profile into one-click actions", async ({ page }, testInfo) => {

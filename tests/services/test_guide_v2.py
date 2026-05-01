@@ -369,6 +369,46 @@ async def test_guide_v2_builds_repository_course_template_without_llm(tmp_path) 
 
 
 @pytest.mark.asyncio
+async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm should not be called for repository templates")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+
+    robotics = await manager.create_session(
+        GuideV2CreateInput(
+            goal="我想系统学习智能机器人与 ROS 基础",
+            time_budget_minutes=45,
+            course_template_id="robotics_ros_foundations",
+        )
+    )
+    robotics_package = manager.build_course_package(robotics["session"]["session_id"])
+
+    assert robotics_package["success"] is True
+    assert robotics_package["demo_seed_pack"]["task_chain"][0]["task_id"] == "R1"
+    assert robotics_package["demo_seed_pack"]["task_chain"][0]["title"] == "画出机器人系统全景图"
+    assert robotics_package["demo_seed_pack"]["resource_prompts"][0]["task_id"] == "R1"
+    assert "机器人系统全景图" in robotics_package["demo_seed_pack"]["resource_prompts"][0]["prompt"]
+    assert any("智能机器人与 ROS 基础" in item for item in robotics_package["demo_fallback_kit"]["checklist"])
+
+    calculus = await manager.create_session(
+        GuideV2CreateInput(
+            goal="我想系统学习高等数学极限与导数",
+            time_budget_minutes=40,
+            course_template_id="higher_math_limits_derivatives",
+        )
+    )
+    calculus_package = manager.build_course_package(calculus["session"]["session_id"])
+
+    assert calculus_package["success"] is True
+    assert calculus_package["demo_seed_pack"]["task_chain"][1]["task_id"] == "M4"
+    assert calculus_package["demo_seed_pack"]["task_chain"][1]["title"] == "生成割线逼近切线动画"
+    assert calculus_package["demo_seed_pack"]["resource_prompts"][1]["type"] == "video"
+    assert "Manim" in calculus_package["demo_seed_pack"]["resource_prompts"][1]["prompt"]
+    assert any("高等数学极限与导数" in item for item in calculus_package["demo_fallback_kit"]["checklist"])
+
+
+@pytest.mark.asyncio
 async def test_guide_v2_builds_study_plan_blocks_and_checkpoints(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
         raise RuntimeError("llm unavailable")

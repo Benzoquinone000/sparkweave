@@ -6172,7 +6172,7 @@ class GuideV2Manager:
             )
 
         checklist = [
-            "打开或创建「机器学习基础」导学路线，确保当前任务可见。",
+            f"打开或创建「{topic}」导学路线，确保当前任务可见。",
             "准备一个画像证据：前测、画像对话或任务反思至少完成一项。",
             "准备一个多模态产物：图解优先，短视频作为加分展示。",
             "准备一组可提交练习，并确认提交后能看到反馈和画像回写。",
@@ -6207,9 +6207,9 @@ class GuideV2Manager:
         """Expose a reproducible task chain for rehearsing the course demo."""
 
         metadata_seed = dict(session.course_map.metadata.get("demo_seed") or {})
-        seed_chain = [item for item in metadata_seed.get("task_chain") or [] if isinstance(item, dict)]
-        seed_prompts = [item for item in metadata_seed.get("resource_prompts") or [] if isinstance(item, dict)]
         task_lookup = {task.task_id: task for task in session.tasks}
+        seed_chain = GuideV2Manager._normalize_demo_seed_task_chain(metadata_seed.get("task_chain"))
+        seed_prompts = GuideV2Manager._normalize_demo_seed_resource_prompts(metadata_seed.get("resource_prompts"), task_lookup)
         current = GuideV2Manager._current_task(session)
         if not seed_chain:
             seed_chain = [
@@ -6262,6 +6262,56 @@ class GuideV2Manager:
                 "action": (report.get("action_brief") or {}).get("title") or "",
             },
         }
+
+    @staticmethod
+    def _normalize_demo_seed_task_chain(value: Any) -> list[dict[str, Any]]:
+        items = value if isinstance(value, list) else []
+        normalized: list[dict[str, Any]] = []
+        for index, item in enumerate(items, start=1):
+            if isinstance(item, dict):
+                normalized.append(dict(item))
+                continue
+            task_id = str(item or "").strip()
+            if not task_id:
+                continue
+            normalized.append({"task_id": task_id, "stage": f"演示步骤 {index}"})
+        return normalized
+
+    @staticmethod
+    def _normalize_demo_seed_resource_prompts(value: Any, task_lookup: dict[str, LearningTask]) -> list[dict[str, str]]:
+        normalized: list[dict[str, str]] = []
+        if isinstance(value, dict):
+            for task_id, prompt in value.items():
+                safe_task_id = str(task_id or "").strip()
+                safe_prompt = str(prompt or "").strip()
+                if not safe_task_id or not safe_prompt:
+                    continue
+                task = task_lookup.get(safe_task_id)
+                resource_type = GuideV2Manager._normalize_resource_type(task.type if task else "")
+                normalized.append(
+                    {
+                        "task_id": safe_task_id,
+                        "type": resource_type or "visual",
+                        "title": task.title if task else f"演示资源 {len(normalized) + 1}",
+                        "prompt": safe_prompt,
+                    }
+                )
+            return normalized
+        if isinstance(value, list):
+            for index, item in enumerate(value, start=1):
+                if isinstance(item, dict):
+                    copied = {str(key): str(val) for key, val in item.items() if val is not None}
+                    if copied.get("prompt"):
+                        if not copied.get("type") and copied.get("resource_type"):
+                            copied["type"] = copied["resource_type"]
+                        if not copied.get("title"):
+                            copied["title"] = f"演示资源 {index}"
+                        normalized.append(copied)
+                    continue
+                safe_prompt = str(item or "").strip()
+                if safe_prompt:
+                    normalized.append({"type": "visual", "title": f"演示资源 {index}", "prompt": safe_prompt})
+        return normalized
 
     @staticmethod
     def _course_package_markdown(package: dict[str, Any]) -> str:

@@ -311,7 +311,12 @@ recommendations
 python scripts/check_course_templates.py
 ```
 
-当前仓库内置 `data/course_templates/robotics_ros_foundations.json`，可作为“智能机器人与 ROS 基础”完整课程样例，用于展示项目式导学、图解、练习、公开视频和课程报告闭环。
+录屏稳定性建议给模板补 `demo_seed`。`task_chain` 可以写成任务 ID 列表，也可以写成对象列表；`resource_prompts` 可以写成 `{task_id: prompt}` 字典，也可以写成 `{type,title,prompt}` 数组。课程产出包会把这些内容归一化成 `demo_seed_pack`，用于前端“录屏检查”、稳定提示词和兜底话术。
+
+当前仓库内置两条外部完整课程样例：
+
+- `data/course_templates/robotics_ros_foundations.json`：展示项目式导学、图解、练习、公开视频和课程报告闭环。
+- `data/course_templates/higher_math_limits_derivatives.json`：展示公式渲染、极限图解、Manim 动画和交互练习闭环。
 
 ## 学习证据闭环
 

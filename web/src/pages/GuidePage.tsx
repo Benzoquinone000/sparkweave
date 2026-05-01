@@ -3781,7 +3781,7 @@ function QuestionPreview({
   };
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-4 space-y-3" data-testid="guide-quiz-preview">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-white p-3">
         <div>
           <p className="text-sm font-semibold text-ink">交互式练习</p>
@@ -3810,6 +3810,7 @@ function QuestionPreview({
                   <button
                     key={key}
                     type="button"
+                    data-testid={`guide-quiz-option-${index}-${key}`}
                     disabled={submitted || submitting || isChecked}
                     onClick={() => setAnswers((current) => ({ ...current, [index]: key }))}
                     className={`rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed ${
@@ -3829,6 +3830,7 @@ function QuestionPreview({
                   <button
                     key={value}
                     type="button"
+                    data-testid={`guide-quiz-true-false-${index}-${value}`}
                     disabled={submitted || submitting || isChecked}
                     onClick={() => setAnswers((current) => ({ ...current, [index]: value }))}
                     className={`rounded-lg border px-3 py-2 text-center text-sm font-semibold transition disabled:cursor-not-allowed ${
@@ -3842,6 +3844,7 @@ function QuestionPreview({
             ) : (
               <TextInput
                 className="mt-3"
+                data-testid={`guide-quiz-input-${index}`}
                 value={answer}
                 disabled={submitted || submitting || isChecked}
                 onChange={(event) => setAnswers((current) => ({ ...current, [index]: event.target.value }))}
@@ -3853,6 +3856,7 @@ function QuestionPreview({
                 <Button
                   tone="primary"
                   className="min-h-8 px-2 text-xs"
+                  data-testid={`guide-quiz-submit-${index}`}
                   disabled={!answer.trim() || submitted || submitting}
                   onClick={() => {
                     setChecked((current) => ({ ...current, [index]: true }));
@@ -3931,7 +3935,7 @@ function QuestionPreview({
           </p>
         </div>
       ) : null}
-      <Button tone="primary" className="w-full" disabled={!allChecked || submitting || submitted} onClick={submitAll}>
+      <Button tone="primary" className="w-full" data-testid="guide-quiz-submit-all" disabled={!allChecked || submitting || submitted} onClick={submitAll}>
         {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
         {submitted ? "练习已回写" : allChecked ? "提交整组练习并更新路径" : "先逐题提交答案"}
       </Button>

@@ -614,8 +614,8 @@ function buildProfileDashboardReasons({
   rows.push({
     label: "适合方式",
     value: preferences.length
-      ? `优先按「${preferences.slice(0, 2).join("、")}」的方式推进。`
-      : progressStyle.summary,
+      ? `优先按「${preferences.slice(0, 2).join("、")}」的方式推进；做完后会回写掌握度和下一步建议。`
+      : `${progressStyle.summary} 做完后会回写画像，让下一步更准。`,
   });
 
   return rows.slice(0, 3);

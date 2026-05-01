@@ -71,6 +71,35 @@ test("guide keeps resource alternatives on a separate page", async ({ page }, te
   await expect(page.getByText("系统建议先做这个")).toBeVisible();
 });
 
+test("guide quiz shows feedback and writes the attempt back", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "quiz interaction smoke runs once");
+
+  await installMockGuideV2ResourceEventSource(page);
+  const guide = await mockGuideV2StableDemoApis(page);
+
+  await page.goto("/guide");
+  await page.getByTestId("guide-demo-start").click();
+
+  await page.getByTestId("guide-open-resource-choice").click();
+  await page.getByTestId("guide-resource-choice-quiz").click();
+
+  await expect.poll(() => guide.resourcePayload?.resource_type).toBe("quiz");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("出题");
+  await expect(page.getByTestId("guide-quiz-preview")).toBeVisible();
+
+  await page.getByTestId("guide-quiz-option-0-B").click();
+  await page.getByTestId("guide-quiz-submit-0").click();
+  await expect(page.getByText("答对了")).toBeVisible();
+
+  await page.getByTestId("guide-quiz-true-false-1-True").click();
+  await page.getByTestId("guide-quiz-submit-1").click();
+  await expect(page.getByTestId("guide-quiz-score-preview")).toContainText("2/2");
+
+  await page.getByTestId("guide-quiz-submit-all").click();
+  await expect.poll(() => guide.quizPayload?.answers?.length ?? 0).toBe(2);
+  await expect(page.getByText(/练习已回写：得分 100%/)).toBeVisible();
+});
+
 test("mobile guide v2 keeps the current task flow simple", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile guide v2 smoke only");
 
@@ -160,6 +189,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
     };
     resourcePayload?: { resource_type?: string; prompt?: string };
     completePayload?: { score?: number; reflection?: string };
+    quizPayload?: { answers?: Array<{ is_correct?: boolean }>; save_questions?: boolean };
   } = { created: false };
 
   const profile = {
@@ -263,7 +293,72 @@ async function mockGuideV2StableDemoApis(page: Page) {
     },
   };
 
-  const activeTask = () => (state.resourcePayload ? { ...task, artifact_refs: [visualArtifact] } : task);
+  const quizArtifact = {
+    id: "artifact-quiz",
+    type: "quiz",
+    capability: "deep_question",
+    title: "Gradient descent quick check",
+    created_at: 1_700_000_130,
+    result: {
+      response: "Complete the questions, then submit the group to update the route.",
+      learner_profile_hints: {
+        weak_points: ["Concept boundaries"],
+        preferences: ["practice"],
+        next_action: "Use a short quiz to confirm understanding.",
+      },
+      questions: [
+        {
+          question_id: "q1",
+          question_type: "choice",
+          question: "What does gradient descent use to decide the next direction?",
+          options: {
+            A: "A random label",
+            B: "The gradient of the loss",
+            C: "The largest feature value",
+            D: "The test accuracy",
+          },
+          correct_answer: "B",
+          explanation: "The gradient gives the local direction for reducing the loss.",
+          concepts: ["gradient_descent"],
+        },
+        {
+          question_id: "q2",
+          question_type: "true_false",
+          question: "A smaller learning rate can make each update more cautious.",
+          correct_answer: "True",
+          explanation: "A smaller step usually changes parameters more conservatively.",
+          concepts: ["learning_rate"],
+        },
+      ],
+    },
+  };
+
+  const externalVideoArtifact = {
+    id: "artifact-external-video",
+    type: "external_video",
+    capability: "external_video_search",
+    title: "Gradient descent public videos",
+    created_at: 1_700_000_140,
+    result: {
+      response: "Pick one short public video, then return to the task.",
+      videos: [
+        {
+          title: "Gradient descent intuition",
+          url: "https://www.bilibili.com/video/BVdemo",
+          platform: "Bilibili",
+          summary: "A compact explanation for beginners.",
+        },
+      ],
+    },
+  };
+
+  const artifactForRequestedResource = () => {
+    if (state.resourcePayload?.resource_type === "quiz") return quizArtifact;
+    if (state.resourcePayload?.resource_type === "external_video") return externalVideoArtifact;
+    return visualArtifact;
+  };
+
+  const activeTask = () => (state.resourcePayload ? { ...task, artifact_refs: [artifactForRequestedResource()] } : task);
 
   const session = {
     session_id: "guide-demo",
@@ -471,6 +566,31 @@ async function mockGuideV2StableDemoApis(page: Page) {
     state.resourcePayload = route.request().postDataJSON() as typeof state.resourcePayload;
     await route.fulfill({
       json: { task_id: "job-visual", session_id: "guide-demo", learning_task_id: "T4", resource_type: state.resourcePayload?.resource_type },
+    });
+  });
+  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/T4/artifacts/artifact-quiz/quiz-results", async (route) => {
+    state.quizPayload = route.request().postDataJSON() as typeof state.quizPayload;
+    const answers = state.quizPayload?.answers ?? [];
+    const scoreValue = answers.length ? answers.filter((answer) => answer.is_correct).length / answers.length : 0;
+    await route.fulfill({
+      json: {
+        success: true,
+        session: sessionForRoute(),
+        attempt: { score: scoreValue, answer_count: answers.length },
+        evidence: { evidence_id: "ev-quiz", task_id: "T4", score: scoreValue },
+        learning_feedback: {
+          title: "练习已回写",
+          summary: "系统已把答题结果写回学习画像和导学路线。",
+          tone: "brand",
+          score_percent: Math.round(scoreValue * 100),
+          task_id: "T4",
+          task_title: "Gradient descent intuition",
+          next_task_title: "Review weak answers or continue.",
+          resource_actions: [],
+        },
+        question_notebook: { saved: true, count: answers.length, session_id: "guide_v2_guide-demo" },
+        learner_evidence: { appended: answers.length + 1 },
+      },
     });
   });
   await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/T4/complete", async (route) => {

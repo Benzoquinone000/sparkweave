@@ -50,11 +50,14 @@ def learner_profile_metadata() -> dict:
                 "current_focus": "梯度下降",
                 "level": "beginner",
                 "time_budget_minutes": 10,
+                "preferred_resource": "curated_public_video",
                 "preferences": ["公开视频", "图解"],
                 "weak_points": ["概念边界不清"],
                 "mastery_needs_attention": ["梯度符号"],
                 "next_action": {
                     "title": "前测补基：梯度下降的直观理解",
+                    "summary": "先找精选公开视频，再做三道小题。",
+                    "suggested_prompt": "围绕概念边界不清安排 10 分钟补基任务，先找精选公开视频，再用 3 道小题确认理解。",
                     "estimated_minutes": 10,
                 },
             },
@@ -236,6 +239,43 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].metadata["render_type"] == "external_video"
     assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
     assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_profile_guided_next_step_awakes_preferred_agent():
+    captured = {}
+
+    async def fake_specialist(capability, context, stream):
+        captured["capability"] = capability
+        captured["context"] = context
+        await stream.result({"response": "profile guided videos ready"}, source=capability)
+        return {"final_answer": "profile guided videos ready"}
+
+    bus = StreamBus()
+    graph = ChatGraph(
+        model=FakeModel([]),
+        tool_registry=FakeToolRegistry(),
+        specialist_runner=fake_specialist,
+    )
+    context = UnifiedContext(
+        user_message="继续学习",
+        metadata=learner_profile_metadata(),
+    )
+
+    state = await graph.run(context, bus)
+
+    assert captured["capability"] == "external_video_search"
+    assert captured["context"].active_capability == "external_video_search"
+    assert "精选公开视频" in captured["context"].user_message
+    assert captured["context"].config_overrides["profile_guided"] is True
+    assert "精选公开视频" in captured["context"].config_overrides["topic"]
+    assert captured["context"].metadata["coordinator_rewritten_prompt"] == captured["context"].user_message
+    handoff_events = [
+        event for event in bus._history if event.metadata.get("trace_kind") == "agent_handoff"
+    ]
+    assert handoff_events[-1].metadata["target_capability"] == "external_video_search"
+    assert "preferred_resource" in handoff_events[-1].metadata["profile_hint_keys"]
+    assert state["final_answer"] == "profile guided videos ready"
 
 
 def test_chat_graph_distinguishes_video_search_from_video_generation():

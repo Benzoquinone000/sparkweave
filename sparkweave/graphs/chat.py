@@ -152,6 +152,26 @@ NO_DELEGATE_TERMS = (
     "no diagram",
     "no tools",
 )
+PROFILE_GUIDED_TERMS = (
+    "继续",
+    "开始学习",
+    "继续学习",
+    "下一步",
+    "下一步学什么",
+    "我该学什么",
+    "我该做什么",
+    "按画像",
+    "根据画像",
+    "按我的画像",
+    "帮我安排",
+    "开始今天",
+    "继续今天",
+    "start learning",
+    "continue learning",
+    "next step",
+    "what should i learn",
+    "what should i do next",
+)
 
 
 @dataclass(frozen=True)
@@ -680,6 +700,10 @@ class ChatGraph:
                 config={"detailed_answer": True},
             )
 
+        profile_guided = self._profile_guided_decision(context, text)
+        if profile_guided is not None:
+            return profile_guided
+
         return CoordinatorDecision()
 
     async def _run_specialist(
@@ -747,12 +771,14 @@ class ChatGraph:
             **dict(context.config_overrides or {}),
             **dict(decision.config or {}),
         }
+        rewritten_user_message = str(config.pop("_coordinator_user_message", "") or "").strip()
         config.pop("auto_delegate", None)
         config.pop("delegate_capability", None)
         config.pop("coordinator_capability", None)
         tools = decision.tools if decision.tools is not None else context.enabled_tools
         return replace(
             context,
+            user_message=rewritten_user_message or context.user_message,
             active_capability=decision.capability,
             enabled_tools=list(tools) if tools is not None else None,
             config_overrides=config,
@@ -764,6 +790,7 @@ class ChatGraph:
                     "confidence": decision.confidence,
                     "reason": decision.reason,
                 },
+                "coordinator_rewritten_prompt": rewritten_user_message,
             },
         )
 
@@ -883,6 +910,113 @@ class ChatGraph:
         return ChatGraph._contains_any(text, math_markers)
 
     @staticmethod
+    def _profile_guided_decision(
+        context: UnifiedContext,
+        text: str,
+    ) -> CoordinatorDecision | None:
+        if not ChatGraph._looks_like_profile_guided_request(text):
+            return None
+        hints = ChatGraph._learner_profile_hints(context)
+        if not hints:
+            return None
+        capability = ChatGraph._capability_from_profile_hints(hints)
+        if not capability:
+            return None
+
+        target_prompt = ChatGraph._profile_guided_prompt(hints, context.user_message)
+        if not target_prompt or target_prompt.strip().lower() == text.strip().lower():
+            focus = ChatGraph._hint_text(hints.get("current_focus"))
+            if focus:
+                target_prompt = f"围绕「{focus}」安排下一步学习材料和验证任务。"
+        if not target_prompt:
+            return None
+
+        config = ChatGraph._profile_guided_config(context, capability, target_prompt)
+        preferred = ChatGraph._hint_text(hints.get("preferred_resource")) or "current learner profile"
+        return CoordinatorDecision(
+            capability=capability,
+            confidence=0.72,
+            reason=f"The learner asked for a next step; the learner profile prefers {preferred}.",
+            config=config,
+        )
+
+    @staticmethod
+    def _looks_like_profile_guided_request(text: str) -> bool:
+        normalized = text.strip().lower()
+        if not normalized:
+            return False
+        if ChatGraph._contains_any(normalized, PROFILE_GUIDED_TERMS):
+            return True
+        return bool(re.fullmatch(r"(go|start|continue|next|继续|开始|下一步)[\s。.!！?？]*", normalized))
+
+    @staticmethod
+    def _capability_from_profile_hints(hints: dict[str, Any]) -> str:
+        action = hints.get("next_action") if isinstance(hints.get("next_action"), dict) else {}
+        preferred = ChatGraph._capability_from_resource_text(ChatGraph._hint_text(hints.get("preferred_resource")).lower())
+        if preferred:
+            return preferred
+        candidates: list[Any] = [
+            *(hints.get("preferences") or []),
+            action.get("kind"),
+            action.get("title"),
+            action.get("summary"),
+            action.get("suggested_prompt"),
+        ]
+        joined = " ".join(ChatGraph._hint_text(item, limit=260).lower() for item in candidates if item)
+        if not joined:
+            return ""
+        return ChatGraph._capability_from_resource_text(joined)
+
+    @staticmethod
+    def _capability_from_resource_text(joined: str) -> str:
+        if any(term in joined for term in ("curated_public_video", "external_video", "public_video", "公开视频", "公开课", "bilibili", "youtube")):
+            return "external_video_search"
+        if any(term in joined for term in ("interactive_practice", "practice", "quiz", "question", "练习", "题", "复测", "测试")):
+            return "deep_question"
+        if any(term in joined for term in ("visual_explanation", "visual", "diagram", "图解", "可视化", "关系图")):
+            return "visualize"
+        if any(term in joined for term in ("short_video", "video", "animation", "manim", "短视频", "动画", "视频讲解")):
+            return "math_animator"
+        return ""
+
+    @staticmethod
+    def _profile_guided_prompt(hints: dict[str, Any], fallback: str) -> str:
+        action = hints.get("next_action") if isinstance(hints.get("next_action"), dict) else {}
+        for value in (
+            action.get("suggested_prompt"),
+            action.get("summary"),
+            action.get("title"),
+            hints.get("current_focus"),
+            hints.get("summary"),
+            fallback,
+        ):
+            text = ChatGraph._hint_text(value, limit=360)
+            if text:
+                return text
+        return ""
+
+    @staticmethod
+    def _profile_guided_config(
+        context: UnifiedContext,
+        capability: str,
+        prompt: str,
+    ) -> dict[str, Any]:
+        if capability == "external_video_search":
+            config = ChatGraph._external_video_config(context)
+            config.update({"topic": prompt, "prompt": prompt})
+        elif capability == "deep_question":
+            config = ChatGraph._question_config(context, prompt, "生成 3 道练习题")
+        elif capability == "visualize":
+            config = ChatGraph._visualize_config(context, "生成图解 visual diagram")
+        elif capability == "math_animator":
+            config = ChatGraph._math_animator_config(context, "生成短视频 animation video")
+        else:
+            config = {}
+        config["_coordinator_user_message"] = prompt
+        config["profile_guided"] = True
+        return config
+
+    @staticmethod
     def _visualize_config(context: UnifiedContext, text: str) -> dict[str, Any]:
         config: dict[str, Any]
         if ChatGraph._contains_any(text, ("流程图", "关系图", "思维导图", "mermaid", "flowchart", "diagram")):
@@ -995,10 +1129,13 @@ class ChatGraph:
                 "agent_cluster": SPECIALIST_LABELS["external_video_search"],
             },
         ):
+            overrides = dict(context.config_overrides or {})
+            topic = str(overrides.get("topic") or overrides.get("prompt") or context.user_message).strip()
+            prompt = str(overrides.get("prompt") or topic or context.user_message).strip()
             result = await recommend_learning_videos(
-                topic=context.user_message,
+                topic=topic or context.user_message,
                 learner_hints=hints,
-                prompt=context.user_message,
+                prompt=prompt or context.user_message,
                 language=context.language or "zh",
                 max_results=int(hints.get("max_results") or 3),
                 event_sink=_event_sink,
@@ -1056,7 +1193,7 @@ class ChatGraph:
             raw_hints = {}
 
         hints: dict[str, Any] = {}
-        for key in ("current_focus", "summary", "level"):
+        for key in ("current_focus", "summary", "level", "preferred_resource"):
             value = ChatGraph._hint_text(raw_hints.get(key), limit=220)
             if value:
                 hints[key] = value
@@ -1075,6 +1212,9 @@ class ChatGraph:
                 "kind": ChatGraph._hint_text(next_action.get("kind")),
                 "title": ChatGraph._hint_text(next_action.get("title")),
                 "summary": ChatGraph._hint_text(next_action.get("summary"), limit=260),
+                "suggested_prompt": ChatGraph._hint_text(next_action.get("suggested_prompt"), limit=360),
+                "source_type": ChatGraph._hint_text(next_action.get("source_type")),
+                "source_label": ChatGraph._hint_text(next_action.get("source_label")),
                 "estimated_minutes": next_action.get("estimated_minutes"),
             }
             action = {key: value for key, value in action.items() if value}
@@ -1112,6 +1252,9 @@ class ChatGraph:
         preferences = hints.get("preferences")
         if preferences:
             parts.append(f"respect preferences: {', '.join(ChatGraph._hint_strings(preferences, limit=3))}")
+        preferred_resource = hints.get("preferred_resource")
+        if preferred_resource:
+            parts.append(f"preferred resource: {preferred_resource}")
         time_budget = hints.get("time_budget_minutes")
         if time_budget:
             parts.append(f"fit within about {time_budget} minutes")

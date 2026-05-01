@@ -35,6 +35,7 @@ export function TaskSnapshot({
   const mathResult = effectiveCapability === "math_animator" ? extractMathAnimatorResult(resultEvent?.metadata) : null;
   const traceEvents = useMemo(() => getTraceEvents(assistant), [assistant]);
   const canSaveAsset = assistant ? hasNotebookAssetOutput(assistant) : false;
+  const terminalResultReady = Boolean(assistant?.events?.some((event) => event.type === "result" || event.type === "done"));
   const output = getOutputLabel({
     displayContent,
     quizCount: quizQuestions?.length ?? 0,
@@ -54,14 +55,14 @@ export function TaskSnapshot({
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-500">回答进度会在这里同步。</p>
         </div>
-        <Badge tone={status === "error" ? "danger" : status === "streaming" || status === "connecting" ? "warning" : "neutral"}>
-          {formatStatus(status)}
+        <Badge tone={status === "error" ? "danger" : terminalResultReady ? "success" : status === "streaming" || status === "connecting" ? "warning" : "neutral"}>
+          {terminalResultReady ? "已完成" : formatStatus(status)}
         </Badge>
       </div>
 
       <div className="mt-3 grid gap-1.5">
         <SnapshotRow icon={<Sparkles size={15} />} label="方式" value={capability?.label || "等待选择"} />
-        <SnapshotRow icon={<Route size={15} />} label="进度" value={stageLabel} />
+        <SnapshotRow icon={<Route size={15} />} label="进度" value={terminalResultReady ? "已完成" : stageLabel} />
         <SnapshotRow icon={<Boxes size={15} />} label="结果" value={output} />
       </div>
 
@@ -134,10 +135,34 @@ function formatStatus(status: "idle" | "connecting" | "streaming" | "error") {
 function getTraceEvents(assistant: ChatMessage | null) {
   const events = (assistant?.events ?? []).filter((event) => event.type !== "content");
   const compacted =
-    assistant?.status === "done"
-      ? events.filter((event) => !isGenericThinkingProgress(event) && !isThinkingBoundary(event))
+    assistant?.status === "done" || hasTerminalEvent(events)
+      ? compactCompletedSnapshotEvents(events)
       : events;
   return compacted.slice(-6);
+}
+
+function compactCompletedSnapshotEvents(events: StreamEvent[]) {
+  const terminalIndex = findLastTerminalEventIndex(events);
+  const cutoff = terminalIndex >= 0 ? terminalIndex : events.length - 1;
+  return events.filter((event, index) => {
+    if (index > cutoff && event.type !== "error") return false;
+    if (event.type === "stage_start" || event.type === "stage_end" || event.type === "progress" || event.type === "thinking") {
+      return false;
+    }
+    return !isGenericThinkingProgress(event) && !isThinkingBoundary(event);
+  });
+}
+
+function findLastTerminalEventIndex(events: StreamEvent[]) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const type = events[index]?.type;
+    if (type === "result" || type === "done") return index;
+  }
+  return -1;
+}
+
+function hasTerminalEvent(events: StreamEvent[]) {
+  return findLastTerminalEventIndex(events) >= 0;
 }
 
 function isGenericThinkingProgress(event: StreamEvent) {

@@ -297,7 +297,7 @@ export function AgentCollaborationPanel({
   const running = steps.some((step) => step.status === "running");
   const profileAware = events.some((event) => event.metadata?.profile_hints_applied || event.metadata?.profile_guided);
   const profileGuidedPrompt = useMemo(() => findProfileGuidedPrompt(events), [events]);
-  const readableEvents = useMemo(() => buildReadableTraceItems(events), [events]);
+  const readableEvents = useMemo(() => buildReadableTraceItems(events, status), [events, status]);
   const routeSummary = summarizeCollaboration(displayedSteps, profileAware);
 
   if (!events.length) return null;
@@ -434,8 +434,9 @@ function buildAgentSteps(events: StreamEvent[], capability: CapabilityId, status
     touched: false,
   }));
   let lastTouched = -1;
+  const stepEvents = hasTerminalEvent(events) ? trimEventsAfterTerminal(events) : events;
 
-  events.forEach((event) => {
+  stepEvents.forEach((event) => {
     const index = findStepIndex(event, steps);
     if (index < 0) return;
     const step = steps[index];
@@ -467,8 +468,8 @@ function buildAgentSteps(events: StreamEvent[], capability: CapabilityId, status
     }
   });
 
-  const hasTerminalEvent = events.some((event) => event.type === "result" || event.type === "done");
-  if (hasTerminalEvent || status === "done") {
+  const terminalSeen = events.some((event) => event.type === "result" || event.type === "done");
+  if (terminalSeen || status === "done") {
     steps.forEach((step) => {
       if (step.touched && step.status === "running") step.status = "complete";
     });
@@ -482,6 +483,12 @@ function buildAgentSteps(events: StreamEvent[], capability: CapabilityId, status
   }
 
   return steps;
+}
+
+function trimEventsAfterTerminal(events: StreamEvent[]) {
+  const terminalIndex = findLastTerminalEventIndex(events);
+  if (terminalIndex < 0) return events;
+  return events.filter((event, index) => index <= terminalIndex || event.type === "error");
 }
 
 function findStepIndex(event: StreamEvent, steps: AgentStep[]) {
@@ -532,10 +539,11 @@ function getToolName(event: StreamEvent) {
   return raw ? String(raw) : "";
 }
 
-function buildReadableTraceItems(events: StreamEvent[]) {
+function buildReadableTraceItems(events: StreamEvent[], status: "streaming" | "done" | "error" = "done") {
   const items: ReadableTraceItem[] = [];
+  const readableSource = status === "done" || hasTerminalEvent(events) ? compactCompletedTraceEvents(events) : events;
 
-  events.forEach((event) => {
+  readableSource.forEach((event) => {
     const content = meaningfulContent(event);
     const tool = getToolName(event);
     const profilePrompt = metadataText(event.metadata, "rewritten_prompt");
@@ -579,6 +587,31 @@ function buildReadableTraceItems(events: StreamEvent[]) {
     compact.push(item);
   });
   return compact.slice(0, 8);
+}
+
+function compactCompletedTraceEvents(events: StreamEvent[]) {
+  const terminalIndex = findLastTerminalEventIndex(events);
+  const cutoff = terminalIndex >= 0 ? terminalIndex : events.length - 1;
+  return events.filter((event, index) => {
+    if (index > cutoff && event.type !== "error") return false;
+    if (event.type === "stage_start" || event.type === "stage_end" || event.type === "thinking") {
+      return false;
+    }
+    if (event.type === "progress") return Boolean(meaningfulContent(event) || event.metadata?.profile_guided);
+    return true;
+  });
+}
+
+function findLastTerminalEventIndex(events: StreamEvent[]) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const type = events[index]?.type;
+    if (type === "result" || type === "done") return index;
+  }
+  return -1;
+}
+
+function hasTerminalEvent(events: StreamEvent[]) {
+  return findLastTerminalEventIndex(events) >= 0;
 }
 
 function findProfileGuidedPrompt(events: StreamEvent[]) {

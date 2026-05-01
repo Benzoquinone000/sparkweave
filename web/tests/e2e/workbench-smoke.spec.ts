@@ -2884,6 +2884,7 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
       { type: "stage_start", stage: "responding" },
       { type: "result", stage: "responding", content: "阶段完成后的最终回答。" },
       { type: "stage_end", stage: "responding" },
+      { type: "progress", stage: "writing", content: "Writing final polish..." },
     ],
   });
 
@@ -2910,13 +2911,15 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
   await expect(messageTrace).toContainText("形成回答");
   await expect(messageTrace).not.toContainText("stage_start · thinking");
   await expect(messageTrace).not.toContainText("Thinking...");
+  await expect(messageTrace).not.toContainText("Writing final polish");
 
   await page.getByTestId("chat-context-toggle").click();
   const snapshot = page.getByTestId("chat-task-snapshot");
   await expect(page.getByText("阶段完成后的最终回答。").first()).toBeVisible();
   await expect(snapshot).toContainText("已完成");
-  await expect(snapshot).toContainText("回答完成");
+  await expect(snapshot).toContainText("最终回答");
   await expect(snapshot).not.toContainText("Thinking...");
+  await expect(snapshot).not.toContainText("Writing final polish");
   await expect(snapshot).not.toContainText("stage_start");
   await expect(snapshot).not.toContainText("· thinking");
 });

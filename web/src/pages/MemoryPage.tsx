@@ -111,6 +111,12 @@ function formatPercent(value?: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
+function profileConfidenceLabel(confidence: number, accuracy: number) {
+  if (confidence >= 0.75 && accuracy >= 0.55) return "系统比较有把握";
+  if (confidence >= 0.5) return "仍在继续校准";
+  return "先轻量观察";
+}
+
 function statusLabel(value: string) {
   const map: Record<string, string> = {
     mastered: "已掌握",
@@ -756,7 +762,7 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
         </FilterButton>
         {sources.map((item) => (
           <FilterButton key={item.source_id} active={source === item.source_id} onClick={() => setSource(item.source_id)}>
-            {item.label}
+            {evidenceSourceLabel(item.label || item.source_id)}
           </FilterButton>
         ))}
       </div>
@@ -1567,7 +1573,7 @@ function buildLearningProgressStyle(profile: LearnerProfileSnapshot): LearningPr
   return {
     label,
     summary,
-    confidenceText: `当前画像可信度约 ${Math.round(confidence * 100)}%，评估正确率约 ${Math.round(accuracy * 100)}%。`,
+    confidenceText: profileConfidenceLabel(confidence, accuracy),
     signals,
     suggestions,
     recentShift: buildRecentProgressShift(profile, label),

@@ -714,6 +714,8 @@ class ChatGraph:
     ) -> TutorState:
         delegated_context = self._delegated_context(context, decision)
         profile_hints = self._learner_profile_hints(context)
+        decision_config = dict(decision.config or {})
+        rewritten_prompt = str(decision_config.get("_coordinator_user_message") or "").strip()
         await stream.progress(
             f"Awakened {SPECIALIST_LABELS.get(decision.capability, decision.capability)}.",
             source="dialogue_coordinator",
@@ -726,6 +728,8 @@ class ChatGraph:
                 "reason": decision.reason,
                 "profile_hints_applied": bool(profile_hints),
                 "profile_hint_keys": sorted(key for key in profile_hints.keys() if key != "profile_context"),
+                "profile_guided": bool(decision_config.get("profile_guided")),
+                "rewritten_prompt": rewritten_prompt[:260],
             },
         )
         if self.specialist_runner is not None:

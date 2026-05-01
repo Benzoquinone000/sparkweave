@@ -2827,7 +2827,12 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
         source: "dialogue_coordinator",
         stage: "coordinating",
         content: "Awakened Knowledge Visualization Agent.",
-        metadata: { trace_kind: "agent_handoff", profile_hints_applied: true },
+        metadata: {
+          trace_kind: "agent_handoff",
+          profile_hints_applied: true,
+          profile_guided: true,
+          rewritten_prompt: "围绕梯度下降安排下一步学习材料。",
+        },
       },
       { type: "stage_start", stage: "thinking" },
       { type: "progress", stage: "thinking", content: "Thinking..." },
@@ -2846,15 +2851,18 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
   const collaboration = page.getByTestId("agent-collaboration").last();
   const route = page.getByTestId("agent-collaboration-route").last();
   await expect(collaboration).toContainText("智能体协作");
+  await expect(collaboration).toContainText("画像触发");
   await expect(collaboration).toContainText("画像已参与");
   await expect(collaboration).toContainText("对话协调智能体");
   await expect(collaboration).toContainText("讲解智能体");
   await expect(route).toContainText("接力路线");
+  await expect(route).toContainText("围绕梯度下降安排下一步学习材料。");
   await expect(route).toContainText("对话协调");
   await expect(route).toContainText("讲解");
   await expect(messageTrace).toContainText("协作明细");
+  await expect(messageTrace).toContainText("画像触发");
   await expect(messageTrace).toContainText("识别任务");
-  await expect(messageTrace).toContainText("Awakened Knowledge Visualization Agent.");
+  await expect(messageTrace).toContainText("按画像改成：围绕梯度下降安排下一步学习材料。");
   await expect(messageTrace).toContainText("形成回答");
   await expect(messageTrace).not.toContainText("stage_start · thinking");
   await expect(messageTrace).not.toContainText("Thinking...");

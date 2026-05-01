@@ -295,7 +295,8 @@ export function AgentCollaborationPanel({
   const activeCount = visibleSteps.length;
   const hasError = steps.some((step) => step.status === "error");
   const running = steps.some((step) => step.status === "running");
-  const profileAware = events.some((event) => event.metadata?.profile_hints_applied);
+  const profileAware = events.some((event) => event.metadata?.profile_hints_applied || event.metadata?.profile_guided);
+  const profileGuidedPrompt = useMemo(() => findProfileGuidedPrompt(events), [events]);
   const readableEvents = useMemo(() => buildReadableTraceItems(events), [events]);
   const routeSummary = summarizeCollaboration(displayedSteps, profileAware);
 
@@ -307,10 +308,17 @@ export function AgentCollaborationPanel({
         <div>
           <p className="text-xs font-semibold text-ink">智能体协作 · {displayedSteps.length} 个角色参与</p>
           <p className="mt-1 text-xs text-slate-500">
-            {profileAware ? "已参考学习画像，再调度本轮学习任务" : activeCount ? "已按任务自动调度" : "正在等待协作信号"}
+            {profileGuidedPrompt
+              ? "已按学习画像把泛化指令转成具体学习任务"
+              : profileAware
+                ? "已参考学习画像，再调度本轮学习任务"
+                : activeCount
+                  ? "已按任务自动调度"
+                  : "正在等待协作信号"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {profileGuidedPrompt ? <Badge tone="brand">画像触发</Badge> : null}
           {profileAware ? <Badge tone="brand">画像已参与</Badge> : null}
           <Badge tone={hasError ? "danger" : running ? "warning" : "success"}>
             {hasError ? "异常" : running ? "协作中" : "已完成"}
@@ -323,6 +331,11 @@ export function AgentCollaborationPanel({
           <span className="font-medium text-ink">接力路线</span>
           <span>{routeSummary}</span>
         </div>
+        {profileGuidedPrompt ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+            画像触发：{profileGuidedPrompt}
+          </p>
+        ) : null}
         <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {displayedSteps.map((step, index) => (
             <div key={`${step.key}-route`} className="flex shrink-0 items-center gap-1.5">
@@ -525,10 +538,14 @@ function buildReadableTraceItems(events: StreamEvent[]) {
   events.forEach((event) => {
     const content = meaningfulContent(event);
     const tool = getToolName(event);
+    const profilePrompt = metadataText(event.metadata, "rewritten_prompt");
 
     if (event.type === "error") {
       items.push({ label: "遇到异常", detail: content || "某个步骤没有顺利完成。" });
       return;
+    }
+    if (event.metadata?.profile_guided && profilePrompt) {
+      items.push({ label: "画像触发", detail: `按画像改成：${profilePrompt}` });
     }
     if (event.type === "tool_call") {
       items.push({ label: "调用工具", detail: tool ? `正在使用 ${tool}` : content || "正在补充必要信息。" });
@@ -562,6 +579,20 @@ function buildReadableTraceItems(events: StreamEvent[]) {
     compact.push(item);
   });
   return compact.slice(0, 8);
+}
+
+function findProfileGuidedPrompt(events: StreamEvent[]) {
+  for (const event of events) {
+    if (!event.metadata?.profile_guided) continue;
+    const prompt = metadataText(event.metadata, "rewritten_prompt");
+    if (prompt) return prompt.length > 120 ? `${prompt.slice(0, 120).trim()}...` : prompt;
+  }
+  return "";
+}
+
+function metadataText(metadata: StreamEvent["metadata"] | undefined, key: string) {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function readableStageLabel(event: StreamEvent) {

@@ -1,11 +1,50 @@
 import { expect, test } from "@playwright/test";
 
 test("renders the redesigned learning workbench", async ({ page }) => {
+  await mockReferenceApis(page);
   await page.goto("/chat");
   await expect(page.getByRole("heading", { name: "AI 学习工作台" })).toBeVisible();
   await expect(page.getByTestId("runtime-status")).toBeVisible();
   await expect(page.getByText("SparkWeave Workbench")).toBeVisible();
+  await expect(page.getByTestId("chat-profile-starter")).toContainText("今天先做这一步");
+  await expect(page.getByTestId("chat-profile-guide")).toBeVisible();
   await expect(page.getByRole("button", { name: /发送/ })).toBeVisible();
+});
+
+test("chat profile starter turns learner profile into one-click actions", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "profile starter smoke runs once");
+  const consoleDomErrors: string[] = [];
+  page.on("pageerror", (error) => consoleDomErrors.push(error.message));
+  page.on("console", (message) => {
+    const text = message.text();
+    if (text.includes("insertBefore") || text.includes("Failed to execute")) {
+      consoleDomErrors.push(text);
+    }
+  });
+
+  await mockReferenceApis(page);
+  await installMockWebSocket(page, { resultOnlyContent: "已生成一组练习。" });
+  await page.goto("/chat");
+
+  await expect(page.getByTestId("chat-profile-starter")).toContainText("梯度下降的直观理解");
+  const guideHref = await page.getByTestId("chat-profile-guide").getAttribute("href");
+  expect(decodeURIComponent(guideHref ?? "")).toContain("梯度下降的直观理解");
+
+  await page.getByTestId("chat-profile-action-practice").click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const messages = (window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> }).__sparkWeaveWsMessages ?? [];
+        return messages[messages.length - 1] ?? {};
+      }),
+    )
+    .toEqual(
+      expect.objectContaining({
+        capability: "deep_question",
+        config: expect.objectContaining({ question_type: "mixed", num_questions: 5, topic: "梯度下降的直观理解" }),
+      }),
+    );
+  expect(consoleDomErrors).toEqual([]);
 });
 
 test("routes to core workbench areas", async ({ page }) => {
@@ -3580,6 +3619,41 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
       preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
     },
   ];
+  const learnerProfile = {
+    version: 1,
+    generated_at: "2026-05-02T00:00:00.000Z",
+    confidence: 0.86,
+    overview: {
+      current_focus: "梯度下降的直观理解",
+      preferred_time_budget_minutes: 10,
+      summary: "当前主要需要把梯度下降和优化目标之间的关系讲清楚。",
+    },
+    stable_profile: {
+      goals: ["机器学习基础入门"],
+      preferences: ["图解", "练习", "公开视频"],
+      strengths: ["能跟随例题"],
+      constraints: ["希望一次只做一件事"],
+    },
+    learning_state: {
+      weak_points: [{ label: "概念边界不清", confidence: 0.78, evidence_count: 2, severity: "medium", source_ids: [] }],
+      mastery: [],
+    },
+    next_action: {
+      kind: "weak_point",
+      title: "前测补基：梯度下降的直观理解",
+      summary: "先用 10 分钟补齐直觉，再回到当前机器学习任务。",
+      primary_label: "进入导学",
+      estimated_minutes: 10,
+      source_type: "weak_point",
+      source_label: "概念边界不清",
+      confidence: 0.84,
+      suggested_prompt: "梯度下降的直观理解",
+    },
+    recommendations: ["先看一张图解，再做一组短练习。"],
+    sources: [],
+    evidence_preview: [],
+    data_quality: { source_count: 3, evidence_count: 5 },
+  };
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
       json: {
@@ -3593,6 +3667,8 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/knowledge/list", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
   await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: chatSessions } }));
+  await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: learnerProfile }));
+  await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: learnerProfile }));
   await page.route(/\/api\/v1\/sessions\/session-old-a$/, async (route) => {
     const sessionId = decodeURIComponent(route.request().url().match(/\/api\/v1\/sessions\/([^/?#]+)$/)?.[1] ?? "");
     const session = chatSessions.find((item) => item.session_id === sessionId) ?? chatSessions[0];

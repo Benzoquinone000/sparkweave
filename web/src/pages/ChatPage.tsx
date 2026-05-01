@@ -655,6 +655,7 @@ function EmptyState({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
+      data-testid="chat-profile-starter"
     >
       <div className="rounded-lg border border-line bg-white p-4 text-left shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
@@ -684,6 +685,7 @@ function EmptyState({
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <motion.a
             href={guideHref(profile)}
+            data-testid="chat-profile-guide"
             className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-teal px-4 text-sm font-semibold text-white hover:bg-teal-700"
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.99 }}
@@ -693,6 +695,7 @@ function EmptyState({
           </motion.a>
           <motion.button
             type="button"
+            data-testid="chat-profile-start"
             disabled={disabled}
             className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 text-sm font-semibold text-brand-red hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => onQuickSend(cleanText(action?.suggested_prompt) || `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`)}
@@ -728,6 +731,7 @@ function QuickActionButton({
     <motion.button
       type="button"
       disabled={disabled}
+      data-testid={`chat-profile-action-${action.id}`}
       className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left hover:border-teal-200 hover:bg-teal-50/40 disabled:cursor-not-allowed disabled:opacity-50"
       onClick={() => onQuickSend(action.prompt, action.capability, action.config)}
       whileHover={disabled ? undefined : { y: -1 }}

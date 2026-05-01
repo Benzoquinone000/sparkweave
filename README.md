@@ -9,6 +9,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Benzoquinone000/sparkweave/actions/workflows/ci.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Benzoquinone000/sparkweave/ci.yml?branch=main&label=CI&style=flat-square" />
+  </a>
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-2563EB?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-TypeScript-0F766E?style=flat-square" />
   <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-Multi--Agent-E60012?style=flat-square" />

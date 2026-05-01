@@ -483,7 +483,8 @@ test("question lab streams generated questions and saves a notebook record", asy
       }),
     );
 
-  await expect(page.getByTestId("question-lab-events")).toContainText("生成模板");
+  await expect(page.getByTestId("question-lab-events")).toContainText("正在确定题型、考点和解析结构");
+  await expect(page.getByTestId("question-lab-events")).not.toContainText("progress");
   await expect(page.getByText("函数极限存在的充分条件是什么？")).toBeVisible();
   await page.getByRole("button", { name: /A\./ }).click();
   await page.getByRole("button", { name: /提交答案/ }).click();
@@ -533,7 +534,8 @@ test("question lab streams mimic questions from a parsed paper path", async ({ p
       }),
     );
 
-  await expect(page.getByTestId("question-lab-events")).toContainText("mimic template ready");
+  await expect(page.getByTestId("question-lab-events")).toContainText("已提取原试卷的题型与推理节奏");
+  await expect(page.getByTestId("question-lab-events")).not.toContainText("mimic template ready");
   await expect(page.getByText("Mimic problem: which step preserves the same reasoning pattern?")).toBeVisible();
 
   await page.getByTestId("question-lab-save").click();
@@ -2336,7 +2338,8 @@ test("mobile question lab streams topic and mimic generations without DOM errors
   await page.goto("/question");
   await page.getByTestId("question-topic-input").fill("Mobile limits practice");
   await page.getByTestId("question-generate-topic").click();
-  await expect(page.getByTestId("question-lab-events")).toContainText("progress");
+  await expect(page.getByTestId("question-lab-events")).toContainText("正在设计题目");
+  await expect(page.getByTestId("question-lab-events")).not.toContainText("progress");
   await expect(page.getByTestId("quiz-viewer")).toBeVisible();
   await page.getByTestId("quiz-option-0-A").click();
   await page.getByTestId("quiz-submit").click();
@@ -2368,7 +2371,8 @@ test("mobile question lab streams topic and mimic generations without DOM errors
   await page.getByTestId("question-mode-mimic").click();
   await page.getByTestId("question-mimic-paper-path").fill("mimic_papers/mobile_exam");
   await page.getByTestId("question-generate-mimic").click();
-  await expect(page.getByTestId("question-lab-events")).toContainText("mimic template ready");
+  await expect(page.getByTestId("question-lab-events")).toContainText("已提取原试卷的题型与推理节奏");
+  await expect(page.getByTestId("question-lab-events")).not.toContainText("mimic template ready");
   await expect(page.getByText("Mimic problem: which step preserves the same reasoning pattern?")).toBeVisible();
   await expect
     .poll(() =>

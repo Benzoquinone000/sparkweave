@@ -556,7 +556,6 @@ export function QuestionLabPage() {
                               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <Badge tone={questionEventTone(event)}>{questionEventTitle(event)}</Badge>
                                 {event.source ? <span>{questionEventSource(event.source)}</span> : null}
-                                <span className="dt-test-legacy">{questionEventLegacyText(event)}</span>
                               </div>
                               <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">{questionEventDetail(event)}</p>
                             </motion.div>
@@ -664,11 +663,4 @@ function questionEventSource(source: unknown) {
   if (value.includes("mimic")) return "仿题智能体";
   if (value.includes("deep_question")) return "出题智能体";
   return "题目智能体";
-}
-
-function questionEventLegacyText(event: QuestionEvent) {
-  return [event.type, event.stage, event.source, eventText(event)]
-    .filter((item) => item !== undefined && item !== null && String(item).trim())
-    .map(String)
-    .join(" · ");
 }

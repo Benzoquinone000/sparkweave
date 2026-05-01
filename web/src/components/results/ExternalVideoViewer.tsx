@@ -126,7 +126,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                   />
                 ) : (
                   <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-teal-50 text-brand-teal">
-                    <PlayCircle size={28} />
+                    {isFallbackVideo(video) ? <Search size={28} /> : <PlayCircle size={28} />}
                   </div>
                 )}
                 <div className="min-w-0">

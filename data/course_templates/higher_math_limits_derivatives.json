@@ -1,0 +1,194 @@
+{
+  "id": "higher_math_limits_derivatives",
+  "title": "完整课程：高等数学极限与导数",
+  "course_id": "MATH101",
+  "course_name": "高等数学极限与导数",
+  "description": "面向高校理工科新生的 6 周微积分入门课程，从函数直觉、极限定义、连续性、导数概念到典型应用，适合展示公式渲染、图解和 Manim 动画讲解。",
+  "target_learners": "正在学习高等数学上册，希望把极限、连续和导数从记公式提升到能解释、能做题、能应用的本科生。",
+  "level": "beginner",
+  "suggested_weeks": 6,
+  "credits": 2,
+  "estimated_minutes": 420,
+  "tags": ["calculus", "limits", "derivatives", "manim", "visual"],
+  "default_goal": "我想系统学习高等数学中的极限、连续和导数，并能用图像直觉解释典型题。",
+  "default_preferences": ["visual", "practice", "video"],
+  "default_time_budget_minutes": 40,
+  "learning_outcomes": [
+    "能用函数图像解释极限的趋近思想。",
+    "能区分极限存在、左右极限、无穷小和连续性。",
+    "能理解导数作为瞬时变化率和切线斜率的含义。",
+    "能完成常见求极限、求导和导数应用题。",
+    "能把公式、图像和文字解释结合成一段清晰讲解。"
+  ],
+  "assessment": [
+    { "name": "概念前测", "weight": 15, "description": "检查函数、极限和导数的基础概念边界。" },
+    { "name": "分层练习", "weight": 35, "description": "覆盖选择、判断、填空和简答题。" },
+    { "name": "图解讲解", "weight": 25, "description": "用图像或动画解释一个抽象概念。" },
+    { "name": "学习反思", "weight": 25, "description": "提交错因、掌握评分和下一步计划。" }
+  ],
+  "project_milestones": [
+    { "week": 1, "topic": "函数与图像直觉", "deliverable": "函数变化趋势图和学习画像初始目标" },
+    { "week": 2, "topic": "极限的趋近思想", "deliverable": "左右极限与夹逼思想图解" },
+    { "week": 3, "topic": "无穷小、等价无穷小和连续", "deliverable": "极限计算错题卡" },
+    { "week": 4, "topic": "导数定义与几何意义", "deliverable": "切线斜率 Manim 动画或图解" },
+    { "week": 5, "topic": "求导法则与复合函数", "deliverable": "分层练习与错因反馈" },
+    { "week": 6, "topic": "导数应用与综合复盘", "deliverable": "课程学习报告和复习处方" }
+  ],
+  "nodes": [
+    {
+      "node_id": "HM1",
+      "title": "函数变化与图像直觉",
+      "description": "从函数图像、单调性和局部变化开始建立微积分直觉。",
+      "difficulty": "easy",
+      "estimated_minutes": 35,
+      "tags": ["function", "graph"],
+      "mastery_target": "能通过图像描述函数在某点附近如何变化。",
+      "resource_strategy": ["visual", "practice"]
+    },
+    {
+      "node_id": "HM2",
+      "title": "极限的趋近思想",
+      "description": "理解左右极限、数列极限和函数极限的共同核心。",
+      "prerequisites": ["HM1"],
+      "difficulty": "medium",
+      "estimated_minutes": 55,
+      "tags": ["limit"],
+      "mastery_target": "能解释趋近但不一定取到的含义，并判断左右极限是否一致。",
+      "resource_strategy": ["visual", "quiz"]
+    },
+    {
+      "node_id": "HM3",
+      "title": "无穷小与连续性",
+      "description": "掌握无穷小、等价无穷小、连续和间断点的概念边界。",
+      "prerequisites": ["HM2"],
+      "difficulty": "medium",
+      "estimated_minutes": 60,
+      "tags": ["infinitesimal", "continuity"],
+      "mastery_target": "能在求极限和判断连续性时选择合适的等价替换或定义。",
+      "resource_strategy": ["comparison", "practice"]
+    },
+    {
+      "node_id": "HM4",
+      "title": "导数定义与几何意义",
+      "description": "把导数理解为差商极限、瞬时变化率和切线斜率。",
+      "prerequisites": ["HM3"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["derivative", "tangent"],
+      "mastery_target": "能用图像解释割线逼近切线的过程。",
+      "resource_strategy": ["math_animation", "visual"]
+    },
+    {
+      "node_id": "HM5",
+      "title": "求导法则与复合函数",
+      "description": "掌握基本求导公式、乘除法则、链式法则和隐函数求导入门。",
+      "prerequisites": ["HM4"],
+      "difficulty": "medium",
+      "estimated_minutes": 80,
+      "tags": ["rules", "chain-rule"],
+      "mastery_target": "能正确识别复合结构并选择求导法则。",
+      "resource_strategy": ["drill", "quiz"]
+    },
+    {
+      "node_id": "HM6",
+      "title": "导数应用与综合复盘",
+      "description": "用导数分析单调性、极值、最值和简单实际问题。",
+      "prerequisites": ["HM5"],
+      "difficulty": "hard",
+      "estimated_minutes": 120,
+      "tags": ["application", "review"],
+      "mastery_target": "能从题意中抽象函数模型，并用导数解释变化趋势。",
+      "resource_strategy": ["case study", "report"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "M1",
+      "node_id": "HM1",
+      "type": "visualize",
+      "title": "画出函数局部变化图",
+      "instruction": "用一张图说明函数在某点附近的上升、下降和局部变化趋势。",
+      "estimated_minutes": 10,
+      "success_criteria": ["图像能体现局部变化", "能说出图像与函数值变化的关系"]
+    },
+    {
+      "task_id": "M2",
+      "node_id": "HM2",
+      "type": "quiz",
+      "title": "判断左右极限是否存在",
+      "instruction": "完成一组选择、判断和填空题，区分左极限、右极限和双侧极限。",
+      "estimated_minutes": 12,
+      "success_criteria": ["能判断左右极限是否相等", "能解释极限不存在的原因"]
+    },
+    {
+      "task_id": "M3",
+      "node_id": "HM3",
+      "type": "practice",
+      "title": "用等价无穷小求极限",
+      "instruction": "围绕三角函数和指数函数完成 3 道极限计算，并写出替换依据。",
+      "estimated_minutes": 15,
+      "success_criteria": ["替换条件正确", "计算过程清晰"]
+    },
+    {
+      "task_id": "M4",
+      "node_id": "HM4",
+      "type": "video",
+      "title": "生成割线逼近切线动画",
+      "instruction": "用 Manim 或图解展示割线斜率逐步逼近切线斜率的过程。",
+      "estimated_minutes": 18,
+      "success_criteria": ["动画或图解体现逼近过程", "能解释导数的几何意义"]
+    },
+    {
+      "task_id": "M5",
+      "node_id": "HM5",
+      "type": "quiz",
+      "title": "链式法则分层练习",
+      "instruction": "完成一组从基础到挑战的求导题，并指出复合结构。",
+      "estimated_minutes": 16,
+      "success_criteria": ["能圈出内外层函数", "求导步骤正确"]
+    },
+    {
+      "task_id": "M6",
+      "node_id": "HM6",
+      "type": "project",
+      "title": "完成导数应用复盘卡",
+      "instruction": "选择一个极值或最值问题，写出建模、求导、判断和结论。",
+      "estimated_minutes": 20,
+      "success_criteria": ["建模合理", "能说明导数符号与函数变化的关系"]
+    }
+  ],
+  "learning_path": {
+    "title": "极限到导数的 6 阶段学习路线",
+    "rationale": "先从图像直觉进入极限，再通过连续性过渡到导数定义，最后用练习和应用任务巩固。",
+    "node_sequence": ["HM1", "HM2", "HM3", "HM4", "HM5", "HM6"],
+    "today_focus": "先用图像理解极限的趋近思想，再做一组左右极限判断。",
+    "next_recommendation": "完成当前任务后生成一段割线逼近切线动画，并用练习验证导数定义。"
+  },
+  "recommendations": [
+    "极限和导数不要先背公式，先用图像建立趋近和变化率直觉。",
+    "等价无穷小适合配合短练习，避免只记结论不会判断条件。",
+    "导数定义适合用 Manim 动画展示割线逼近切线。",
+    "每次错题都写出错因，系统会据此安排复测或补基任务。"
+  ],
+  "demo_seed": {
+    "title": "高等数学公式可视化演示样例",
+    "scenario": "从极限图解开始，生成导数几何意义动画，再用交互练习回写学习画像。",
+    "persona": {
+      "goal": "理解极限与导数的图像直觉，并能完成典型入门题。",
+      "weak_points": ["极限与函数值混淆", "导数几何意义不清"],
+      "preferences": ["visual", "video", "practice"],
+      "time_budget_minutes": 40
+    },
+    "task_chain": ["M2", "M4", "M5"],
+    "resource_prompts": {
+      "M2": "生成一张左右极限判断图解，并配 3 道选择/判断题。",
+      "M4": "生成一段 Manim 动画，展示割线斜率逐步逼近切线斜率，突出导数的几何意义。",
+      "M5": "生成一组链式法则分层练习，包含选择、填空和简答。"
+    },
+    "sample_reflection": {
+      "score": 0.78,
+      "reflection": "我能用图像解释割线逼近切线，但链式法则遇到嵌套函数时还需要多练。",
+      "mistake_types": ["concept_boundary", "procedure"]
+    }
+  }
+}

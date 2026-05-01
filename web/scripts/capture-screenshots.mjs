@@ -488,6 +488,21 @@ const guideV2CourseTemplates = [
     default_time_budget_minutes: 60,
     tags: ["机器人", "ROS", "项目实践"],
   },
+  {
+    id: "higher_math_limits_derivatives",
+    title: "高等数学极限与导数",
+    course_id: "MATH101",
+    course_name: "高等数学极限与导数",
+    description: "从函数直觉、极限定义到导数几何意义，适合展示公式、图解和 Manim 动画。",
+    level: "beginner",
+    suggested_weeks: 6,
+    credits: 2,
+    estimated_minutes: 420,
+    default_goal: "系统学习高等数学中的极限、连续和导数，并能用图像直觉解释典型题。",
+    default_preferences: ["visual", "practice", "video"],
+    default_time_budget_minutes: 40,
+    tags: ["高等数学", "极限", "导数"],
+  },
 ];
 
 const coWriterHistory = [{ operation_id: "cw-1", title: "课程总结润色", selected_text: "DPO 是一种偏好优化方法。", edited_text: "DPO 是一种直接利用偏好数据优化策略的训练方法。" }];

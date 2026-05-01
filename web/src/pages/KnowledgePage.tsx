@@ -112,6 +112,8 @@ export function KnowledgePage() {
     (Array.isArray(kbDetail.data?.files) ? kbDetail.data.files.length : undefined);
   const activePath = readString(kbDetail.data, "path") || readString(activeMetadata, "path") || activeKb || "-";
   const activeStatus = kbDetail.data?.status || (kbDetail.isLoading ? "loading" : activeKb ? "ready" : "idle");
+  const activeSummaryPayload = Object.keys(activeMetadata).length ? activeMetadata : activeStatistics;
+  const activeSummaryItems = summarizeKnowledgePayload(activeSummaryPayload);
 
   const pushTaskLog = useCallback((line: string) => {
     setTaskLogs((current) => [...current.filter((item) => item !== line), line].slice(-80));
@@ -204,9 +206,9 @@ export function KnowledgePage() {
           pushTaskLog(`进度异常：${payload.message || "进度通道异常"}`);
           return;
         }
-        pushTaskLog(`进度更新：${JSON.stringify(payload)}`);
+        pushTaskLog(formatKnowledgeWsMessage(payload));
       } catch {
-        pushTaskLog(`进度更新：${String(message.data || "")}`);
+        pushTaskLog(formatKnowledgeWsText(String(message.data || "")));
       }
     };
     socket.onerror = () => {
@@ -461,6 +463,7 @@ export function KnowledgePage() {
                   <Button
                     tone="secondary"
                     className="min-h-9 text-xs"
+                    data-testid="knowledge-active-set-default"
                     disabled={!activeKb || defaultBase?.name === activeKb || mutations.setDefault.isPending}
                     onClick={() => activeKb && void mutations.setDefault.mutateAsync(activeKb)}
                   >
@@ -470,6 +473,7 @@ export function KnowledgePage() {
                   <Button
                     tone="danger"
                     className="min-h-9 text-xs"
+                    data-testid="knowledge-active-delete"
                     disabled={!activeKb || mutations.remove.isPending}
                     onClick={() => {
                       if (activeKb && window.confirm(`删除知识库 ${activeKb}？`)) void mutations.remove.mutateAsync(activeKb);
@@ -512,6 +516,19 @@ export function KnowledgePage() {
 
               {activeKb ? (
                 <p className="mt-4 truncate text-xs text-slate-500">路径：{activePath}</p>
+              ) : null}
+              {activeSummaryItems.length ? (
+                <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="knowledge-active-summary-panel">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink">索引摘要</p>
+                    <Badge tone="neutral">{activeSummaryItems.length} 项</Badge>
+                  </div>
+                  <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    {activeSummaryItems.map((item) => (
+                      <ConfigFact key={item.key} label={item.label} value={item.value} />
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </section>
 
@@ -1061,6 +1078,7 @@ function KnowledgeDetailPanel({
   const path = readString(detail, "path") || readString(metadata, "path") || activeKb || "-";
   const status = detail?.status || (loading ? "loading" : activeKb ? "ready" : "idle");
   const summaryPayload = Object.keys(metadata).length ? metadata : statistics;
+  const summaryItems = summarizeKnowledgePayload(summaryPayload);
 
   return (
     <details className={`rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden ${className}`} data-testid="knowledge-detail-panel">
@@ -1100,13 +1118,21 @@ function KnowledgeDetailPanel({
               <p className="mt-1 truncate text-sm font-medium text-ink">{detail?.rag_provider || "llamaindex"}</p>
             </div>
           </div>
-          {Object.keys(summaryPayload).length ? (
-            <details className="mt-4 rounded-lg bg-canvas px-3 py-2 text-sm text-slate-600">
-              <summary className="cursor-pointer font-medium text-ink">查看详细信息</summary>
-              <pre className="mt-3 max-h-44 overflow-auto text-xs leading-5 text-slate-500">
-                {JSON.stringify(summaryPayload, null, 2)}
-              </pre>
-            </details>
+          {summaryItems.length ? (
+            <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="knowledge-summary-panel">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-ink">索引摘要</p>
+                  <p className="mt-1 text-xs text-slate-500">只展示运行所需的关键信息，完整配置留在后端文件中。</p>
+                </div>
+                <Badge tone="neutral">{summaryItems.length} 项</Badge>
+              </div>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                {summaryItems.map((item) => (
+                  <ConfigFact key={item.key} label={item.label} value={item.value} />
+                ))}
+              </div>
+            </div>
           ) : null}
           </>
         ) : (
@@ -1275,6 +1301,23 @@ function formatProgressMessage(progress: KnowledgeProgress | undefined | null, a
   return progress.message || activeKb || "暂无任务";
 }
 
+function formatKnowledgeWsMessage(payload: KnowledgeWsMessage) {
+  if (payload.data) return formatWsProgress(payload.data);
+  if (payload.message) return `进度更新：${payload.message}`;
+  if (payload.type === "complete" || payload.type === "failed" || payload.type === "log" || payload.type === "message") {
+    return `进度更新：${formatTaskLabel(payload.type)}`;
+  }
+  if (payload.type) return `进度更新：${payload.type}`;
+  return "收到进度更新";
+}
+
+function formatKnowledgeWsText(raw: string) {
+  const value = raw.trim();
+  if (!value) return "收到进度更新";
+  if (value.startsWith("{") || value.startsWith("[")) return "收到进度更新";
+  return `进度更新：${value}`;
+}
+
 function isTerminalProgress(progress: KnowledgeProgress) {
   const state = String(progress.stage || progress.status || "").toLowerCase();
   return ["complete", "completed", "done", "failed", "error", "cancelled", "canceled"].includes(state);
@@ -1308,6 +1351,64 @@ function readString(record: unknown, key: string) {
 
 function formatOptionalCount(value: number | undefined) {
   return typeof value === "number" ? String(value) : "-";
+}
+
+function summarizeKnowledgePayload(payload: Record<string, unknown>) {
+  const preferredKeys = [
+    "rag_provider",
+    "provider",
+    "embedding_model",
+    "embedding_dim",
+    "embedding_dimension",
+    "chunk_count",
+    "node_count",
+    "document_count",
+    "file_count",
+    "updated_at",
+    "created_at",
+  ];
+  const seen = new Set<string>();
+  const items: Array<{ key: string; label: string; value: string }> = [];
+  const add = (key: string) => {
+    if (seen.has(key) || !(key in payload)) return;
+    const value = formatKnowledgeSummaryValue(payload[key]);
+    if (!value) return;
+    seen.add(key);
+    items.push({ key, label: labelKnowledgeSummaryField(key), value });
+  };
+  preferredKeys.forEach(add);
+  Object.keys(payload)
+    .filter((key) => !seen.has(key))
+    .forEach(add);
+  return items.slice(0, 6);
+}
+
+function labelKnowledgeSummaryField(key: string) {
+  const labels: Record<string, string> = {
+    rag_provider: "检索引擎",
+    provider: "检索引擎",
+    embedding_model: "向量模型",
+    embedding_dim: "向量维度",
+    embedding_dimension: "向量维度",
+    chunk_count: "切片数",
+    node_count: "索引节点",
+    document_count: "文档数",
+    file_count: "文件数",
+    updated_at: "最近更新",
+    created_at: "创建时间",
+    path: "路径",
+  };
+  return labels[key] || key.replace(/_/g, " ");
+}
+
+function formatKnowledgeSummaryValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (Array.isArray(value)) return `${value.length} 项`;
+  if (isRecord(value)) return `${Object.keys(value).length} 项`;
+  return "";
 }
 
 function ConfigFact({

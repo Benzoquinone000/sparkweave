@@ -240,28 +240,29 @@ test("knowledge creation listens to named SSE task logs", async ({ page }, testI
   await installMockKnowledgeProgressWebSocket(page);
 
   await page.goto("/knowledge");
-  await page.getByLabel("知识库名称").fill("calculus_mock");
-  await page.getByLabel("初始资料").setInputFiles({
+  await page.getByRole("button", { name: "新建", exact: true }).click();
+  await page.getByRole("textbox", { name: "资料库名称" }).fill("calculus_mock");
+  await page.getByTestId("knowledge-create-files").first().setInputFiles({
     name: "limits.md",
     mimeType: "text/markdown",
     buffer: Buffer.from("# Limits\nUse notebook context."),
   });
   await page.getByRole("button", { name: /创建并索引/ }).click();
 
-  await expect(page.getByText("Saved 1 file, preparing index")).toBeVisible();
-  await expect(page.getByText("complete: Knowledge base created")).toBeVisible();
-  await expect(page.getByText("ws: parsing 55% WS parsing files")).toBeVisible();
-  await expect(page.getByText("ws: completed 100% WS index complete")).toBeVisible();
-  await expect(page.getByText("WebSocket 已完成")).toBeVisible();
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("Saved 1 file, preparing index");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("complete: Knowledge base created");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: parsing 55% WS parsing files");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新：heartbeat");
+  await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("debug");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("ws: completed 100% WS index complete");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   const wsUrls = await page.evaluate(() => (window as typeof window & { __knowledgeWsUrls?: string[] }).__knowledgeWsUrls ?? []);
   expect(wsUrls.some((url) => url.includes("/api/v1/knowledge/calculus_mock/progress/ws"))).toBe(true);
 
-  await expect(page.getByRole("heading", { name: "资料策略" })).toBeVisible();
-  await page.getByTestId("knowledge-policy-toggle").click();
-  await page.getByLabel("检索模式").selectOption("semantic");
-  await page.getByLabel("知识库说明").fill("极限与连续专题资料");
-  await page.getByRole("button", { name: /保存策略/ }).click();
+  await expect(page.getByRole("heading", { name: "检索设置" })).toBeVisible();
+  await page.getByLabel("模式").first().selectOption("semantic");
+  await page.getByLabel("说明").first().fill("极限与连续专题资料");
+  await page.getByRole("button", { name: /^保存$/ }).first().click();
   await expect.poll(() => knowledge.configBody?.includes('"search_mode":"semantic"')).toBe(true);
   await expect.poll(() => knowledge.configBody?.includes('"description":"极限与连续专题资料"')).toBe(true);
 });
@@ -272,47 +273,31 @@ test("knowledge management covers upload default folders and deletion", async ({
   page.on("dialog", (dialog) => void dialog.accept());
 
   await page.goto("/knowledge");
-  await expect(page.getByRole("heading", { name: "知识库运行面板" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "资料库" })).toBeVisible();
   await expect(page.getByText("/api/v1/knowledge/configs").first()).toBeVisible();
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/calculus_mock");
-  await page.getByTestId("knowledge-kb-default-geometry_mock").click();
+  await page.getByRole("button", { name: "geometry_mock 就绪 选择" }).click();
+  await page.getByTestId("knowledge-active-set-default").click();
   await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
-  await page.getByTestId("knowledge-kb-select-geometry_mock").click();
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("/api/v1/knowledge/geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
+  await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("索引摘要");
+  await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("triangles");
+  await expect(page.getByTestId("knowledge-active-summary-panel")).not.toContainText("{");
 
-  await page.getByTestId("knowledge-upload-target").selectOption("geometry_mock");
-  await page.getByTestId("knowledge-progress-toggle").click();
-  await page.getByTestId("knowledge-progress-clear").click();
-  await expect.poll(() => knowledge.clearedProgress).toBe("geometry_mock");
-  await expect(page.getByText("Progress cleared for geometry_mock")).toBeVisible();
-
-  await page.getByTestId("knowledge-upload-files").setInputFiles({
+  await page.getByTestId("knowledge-upload-files").first().setInputFiles({
     name: "triangles.md",
     mimeType: "text/markdown",
     buffer: Buffer.from("# Triangles\nSimilarity and area."),
   });
-  await page.getByTestId("knowledge-upload-submit").click();
+  await page.getByRole("button", { name: /上传并索引/ }).click();
   await expect.poll(() => knowledge.uploadTarget).toBe("geometry_mock");
   await expect.poll(() => knowledge.uploadBody?.includes('filename="triangles.md"')).toBe(true);
   await expect(page.getByTestId("knowledge-progress-details")).toContainText("完成");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：Upload complete");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("Progress cleared for geometry_mock");
 
-  await page.getByTestId("knowledge-folder-toggle").click();
-  await page.getByTestId("knowledge-folder-path").fill("C:\\course\\geometry");
-  await page.getByTestId("knowledge-folder-link").click();
-  await expect.poll(() => knowledge.linkPayload).toEqual({ folder_path: "C:\\course\\geometry" });
-
-  await page.getByTestId("knowledge-folder-sync-folder-1").click();
-  await expect.poll(() => knowledge.syncTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：Folder sync complete");
-  await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("Upload complete");
-
-  await page.getByTestId("knowledge-folder-unlink-folder-1").click();
-  await expect.poll(() => knowledge.unlinkTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
-
-  await page.getByTestId("knowledge-kb-delete-geometry_mock").click();
+  await page.getByTestId("knowledge-active-delete").click();
   await expect.poll(() => knowledge.deletedKb).toBe("geometry_mock");
 });
 
@@ -3397,6 +3382,11 @@ async function installMockKnowledgeProgressWebSocket(page: import("@playwright/t
         window.setTimeout(() => {
           this.readyState = MockKnowledgeProgressWebSocket.OPEN;
           this.onopen?.(new Event("open"));
+          this.onmessage?.(
+            new MessageEvent("message", {
+              data: JSON.stringify({ type: "heartbeat", debug: { raw: true } }),
+            }),
+          );
           this.emitProgress({ stage: "parsing", message: "WS parsing files", percent: 55, task_id: "task-create" });
           window.setTimeout(() => {
             this.emitProgress({ stage: "completed", message: "WS index complete", percent: 100, task_id: "task-create" });

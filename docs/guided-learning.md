@@ -262,6 +262,8 @@ createGuideV2Session({
 
 原则是让评委看见多智能体协作，但不让普通学习者看到运行日志、原始 JSON 或复杂进度流。
 
+同样的原则也用于对话页：前端会把原始 stream 事件压缩成“协作明细”，只显示识别任务、调用工具、找到资料、形成回答等用户能理解的动作，隐藏 `stage_start`、`thinking` 这类调试字段。
+
 ### LLM 规划 contract
 
 `_build_plan_with_llm()` 要求 LLM 返回 JSON，包含：

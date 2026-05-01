@@ -2798,7 +2798,7 @@ test("chat renders result-only websocket responses", async ({ page }, testInfo) 
   await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
 });
 
-test("chat keeps raw message trace while task snapshot shows completion", async ({ page }, testInfo) => {
+test("chat shows learner-facing collaboration trace while task snapshot shows completion", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "stage completion smoke runs once");
   await mockReferenceApis(page);
   await installMockWebSocket(page, {
@@ -2824,16 +2824,18 @@ test("chat keeps raw message trace while task snapshot shows completion", async 
   await page.locator("textarea").first().fill("检查阶段状态");
   await page.getByRole("button", { name: /发送/ }).click();
 
-  const messageTrace = page.locator("article").filter({ hasText: "思考过程" }).last();
+  const messageTrace = page.locator("article").filter({ hasText: "协作明细" }).last();
   const collaboration = page.getByTestId("agent-collaboration").last();
   await expect(collaboration).toContainText("智能体协作");
   await expect(collaboration).toContainText("画像已参与");
   await expect(collaboration).toContainText("对话协调智能体");
   await expect(collaboration).toContainText("讲解智能体");
-  await expect(messageTrace).toContainText("stage_start · thinking");
-  await expect(messageTrace).toContainText("progress · thinking");
-  await expect(messageTrace).toContainText("Thinking...");
-  await expect(messageTrace).toContainText("stage_end · responding");
+  await expect(messageTrace).toContainText("协作明细");
+  await expect(messageTrace).toContainText("识别任务");
+  await expect(messageTrace).toContainText("Awakened Knowledge Visualization Agent.");
+  await expect(messageTrace).toContainText("形成回答");
+  await expect(messageTrace).not.toContainText("stage_start · thinking");
+  await expect(messageTrace).not.toContainText("Thinking...");
 
   await page.getByTestId("chat-context-toggle").click();
   const snapshot = page.getByTestId("chat-task-snapshot");

@@ -39,6 +39,11 @@ interface AgentStep extends AgentBlueprint {
   touched: boolean;
 }
 
+interface ReadableTraceItem {
+  label: string;
+  detail: string;
+}
+
 const BLUEPRINTS: Record<CapabilityId, AgentBlueprint[]> = {
   chat: [
     {
@@ -291,6 +296,7 @@ export function AgentCollaborationPanel({
   const hasError = steps.some((step) => step.status === "error");
   const running = steps.some((step) => step.status === "running");
   const profileAware = events.some((event) => event.metadata?.profile_hints_applied);
+  const readableEvents = useMemo(() => buildReadableTraceItems(events), [events]);
 
   if (!events.length) return null;
 
@@ -317,21 +323,21 @@ export function AgentCollaborationPanel({
         ))}
       </div>
 
-      <details className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-slate-500">
-        <summary className="dt-interactive cursor-pointer list-none font-medium text-slate-600">
-          思考过程 · {events.length}
-        </summary>
-        <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto" data-testid="agent-raw-trace">
-          {events.map((event, index) => (
-            <div key={`${event.seq ?? index}-${event.type}-${event.stage}`} className="min-w-0">
-              <span className="font-medium text-ink">{event.type}</span>
-              {event.stage ? <span> · {event.stage}</span> : null}
-              {event.content ? <span className="block truncate">{event.content}</span> : null}
-              {getToolName(event) ? <span className="block truncate text-slate-400">tool: {getToolName(event)}</span> : null}
-            </div>
-          ))}
-        </div>
-      </details>
+      {readableEvents.length ? (
+        <details className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-slate-500">
+          <summary className="dt-interactive cursor-pointer list-none font-medium text-slate-600">
+            协作明细 · {readableEvents.length}
+          </summary>
+          <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto" data-testid="agent-readable-trace">
+            {readableEvents.map((item, index) => (
+              <div key={`${item.label}-${index}`} className="min-w-0">
+                <span className="font-medium text-ink">{item.label}</span>
+                {item.detail ? <span className="block truncate">{item.detail}</span> : null}
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -490,6 +496,61 @@ function getToolName(event: StreamEvent) {
   const metadata = event.metadata ?? {};
   const raw = metadata.tool ?? metadata.tool_name ?? metadata.name;
   return raw ? String(raw) : "";
+}
+
+function buildReadableTraceItems(events: StreamEvent[]) {
+  const items: ReadableTraceItem[] = [];
+
+  events.forEach((event) => {
+    const content = meaningfulContent(event);
+    const tool = getToolName(event);
+
+    if (event.type === "error") {
+      items.push({ label: "遇到异常", detail: content || "某个步骤没有顺利完成。" });
+      return;
+    }
+    if (event.type === "tool_call") {
+      items.push({ label: "调用工具", detail: tool ? `正在使用 ${tool}` : content || "正在补充必要信息。" });
+      return;
+    }
+    if (event.type === "tool_result") {
+      items.push({ label: "工具返回", detail: tool ? `${tool} 已返回结果` : content || "外部信息已经返回。" });
+      return;
+    }
+    if (event.type === "sources") {
+      items.push({ label: "找到资料", detail: content || "已获得可参考来源。" });
+      return;
+    }
+    if (event.type === "observation") {
+      items.push({ label: "观察结果", detail: content || "已记录中间观察。" });
+      return;
+    }
+    if (event.type === "result") {
+      items.push({ label: "形成回答", detail: content || "最终结果已生成。" });
+      return;
+    }
+    if (content) {
+      items.push({ label: readableStageLabel(event), detail: content });
+    }
+  });
+
+  const compact: ReadableTraceItem[] = [];
+  items.forEach((item) => {
+    const last = compact[compact.length - 1];
+    if (last && last.label === item.label && last.detail === item.detail) return;
+    compact.push(item);
+  });
+  return compact.slice(0, 8);
+}
+
+function readableStageLabel(event: StreamEvent) {
+  const stage = String(event.stage || "").toLowerCase();
+  if (stage.includes("coordinating") || stage.includes("planning") || stage.includes("thinking")) return "识别任务";
+  if (stage.includes("retrieval") || stage.includes("search")) return "检索资料";
+  if (stage.includes("reasoning") || stage.includes("solve")) return "推理整理";
+  if (stage.includes("writing") || stage.includes("responding") || stage.includes("final")) return "组织回答";
+  if (stage.includes("render") || stage.includes("visual")) return "生成产物";
+  return "步骤更新";
 }
 
 function iconTone(status: StepStatus) {

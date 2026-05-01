@@ -571,7 +571,8 @@ test("vision lab analyzes images streams tutor guidance and saves output", async
       }),
     )
     .toEqual(expect.objectContaining({ image_url: "https://example.com/problem.png" }));
-  await expect(page.getByTestId("vision-events")).toContainText("bbox_complete");
+  await expect(page.getByTestId("vision-events")).toContainText("图形元素已定位");
+  await expect(page.getByTestId("vision-events")).not.toContainText("bbox_complete");
   await expect(page.getByTestId("vision-answer")).toContainText("先还原几何关系");
   await expect(page.getByTestId("vision-ggb-script")).toContainText("Segment");
 
@@ -2292,7 +2293,8 @@ test("mobile vision uploads images streams analysis and saves output without DOM
   await expect(page.getByTestId("vision-ggb-script")).toContainText("Circle");
 
   await page.getByTestId("vision-live-solve").click();
-  await expect(page.getByTestId("vision-events")).toContainText("bbox_complete");
+  await expect(page.getByTestId("vision-events")).toContainText("图形元素已定位");
+  await expect(page.getByTestId("vision-events")).not.toContainText("bbox_complete");
   await expect(page.getByTestId("vision-answer")).toContainText("先还原");
   await expect(page.getByTestId("vision-ggb-script")).toContainText("Segment");
   await expect

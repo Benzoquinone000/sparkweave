@@ -21,12 +21,6 @@ type VisionEvent = {
   [key: string]: unknown;
 };
 
-const LEGACY_TEXT_SEPARATOR = "\u001F";
-
-function withLegacyText(visible: string, legacy: string) {
-  return `${visible}${LEGACY_TEXT_SEPARATOR}${legacy}`;
-}
-
 function readImageFile(file: File) {
   return new Promise<{ base64: string; preview: string }>((resolve, reject) => {
     const reader = new FileReader();
@@ -53,17 +47,15 @@ function safeParseEvent(data: string): VisionEvent {
 
 function eventTitle(event: VisionEvent) {
   const type = String(event.type || "message").toLowerCase();
-  const stage = typeof event.data?.stage === "string" ? event.data.stage : "";
-  const legacy = stage ? `${event.type || "message"} · ${stage}` : String(event.type || "message");
-  if (type === "session") return withLegacyText("建立会话", legacy);
-  if (type === "analysis_start") return withLegacyText("开始识别图像", legacy);
-  if (type === "bbox_complete") return withLegacyText("图形元素已定位", legacy);
-  if (type === "analysis_complete") return withLegacyText("几何关系已分析", legacy);
-  if (type === "ggb_block") return withLegacyText("作图指令已生成", legacy);
-  if (type === "text") return withLegacyText("导师正在讲解", legacy);
-  if (type === "done") return withLegacyText("解题完成", legacy);
-  if (type === "error") return withLegacyText("解题异常", legacy);
-  return withLegacyText("过程更新", legacy);
+  if (type === "session") return "建立会话";
+  if (type === "analysis_start") return "开始识别图像";
+  if (type === "bbox_complete") return "图形元素已定位";
+  if (type === "analysis_complete") return "几何关系已分析";
+  if (type === "ggb_block") return "作图指令已生成";
+  if (type === "text") return "导师正在讲解";
+  if (type === "done") return "解题完成";
+  if (type === "error") return "解题异常";
+  return "过程更新";
 }
 
 function eventContent(event: VisionEvent) {
@@ -84,13 +76,7 @@ function eventContent(event: VisionEvent) {
 }
 
 function LogText({ line }: { line: string }) {
-  const [visible, legacy] = line.split(LEGACY_TEXT_SEPARATOR);
-  return (
-    <>
-      {visible}
-      {legacy ? <span className="dt-test-legacy">{legacy}</span> : null}
-    </>
-  );
+  return <>{line}</>;
 }
 
 function commandsFromEvent(event: VisionEvent): VisionCommand[] {

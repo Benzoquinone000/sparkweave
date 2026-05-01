@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -22,6 +23,7 @@ function isFallbackVideo(video?: { kind?: string }) {
 }
 
 export function ExternalVideoViewer({ result }: { result: ExternalVideoResult }) {
+  const queryClient = useQueryClient();
   const videos = result.videos ?? [];
   const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos.find((item) => !isFallbackVideo(item)) ?? videos[0];
   const embedUrl = safeEmbedUrl(featured?.embed_url);
@@ -58,16 +60,23 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
           learner_profile_hints: result.learner_profile_hints ?? {},
           agent_chain: result.agent_chain ?? [],
         },
-      }).catch(() => {
-        recordedVideoUrls.current.delete(video.url || "");
-        setViewedVideoUrls((prev) => {
-          const next = new Set(prev);
-          next.delete(video.url || "");
-          return next;
+      })
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
+          void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
+          void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+        })
+        .catch(() => {
+          recordedVideoUrls.current.delete(video.url || "");
+          setViewedVideoUrls((prev) => {
+            const next = new Set(prev);
+            next.delete(video.url || "");
+            return next;
+          });
         });
-      });
     },
     [
+      queryClient,
       result.agent_chain,
       result.fallback_search,
       result.learner_profile_hints,

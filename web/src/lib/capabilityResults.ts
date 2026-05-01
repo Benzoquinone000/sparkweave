@@ -144,6 +144,7 @@ export function extractExternalVideoResult(resultMetadata: Record<string, unknow
     videos,
     queries: Array.isArray(resultMetadata.queries) ? resultMetadata.queries.map(String) : undefined,
     search_errors: Array.isArray(resultMetadata.search_errors) ? resultMetadata.search_errors.map(String) : undefined,
+    fallback_search: resultMetadata.fallback_search === true,
     agent_chain: Array.isArray(resultMetadata.agent_chain)
       ? (resultMetadata.agent_chain as ExternalVideoResult["agent_chain"])
       : undefined,

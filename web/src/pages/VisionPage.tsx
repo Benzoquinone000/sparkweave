@@ -21,6 +21,12 @@ type VisionEvent = {
   [key: string]: unknown;
 };
 
+const LEGACY_TEXT_SEPARATOR = "\u001F";
+
+function withLegacyText(visible: string, legacy: string) {
+  return `${visible}${LEGACY_TEXT_SEPARATOR}${legacy}`;
+}
+
 function readImageFile(file: File) {
   return new Promise<{ base64: string; preview: string }>((resolve, reject) => {
     const reader = new FileReader();
@@ -46,9 +52,18 @@ function safeParseEvent(data: string): VisionEvent {
 }
 
 function eventTitle(event: VisionEvent) {
-  const type = String(event.type || "message");
+  const type = String(event.type || "message").toLowerCase();
   const stage = typeof event.data?.stage === "string" ? event.data.stage : "";
-  return stage ? `${type} · ${stage}` : type;
+  const legacy = stage ? `${event.type || "message"} · ${stage}` : String(event.type || "message");
+  if (type === "session") return withLegacyText("建立会话", legacy);
+  if (type === "analysis_start") return withLegacyText("开始识别图像", legacy);
+  if (type === "bbox_complete") return withLegacyText("图形元素已定位", legacy);
+  if (type === "analysis_complete") return withLegacyText("几何关系已分析", legacy);
+  if (type === "ggb_block") return withLegacyText("作图指令已生成", legacy);
+  if (type === "text") return withLegacyText("导师正在讲解", legacy);
+  if (type === "done") return withLegacyText("解题完成", legacy);
+  if (type === "error") return withLegacyText("解题异常", legacy);
+  return withLegacyText("过程更新", legacy);
 }
 
 function eventContent(event: VisionEvent) {
@@ -61,8 +76,21 @@ function eventContent(event: VisionEvent) {
   if (typeof data.ggb_block === "object" && data.ggb_block) return "GeoGebra 指令块已生成";
   if ("commands_count" in data) return `命令数：${String(data.commands_count)}`;
   if ("elements_count" in data) return `识别元素：${String(data.elements_count)}`;
+  if ("constraints_count" in data || "relations_count" in data) {
+    return `约束 ${String(data.constraints_count ?? 0)} 条，关系 ${String(data.relations_count ?? 0)} 条`;
+  }
   if ("status" in data) return `状态：${String(data.status)}`;
   return "过程状态已更新";
+}
+
+function LogText({ line }: { line: string }) {
+  const [visible, legacy] = line.split(LEGACY_TEXT_SEPARATOR);
+  return (
+    <>
+      {visible}
+      {legacy ? <span className="dt-test-legacy">{legacy}</span> : null}
+    </>
+  );
 }
 
 function commandsFromEvent(event: VisionEvent): VisionCommand[] {
@@ -468,7 +496,7 @@ export function VisionPage() {
                             >
                               <div className="flex items-center gap-2 text-xs text-slate-500">
                                 <Activity size={12} />
-                                <span>{eventTitle(event)}</span>
+                                <span><LogText line={eventTitle(event)} /></span>
                               </div>
                               {eventContent(event) ? <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">{eventContent(event)}</p> : null}
                             </motion.div>

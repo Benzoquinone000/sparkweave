@@ -2893,6 +2893,7 @@ test("chat renders external video results as learner-facing cards", async ({ pag
             {
               title: "梯度下降直观讲解",
               url: "https://www.bilibili.com/video/BV1gradient01",
+              embed_url: "https://player.bilibili.com/player.html?bvid=BV1gradient01&page=1",
               platform: "Bilibili",
               why_recommended: "贴合当前卡点：概念边界不清。已参考学习偏好：公开视频。",
               duration_seconds: 540,
@@ -2923,12 +2924,12 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   await expect(page.getByTestId("personalization-brief")).toContainText("概念边界不清");
   await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
   await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
+  await expect(page.getByTestId("external-video-embed")).toBeVisible();
+  await page.getByTestId("external-video-mark-viewed").click();
   await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开观看" }).first()).toBeVisible();
-  await page.getByTestId("external-video-open-0").evaluate((node) => {
-    node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-  });
   await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入画像依据");
+  await expect(page.getByTestId("external-video-mark-viewed")).toContainText("已记入画像依据");
   await expect.poll(() => reference.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",

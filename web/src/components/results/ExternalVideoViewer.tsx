@@ -26,6 +26,10 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   const queryClient = useQueryClient();
   const videos = result.videos ?? [];
   const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos.find((item) => !isFallbackVideo(item)) ?? videos[0];
+  const featuredIndex = Math.max(
+    0,
+    videos.findIndex((item) => item.url === featured?.url && item.title === featured?.title),
+  );
   const embedUrl = safeEmbedUrl(featured?.embed_url);
   const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
   const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
@@ -117,14 +121,31 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       ) : null}
 
       {embedUrl ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-line bg-black">
-          <iframe
-            title={featured?.title || "精选学习视频"}
-            src={embedUrl}
-            className="aspect-video w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
+        <div className="mt-4 overflow-hidden rounded-lg border border-line bg-white">
+          <div className="bg-black">
+            <iframe
+              title={featured?.title || "精选学习视频"}
+              src={embedUrl}
+              className="aspect-video w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              data-testid="external-video-embed"
+            />
+          </div>
+          {featured?.url ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <p className="text-xs leading-5 text-slate-500">可以先在这里预览。看完后点一下，系统会把这种资源偏好写回画像。</p>
+              <button
+                type="button"
+                data-testid="external-video-mark-viewed"
+                onClick={() => recordVideoViewed(featured, featuredIndex)}
+                disabled={viewedVideoUrls.has(featured.url)}
+                className="inline-flex min-h-8 items-center rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white disabled:cursor-default disabled:border-line disabled:bg-canvas disabled:text-slate-500"
+              >
+                {viewedVideoUrls.has(featured.url) ? "已记入画像依据" : "我看了这个，记入画像"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -406,3 +406,29 @@ async def test_learner_profile_uses_chat_statement_events(tmp_path) -> None:
     assert any("confused" in item["label"] for item in profile["learning_state"]["weak_points"])
     assert "visual" in profile["stable_profile"]["preferences"]
     assert "video" in profile["stable_profile"]["preferences"]
+
+
+@pytest.mark.asyncio
+async def test_learner_profile_learns_from_requested_specialist_capability(tmp_path) -> None:
+    evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
+    evidence.append_events(
+        build_chat_statement_events(
+            "请给我找几个梯度下降的公开课视频。",
+            session_id="chat_1",
+            turn_id="turn_2",
+            capability="external_video_search",
+            language="zh",
+        )
+    )
+    service = LearnerProfileService(
+        memory_service=_Memory(),
+        guide_manager=_Guide(),
+        session_store=_Store(),
+        notebook_manager=_Notebook(),
+        evidence_service=evidence,
+        output_dir=tmp_path,
+    )
+
+    profile = await service.refresh(include_sources=["evidence"])
+
+    assert "external_video" in profile["stable_profile"]["preferences"]

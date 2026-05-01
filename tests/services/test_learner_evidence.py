@@ -138,6 +138,28 @@ def test_learner_evidence_builds_chat_statement_events() -> None:
     assert all(event["source"] == "chat" for event in events)
 
 
+def test_learner_evidence_infers_preference_from_requested_capability() -> None:
+    events = build_chat_statement_events(
+        "请给我找几个梯度下降的公开课视频。",
+        session_id="chat_1",
+        turn_id="turn_2",
+        capability="external_video_search",
+        language="zh",
+    )
+
+    inferred = [
+        event
+        for event in events
+        if event.get("metadata", {}).get("inference") == "capability_usage"
+    ]
+
+    assert len(inferred) == 1
+    assert inferred[0]["verb"] == "requested"
+    assert inferred[0]["object_type"] == "learning_preference"
+    assert inferred[0]["resource_type"] == "external_video"
+    assert inferred[0]["metadata"]["capability"] == "external_video_search"
+
+
 def test_notebook_record_event_infers_saved_external_video_resource() -> None:
     event = build_notebook_record_event(
         record={

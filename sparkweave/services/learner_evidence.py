@@ -643,6 +643,34 @@ def build_chat_statement_events(
             }
         )
 
+    inferred_resource_type = _chat_capability_resource_type(source)
+    existing_resource_types = {
+        str(event.get("resource_type") or "")
+        for event in events
+        if event.get("resource_type")
+    }
+    if inferred_resource_type and inferred_resource_type not in existing_resource_types:
+        events.append(
+            {
+                "id": f"{base_id}_capability_{_safe_id(inferred_resource_type)}",
+                "source": source,
+                "source_id": source_id,
+                "verb": "requested",
+                "object_type": "learning_preference",
+                "object_id": _safe_id(inferred_resource_type),
+                "title": inferred_resource_type,
+                "summary": text,
+                "resource_type": inferred_resource_type,
+                "confidence": 0.4,
+                "weight": 0.42,
+                "metadata": {
+                    **metadata,
+                    "inference": "capability_usage",
+                    "capability": source,
+                },
+            }
+        )
+
     return events
 
 
@@ -699,6 +727,17 @@ def _chat_resource_preferences(text: str) -> list[str]:
         if any(marker in lowered for marker in markers):
             preferences.append(value)
     return preferences
+
+
+def _chat_capability_resource_type(capability: str) -> str:
+    mapping = {
+        "math_animator": "video",
+        "external_video_search": "external_video",
+        "visualize": "visual",
+        "deep_question": "quiz",
+        "deep_research": "research",
+    }
+    return mapping.get(_clean(capability, 80), "")
 
 
 def _verb_from_preview(item: dict[str, Any]) -> str:

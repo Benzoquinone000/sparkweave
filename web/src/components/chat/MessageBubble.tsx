@@ -29,7 +29,6 @@ export function MessageBubble({
   const events = message.events ?? [];
   const traceEvents = events.filter((event) => event.type !== "content" && event.type !== "done");
   const resultEvent = events.find((event) => event.type === "result");
-  const costSummary = useMemo(() => getCostSummary(resultEvent?.metadata), [resultEvent?.metadata]);
   const effectiveCapability = useMemo(() => getMessageCapability(message), [message]);
   const displayContent = useMemo(() => getMessageDisplayContent(message), [message]);
   const quizQuestions =
@@ -100,7 +99,6 @@ export function MessageBubble({
               正在组织解答
             </div>
           )}
-          {!isUser && costSummary ? <CostSummary summary={costSummary} /> : null}
         </div>
         {!isUser && traceEvents.length ? (
           <AgentCollaborationPanel
@@ -167,24 +165,4 @@ function CopyButton({ content }: { content: string }) {
   );
 }
 
-function getCostSummary(metadata?: Record<string, unknown>) {
-  const nested = metadata?.metadata && typeof metadata.metadata === "object" ? (metadata.metadata as Record<string, unknown>) : {};
-  const raw = (nested.cost_summary ?? metadata?.cost_summary) as Record<string, unknown> | undefined;
-  if (!raw || typeof raw !== "object") return null;
-  const totalCost = Number(raw.total_cost_usd ?? 0);
-  const totalTokens = Number(raw.total_tokens ?? 0);
-  const totalCalls = Number(raw.total_calls ?? 0);
-  if (!totalCost && !totalTokens && !totalCalls) return null;
-  return { totalCost, totalTokens, totalCalls };
-}
-
-function CostSummary({ summary }: { summary: { totalCost: number; totalTokens: number; totalCalls: number } }) {
-  return (
-    <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3 text-xs text-slate-500">
-      <span className="rounded-md bg-canvas px-2 py-1">cost ${summary.totalCost.toFixed(summary.totalCost < 0.01 ? 4 : 2)}</span>
-      <span className="rounded-md bg-canvas px-2 py-1">{summary.totalTokens.toLocaleString()} tokens</span>
-      <span className="rounded-md bg-canvas px-2 py-1">{summary.totalCalls} calls</span>
-    </div>
-  );
-}
 

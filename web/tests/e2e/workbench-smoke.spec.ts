@@ -49,6 +49,23 @@ test("chat profile starter turns learner profile into one-click actions", async 
   expect(consoleDomErrors).toEqual([]);
 });
 
+test("learner profile overview confirms current diagnosis", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "profile calibration smoke runs once");
+  const reference = await mockReferenceApis(page);
+
+  await page.goto("/memory");
+  await page.getByTestId("learner-profile-confirm-overview").click();
+
+  await expect.poll(() => reference.calibrationPayload).toEqual(
+    expect.objectContaining({
+      action: "confirm",
+      claim_type: "profile_overview",
+      source_id: "profile_overview",
+    }),
+  );
+  await expect(page.getByText("已确认。系统会更放心地按这个方向安排学习。")).toBeVisible();
+});
+
 test("routes to core workbench areas", async ({ page }) => {
   await page.goto("/knowledge");
   await expect(page.getByRole("heading", { name: "知识库中枢" })).toBeVisible();
@@ -3648,6 +3665,7 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     sessionRenamePayload?: { sessionId: string; title: string };
     sessionDeleteTarget?: string;
     quizResultPayload?: { sessionId: string; answers: Array<Record<string, unknown>> };
+    calibrationPayload?: Record<string, unknown>;
   } = {};
   let chatSessions = [
     {
@@ -3693,7 +3711,7 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     recommendations: ["先看一张图解，再做一组短练习。"],
     sources: [],
     evidence_preview: [],
-    data_quality: { source_count: 3, evidence_count: 5 },
+    data_quality: { source_count: 3, evidence_count: 5, calibration_count: 0 },
   };
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
@@ -3709,6 +3727,18 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: learnerProfile }));
   await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: learnerProfile }));
+  await page.route("**/api/v1/learner-profile/calibrations", async (route) => {
+    state.calibrationPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        event: { evidence_id: "calibration-1" },
+        profile: {
+          ...learnerProfile,
+          data_quality: { ...learnerProfile.data_quality, calibration_count: 1 },
+        },
+      },
+    });
+  });
   await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: chatSessions } }));
   await page.route(/\/api\/v1\/sessions\/session-old-a$/, async (route) => {
     const sessionId = decodeURIComponent(route.request().url().match(/\/api\/v1\/sessions\/([^/?#]+)$/)?.[1] ?? "");

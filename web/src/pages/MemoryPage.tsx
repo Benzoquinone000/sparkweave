@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
+  CheckCircle2,
   Database,
   Eraser,
   Loader2,
@@ -327,6 +328,22 @@ function ProfilePanel({
     mastery: topMastery,
     preferences,
   });
+  const overviewClaimValue = [profile.overview.current_focus, profile.overview.summary].filter(Boolean).join("\n");
+  const confirmOverview = async () => {
+    setQuickNotice("");
+    try {
+      await onCalibrate({
+        action: "confirm",
+        claim_type: "profile_overview",
+        value: overviewClaimValue,
+        note: "Quick confirmation from learner profile overview",
+        source_id: "profile_overview",
+      });
+      setQuickNotice("已确认。系统会更放心地按这个方向安排学习。");
+    } catch {
+      setQuickNotice("保存失败，请稍后再试。");
+    }
+  };
   const submitQuickCorrection = async () => {
     const next = quickCorrection.trim();
     if (!next) return;
@@ -377,6 +394,16 @@ function ProfilePanel({
               {primaryActionLabel}
               <ArrowRight size={16} />
             </a>
+            <button
+              type="button"
+              onClick={() => void confirmOverview()}
+              disabled={calibrating || !overviewClaimValue}
+              data-testid="learner-profile-confirm-overview"
+              className="dt-interactive ml-2 mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-teal-200 hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {calibrating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              判断准确
+            </button>
           </div>
           <div className="min-w-0 lg:border-l lg:border-line lg:pl-5">
             <p className="flex items-center gap-2 text-sm font-semibold text-ink">

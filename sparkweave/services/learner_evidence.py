@@ -299,6 +299,51 @@ def build_guide_session_event(
     }
 
 
+def build_guide_resource_event(
+    *,
+    session_id: str,
+    task: dict[str, Any],
+    artifact: dict[str, Any],
+    session_goal: str = "",
+    source: str = "guide_v2",
+) -> dict[str, Any]:
+    task_id = _clean(task.get("task_id") or artifact.get("task_id") or "", 120)
+    artifact_id = _clean(artifact.get("id") or uuid.uuid4().hex, 120)
+    resource_type = _clean(artifact.get("type") or "", 80)
+    result = artifact.get("result") if isinstance(artifact.get("result"), dict) else {}
+    response = _clean(result.get("response") or "", 360)
+    title = artifact.get("title") or task.get("title") or session_goal or "Guide resource"
+    metadata = {
+        "guide_session_id": session_id,
+        "guide_task_id": task_id,
+        "artifact_id": artifact_id,
+        "capability": artifact.get("capability") or "",
+        "artifact_status": artifact.get("status") or "",
+        "resource_generated": True,
+    }
+    if isinstance(result.get("videos"), list):
+        metadata["video_count"] = len(result["videos"])
+    if isinstance(result.get("artifacts"), list):
+        metadata["artifact_count"] = len(result["artifacts"])
+    return {
+        "id": f"ev_{_safe_id(source)}_resource_{_safe_id(session_id)}_{_safe_id(task_id)}_{_safe_id(artifact_id)}",
+        "source": source,
+        "source_id": f"{session_id}:{task_id}:{artifact_id}",
+        "verb": "generated",
+        "object_type": "resource",
+        "object_id": artifact_id,
+        "title": title,
+        "summary": response or task.get("instruction") or session_goal or "",
+        "node_id": task.get("node_id") or "",
+        "task_id": task_id,
+        "resource_type": resource_type,
+        "confidence": 0.46,
+        "created_at": artifact.get("created_at"),
+        "weight": 0.35,
+        "metadata": metadata,
+    }
+
+
 def build_quiz_answer_events(
     answers: list[dict[str, Any]],
     *,
@@ -757,6 +802,7 @@ def create_learner_evidence_service(**kwargs: Any) -> LearnerEvidenceService:
 
 
 __all__ = [
+    "build_guide_resource_event",
     "build_guide_session_event",
     "build_guide_task_event",
     "build_chat_statement_events",

@@ -14,6 +14,7 @@ from sparkweave.api.utils.task_log_stream import get_task_stream_manager
 from sparkweave.services.context import NotebookAnalysisAgent
 from sparkweave.services.guide_v2 import GuideV2CreateInput, GuideV2Manager
 from sparkweave.services.learner_evidence import (
+    build_guide_resource_event,
     build_guide_session_event,
     build_guide_task_event,
     build_notebook_record_event,
@@ -173,6 +174,24 @@ def _append_evidence_events(events: list[dict]) -> dict:
     except Exception:
         logger.warning("Failed to append learner evidence events", exc_info=True)
         return {"recorded": False, "count": 0}
+
+
+def _append_resource_generation_evidence(session_id: str, task_id: str, result: dict) -> dict:
+    artifact = result.get("artifact") if isinstance(result.get("artifact"), dict) else {}
+    if not artifact:
+        return {"recorded": False, "count": 0}
+    session_payload = result.get("session") if isinstance(result.get("session"), dict) else {}
+    task_payload = result.get("task") if isinstance(result.get("task"), dict) else {}
+    if not task_payload and session_payload:
+        task_payload = _find_task(session_payload, task_id) or {}
+    return _append_evidence_event(
+        build_guide_resource_event(
+            session_id=session_id,
+            task=task_payload,
+            artifact=artifact,
+            session_goal=str(session_payload.get("goal") or ""),
+        )
+    )
 
 
 @router.get("/health")
@@ -479,6 +498,7 @@ async def generate_task_resource(
             error = str(result.get("error") or "Resource generation failed")
             status_code = 404 if "not found" in error.lower() else 400
             raise HTTPException(status_code=status_code, detail=error)
+        result["learner_evidence"] = _append_resource_generation_evidence(session_id, task_id, result)
         return result
     except HTTPException:
         raise
@@ -834,6 +854,7 @@ async def _run_resource_generation_job(
             stream_manager.emit_failed(job_id, str(result.get("error") or "Resource generation failed"))
             return
         artifact = result.get("artifact") or {}
+        result["learner_evidence"] = _append_resource_generation_evidence(session_id, task_id, result)
         stream_manager.emit(job_id, "result", result)
         stream_manager.emit_complete(
             job_id,

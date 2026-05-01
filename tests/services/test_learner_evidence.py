@@ -3,6 +3,7 @@ from __future__ import annotations
 from sparkweave.services.learner_evidence import (
     LearnerEvidenceService,
     build_chat_statement_events,
+    build_guide_resource_event,
     build_notebook_record_event,
     build_profile_calibration_event,
     build_quiz_answer_events,
@@ -160,3 +161,34 @@ def test_notebook_record_event_infers_saved_external_video_resource() -> None:
     assert event["resource_type"] == "external_video"
     assert event["metadata"]["record_type"] == "chat"
     assert event["metadata"]["inferred_resource_type"] == "external_video"
+
+
+def test_learner_evidence_builds_guide_resource_event() -> None:
+    event = build_guide_resource_event(
+        session_id="guide-session",
+        task={
+            "task_id": "task-1",
+            "node_id": "node-1",
+            "title": "Gradient descent intuition",
+            "instruction": "Build intuition first.",
+        },
+        artifact={
+            "id": "artifact-1",
+            "type": "external_video",
+            "capability": "external_video_search",
+            "title": "Curated videos: Gradient descent intuition",
+            "created_at": 1_777_000_000,
+            "status": "ready",
+            "result": {
+                "response": "Three public videos selected.",
+                "videos": [{"title": "Gradient descent", "url": "https://example.com/video"}],
+            },
+        },
+        session_goal="Learn gradient descent",
+    )
+
+    assert event["verb"] == "generated"
+    assert event["object_type"] == "resource"
+    assert event["resource_type"] == "external_video"
+    assert event["metadata"]["capability"] == "external_video_search"
+    assert event["metadata"]["video_count"] == 1

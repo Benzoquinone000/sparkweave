@@ -545,8 +545,9 @@ class LearnerProfileService:
             elif object_type == "learning_preference":
                 builder.add_preference(str(event.get("resource_type") or title), source_id, min(0.62, event_confidence))
             resource_type = str(event.get("resource_type") or "")
-            if resource_type:
-                builder.add_preference(resource_type, "evidence", 0.58)
+            verb = str(event.get("verb") or "").strip().lower()
+            if resource_type and verb in {"viewed", "saved", "answered", "completed"}:
+                builder.add_preference(resource_type, "evidence", min(0.58, max(0.32, event_confidence)))
             for mistake in event.get("mistake_types") or []:
                 mistake_label = str(mistake)
                 if mistake_label.startswith("concept:"):

@@ -117,6 +117,13 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
     assert resource["artifact"]["type"] == "quiz"
     assert resource["artifact"]["capability"] == "deep_question"
     assert resource["task"]["artifact_refs"]
+    assert resource["learner_evidence"]["recorded"] is True
+    assert any(
+        event["verb"] == "generated"
+        and event["object_type"] == "resource"
+        and event["resource_type"] == "quiz"
+        for event in evidence_recorder.events
+    )
     artifact_id = resource["artifact"]["id"]
 
     class _NotebookManager:

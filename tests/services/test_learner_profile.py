@@ -226,6 +226,36 @@ async def test_learner_profile_reads_formal_evidence_ledger(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_learner_profile_does_not_treat_generated_resource_as_preference(tmp_path) -> None:
+    evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
+    evidence.append_event(
+        {
+            "source": "guide_v2",
+            "verb": "generated",
+            "object_type": "resource",
+            "object_id": "artifact-video",
+            "title": "Generated public video recommendations",
+            "summary": "The system generated video cards, but the learner has not opened them yet.",
+            "resource_type": "external_video",
+            "created_at": 1_777_000_000,
+        }
+    )
+    service = LearnerProfileService(
+        memory_service=_Memory(),
+        guide_manager=_Guide(),
+        session_store=_Store(),
+        notebook_manager=_Notebook(),
+        evidence_service=evidence,
+        output_dir=tmp_path,
+    )
+
+    profile = await service.refresh(include_sources=["evidence"])
+
+    assert "external_video" not in profile["stable_profile"]["preferences"]
+    assert any(item["metadata"].get("resource_type") == "external_video" for item in profile["evidence_preview"])
+
+
+@pytest.mark.asyncio
 async def test_learner_profile_groups_quiz_evidence_by_concept(tmp_path) -> None:
     evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
     evidence.append_events(

@@ -146,7 +146,7 @@ data/              本地用户数据、记忆、知识库和运行产物
 cd C:\Users\hjk\sparkweave
 ```
 
-建议使用独立 Conda 环境。已有 `deeptutor` 环境时可以直接激活；新机器可创建 `sparkweave` 环境：
+建议使用独立 Conda 环境。新机器推荐创建 `sparkweave` 环境：
 
 ```powershell
 conda create -n sparkweave python=3.11 -y
@@ -445,7 +445,7 @@ kpsewhich preview.sty
 可以在 `.env` 中显式指定：
 
 ```powershell
-SPARKWEAVE_MANIM_PYTHON=C:\Users\hjk\anaconda3\envs\deeptutor\python.exe
+SPARKWEAVE_MANIM_PYTHON=C:\Users\hjk\anaconda3\envs\sparkweave\python.exe
 ```
 
 ## 检查与构建

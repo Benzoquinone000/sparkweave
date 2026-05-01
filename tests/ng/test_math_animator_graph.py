@@ -260,7 +260,7 @@ async def test_default_math_renderer_uses_external_manim_python(monkeypatch):
     from sparkweave.services.math_animator_support import renderer as renderer_module
     from sparkweave.services.math_animator_support.models import RenderResult
 
-    external_python = r"C:\Users\hjk\anaconda3\envs\deeptutor\python.exe"
+    external_python = r"C:\Users\hjk\anaconda3\envs\sparkweave\python.exe"
     monkeypatch.setattr(
         "sparkweave.graphs.math_animator.importlib.util.find_spec",
         lambda name: None if name == "manim" else object(),

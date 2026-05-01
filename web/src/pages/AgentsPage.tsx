@@ -301,6 +301,21 @@ export function AgentsPage() {
           </details>
         </div>
 
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <SparkBotChat botId={activeBotId} running={Boolean(activeBot.data?.running)} />
+          <SoulLibrary
+            souls={souls.data ?? []}
+            pending={mutations.createSoul.isPending || mutations.updateSoul.isPending || mutations.deleteSoul.isPending}
+            onUse={(soul) => {
+              setPersona(soul.content);
+              setName((current) => current || soul.name);
+            }}
+            onCreate={(soul) => mutations.createSoul.mutateAsync(soul)}
+            onUpdate={(soulId, payload) => mutations.updateSoul.mutateAsync({ soulId, payload })}
+            onDelete={(soulId) => mutations.deleteSoul.mutateAsync(soulId)}
+          />
+        </div>
+
         <BotProfileEditor
           bot={activeBot.data}
           pending={mutations.update.isPending}
@@ -327,21 +342,6 @@ export function AgentsPage() {
             return mutations.update.mutateAsync({ botId: activeBotId, payload });
           }}
         />
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <SparkBotChat botId={activeBotId} running={Boolean(activeBot.data?.running)} />
-          <SoulLibrary
-            souls={souls.data ?? []}
-            pending={mutations.createSoul.isPending || mutations.updateSoul.isPending || mutations.deleteSoul.isPending}
-            onUse={(soul) => {
-              setPersona(soul.content);
-              setName((current) => current || soul.name);
-            }}
-            onCreate={(soul) => mutations.createSoul.mutateAsync(soul)}
-            onUpdate={(soulId, payload) => mutations.updateSoul.mutateAsync({ soulId, payload })}
-            onDelete={(soulId) => mutations.deleteSoul.mutateAsync(soulId)}
-          />
-        </div>
 
         <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
           <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">

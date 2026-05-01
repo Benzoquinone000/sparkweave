@@ -3167,6 +3167,7 @@ function CoursePackagePanel({
   const presentationOutline = coursePackage?.presentation_outline ?? null;
   const recordingScript = coursePackage?.recording_script ?? null;
   const competitionSubmission = coursePackage?.competition_submission ?? null;
+  const aiCodingStatement = coursePackage?.ai_coding_statement ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
@@ -3199,7 +3200,7 @@ function CoursePackagePanel({
         script={recordingScript}
       />
       <CoursePresentationOutlineCard outline={presentationOutline} />
-      <CourseCompetitionSubmissionCard submission={competitionSubmission} />
+      <CourseCompetitionSubmissionCard submission={competitionSubmission} aiCoding={aiCodingStatement} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-ink">产出依据</p>
@@ -3260,8 +3261,10 @@ function CoursePackagePanel({
 
 function CourseCompetitionSubmissionCard({
   submission,
+  aiCoding,
 }: {
   submission: GuideV2CoursePackage["competition_submission"] | null;
+  aiCoding: GuideV2CoursePackage["ai_coding_statement"] | null;
 }) {
   const checklist = submission?.checklist ?? [];
   if (!submission || !checklist.length) return null;
@@ -3296,6 +3299,17 @@ function CourseCompetitionSubmissionCard({
         <p className="mt-3 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
           下一步：{guideDisplayText(submission.next_action)}
         </p>
+      ) : null}
+      {aiCoding ? (
+        <div className="mt-3 rounded-lg border border-blue-100 bg-white p-2" data-testid="guide-ai-coding-statement">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="success">{guideDisplayText(aiCoding.title, "AI Coding 工具说明")}</Badge>
+            <span className="text-xs text-slate-500">可放入提交材料</span>
+          </div>
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+            {guideDisplayText(aiCoding.summary, "说明 AI Coding 参与范围、人工复核和密钥边界。")}
+          </p>
+        </div>
       ) : null}
     </div>
   );

@@ -1511,6 +1511,16 @@ export interface GuideV2CoursePackage {
       backup?: string;
     }>;
   };
+  ai_coding_statement?: {
+    title?: string;
+    summary?: string;
+    course_name?: string;
+    usage_scope?: string[];
+    human_review?: string[];
+    privacy_boundary?: string[];
+    evidence?: string[];
+    next_action?: string;
+  };
   learning_report?: {
     overall_score?: number;
     readiness?: string;

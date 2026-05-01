@@ -628,6 +628,8 @@ data/user/workspace/guide/v2/learner_memory.json
 
 课程产出包还会生成 `competition_submission`。它把赛题要求拆成演示 PPT、可运行源码与部署配置、7 分钟演示视频、完整课程样例、多智能体资源、学习效果评估闭环、配套文档与 AI Coding 说明七项提交物。前端只显示前四项状态和下一步补齐建议，完整清单写入 Markdown，方便赛前检查但不打扰普通学习流程。
 
+课程产出包会生成 `ai_coding_statement`。它复用 `docs/ai-coding-statement.md` 的边界，把 AI Coding 参与范围、人工复核、密钥处理和可追溯材料整理成结构化说明。前端只在比赛提交清单里显示一条“可放入提交材料”的轻提示，完整内容写入 Markdown。
+
 React Query 缓存失效在 `useGuideV2Mutations()` 中集中处理。完成任务、生成资源、保存 artifact、提交 quiz、前测、画像对话、刷新推荐都会失效 session、evaluation、study plan、timeline、coach briefing、mistake review、report、course package、resource recommendations 和 learner memory。
 
 ## API 总览

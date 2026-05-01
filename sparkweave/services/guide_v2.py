@@ -2035,6 +2035,12 @@ class GuideV2Manager:
             recording_script=recording_script,
             competition_submission=competition_submission,
         )
+        ai_coding_statement = self._course_ai_coding_statement(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            demo_preflight=demo_preflight,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2055,6 +2061,7 @@ class GuideV2Manager:
             "competition_submission": competition_submission,
             "recording_script": recording_script,
             "demo_preflight": demo_preflight,
+            "ai_coding_statement": ai_coding_statement,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6608,6 +6615,54 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_ai_coding_statement(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        demo_preflight: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Prepare a concise AI Coding statement for competition submission."""
+
+        course_name = session.course_map.metadata.get("course_name") or session.course_map.title or session.goal
+        checks = [item for item in demo_preflight.get("checks") or [] if isinstance(item, dict)]
+        ready_count = demo_preflight.get("ready_count", 0)
+        total_count = demo_preflight.get("total_count", len(checks))
+        report_score = evaluation.get("overall_score", 0)
+        action_brief = dict(report.get("action_brief") or {})
+        return {
+            "title": "AI Coding 工具使用说明",
+            "summary": "开发过程中使用 AI 编程助手辅助调研、重构、实现、测试和文档整理；需求判断、功能取舍、密钥管理、运行验证和最终提交由项目维护者负责。",
+            "course_name": course_name,
+            "usage_scope": [
+                "辅助将原型迁移为 SparkWeave 后端、Web 前端和 CLI，并保持接口兼容。",
+                "辅助实现 Chat 协调、Guide V2、学习画像、资源生成、题目生成、知识可视化、数学动画、公开视频检索和 SparkBot 等模块。",
+                "辅助优化前端体验，遵循简约、面向用户、少平铺、多分页的设计原则。",
+                "辅助编写 Pytest、Playwright、前端 lint/build 和课程模板校验。",
+                "辅助整理 README、架构文档、导学说明、画像设计、演示脚本和比赛路线图。",
+            ],
+            "human_review": [
+                "每次重要改动先判断是否服务于赛题五条主线。",
+                "人工阅读 diff，避免误删运行所需文件或泄露敏感配置。",
+                "通过自动化测试、前端构建和黑盒烟测后再提交。",
+                "最终 PPT、演示视频和提交材料仍需人工复核。",
+            ],
+            "privacy_boundary": [
+                ".env 本地配置不作为公开提交材料。",
+                "公开仓库只保留 .env.example 和配置说明。",
+                "OCR、LLM、Embedding、Search 等密钥由运行者在本地或部署环境配置。",
+                "AI Coding 工具不应把真实密钥写入 README、文档、测试样例或截图。",
+            ],
+            "evidence": [
+                "GitHub 提交历史可追溯阶段性改动。",
+                "docs/ai-coding-statement.md 提供完整说明。",
+                f"课程「{course_name}」赛前检查当前就绪 {ready_count}/{total_count}。",
+                f"当前学习效果综合分 {report_score}，下一步：{action_brief.get('summary') or demo_preflight.get('next_action') or '继续补齐演示材料。'}",
+            ],
+            "next_action": "提交材料中附上 docs/ai-coding-statement.md，并在演示 PPT 末页简要说明 AI Coding 参与范围和人工复核边界。",
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -6776,6 +6831,11 @@ class GuideV2Manager:
         recording_segments = [item for item in recording_script.get("segments") or [] if isinstance(item, dict)]
         demo_preflight = dict(package.get("demo_preflight") or {})
         preflight_checks = [item for item in demo_preflight.get("checks") or [] if isinstance(item, dict)]
+        ai_coding_statement = dict(package.get("ai_coding_statement") or {})
+        ai_usage_scope = [str(item) for item in ai_coding_statement.get("usage_scope") or []]
+        ai_human_review = [str(item) for item in ai_coding_statement.get("human_review") or []]
+        ai_privacy_boundary = [str(item) for item in ai_coding_statement.get("privacy_boundary") or []]
+        ai_evidence = [str(item) for item in ai_coding_statement.get("evidence") or []]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -6993,6 +7053,26 @@ class GuideV2Manager:
                         f"- [{item.get('status') or '-'}] {item.get('item') or '-'}："
                         f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
                     )
+        if ai_coding_statement:
+            lines.extend(["", "## AI Coding 工具说明", ""])
+            lines.append(f"- 摘要：{ai_coding_statement.get('summary') or '-'}")
+            lines.append(f"- 下一步：{ai_coding_statement.get('next_action') or '-'}")
+            if ai_usage_scope:
+                lines.extend(["", "### 使用范围", ""])
+                for item in ai_usage_scope[:6]:
+                    lines.append(f"- {item}")
+            if ai_human_review:
+                lines.extend(["", "### 人工复核", ""])
+                for item in ai_human_review[:5]:
+                    lines.append(f"- {item}")
+            if ai_privacy_boundary:
+                lines.extend(["", "### 数据与密钥边界", ""])
+                for item in ai_privacy_boundary[:5]:
+                    lines.append(f"- {item}")
+            if ai_evidence:
+                lines.extend(["", "### 可追溯材料", ""])
+                for item in ai_evidence[:5]:
+                    lines.append(f"- {item}")
         return "\n".join(lines).strip() + "\n"
 
     def _fallback_nodes(self, profile: LearnerProfile) -> list[CourseNode]:

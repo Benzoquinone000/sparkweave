@@ -72,6 +72,7 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
+  await expect(page.getByTestId("guide-ai-coding-statement")).toContainText("AI Coding 工具说明");
   expect(consoleDomErrors).toEqual([]);
 });
 
@@ -725,6 +726,16 @@ async function mockGuideV2StableDemoApis(page: Page) {
               backup: "使用稳定 Demo 画像。",
             },
           ],
+        },
+        ai_coding_statement: {
+          title: "AI Coding 工具说明",
+          summary: "开发过程中使用 AI 编程助手辅助调研、重构、实现、测试和文档整理；最终提交由项目维护者复核。",
+          course_name: "Machine Learning Foundations",
+          usage_scope: ["辅助实现导学、画像、资源生成和测试。"],
+          human_review: ["人工阅读 diff 并运行测试。"],
+          privacy_boundary: ["真实密钥不写入仓库。"],
+          evidence: ["GitHub 提交历史。"],
+          next_action: "提交材料中附上 docs/ai-coding-statement.md。",
         },
         learning_report: {
           overall_score: 72,

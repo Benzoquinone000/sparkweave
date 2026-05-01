@@ -344,6 +344,7 @@ export function GuidePage() {
       setGoalTouched(true);
     } else if (template.default_goal) {
       setGoal(template.default_goal);
+      setGoalTouched(true);
     }
     if (template.default_time_budget_minutes) setTimeBudget(String(template.default_time_budget_minutes));
     if (template.default_preferences?.length) setPreferences(template.default_preferences);
@@ -747,6 +748,7 @@ export function GuidePage() {
                         setGoalTouched(true);
                         setGoal(event.target.value);
                       }}
+                      data-testid="guide-goal-input"
                       className="min-h-32 text-base leading-7"
                       placeholder="例如：我想在 30 分钟内理解梯度下降，并做几道题确认掌握。"
                     />
@@ -1026,6 +1028,13 @@ export function GuidePage() {
                     busy={mutations.create.isPending}
                     onStart={startDemoSession}
                   />
+                  <CourseTemplateQuickPick
+                    templates={courseTemplates}
+                    demoTemplateId={demoTemplate?.id ?? ""}
+                    selectedTemplateId={courseTemplateId}
+                    busy={mutations.create.isPending}
+                    onPick={applyCourseTemplate}
+                  />
                   <FieldShell label="你想学什么">
                     <TextArea
                       value={goal}
@@ -1033,6 +1042,7 @@ export function GuidePage() {
                         setGoalTouched(true);
                         setGoal(event.target.value);
                       }}
+                      data-testid="guide-goal-input"
                       className="min-h-36 text-base leading-7"
                       placeholder="例如：我想在 30 分钟内理解梯度下降，并做几道题确认掌握。"
                     />
@@ -1694,6 +1704,79 @@ function CourseTemplatePreview({
         </div>
       ) : null}
     </motion.div>
+  );
+}
+
+function CourseTemplateQuickPick({
+  templates,
+  demoTemplateId,
+  selectedTemplateId,
+  busy,
+  onPick,
+}: {
+  templates: GuideV2CourseTemplate[];
+  demoTemplateId: string;
+  selectedTemplateId: string;
+  busy: boolean;
+  onPick: (template: GuideV2CourseTemplate) => void;
+}) {
+  const visibleTemplates = templates.filter((template) => template.id !== demoTemplateId).slice(0, 3);
+  if (!visibleTemplates.length) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-line bg-canvas p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-ink">也可以直接选一门完整课程</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">适合录屏演示或从零开始，点一下就填好目标和时间。</p>
+        </div>
+        <Badge tone="neutral">{visibleTemplates.length} 门</Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {visibleTemplates.map((template) => {
+          const selected = template.id === selectedTemplateId;
+          const title = guideDisplayText(template.course_name || template.title, "内置课程");
+          const minutes = template.default_time_budget_minutes || template.estimated_minutes || 0;
+          return (
+            <button
+              key={template.id}
+              type="button"
+              className={`rounded-lg border bg-white p-3 text-left transition ${
+                selected ? "border-teal-300 ring-2 ring-teal-100" : "border-line hover:border-teal-200 hover:bg-teal-50/60"
+              }`}
+              data-testid={`guide-course-template-${template.id}`}
+              disabled={busy}
+              onClick={() => onPick(template)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <GraduationCap size={16} className={selected ? "mt-0.5 shrink-0 text-brand-teal" : "mt-0.5 shrink-0 text-brand-blue"} />
+                <Badge tone={selected ? "brand" : "neutral"}>{selected ? "已选择" : "课程"}</Badge>
+              </div>
+              <p className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-ink">{title}</p>
+              <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-slate-500">
+                {guideDisplayText(template.description, template.default_goal || "按完整课程路线开始学习。")}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {template.suggested_weeks ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-slate-600">
+                    <CalendarDays size={13} />
+                    {template.suggested_weeks} 周
+                  </span>
+                ) : null}
+                {minutes ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-slate-600">
+                    <Clock3 size={13} />
+                    {Math.round(minutes)} 分钟
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

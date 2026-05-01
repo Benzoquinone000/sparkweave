@@ -1,5 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test("guide start page exposes full course templates", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "course template picker runs once");
+
+  await installMockGuideV2ResourceEventSource(page);
+  await mockGuideV2StableDemoApis(page);
+
+  await page.goto("/guide");
+  await expect(page.getByTestId("guide-course-template-robotics_ros_foundations")).toBeVisible();
+  await page.getByTestId("guide-course-template-robotics_ros_foundations").click();
+
+  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/ROS|机器人|robot/i);
+});
+
 test("guide v2 stable demo runs from seed to wrap-up and course package", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "stable demo flow runs once");
 
@@ -448,6 +461,21 @@ async function mockGuideV2StableDemoApis(page: Page) {
             default_preferences: ["visual", "practice"],
             default_time_budget_minutes: 45,
             demo_seed: demoSeed,
+          },
+          {
+            id: "robotics_ros_foundations",
+            title: "智能机器人与 ROS 基础",
+            course_id: "ROBOT101",
+            course_name: "智能机器人与 ROS 基础",
+            description: "从机器人系统组成、ROS 通信到小项目实践，适合做一门可演示的完整课程。",
+            level: "beginner",
+            suggested_weeks: 4,
+            credits: 2,
+            estimated_minutes: 720,
+            default_goal: "系统学习智能机器人与 ROS 基础，完成话题通信、服务调用和导航入门实践。",
+            default_preferences: ["visual", "practice", "project"],
+            default_time_budget_minutes: 60,
+            tags: ["机器人", "ROS", "项目实践"],
           },
         ],
       },

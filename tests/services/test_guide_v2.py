@@ -919,6 +919,9 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["demo_seed_pack"]["task_chain"]
     assert package["demo_seed_pack"]["resource_prompts"]
     assert package["demo_seed_pack"]["report_anchor"]["score"] >= 0
+    assert package["competition_submission"]["checklist"]
+    assert any(item["item"] == "演示 PPT" for item in package["competition_submission"]["checklist"])
+    assert package["competition_submission"]["ready_count"] >= 1
     assert package["learning_report"]["demo_readiness"]["checks"]
     assert package["learning_report"]["behavior_summary"]["event_count"] >= 2
     assert package["learning_report"]["feedback_digest"]["count"] >= 1
@@ -931,6 +934,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟演示路线" in package["markdown"]
     assert "录屏兜底包" in package["markdown"]
     assert "稳定 Demo 样例" in package["markdown"]
+    assert "比赛提交清单" in package["markdown"]
 
 
 @pytest.mark.asyncio

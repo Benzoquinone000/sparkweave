@@ -3163,6 +3163,7 @@ function CoursePackagePanel({
   const demoBlueprint = coursePackage?.demo_blueprint ?? null;
   const fallbackKit = coursePackage?.demo_fallback_kit ?? null;
   const seedPack = coursePackage?.demo_seed_pack ?? null;
+  const competitionSubmission = coursePackage?.competition_submission ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
@@ -3187,6 +3188,7 @@ function CoursePackagePanel({
       </div>
       <CourseLearningStyleCard learningStyle={learningStyle} />
       <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} learningStyle={learningStyle} />
+      <CourseCompetitionSubmissionCard submission={competitionSubmission} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-ink">产出依据</p>
@@ -3242,6 +3244,49 @@ function CoursePackagePanel({
         保存产出包到 Notebook
       </Button>
     </section>
+  );
+}
+
+function CourseCompetitionSubmissionCard({
+  submission,
+}: {
+  submission: GuideV2CoursePackage["competition_submission"] | null;
+}) {
+  const checklist = submission?.checklist ?? [];
+  if (!submission || !checklist.length) return null;
+  const ready = Number(submission.ready_count ?? 0);
+  const total = Number(submission.total_count ?? checklist.length);
+  return (
+    <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3" data-testid="guide-competition-submission-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(submission.title, "比赛提交清单")}</Badge>
+            {submission.course_name ? <Badge tone="neutral">{guideDisplayText(submission.course_name)}</Badge> : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-blue-950">
+            {guideDisplayText(submission.summary, "按赛题提交物检查当前课程产出。")}
+          </p>
+        </div>
+        <Badge tone={ready >= total ? "success" : "warning"}>{ready} / {total}</Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {checklist.slice(0, 4).map((item) => (
+          <div key={`${item.item}-${item.status}`} className="rounded-lg border border-white/80 bg-white p-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(item.item, "提交物")}</p>
+              <Badge tone={submissionStatusTone(item.status)}>{submissionStatusLabel(item.status)}</Badge>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{guideDisplayText(item.evidence, "等待更多学习证据。")}</p>
+          </div>
+        ))}
+      </div>
+      {submission.next_action ? (
+        <p className="mt-3 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+          下一步：{guideDisplayText(submission.next_action)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -4381,6 +4426,22 @@ function fallbackAssetLabel(status?: string): string {
   if (status === "ready") return "可直接展示";
   if (status === "seed") return "可现场生成";
   return "备用";
+}
+
+function submissionStatusTone(status?: string): "neutral" | "success" | "warning" | "danger" | "brand" {
+  const value = String(status || "").toLowerCase();
+  if (value === "ready") return "success";
+  if (value === "seed") return "brand";
+  if (value === "todo" || value === "missing") return "warning";
+  return "neutral";
+}
+
+function submissionStatusLabel(status?: string): string {
+  const value = String(status || "").toLowerCase();
+  if (value === "ready") return "已就绪";
+  if (value === "seed") return "有种子";
+  if (value === "todo" || value === "missing") return "待补齐";
+  return "待确认";
 }
 
 const GUIDE_DISPLAY_COPY: Record<string, string> = {

@@ -2000,6 +2000,15 @@ class GuideV2Manager:
             evaluation=evaluation,
             report=report if report.get("success") else {},
         )
+        competition_submission = self._course_competition_submission(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            demo_blueprint=demo_blueprint,
+            demo_fallback_kit=demo_fallback_kit,
+            demo_seed_pack=demo_seed_pack,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2016,6 +2025,7 @@ class GuideV2Manager:
             "demo_blueprint": demo_blueprint,
             "demo_fallback_kit": demo_fallback_kit,
             "demo_seed_pack": demo_seed_pack,
+            "competition_submission": competition_submission,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6288,6 +6298,94 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_competition_submission(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        demo_blueprint: dict[str, Any],
+        demo_fallback_kit: dict[str, Any],
+        demo_seed_pack: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Map the course package to concrete competition deliverables."""
+
+        metadata = dict(session.course_map.metadata or {})
+        course_name = str(metadata.get("course_name") or session.course_map.title or session.goal).strip()
+        demo_checks = dict(report.get("demo_readiness") or {})
+        demo_score = float(demo_checks.get("score") or demo_blueprint.get("readiness_score") or 0)
+        has_artifacts = bool(portfolio)
+        has_multimodal = any(item.get("type") in {"visual", "video", "quiz", "external_video"} for item in portfolio)
+        has_seed = bool(demo_seed_pack.get("task_chain") or demo_seed_pack.get("resource_prompts"))
+        has_report = bool(report.get("action_brief") or report.get("effect_assessment"))
+        has_template = bool(metadata.get("course_id") or metadata.get("learning_outcomes"))
+
+        def status(ready: bool, seed: bool = False) -> str:
+            if ready:
+                return "ready"
+            return "seed" if seed else "todo"
+
+        checklist = [
+            {
+                "item": "演示 PPT",
+                "status": status(bool(demo_blueprint.get("storyline")), has_seed),
+                "evidence": "可直接复用课程产出包里的 7 分钟演示路线、赛题映射和画像驱动产出。",
+                "action": "把画像、路线、多智能体资源、练习反馈、学习报告压成 5 到 7 页。",
+            },
+            {
+                "item": "可运行项目源码与部署配置",
+                "status": "ready",
+                "evidence": "项目包含前端、后端、CLI、依赖清单、启动脚本和服务设置。",
+                "action": "提交仓库源码、requirements、web/package.json、README 和环境配置示例。",
+            },
+            {
+                "item": "7 分钟智能体演示视频",
+                "status": status(demo_score >= 60, has_seed),
+                "evidence": f"录屏路线已围绕「{course_name}」生成，并准备了兜底材料。",
+                "action": "按录屏检查顺序演示：画像、导学、资源、练习、报告、产出包。",
+            },
+            {
+                "item": "完整高校课程样例",
+                "status": status(has_template, False),
+                "evidence": f"课程模板包含「{course_name}」的目标、节点、任务、评价和项目里程碑。",
+                "action": "将课程模板、知识库资料和稳定任务链一起作为课程数据提交。",
+            },
+            {
+                "item": "多智能体资源生成成果",
+                "status": status(has_multimodal, has_seed),
+                "evidence": "产出包会索引图解、练习、视频、研究或精选视频等学习资产。",
+                "action": "至少准备一份图解、一组交互练习；数学课程再补 Manim 视频或历史产物。",
+            },
+            {
+                "item": "学习效果评估与画像闭环说明",
+                "status": status(has_report, evaluation.get("completed_tasks", 0) > 0),
+                "evidence": "学习报告包含学习处方、错因复测、画像信号和下一步计划。",
+                "action": "展示完成任务后的掌握评分、反思、报告变化和画像回写。",
+            },
+            {
+                "item": "配套文档与 AI Coding 说明",
+                "status": "ready",
+                "evidence": "README、docs 和课程产出包 Markdown 可作为提交文档基础。",
+                "action": "在说明文档中标注使用 AI Coding 工具辅助开发、测试和文档生成。",
+            },
+        ]
+        ready_count = sum(1 for item in checklist if item["status"] == "ready")
+        seed_count = sum(1 for item in checklist if item["status"] == "seed")
+        return {
+            "title": "比赛提交清单",
+            "summary": "把当前课程产出包直接映射到赛题提交物，录屏和答辩前按状态补齐即可。",
+            "course_name": course_name,
+            "ready_count": ready_count,
+            "seed_count": seed_count,
+            "total_count": len(checklist),
+            "checklist": checklist,
+            "next_action": next(
+                (item["action"] for item in checklist if item["status"] != "ready"),
+                "提交前再跑一次完整演示和项目测试。",
+            ),
+        }
+
+    @staticmethod
     def _normalize_demo_seed_task_chain(value: Any) -> list[dict[str, Any]]:
         items = value if isinstance(value, list) else []
         normalized: list[dict[str, Any]] = []
@@ -6358,6 +6456,10 @@ class GuideV2Manager:
         seed_chain = [item for item in seed_pack.get("task_chain") or [] if isinstance(item, dict)]
         seed_prompts = [item for item in seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
         rehearsal_notes = [str(item) for item in seed_pack.get("rehearsal_notes") or []]
+        competition_submission = dict(package.get("competition_submission") or {})
+        submission_checklist = [
+            item for item in competition_submission.get("checklist") or [] if isinstance(item, dict)
+        ]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -6526,6 +6628,20 @@ class GuideV2Manager:
                 lines.extend(["", "### 排练备注", ""])
                 for item in rehearsal_notes[:4]:
                     lines.append(f"- {item}")
+        if competition_submission:
+            lines.extend(["", "## 比赛提交清单", ""])
+            lines.append(f"- 课程：{competition_submission.get('course_name') or metadata.get('course_name') or '-'}")
+            lines.append(
+                f"- 就绪：{competition_submission.get('ready_count', 0)} / {competition_submission.get('total_count', 0)}"
+            )
+            lines.append(f"- 下一步：{competition_submission.get('next_action') or '-'}")
+            if submission_checklist:
+                lines.extend(["", "### 提交物状态", ""])
+                for item in submission_checklist[:7]:
+                    lines.append(
+                        f"- [{item.get('status') or '-'}] {item.get('item') or '-'}："
+                        f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
+                    )
         return "\n".join(lines).strip() + "\n"
 
     def _fallback_nodes(self, profile: LearnerProfile) -> list[CourseNode]:

@@ -62,6 +62,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
   await expect(page.getByTestId("guide-demo-recording-checklist")).not.toContainText("7-minute demo route");
+  await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
+  await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
+  await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
   expect(consoleDomErrors).toEqual([]);
 });
 
@@ -613,6 +616,41 @@ async function mockGuideV2StableDemoApis(page: Page) {
           checklist: ["Open guide route before recording."],
         },
         demo_seed_pack: demoSeed,
+        competition_submission: {
+          title: "比赛提交清单",
+          summary: "按赛题提交物检查当前课程产出。",
+          course_name: "Machine Learning Foundations",
+          ready_count: 3,
+          seed_count: 1,
+          total_count: 7,
+          next_action: "补齐 7 分钟演示视频和配套文档说明。",
+          checklist: [
+            {
+              item: "演示 PPT",
+              status: "ready",
+              evidence: "可复用课程产出包里的 7 分钟演示路线。",
+              action: "整理成 5 到 7 页。",
+            },
+            {
+              item: "可运行项目源码与部署配置",
+              status: "ready",
+              evidence: "包含前端、后端、CLI 和配置示例。",
+              action: "提交仓库源码与 README。",
+            },
+            {
+              item: "7 分钟智能体演示视频",
+              status: "seed",
+              evidence: "已有录屏路线和兜底材料。",
+              action: "按录屏检查顺序录制。",
+            },
+            {
+              item: "完整高校课程样例",
+              status: "ready",
+              evidence: "课程模板包含目标、任务和评价方式。",
+              action: "随项目一并提交课程数据。",
+            },
+          ],
+        },
         learning_report: {
           overall_score: 72,
           readiness: "recording_ready",

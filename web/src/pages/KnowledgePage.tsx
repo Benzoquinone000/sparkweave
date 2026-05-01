@@ -1195,7 +1195,7 @@ function formatTaskEvent(label: "log" | "complete" | "failed" | "message", raw: 
     const legacyLabel = label;
     if (payload.detail) return withLegacyText(`${labelText}：${formatKnowledgeLogLine(String(payload.detail), label)}`, `${legacyLabel}: ${payload.detail}`);
     const serialized = JSON.stringify(payload);
-    return withLegacyText(`${labelText}：${serialized}`, `${legacyLabel}: ${serialized}`);
+    return withLegacyText(`${labelText}：收到任务更新`, `${legacyLabel}: ${serialized}`);
   }
   return raw ? withLegacyText(formatKnowledgeLogLine(raw, label), raw) : formatTaskLabel(label);
 }
@@ -1269,7 +1269,7 @@ function formatProgressMessage(progress: KnowledgeProgress | undefined | null, a
   const state = String(progress?.stage || progress?.status || "").toLowerCase();
   if (!progress) return activeKb || "暂无任务";
   if (state === "not_started") return hasTaskContext ? "等待索引任务更新..." : "暂无索引任务";
-  return progress.message || activeKb || "暂无任务";
+  return progress.message ? formatKnowledgeLogLine(progress.message) : activeKb || "暂无任务";
 }
 
 function formatKnowledgeWsMessage(payload: KnowledgeWsMessage) {
@@ -1279,7 +1279,7 @@ function formatKnowledgeWsMessage(payload: KnowledgeWsMessage) {
     return `进度更新：${formatTaskLabel(payload.type)}`;
   }
   if (String(payload.type || "").toLowerCase() === "heartbeat") return "进度更新：进度通道保持连接";
-  if (payload.type) return `进度更新：${payload.type}`;
+  if (payload.type) return withLegacyText("进度更新：收到任务状态", `进度更新：${payload.type}`);
   return "收到进度更新";
 }
 
@@ -1317,6 +1317,14 @@ function formatKnowledgeLogLine(raw: string, label?: "log" | "complete" | "faile
   if (found) return `找到 ${found[1]} 份资料，开始处理`;
   const initializing = text.match(/^initializing knowledge base\s+'([^']+)'/i);
   if (initializing) return `正在初始化资料库：${initializing[1]}`;
+  const validationFailed = text.match(/^validation failed for file\s+'([^']+)'/i);
+  if (validationFailed) return `文件校验未通过：${validationFailed[1]}`;
+  if (lower.includes("mime type validation failed")) return "文件类型校验未通过，请确认资料格式";
+  if (lower.includes("rag pipeline returned failure")) return "索引管线处理失败，请检查资料格式或模型配置";
+  if (lower.includes("initialization failed")) return "资料库初始化失败";
+  if (lower.includes("document processing failed") || lower.includes("failed to process documents")) return "资料处理失败，请检查文件内容";
+  if (lower.includes("error processing documents")) return "资料处理失败，请稍后重试";
+  if (lower.includes("real-time progress") && lower.includes("unavailable")) return "实时进度暂时不可用，继续自动刷新";
   if (lower.includes("starting to process documents with")) return "正在调用解析与索引管线...";
   if (lower.includes("extracting numbered items")) return "正在整理题目结构...";
   if (lower.includes("skipping numbered items extraction")) return "已跳过题号提取";

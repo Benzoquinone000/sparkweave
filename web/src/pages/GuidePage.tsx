@@ -1174,11 +1174,11 @@ export function GuidePage() {
                           画像依据：{adaptiveGuideStrategy.reasons[0].detail}
                         </p>
                       ) : null}
-                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="space-y-2">
                         <button
                           type="button"
                           data-testid="guide-open-complete-task"
-                          className="rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
+                          className="w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
                           onClick={() => setGuideSubPage("completeTask")}
                         >
                           <span className="text-sm font-semibold text-ink">学完了，去提交</span>
@@ -1187,11 +1187,10 @@ export function GuidePage() {
                         <button
                           type="button"
                           data-testid="guide-open-resource-choice"
-                          className="rounded-lg border border-line bg-white p-4 text-left transition hover:border-blue-200 hover:bg-blue-50"
+                          className="ml-auto block rounded-md px-2 py-1 text-xs font-medium text-brand-blue transition hover:bg-blue-50 hover:text-blue-700"
                           onClick={() => setGuideSubPage("resourceChoice")}
                         >
-                          <span className="text-sm font-semibold text-ink">换一种材料</span>
-                          <span className="mt-1 block text-xs leading-5 text-slate-500">图解、练习、短视频、精选视频放到单独页。</span>
+                          不适合？换一种材料
                         </button>
                       </div>
                     </div>

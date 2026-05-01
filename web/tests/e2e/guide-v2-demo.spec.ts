@@ -62,6 +62,7 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
   await expect(page.getByTestId("guide-demo-recording-checklist")).not.toContainText("7-minute demo route");
+  await expect(page.getByTestId("guide-recording-script-cue")).toContainText("讲稿");
   await expect(page.getByTestId("guide-presentation-outline-card")).toBeVisible();
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("演示 PPT 骨架");
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("项目价值");
@@ -681,6 +682,20 @@ async function mockGuideV2StableDemoApis(page: Page) {
               status: "ready",
               evidence: "课程模板包含目标、任务和评价方式。",
               action: "随项目一并提交课程数据。",
+            },
+          ],
+        },
+        recording_script: {
+          title: "7 分钟录屏讲稿",
+          summary: "把演示路线压缩成可直接照着录的分段讲稿。",
+          total_minutes: 7,
+          next_action: "录屏前准备截图或历史产物。",
+          segments: [
+            {
+              minute: "0:00-0:45",
+              screen: "打开学习画像和导学入口",
+              narration: "先说明学习者目标，再展示当前任务。",
+              backup: "使用稳定 Demo 画像。",
             },
           ],
         },

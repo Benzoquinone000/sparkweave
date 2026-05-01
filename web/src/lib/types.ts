@@ -1475,6 +1475,18 @@ export interface GuideV2CoursePackage {
       action?: string;
     }>;
   };
+  recording_script?: {
+    title?: string;
+    summary?: string;
+    total_minutes?: number;
+    next_action?: string;
+    segments?: Array<{
+      minute?: string;
+      screen?: string;
+      narration?: string;
+      backup?: string;
+    }>;
+  };
   learning_report?: {
     overall_score?: number;
     readiness?: string;

@@ -2018,6 +2018,13 @@ class GuideV2Manager:
             demo_fallback_kit=demo_fallback_kit,
             demo_seed_pack=demo_seed_pack,
         )
+        recording_script = self._course_recording_script(
+            session=session,
+            report=report if report.get("success") else {},
+            demo_blueprint=demo_blueprint,
+            presentation_outline=presentation_outline,
+            competition_submission=competition_submission,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2036,6 +2043,7 @@ class GuideV2Manager:
             "demo_seed_pack": demo_seed_pack,
             "presentation_outline": presentation_outline,
             "competition_submission": competition_submission,
+            "recording_script": recording_script,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6407,6 +6415,79 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_recording_script(
+        *,
+        session: GuideSessionV2,
+        report: dict[str, Any],
+        demo_blueprint: dict[str, Any],
+        presentation_outline: dict[str, Any],
+        competition_submission: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create a 7-minute recording script from the demo route and deck outline."""
+
+        storyline = [item for item in demo_blueprint.get("storyline") or [] if isinstance(item, dict)]
+        slides = [item for item in presentation_outline.get("slides") or [] if isinstance(item, dict)]
+        next_action = competition_submission.get("next_action") or presentation_outline.get("next_action") or ""
+        action_brief = dict(report.get("action_brief") or {})
+        fallback_segments = [
+            {
+                "minute": "0:00-0:45",
+                "screen": "打开学习画像和导学入口",
+                "narration": f"先说明学习者目标是「{session.goal}」，系统会用画像决定今天先做哪一步。",
+                "backup": "如果现场没有新画像，就使用稳定 Demo 画像。",
+            },
+            {
+                "minute": "0:45-2:00",
+                "screen": "展示当前任务和个性化路径",
+                "narration": "强调用户不需要理解复杂工具，只要跟着当前任务推进。",
+                "backup": "如果模型响应慢，直接展示已生成的路线图。",
+            },
+            {
+                "minute": "2:00-4:00",
+                "screen": "生成或展示图解、练习、视频等资源",
+                "narration": "讲清楚画像智能体、资源智能体和评估智能体如何接力。",
+                "backup": "优先使用课程包里的稳定资源或 Notebook 历史产物。",
+            },
+            {
+                "minute": "4:00-5:30",
+                "screen": "提交练习或反思并查看反馈",
+                "narration": "展示反馈如何回写画像，并改变下一步学习建议。",
+                "backup": "使用示例反馈快捷填入，保证录屏节奏稳定。",
+            },
+            {
+                "minute": "5:30-7:00",
+                "screen": "打开学习报告、PPT 骨架和比赛提交清单",
+                "narration": action_brief.get("summary") or "最后收束到学习效果评估、演示材料和比赛提交物。",
+                "backup": str(next_action or "提交前再跑一次完整演示和项目测试。"),
+            },
+        ]
+        if storyline:
+            segments: list[dict[str, Any]] = []
+            for index, item in enumerate(storyline[:5]):
+                slide = slides[index] if index < len(slides) else {}
+                segments.append(
+                    {
+                        "minute": item.get("minute") or fallback_segments[index].get("minute"),
+                        "screen": item.get("show") or slide.get("title") or fallback_segments[index].get("screen"),
+                        "narration": item.get("talking_point")
+                        or slide.get("speaker_note")
+                        or fallback_segments[index].get("narration"),
+                        "backup": item.get("fallback") or fallback_segments[index].get("backup"),
+                    }
+                )
+            if len(segments) < 5:
+                segments.extend(fallback_segments[len(segments) :])
+        else:
+            segments = fallback_segments
+        return {
+            "title": "7 分钟录屏讲稿",
+            "summary": "把演示路线压缩成可直接照着录的分段讲稿，避免现场临时组织语言。",
+            "total_minutes": 7,
+            "segments": segments[:5],
+            "next_action": "录屏前按每段 screen 准备截图或历史产物，保证每 90 秒都有可见动作。",
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -6571,6 +6652,8 @@ class GuideV2Manager:
         submission_checklist = [
             item for item in competition_submission.get("checklist") or [] if isinstance(item, dict)
         ]
+        recording_script = dict(package.get("recording_script") or {})
+        recording_segments = [item for item in recording_script.get("segments") or [] if isinstance(item, dict)]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -6750,6 +6833,17 @@ class GuideV2Manager:
                     lines.append(
                         f"- P{item.get('slide_no') or '-'} {item.get('title') or '-'}："
                         f"{item.get('evidence') or '-'}；讲述：{item.get('speaker_note') or '-'}"
+                    )
+        if recording_script:
+            lines.extend(["", "## 7 分钟录屏讲稿", ""])
+            lines.append(f"- 总时长：{recording_script.get('total_minutes') or 7} 分钟")
+            lines.append(f"- 下一步：{recording_script.get('next_action') or '-'}")
+            if recording_segments:
+                lines.extend(["", "### 分段讲稿", ""])
+                for item in recording_segments[:5]:
+                    lines.append(
+                        f"- {item.get('minute') or '-'}｜画面：{item.get('screen') or '-'}；"
+                        f"讲述：{item.get('narration') or '-'}；兜底：{item.get('backup') or '-'}"
                     )
         if competition_submission:
             lines.extend(["", "## 比赛提交清单", ""])

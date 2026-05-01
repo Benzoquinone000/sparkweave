@@ -3164,6 +3164,7 @@ function CoursePackagePanel({
   const fallbackKit = coursePackage?.demo_fallback_kit ?? null;
   const seedPack = coursePackage?.demo_seed_pack ?? null;
   const presentationOutline = coursePackage?.presentation_outline ?? null;
+  const recordingScript = coursePackage?.recording_script ?? null;
   const competitionSubmission = coursePackage?.competition_submission ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
@@ -3188,7 +3189,13 @@ function CoursePackagePanel({
         <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{guideDisplayText(project.scenario, "完成更多学习任务后会生成更贴合你的项目说明。")}</p>
       </div>
       <CourseLearningStyleCard learningStyle={learningStyle} />
-      <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} learningStyle={learningStyle} />
+      <CourseDemoRecordingChecklistCard
+        blueprint={demoBlueprint}
+        kit={fallbackKit}
+        seed={seedPack}
+        learningStyle={learningStyle}
+        script={recordingScript}
+      />
       <CoursePresentationOutlineCard outline={presentationOutline} />
       <CourseCompetitionSubmissionCard submission={competitionSubmission} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
@@ -3365,14 +3372,17 @@ function CourseDemoRecordingChecklistCard({
   kit,
   seed,
   learningStyle,
+  script,
 }: {
   blueprint: GuideV2CoursePackage["demo_blueprint"] | null;
   kit: GuideV2CoursePackage["demo_fallback_kit"] | null;
   seed: GuideV2CoursePackage["demo_seed_pack"] | null;
   learningStyle: GuideV2CoursePackage["learning_style"] | null;
+  script: GuideV2CoursePackage["recording_script"] | null;
 }) {
   const storyline = blueprint?.storyline ?? [];
   const taskChain = seed?.task_chain ?? [];
+  const recordingCue = script?.segments?.[0];
   const steps = storyline.length
     ? storyline.slice(0, 3).map((step, index) => ({
         key: `${step.minute || index}-${step.title || index}`,
@@ -3391,7 +3401,7 @@ function CourseDemoRecordingChecklistCard({
   const fallback = kit?.checklist?.[0] || blueprint?.fallbacks?.[0] || seed?.rehearsal_notes?.[0] || "";
   const title = guideDisplayText(blueprint?.title || seed?.title, "录屏检查");
   const summary = guideDisplayText(blueprint?.summary || kit?.summary || seed?.scenario, "打开画像、路线、资源、反馈和产出包，讲一条完整学习闭环。");
-  const hasContent = Boolean(blueprint || kit || seed || steps.length || assets.length || fallback);
+  const hasContent = Boolean(blueprint || kit || seed || script || steps.length || assets.length || fallback);
 
   if (!hasContent) {
     return null;
@@ -3438,6 +3448,11 @@ function CourseDemoRecordingChecklistCard({
             </Badge>
           ))}
         </div>
+      ) : null}
+      {recordingCue ? (
+        <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-2 text-xs leading-5 text-teal-900" data-testid="guide-recording-script-cue">
+          讲稿：{guideDisplayText(recordingCue.narration || recordingCue.screen, "先说明学习者目标，再展示当前任务。")}
+        </p>
       ) : null}
       {fallback ? (
         <p className="mt-3 rounded-lg border border-line bg-canvas p-2 text-xs leading-5 text-slate-600">

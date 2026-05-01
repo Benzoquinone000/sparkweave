@@ -226,6 +226,12 @@ python scripts/start_web.py
 
 全量配置完成后，聊天、知识库 RAG、题目生成、Notebook、SparkBot、多智能体协作、图表可视化、数学动画视频和 PDF 题目仿写能力都会使用同一套环境运行。
 
+比赛提交相关材料可直接参考：
+
+- [赛题对齐与后续开发路线](docs/competition-roadmap.md)
+- [演示脚本：画像驱动导学闭环](docs/demo-script-profile-guide-loop.md)
+- [AI Coding 工具使用说明](docs/ai-coding-statement.md)
+
 ## 配置 `.env`
 
 可以从示例文件复制：

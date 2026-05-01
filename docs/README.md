@@ -38,7 +38,8 @@
 32. [环境变量配置](./configuration.md)
 33. [插件开发](./plugin-development.md)
 34. [赛题对齐与后续开发路线](./competition-roadmap.md)
-35. [开发与维护](./development.md)
+35. [AI Coding 工具使用说明](./ai-coding-statement.md)
+36. [开发与维护](./development.md)
 
 ## 文档定位
 
@@ -78,6 +79,7 @@
 | [环境变量配置](./configuration.md) | 部署者、后端开发者 | LLM、Embedding、搜索、OCR、Docker、端口配置 |
 | [插件开发](./plugin-development.md) | 能力扩展开发者 | `sparkweave/plugins/` 目录约定、manifest、Capability 实现 |
 | [赛题对齐与后续开发路线](./competition-roadmap.md) | 项目负责人、功能规划者、比赛材料整理者 | 五项赛题要求的实现现状、学习闭环目标、后续阶段计划和验收标准 |
+| [AI Coding 工具使用说明](./ai-coding-statement.md) | 比赛评委、项目负责人、提交材料整理者 | AI Coding 工具参与范围、人工审查方式、密钥边界和可追溯材料 |
 | [开发与维护](./development.md) | 项目贡献者 | 测试、检查、目录结构、提交前检查 |
 
 ## 文档维护原则

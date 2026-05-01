@@ -489,7 +489,7 @@ export function KnowledgePage() {
                 <ConfigFact label="状态" value={formatProgressStage(activeStatus)} tone={activeStatus === "error" ? "warning" : "success"} />
                 <ConfigFact label="文件" value={formatOptionalCount(activeFileCount)} />
                 <ConfigFact label="文档" value={formatOptionalCount(activeDocumentCount)} />
-                <ConfigFact label="检索" value={String(activeConfig?.rag_provider || kbDetail.data?.rag_provider || "llamaindex")} />
+                <ConfigFact label="检索" value={knowledgeProviderLabel(activeConfig?.rag_provider || kbDetail.data?.rag_provider || "llamaindex")} />
               </div>
 
               <div className="mt-5 rounded-lg border border-line bg-canvas p-4">
@@ -663,7 +663,7 @@ export function KnowledgePage() {
                   </span>
                 </label>
                 <div className="grid gap-3 border-t border-line pt-4 text-sm md:grid-cols-4">
-                  <ConfigFact label="检索引擎" value={String(activeConfig?.rag_provider || "llamaindex")} />
+                  <ConfigFact label="检索引擎" value={knowledgeProviderLabel(activeConfig?.rag_provider || "llamaindex")} />
                   <ConfigFact label="路径" value={String(activeConfig?.path || activeKb)} />
                   <ConfigFact label="Embedding" value={formatEmbeddingLabel(activeConfig)} />
                   <ConfigFact
@@ -1105,7 +1105,7 @@ function KnowledgeDetailPanel({
             </div>
             <div>
               <p className="text-xs text-slate-500">检索引擎</p>
-              <p className="mt-1 truncate text-sm font-medium text-ink">{detail?.rag_provider || "llamaindex"}</p>
+              <p className="mt-1 truncate text-sm font-medium text-ink">{knowledgeProviderLabel(detail?.rag_provider || "llamaindex")}</p>
             </div>
           </div>
           {summaryItems.length ? (
@@ -1386,6 +1386,15 @@ function formatOptionalCount(value: number | undefined) {
   return typeof value === "number" ? String(value) : "-";
 }
 
+function knowledgeProviderLabel(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "智能索引";
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("llamaindex")) return "智能索引";
+  if (normalized.includes("mineru")) return "文档解析索引";
+  return raw;
+}
+
 function summarizeKnowledgePayload(payload: Record<string, unknown>) {
   const preferredKeys = [
     "rag_provider",
@@ -1404,7 +1413,7 @@ function summarizeKnowledgePayload(payload: Record<string, unknown>) {
   const items: Array<{ key: string; label: string; value: string }> = [];
   const add = (key: string) => {
     if (seen.has(key) || !(key in payload)) return;
-    const value = formatKnowledgeSummaryValue(payload[key]);
+    const value = key === "rag_provider" || key === "provider" ? knowledgeProviderLabel(payload[key]) : formatKnowledgeSummaryValue(payload[key]);
     if (!value) return;
     seen.add(key);
     items.push({ key, label: labelKnowledgeSummaryField(key), value });

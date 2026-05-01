@@ -777,6 +777,37 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_guide_v2_report_prescription_uses_external_video_preference(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+    created = await manager.create_session(
+        GuideV2CreateInput(
+            goal="学习梯度下降，希望能找公开视频辅助理解",
+            preferences=["external_video"],
+        )
+    )
+    session_id = created["session"]["session_id"]
+    first_task = created["session"]["tasks"][0]
+
+    manager.complete_task(
+        session_id,
+        first_task["task_id"],
+        score=0.45,
+        reflection="看懂了一点，但方向和学习率还是混。",
+    )
+
+    report = manager.build_learning_report(session_id)
+    actions = [report["action_brief"]["primary_action"], *report["action_brief"]["secondary_actions"]]
+
+    assert any(item.get("resource_type") == "external_video" for item in actions)
+    video_action = next(item for item in actions if item.get("resource_type") == "external_video")
+    assert video_action["target_task_id"]
+    assert "公开视频" in video_action["prompt"]
+
+
+@pytest.mark.asyncio
 async def test_guide_v2_builds_course_package(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
         raise RuntimeError("llm unavailable")

@@ -1609,11 +1609,7 @@ class GuideV2Manager:
         question_count = int(evaluation.get("question_count") or 0)
         progress = int(evaluation.get("progress") or 0)
         preferences = {str(item).strip().lower() for item in session.profile.preferences}
-        prefers_external_video = "external_video" in preferences or any(
-            token in item
-            for item in preferences
-            for token in ("公开视频", "精选视频", "公开课", "bilibili", "youtube")
-        )
+        prefers_external_video = GuideV2Manager._prefers_external_video(preferences)
         effect_context = self._effect_context(session, evaluation=evaluation)
         effect_assessment = effect_context["effect_assessment"]
         mistake_review = effect_context["mistake_review"]
@@ -2265,6 +2261,15 @@ class GuideV2Manager:
                 "guide_resource_type": resource_type,
                 "learner_profile_hints": learner_profile_hints,
             },
+        )
+
+    @staticmethod
+    def _prefers_external_video(preferences: set[str] | list[str] | tuple[str, ...]) -> bool:
+        items = {str(item).strip().lower() for item in preferences if str(item).strip()}
+        return "external_video" in items or any(
+            token in item
+            for item in items
+            for token in ("公开视频", "精选视频", "公开课", "网课", "bilibili", "youtube")
         )
 
     @staticmethod
@@ -5238,6 +5243,8 @@ class GuideV2Manager:
                 }
             )
 
+        preferences = {str(item).strip().lower() for item in session.profile.preferences if str(item).strip()}
+        prefers_external_video = GuideV2Manager._prefers_external_video(preferences)
         secondary: list[dict[str, str]] = []
 
         def resource_for(kind: str) -> str:
@@ -5247,6 +5254,8 @@ class GuideV2Manager:
                 return "visual"
             if kind == "video":
                 return "video"
+            if kind == "external_video":
+                return "external_video"
             return ""
 
         def action(label: str, detail: str, kind: str) -> dict[str, str]:
@@ -5264,6 +5273,8 @@ class GuideV2Manager:
                     payload["prompt"] = f"围绕「{topic}」生成一份补救图解，重点解释概念边界、常见错因和正确步骤。"
                 elif kind == "visual":
                     payload["prompt"] = f"围绕「{topic}」生成一张概念图解，突出关键关系和学习顺序。"
+                elif kind == "external_video":
+                    payload["prompt"] = f"围绕「{topic}」筛选 2-3 个公开视频或公开课片段，说明每个视频适合解决哪个卡点。"
                 else:
                     payload["prompt"] = f"围绕「{topic}」生成一组混合题型练习，提交后可用于评估掌握情况。"
             return payload
@@ -5290,7 +5301,11 @@ class GuideV2Manager:
             secondary.extend(
                 [
                     action("做一轮复测", "补完后立即做一组短题，确认不是只是看懂。", "retest"),
-                    action("回看完整路线", "确认系统插入的补救任务和后续任务顺序。", "route_map"),
+                    action(
+                        "找讲解视频" if prefers_external_video else "回看完整路线",
+                        "筛选少量公开视频，换一种讲法补清卡点。" if prefers_external_video else "确认系统插入的补救任务和后续任务顺序。",
+                        "external_video" if prefers_external_video else "route_map",
+                    ),
                 ]
             )
         elif effect_score >= 80 and progress >= 70:
@@ -5313,7 +5328,11 @@ class GuideV2Manager:
             )
             secondary.extend(
                 [
-                    action("看一张概念图", "如果做题前仍不确定，先用图解把关系理顺。", "visual"),
+                    action(
+                        "找参考视频" if prefers_external_video else "看一张概念图",
+                        "用公开视频换一个讲解视角，再回到短练习确认。" if prefers_external_video else "如果做题前仍不确定，先用图解把关系理顺。",
+                        "external_video" if prefers_external_video else "visual",
+                    ),
                     action("继续当前路线", current.title if current else "回到路线页继续下一个任务。", "current_task"),
                 ]
             )
@@ -5321,9 +5340,17 @@ class GuideV2Manager:
             title = "先重新建立直观理解"
             summary = "当前掌握还比较松散，最需要的是降低理解门槛，而不是增加任务数量。"
             primary = action(
-                "看图解或短视频",
-                f"先围绕「{weak_label}」建立直观理解。" if weak_label else "先把当前知识点讲清楚。",
-                "visual",
+                "找精选公开视频" if prefers_external_video else "看图解或短视频",
+                (
+                    f"先围绕「{weak_label}」找 2-3 个公开视频，换一种讲法建立直觉。"
+                    if weak_label and prefers_external_video
+                    else "先找少量公开视频建立直觉，再回到练习验证。"
+                    if prefers_external_video
+                    else f"先围绕「{weak_label}」建立直观理解。"
+                    if weak_label
+                    else "先把当前知识点讲清楚。"
+                ),
+                "external_video" if prefers_external_video else "visual",
             )
             secondary.extend(
                 [

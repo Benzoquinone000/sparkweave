@@ -2946,6 +2946,71 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   );
 });
 
+test("chat renders external video fallback search entries clearly", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "external video fallback smoke runs once");
+  const reference = await mockReferenceApis(page);
+  await installMockWebSocket(page, {
+    events: [
+      {
+        type: "result",
+        stage: "final",
+        content: "",
+        metadata: {
+          success: true,
+          render_type: "external_video",
+          response: "暂时没有拿到稳定的视频直链，我先准备了公开视频平台搜索入口。",
+          fallback_search: true,
+          videos: [
+            {
+              title: "在 Bilibili 搜索：梯度下降",
+              url: "https://search.bilibili.com/all?keyword=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
+              platform: "Bilibili",
+              kind: "search_fallback",
+              why_recommended: "这是兜底搜索入口，不是已筛好的单个视频。",
+            },
+            {
+              title: "在 YouTube 搜索：梯度下降",
+              url: "https://www.youtube.com/results?search_query=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
+              platform: "YouTube",
+              kind: "search_fallback",
+            },
+          ],
+          queries: ["梯度下降 入门 直观 视频 教程"],
+        },
+      },
+    ],
+  });
+
+  await page.goto("/chat");
+  await page.locator("textarea").first().fill("找梯度下降讲解视频");
+  await page.getByTestId("chat-send").click();
+
+  await expect(page.getByTestId("external-video-viewer")).toContainText("搜索入口");
+  await expect(page.getByTestId("external-video-watch-plan")).toContainText("先打开一个平台搜索入口");
+  await expect(page.getByText("在 Bilibili 搜索：梯度下降")).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开搜索" }).first()).toBeVisible();
+
+  await page.getByTestId("external-video-open-0").evaluate((node) => {
+    node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  });
+  await expect.poll(() => reference.evidencePayload).toEqual(
+    expect.objectContaining({
+      source: "resource",
+      verb: "viewed",
+      object_id: "https://search.bilibili.com/all?keyword=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
+      resource_type: "external_video",
+      metadata: expect.objectContaining({
+        kind: "search_fallback",
+        fallback_search: true,
+      }),
+    }),
+  );
+
+  await page.getByRole("button", { name: "保存当前结果" }).click();
+  const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
+  await expect(modal.getByText("视频搜索入口 · 2 个").first()).toBeVisible();
+});
+
 test("chat records deep question quiz answers", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "quiz result recording smoke runs once");
   const reference = await mockReferenceApis(page);

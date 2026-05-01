@@ -901,7 +901,7 @@ export function GuidePage() {
               >
                 <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
                   <Badge tone="brand">当前任务</Badge>
-                  <h3 className="mt-3 text-base font-semibold text-teal-950">{currentTask.title}</h3>
+                  <h3 className="mt-3 text-base font-semibold text-teal-950">{guideTaskTitle(currentTask)}</h3>
                   <p className="mt-2 text-sm leading-6 text-teal-900">
                     不确定怎么选就返回主流程，直接使用系统推荐。每次生成的材料都会回到当前任务里分页展示。
                   </p>
@@ -1605,7 +1605,7 @@ function ReferencePicker({
         <option value="">不引用 Notebook</option>
         {notebooks.map((item) => (
           <option key={item.id} value={item.id}>
-            {item.name || item.id}
+            {item.name || "未命名 Notebook"}
           </option>
         ))}
       </SelectInput>
@@ -1623,7 +1623,7 @@ function ReferencePicker({
                   selected ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
                 }`}
               >
-                <p className="truncate text-sm font-semibold text-ink">{record.title || recordId}</p>
+                <p className="truncate text-sm font-semibold text-ink">{record.title || "学习记录"}</p>
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{record.summary || record.user_query || "学习记录"}</p>
               </button>
             );
@@ -1669,7 +1669,7 @@ function CourseTemplatePreview({
           <p className="text-sm font-semibold text-ink">{template.course_name || template.title}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">{template.description}</p>
         </div>
-        <Badge tone="brand">{template.course_id || template.id}</Badge>
+        <Badge tone="brand">内置课程</Badge>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
         <EvalMini label="周期" value={Number(template.suggested_weeks ?? 0)} suffix="周" />
@@ -1715,7 +1715,7 @@ function DemoQuickStartCard({
   const chain = template.demo_seed.task_chain ?? [];
   const chainText = chain
     .slice(0, 3)
-    .map((item) => item.task_id || item.title)
+    .map((item, index) => guideTaskTitle(item, index))
     .filter(Boolean)
     .join(" / ");
 
@@ -1812,8 +1812,8 @@ function DemoTaskShortcutCard({
     return null;
   }
 
-  const stage = readString(step, "stage") || "稳定演示";
-  const show = readString(step, "show") || "使用内置 Demo 提示词生成稳定素材。";
+  const stage = guideStageLabel(readString(step, "stage"), "稳定演示");
+  const show = guideDisplayText(readString(step, "show"), "使用内置 Demo 提示词生成稳定素材。");
 
   return (
     <div className="rounded-lg border border-blue-100 bg-blue-50 p-3" data-testid="guide-demo-task-shortcut">
@@ -2290,10 +2290,10 @@ function KnowledgeMapVisualization({
           node,
           nodeId,
           index,
-          title: readString(node, "title") || nodeId,
-          description: readString(node, "description") || "等待路线生成。",
+          title: guideNodeTitle(node, index),
+          description: guideDisplayText(readString(node, "description"), "等待路线生成。"),
           difficulty: readString(node, "difficulty") || "medium",
-          target: readString(node, "mastery_target"),
+          target: guideDisplayText(readString(node, "mastery_target")),
           prerequisites: extractStringArray(node.prerequisites),
           strategies: extractStringArray(node.resource_strategy),
           tags: extractStringArray(node.tags),
@@ -2415,7 +2415,7 @@ function KnowledgeMapVisualization({
             <Badge tone={selected.isCurrent ? "brand" : masteryTone(selected.status)}>
               {selected.isCurrent ? "当前" : masteryStatusLabel(selected.status)}
             </Badge>
-            <Badge tone="neutral">Step {selected.index + 1}</Badge>
+            <Badge tone="neutral">第 {selected.index + 1} 步</Badge>
             <Badge tone="neutral">{questionDifficultyLabel(selected.difficulty)}</Badge>
           </div>
           <h3 className="mt-3 text-lg font-semibold text-ink">{selected.title}</h3>
@@ -2560,9 +2560,9 @@ function StudyPlanPanel({
                 <Badge tone="neutral">{completed}/{total} 任务</Badge>
               </div>
               <div className="mt-3 space-y-2">
-                {(block.tasks ?? []).slice(0, 2).map((task) => (
+                {(block.tasks ?? []).slice(0, 2).map((task, taskIndex) => (
                   <p key={task.task_id || task.title} className="line-clamp-1 rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                    {task.title || task.task_id}
+                    {guideTaskTitle(task, taskIndex)}
                   </p>
                 ))}
               </div>
@@ -2622,7 +2622,7 @@ function CourseSyllabusPanel({ metadata }: { metadata: Record<string, unknown> }
             {String(metadata.course_name || "完整课程")} · {String(metadata.suggested_weeks || "-")} 周 · {String(metadata.credits || "-")} 学分建议
           </p>
         </div>
-        <Badge tone="brand">{String(metadata.course_id || "COURSE")}</Badge>
+        <Badge tone="brand">课程大纲</Badge>
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.2fr]">
         <div className="space-y-3">
@@ -2667,9 +2667,9 @@ function CourseSyllabusPanel({ metadata }: { metadata: Record<string, unknown> }
       </div>
       {milestones.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          {milestones.slice(0, 4).map((raw) => {
+          {milestones.slice(0, 4).map((raw, index) => {
             const item = asRecord(raw) ?? {};
-            return <Badge key={String(item.stage)} tone="neutral">{String(item.stage || "里程碑")}</Badge>;
+            return <Badge key={String(item.stage || index)} tone="neutral">{guideStageLabel(item.stage, `里程碑 ${index + 1}`)}</Badge>;
           })}
         </div>
       ) : null}
@@ -2737,7 +2737,7 @@ function LearningReportPanel({
       tone: "warning" as const,
     })),
     ...nodes.slice(0, 1).map((node) => ({
-      label: `知识点：${node.title || node.node_id}`,
+      label: `知识点：${guideDisplayText(node.title, "当前知识点")}`,
       detail: node.suggestion || "继续完成任务并留下学习证据。",
       tone: "brand" as const,
     })),
@@ -3200,8 +3200,8 @@ function CourseDemoRecordingChecklistCard({
       }))
     : taskChain.slice(0, 3).map((task, index) => ({
         key: `${task.task_id || index}-${task.stage || index}`,
-        label: task.stage || `步骤 ${index + 1}`,
-        title: task.title || "演示任务",
+        label: guideStageLabel(task.stage, `步骤 ${index + 1}`),
+        title: guideDisplayText(task.title, "演示任务"),
         detail: task.show || task.sample_reflection || task.prompt || "",
       }));
   const persona = kit?.persona ?? seed?.persona ?? {};
@@ -3951,8 +3951,8 @@ function TaskRow({ task, active }: { task: GuideV2Task; active: boolean }) {
         {task.origin && task.origin !== "planned" ? <Badge tone={originTone(task.origin)}>{originLabel(task.origin)}</Badge> : null}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-ink">{task.title}</p>
-        <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{task.instruction}</p>
+        <p className="truncate text-sm font-semibold text-ink">{guideTaskTitle(task)}</p>
+        <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{guideDisplayText(task.instruction, "完成当前小任务，系统会继续安排下一步。")}</p>
         {task.artifact_refs?.length ? <p className="mt-1 text-xs text-brand-teal">{task.artifact_refs.length} 个资源已生成</p> : null}
       </div>
       <span className="shrink-0 text-xs text-slate-500">{task.estimated_minutes ?? 8}m</span>
@@ -4200,12 +4200,70 @@ const GUIDE_DISPLAY_COPY: Record<string, string> = {
   "Stable ML foundations demo": "机器学习基础稳定演示",
   "Demo learner": "演示学习者",
   "Concept boundaries": "概念边界",
+  ml_foundations: "机器学习基础",
+  task_chain: "任务链路",
+  route_map: "学习路线",
+  course_package: "课程产出包",
+  T1: "画像校准",
+  T2: "路线创建",
+  T3: "资源生成",
+  T4: "图解演示",
+  T5: "练习反馈",
+  T6: "效果报告",
+  "T1 profile": "画像校准",
+  "T2 route": "路线创建",
+  "T3 resource": "资源生成",
+  "T4 visual": "图解演示",
+  "T5 practice": "练习反馈",
+  "T6 report": "效果报告",
 };
 
 function guideDisplayText(value: unknown, fallback = ""): string {
   const text = String(value ?? "").trim();
   if (!text) return fallback;
-  return GUIDE_DISPLAY_COPY[text] || text;
+  const translated = GUIDE_DISPLAY_COPY[text];
+  if (translated) return translated;
+  if (isLikelyInternalIdentifier(text)) return fallback || "学习内容";
+  return text;
+}
+
+function isLikelyInternalIdentifier(text: string) {
+  return (
+    /^T\d+(\s+[-_a-z]+)?$/i.test(text) ||
+    /^N\d+$/i.test(text) ||
+    /^(task|node|session|guide|route|plan|kb|artifact|course)[_-][a-z0-9_-]+$/i.test(text)
+  );
+}
+
+function guideStageLabel(value: unknown, fallback = "步骤") {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  const exact = GUIDE_DISPLAY_COPY[raw];
+  if (exact) return exact;
+  const normalized = raw.toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized.includes("profile")) return "画像校准";
+  if (normalized.includes("route")) return "路线创建";
+  if (normalized.includes("visual")) return "图解演示";
+  if (normalized.includes("video")) return "短视频讲解";
+  if (normalized.includes("quiz") || normalized.includes("practice")) return "练习验证";
+  if (normalized.includes("feedback")) return "反馈回写";
+  if (normalized.includes("report")) return "效果报告";
+  if (normalized.includes("package") || normalized.includes("project")) return "成果整理";
+  if (normalized.includes("resource")) return "资源生成";
+  return guideDisplayText(raw, fallback);
+}
+
+function guideTaskTitle(task: Partial<Pick<GuideV2Task, "title" | "task_id" | "type">> | null | undefined, index?: number) {
+  const title = guideDisplayText(task?.title, "");
+  if (title && title !== "学习内容") return title;
+  const type = task?.type ? taskTypeLabel(task.type) : "学习任务";
+  return typeof index === "number" ? `${type} ${index + 1}` : type;
+}
+
+function guideNodeTitle(node: Record<string, unknown>, index: number) {
+  const title = guideDisplayText(readString(node, "title"), "");
+  if (title && title !== "学习内容") return title;
+  return `知识点 ${index + 1}`;
 }
 
 function feedbackRouteBadge(

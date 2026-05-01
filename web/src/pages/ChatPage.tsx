@@ -580,6 +580,14 @@ function guideHref(profile?: LearnerProfileSnapshot) {
   const params = new URLSearchParams({ new: "1", prompt });
   const title = cleanText(action?.title);
   if (title) params.set("action_title", title);
+  const actionKind = cleanText(action?.kind);
+  const sourceType = cleanText(action?.source_type);
+  const sourceLabel = cleanText(action?.source_label);
+  if (actionKind) params.set("action_kind", actionKind);
+  if (sourceType) params.set("source_type", sourceType);
+  if (sourceLabel) params.set("source_label", sourceLabel);
+  if (action?.estimated_minutes) params.set("estimated_minutes", String(action.estimated_minutes));
+  if (action?.confidence) params.set("confidence", String(action.confidence));
   return `/guide?${params.toString()}`;
 }
 

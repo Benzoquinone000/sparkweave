@@ -55,11 +55,18 @@ function eventText(event: QuestionEvent) {
   const content = event.content;
   if (typeof content === "string") return content;
   if (content == null) return event.type || "事件";
-  try {
-    return JSON.stringify(content);
-  } catch {
-    return String(content);
+  if (typeof content === "object") {
+    const record = content as Record<string, unknown>;
+    for (const key of ["message", "content", "text", "summary", "title"]) {
+      if (typeof record[key] === "string" && record[key]) return String(record[key]);
+    }
+    if (Array.isArray(record.results)) return `已生成 ${record.results.length} 道题`;
+    if ("completed" in record || "failed" in record) {
+      return `完成 ${String(record.completed ?? 0)}，失败 ${String(record.failed ?? 0)}`;
+    }
+    return "结构化结果已更新";
   }
+  return String(content);
 }
 
 function extractSummary(event: QuestionEvent): QuestionGenerationSummary | null {

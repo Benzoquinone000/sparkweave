@@ -56,14 +56,13 @@ function eventContent(event: VisionEvent) {
   if (!event.data) return "";
   const data = event.data;
   if (typeof data.content === "string") return data.content;
+  if (typeof data.message === "string") return data.message;
+  if (typeof data.text === "string") return data.text;
   if (typeof data.ggb_block === "object" && data.ggb_block) return "GeoGebra 指令块已生成";
   if ("commands_count" in data) return `命令数：${String(data.commands_count)}`;
   if ("elements_count" in data) return `识别元素：${String(data.elements_count)}`;
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return "";
-  }
+  if ("status" in data) return `状态：${String(data.status)}`;
+  return "过程状态已更新";
 }
 
 function commandsFromEvent(event: VisionEvent): VisionCommand[] {

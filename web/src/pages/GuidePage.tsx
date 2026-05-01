@@ -4466,7 +4466,8 @@ function buildAdaptiveGuideStrategy(
   const masteryAverage = masteryItems.length
     ? clampGuideScore(masteryItems.reduce((sum, item) => sum + clampGuideScore(item.score ?? 0), 0) / masteryItems.length)
     : 0;
-  const prefersVideo = preferences.some((item) => item.includes("视频"));
+  const prefersExternalVideo = preferences.some((item) => /公开视频|公开课|网课|网络视频|精选视频|外部视频|B站|bilibili|youtube/i.test(item));
+  const prefersVideo = preferences.some((item) => item.includes("视频") || /video|youtube|bilibili/i.test(item));
   const prefersPractice = preferences.some((item) => item.includes("练习"));
   const prefersVisual = preferences.some((item) => item.includes("图解"));
   const progressStyle = deriveGuideProgressStyle(preferences, weakPointCount, confidence, accuracy, masteryAverage);
@@ -4517,14 +4518,18 @@ function buildAdaptiveGuideStrategy(
       detail: `当前画像可信度约 ${Math.round(confidence * 100)}%，先补一轮可评分证据，后面的导学才会更准。`,
     });
   } else if (prefersVideo && weakPointCount === 0 && accuracy >= 0.55) {
-    recommendedResource = "video";
-    title = "可以直接用短视频加速理解";
-    summary = "你对当前任务已经有一定基础，且偏好视频形式，用短视频快速串起步骤会更省力。";
-    recommendations.push("先看短视频把整体流程串起来，再回到当前任务。");
+    recommendedResource = prefersExternalVideo ? "external_video" : "video";
+    title = prefersExternalVideo ? "先找一段精选公开视频" : "可以直接用短视频加速理解";
+    summary = prefersExternalVideo
+      ? "你对当前任务已经有一定基础，也偏好公开视频或公开课。先看一段外部优质讲解，再回到当前任务验证，会比从零生成材料更省力。"
+      : "你对当前任务已经有一定基础，且偏好视频形式，用短视频快速串起步骤会更省力。";
+    recommendations.push(prefersExternalVideo ? "先看一段精选公开视频，把另一个讲解视角补上，再回到当前任务。" : "先看短视频把整体流程串起来，再回到当前任务。");
     recommendations.push("看完后补一组小练习，避免只停留在“看过”。");
     reasons.push({
       label: "你的偏好更适合视频",
-      detail: "当前没有明显薄弱点堆积，而且画像里记录到你更愿意通过短视频快速建立整体感。",
+      detail: prefersExternalVideo
+        ? "当前没有明显薄弱点堆积，而且画像里记录到你偏好公开视频、公开课或外部视频资源。"
+        : "当前没有明显薄弱点堆积，而且画像里记录到你更愿意通过短视频快速建立整体感。",
     });
   } else if (prefersPractice && accuracy >= 0.45) {
     recommendedResource = "quiz";

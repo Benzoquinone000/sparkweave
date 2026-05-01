@@ -121,14 +121,17 @@ test("chat exposes capability-specific settings", async ({ page }, testInfo) => 
 });
 
 test("exposes migrated phase-two work areas", async ({ page }) => {
+  await mockReferenceApis(page);
+
   await page.goto("/knowledge");
-  await expect(page.getByRole("heading", { name: "创建知识库" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "知识库中枢" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的资料库" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "追加资料" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "文件夹同步" })).toBeVisible();
 
   await page.goto("/notebook");
-  await expect(page.getByRole("heading", { name: "创建笔记本" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "题目本" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "学习笔记" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的笔记本" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "新建笔记本" })).toBeVisible();
 
   await page.goto("/question");
   await expect(page.getByRole("heading", { name: "题目工坊" })).toBeVisible();
@@ -139,8 +142,9 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
   await expect(page.getByRole("button", { name: /快速解析/ })).toBeVisible();
 
   await page.goto("/memory");
-  await expect(page.getByRole("heading", { name: "长期记忆与学习画像" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "记忆文件" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "系统现在怎么理解你" })).toBeVisible();
+  await expect(page.getByTestId("learner-profile-overview")).toContainText("现在只做这一件事");
+  await expect(page.getByTestId("learner-profile-primary-action")).toHaveAttribute("href", /\/guide\?/);
 
   await page.goto("/playground");
   await expect(page.getByRole("heading", { name: "能力实验室" })).toBeVisible();
@@ -151,9 +155,9 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
   await expect(page.getByRole("button", { name: /生成修改/ })).toBeVisible();
 
   await page.goto("/guide");
-  await expect(page.getByRole("heading", { name: "创建导学" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "知识点导航" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "诊断与问答" })).toBeVisible();
+  await expect(page.getByText("懒人导学")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "先创建一条路线" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "帮我安排学习" })).toBeVisible();
 
   await page.goto("/agents");
   await expect(page.getByRole("heading", { name: "运行时智能体矩阵" })).toBeVisible();
@@ -175,6 +179,7 @@ test("memory workbench saves refreshes and clears files", async ({ page }, testI
   page.on("dialog", (dialog) => void dialog.accept());
 
   await page.goto("/memory");
+  await page.getByTestId("learner-profile-tab-memory").click();
   await expect(page.getByTestId("memory-editor")).toHaveValue(/Initial summary/);
 
   await page.getByTestId("memory-editor").fill("## Updated summary\n- Saved from the redesigned workbench");
@@ -184,10 +189,9 @@ test("memory workbench saves refreshes and clears files", async ({ page }, testI
     content: "## Updated summary\n- Saved from the redesigned workbench",
   });
 
-  await page.getByTestId("memory-session").selectOption("session-memory");
   await page.getByTestId("memory-refresh").click();
   await expect.poll(() => memory.refreshPayload).toEqual({
-    session_id: "session-memory",
+    session_id: null,
     language: "zh",
   });
   await expect(page.getByTestId("memory-editor")).toHaveValue(/Refreshed summary/);
@@ -2373,6 +2377,7 @@ test("mobile memory saves refreshes and clears files without DOM errors", async 
   const memory = await mockMemoryApis(page);
 
   await page.goto("/memory");
+  await page.getByTestId("learner-profile-tab-memory").click();
   await expect(page.getByTestId("memory-editor")).toHaveValue(/Initial summary/);
 
   await page.getByTestId("memory-editor").fill("## Mobile updated summary\n- Saved from the redesigned workbench");
@@ -2384,14 +2389,12 @@ test("mobile memory saves refreshes and clears files without DOM errors", async 
   await expect.poll(() => memory.getCount).toBeGreaterThanOrEqual(2);
   await expect(page.getByTestId("memory-editor")).toHaveValue(/Mobile updated summary/);
 
-  await page.getByTestId("memory-session").selectOption("session-memory");
-  await expect(page.getByTestId("memory-session")).toHaveValue("session-memory");
   await expect(page.getByTestId("memory-refresh")).toBeEnabled({ timeout: 15_000 });
   await page.getByTestId("memory-refresh").click();
   await expect
     .poll(() => memory.refreshPayload, { timeout: 15_000 })
     .toEqual({
-      session_id: "session-memory",
+      session_id: null,
       language: "zh",
     });
   await expect(page.getByTestId("memory-editor")).toHaveValue(/Refreshed summary/);
@@ -3531,6 +3534,42 @@ async function mockMemoryApis(page: import("@playwright/test").Page) {
     state.snapshot.summary_updated_at = updatedAt;
   };
 
+  const learnerProfile = {
+    version: 1,
+    generated_at: "2026-05-02T00:00:00.000Z",
+    confidence: 0.82,
+    overview: {
+      current_focus: "极限概念回顾",
+      preferred_time_budget_minutes: 10,
+      summary: "先把极限直觉补清楚，再继续做题。",
+    },
+    stable_profile: {
+      goals: ["高等数学复习"],
+      preferences: ["短例题", "图解"],
+      strengths: ["能根据步骤复盘"],
+      constraints: ["希望一次只做一件事"],
+    },
+    learning_state: {
+      weak_points: [{ label: "左右极限辨析", confidence: 0.7, evidence_count: 2, severity: "medium", source_ids: [] }],
+      mastery: [],
+    },
+    next_action: {
+      kind: "weak_point",
+      title: "前测补基：左右极限辨析",
+      summary: "用 10 分钟做一个小诊断，确认左右极限的判断边界。",
+      primary_label: "进入导学",
+      estimated_minutes: 10,
+      source_type: "weak_point",
+      source_label: "左右极限辨析",
+      confidence: 0.8,
+      suggested_prompt: "左右极限辨析",
+    },
+    recommendations: ["先看图解，再做两道判断题。"],
+    sources: [],
+    evidence_preview: [],
+    data_quality: { source_count: 2, evidence_count: 4, calibration_count: 0 },
+  };
+
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
       json: {
@@ -3543,6 +3582,8 @@ async function mockMemoryApis(page: import("@playwright/test").Page) {
   );
   await page.route("**/api/v1/knowledge/list", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: learnerProfile }));
+  await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: learnerProfile }));
   await page.route(/\/api\/v1\/sessions\?/, (route) =>
     route.fulfill({
       json: {
@@ -3658,9 +3699,9 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
   );
   await page.route("**/api/v1/knowledge/list", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
-  await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: chatSessions } }));
   await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: learnerProfile }));
   await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: learnerProfile }));
+  await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: chatSessions } }));
   await page.route(/\/api\/v1\/sessions\/session-old-a$/, async (route) => {
     const sessionId = decodeURIComponent(route.request().url().match(/\/api\/v1\/sessions\/([^/?#]+)$/)?.[1] ?? "");
     const session = chatSessions.find((item) => item.session_id === sessionId) ?? chatSessions[0];

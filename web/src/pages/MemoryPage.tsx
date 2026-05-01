@@ -187,7 +187,11 @@ export function MemoryPage() {
           </div>
         </motion.section>
 
-        <nav className="flex flex-wrap gap-1 rounded-lg border border-line bg-white p-1 shadow-sm" aria-label="学习画像页面">
+        <nav
+          className="flex flex-wrap gap-1 rounded-lg border border-line bg-white p-1 shadow-sm"
+          aria-label="学习画像页面"
+          role="tablist"
+        >
           {PAGE_TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -198,6 +202,9 @@ export function MemoryPage() {
                 onClick={() => setActiveTab(tab.key)}
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.99 }}
+                role="tab"
+                aria-selected={active}
+                data-testid={`learner-profile-tab-${tab.key}`}
                 className={`min-h-10 flex-1 rounded-md px-3 py-2 text-left transition sm:min-w-32 ${
                   active ? "bg-teal-50 text-brand-teal" : "text-slate-500 hover:bg-canvas hover:text-slate-700"
                 }`}
@@ -348,7 +355,7 @@ function ProfilePanel({
       exit={{ opacity: 0, y: -6 }}
       transition={{ duration: 0.22 }}
     >
-      <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-line bg-white p-5 shadow-sm" data-testid="learner-profile-overview">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.9fr)]">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase text-brand-teal">现在只做这一件事</p>
@@ -364,6 +371,7 @@ function ProfilePanel({
             </div>
             <a
               href={primaryActionHref}
+              data-testid="learner-profile-primary-action"
               className="dt-interactive mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-teal bg-brand-teal px-4 text-sm font-medium text-white hover:bg-teal-700"
             >
               {primaryActionLabel}
@@ -740,15 +748,15 @@ function MemoryEditor({
             <p className="mt-1 text-sm text-slate-500">{activeTab.hint}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button tone="secondary" onClick={() => void refresh()} disabled={mutations.refresh.isPending}>
+            <Button tone="secondary" onClick={() => void refresh()} disabled={mutations.refresh.isPending} data-testid="memory-refresh">
               {mutations.refresh.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               从最近会话刷新
             </Button>
-            <Button tone="primary" onClick={() => void save()} disabled={!hasChanges || mutations.save.isPending}>
+            <Button tone="primary" onClick={() => void save()} disabled={!hasChanges || mutations.save.isPending} data-testid="memory-save">
               {mutations.save.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               保存
             </Button>
-            <Button tone="danger" onClick={() => void clear()} disabled={mutations.clear.isPending}>
+            <Button tone="danger" onClick={() => void clear()} disabled={mutations.clear.isPending} data-testid="memory-clear">
               {mutations.clear.isPending ? <Loader2 size={16} className="animate-spin" /> : <Eraser size={16} />}
               清空
             </Button>
@@ -793,6 +801,7 @@ function MemoryEditor({
                   value={activeContent}
                   onChange={(event) => setDrafts((prev) => ({ ...prev, [activeFile]: event.target.value }))}
                   placeholder={activeTab.placeholder}
+                  data-testid="memory-editor"
                   className="min-h-[420px] font-mono text-sm leading-6"
                 />
               </motion.div>

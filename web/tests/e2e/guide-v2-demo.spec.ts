@@ -65,6 +65,21 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   expect(consoleDomErrors).toEqual([]);
 });
 
+test("guide normalizes external course demo seeds into task shortcuts", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "external template shortcut smoke runs once");
+
+  await installMockGuideV2ResourceEventSource(page);
+  const guide = await mockGuideV2ExternalDemoApis(page);
+
+  await page.goto("/guide");
+  await expect(page.getByTestId("guide-demo-task-shortcut")).toBeVisible();
+  await expect(page.getByTestId("guide-demo-task-shortcut")).toContainText("Manim");
+
+  await page.getByTestId("guide-demo-generate").click();
+  await expect.poll(() => guide.resourcePayload?.resource_type).toBe("video");
+  await expect.poll(() => guide.resourcePayload?.prompt).toContain("Manim");
+});
+
 test("guide keeps resource alternatives on a separate page", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "resource choice smoke runs once");
 
@@ -660,6 +675,196 @@ async function mockGuideV2StableDemoApis(page: Page) {
           resource_actions: [],
         },
       },
+    });
+  });
+
+  return state;
+}
+
+async function mockGuideV2ExternalDemoApis(page: Page) {
+  const state: { resourcePayload?: { resource_type?: string; prompt?: string } } = {};
+
+  const profile = {
+    version: 1,
+    generated_at: "2026-05-01T00:00:00.000Z",
+    confidence: 0.78,
+    overview: {
+      current_focus: "Understand derivative intuition",
+      preferred_time_budget_minutes: 30,
+      summary: "External course learner needs a short visual route.",
+    },
+    stable_profile: {
+      goals: ["Build calculus intuition"],
+      preferences: ["visual", "video"],
+      strengths: ["Can read graphs"],
+      constraints: ["Short study window"],
+    },
+    learning_state: {
+      weak_points: [{ label: "Formula intuition", confidence: 0.72, evidence_count: 2 }],
+      mastery: [],
+    },
+    recommendations: ["Use a compact Manim explanation."],
+    sources: [],
+    evidence_preview: [],
+    data_quality: { source_count: 2, evidence_count: 3 },
+  };
+
+  const task = {
+    task_id: "M4",
+    node_id: "M2",
+    type: "resource",
+    title: "Derivative as instantaneous rate",
+    instruction: "Watch one compact animation, then explain the tangent slope in your own words.",
+    status: "pending",
+    estimated_minutes: 10,
+    success_criteria: ["Explain derivative as a tangent slope.", "Connect rate of change with a graph."],
+    artifact_refs: [],
+    metadata: {},
+  };
+
+  const demoSeed = {
+    title: "Calculus external template demo",
+    task_chain: ["M4"],
+    resource_prompts: {
+      M4: "Create a Manim animation explaining derivatives as tangent slope and instantaneous rate of change.",
+    },
+    sample_reflection: {
+      score: 0.74,
+      reflection: "I can see derivative as a tangent slope, but I still confuse average and instantaneous rate.",
+    },
+  };
+
+  const session = {
+    session_id: "math-demo",
+    goal: "Learn derivative intuition",
+    status: "learning",
+    created_at: 1_700_000_000,
+    updated_at: 1_700_000_100,
+    profile: {
+      preferences: ["visual", "video"],
+      weak_points: ["Formula intuition"],
+      source_context_summary: "Unified learner profile included.",
+    },
+    course_map: {
+      title: "Higher Math Limits and Derivatives",
+      nodes: [
+        { node_id: "M1", title: "Limits", description: "Build limit intuition.", status: "completed" },
+        { node_id: "M2", title: "Derivatives", description: "Understand tangent slope.", status: "learning" },
+      ],
+      edges: [{ source: "M1", target: "M2" }],
+      metadata: {
+        course_id: "MATH101",
+        course_name: "Higher Math Limits and Derivatives",
+        source_action: { source: "demo_seed" },
+        created_from: "demo_seed",
+        demo_seed: demoSeed,
+      },
+    },
+    tasks: [task],
+    current_task: task,
+    evidence: [],
+    mastery: { M2: { score: 0.5, status: "developing" } },
+    recommendations: ["Generate one short animation."],
+    plan_events: [],
+    progress: 30,
+  };
+
+  await page.route("**/api/v1/system/status", (route) =>
+    route.fulfill({
+      json: {
+        backend: { status: "online" },
+        llm: { status: "configured", model: "mock-llm" },
+        embeddings: { status: "configured", model: "mock-embedding" },
+        search: { status: "optional" },
+      },
+    }),
+  );
+  await page.route("**/api/v1/knowledge/list", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
+  await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: [] } }));
+  await page.route("**/api/v1/notebook/list", (route) => route.fulfill({ json: { notebooks: [], total: 0 } }));
+  await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: profile }));
+  await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: profile }));
+  await page.route("**/api/v1/guide/v2/templates", (route) =>
+    route.fulfill({
+      json: {
+        templates: [
+          {
+            id: "higher_math_limits_derivatives",
+            title: "Higher Math Limits and Derivatives",
+            course_id: "MATH101",
+            course_name: "Higher Math Limits and Derivatives",
+            level: "beginner",
+            suggested_weeks: 6,
+            default_goal: "Build calculus intuition.",
+            default_preferences: ["visual", "video"],
+            default_time_budget_minutes: 30,
+            demo_seed: demoSeed,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/guide\/v2\/sessions(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        sessions: [{ session_id: "math-demo", goal: "Learn derivative intuition", status: "learning", updated_at: 1_700_000_100, progress: 30 }],
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/guide\/v2\/sessions\/math-demo$/, (route) => route.fulfill({ json: session }));
+  await page.route("**/api/v1/guide/v2/sessions/math-demo/study-plan", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        session_id: "math-demo",
+        summary: "Follow one focused calculus task.",
+        blocks: [{ id: "B1", title: "Derivative intuition", status: "learning", task_ids: ["M4"], tasks: [task] }],
+        checkpoints: [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/guide/v2/sessions/math-demo/diagnostic", (route) =>
+    route.fulfill({ json: { success: true, session_id: "math-demo", status: "completed", summary: "Already calibrated.", questions: [] } }),
+  );
+  await page.route("**/api/v1/guide/v2/sessions/math-demo/report", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        session_id: "math-demo",
+        title: "Calculus learning report",
+        summary: "The learner is ready for a focused animation.",
+        overview: { overall_score: 68, progress: 30, completed_tasks: 0, total_tasks: 1 },
+        node_cards: [],
+        feedback_digest: { count: 0 },
+        action_brief: {
+          title: "Generate the current animation",
+          summary: "Use the stable prompt from the external template.",
+          primary_action: { kind: "resource", label: "Generate video", target_task_id: "M4", resource_type: "video", prompt: demoSeed.resource_prompts.M4 },
+          secondary_actions: [],
+          signals: [],
+        },
+      },
+    }),
+  );
+  await page.route("**/api/v1/guide/v2/sessions/math-demo/course-package", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        session_id: "math-demo",
+        title: "Calculus package",
+        summary: "External template package.",
+        course_metadata: { course_id: "MATH101", course_name: "Higher Math Limits and Derivatives" },
+        portfolio: [],
+        review_plan: [],
+        demo_seed_pack: demoSeed,
+      },
+    }),
+  );
+  await page.route("**/api/v1/guide/v2/sessions/math-demo/tasks/M4/resources/jobs", async (route) => {
+    state.resourcePayload = route.request().postDataJSON() as typeof state.resourcePayload;
+    await route.fulfill({
+      json: { task_id: "job-video", session_id: "math-demo", learning_task_id: "M4", resource_type: state.resourcePayload?.resource_type },
     });
   });
 

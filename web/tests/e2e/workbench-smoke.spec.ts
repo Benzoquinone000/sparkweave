@@ -1087,7 +1087,7 @@ test("co-writer audits history and exports markdown", async ({ page }, testInfo)
   const audit = page.locator("section", { has: page.getByRole("heading", { name: "操作审计" }) });
   await expect(audit.getByText("Original proof sketch")).toBeVisible();
   await expect(audit.getByText("Edited proof sketch")).toBeVisible();
-  await expect(audit.getByText(/rag_search/)).toBeVisible();
+  await expect(audit.getByText(/知识库检索/)).toBeVisible();
   await page.getByRole("button", { name: /导出 Markdown/ }).click();
   await expect.poll(() => coWriter.exportPayload).toEqual({
     content: "Edited proof sketch",
@@ -1973,7 +1973,7 @@ test("mobile co-writer audits history and exports markdown without DOM errors", 
   await page.getByTestId("co-writer-audit-toggle").click();
   await expect(page.locator("pre").filter({ hasText: "Original proof sketch" })).toBeVisible();
   await expect(page.locator("pre").filter({ hasText: "Edited proof sketch" })).toBeVisible();
-  await expect(page.locator("pre").filter({ hasText: /rag_search/ })).toBeVisible();
+  await expect(page.locator("pre").filter({ hasText: /知识库检索/ })).toBeVisible();
   await page.getByTestId("co-writer-export").click();
   await expect.poll(() => coWriter.exportPayload).toEqual({
     content: "Edited proof sketch",

@@ -328,7 +328,7 @@ export function CoWriterPage() {
                       <Eye size={15} className="shrink-0 text-brand-blue" />
                     </div>
                     <p className="mt-2 line-clamp-2 leading-6">{getHistoryPreview(item)}</p>
-                    {operationId ? <p className="mt-2 font-mono text-xs text-slate-400">{operationId}</p> : null}
+                    {operationId ? <p className="mt-2 text-xs text-slate-400">记录 {index + 1}</p> : null}
                   </motion.button>
                 );
               })}

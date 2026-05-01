@@ -655,6 +655,7 @@ export interface ExternalVideoRecommendation {
   title?: string;
   url?: string;
   platform?: string;
+  kind?: "video" | "search_fallback" | string;
   summary?: string;
   thumbnail?: string;
   embed_url?: string;
@@ -674,6 +675,7 @@ export interface ExternalVideoResult {
   videos?: ExternalVideoRecommendation[];
   queries?: string[];
   search_errors?: string[];
+  fallback_search?: boolean;
   agent_chain?: Array<{ label?: string; detail?: string }>;
 }
 

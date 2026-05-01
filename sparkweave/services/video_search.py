@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import html
 import re
 from typing import Any, Callable
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 from sparkweave.services.search import web_search
 
@@ -26,6 +26,7 @@ class VideoCandidate:
     published_at: str = ""
     why_recommended: str = ""
     score: float = 0.0
+    kind: str = "video"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +41,7 @@ class VideoCandidate:
             "published_at": self.published_at,
             "why_recommended": self.why_recommended,
             "score": round(self.score, 3),
+            "kind": self.kind,
         }
 
 
@@ -81,6 +83,10 @@ async def recommend_learning_videos(
                 candidates[candidate.url] = candidate
 
     videos = sorted(candidates.values(), key=lambda item: item.score, reverse=True)[:max_results]
+    fallback_search = False
+    if not videos:
+        videos = _fallback_search_cards(topic=topic, queries=queries, language=language, max_results=max_results)
+        fallback_search = bool(videos)
     _emit(
         event_sink,
         "status",
@@ -92,10 +98,11 @@ async def recommend_learning_videos(
     return {
         "success": True,
         "render_type": "external_video",
-        "response": _build_response(videos, topic),
+        "response": _build_response(videos, topic, fallback_search=fallback_search),
         "videos": [item.to_dict() for item in videos],
         "queries": queries,
         "search_errors": errors,
+        "fallback_search": fallback_search,
         "learner_profile_hints": _public_learner_hints(hints),
         "agent_chain": [
             {"label": "画像智能体", "detail": "读取当前薄弱点、偏好和时间预算。"},
@@ -164,6 +171,40 @@ def _candidate_from_item(item: dict[str, str]) -> VideoCandidate | None:
         published_at=item.get("date", ""),
         duration_seconds=_duration_from_text(f"{title} {snippet}"),
     )
+
+
+def _fallback_search_cards(
+    *,
+    topic: str,
+    queries: list[str],
+    language: str,
+    max_results: int,
+) -> list[VideoCandidate]:
+    focus = topic.strip() or (queries[0] if queries else "学习主题")
+    encoded = quote_plus(focus)
+    cards = [
+        VideoCandidate(
+            title=f"在 Bilibili 搜索：{focus}",
+            url=f"https://search.bilibili.com/all?keyword={encoded}",
+            platform="Bilibili",
+            summary="没有拿到稳定视频直链，先打开平台搜索页，从前几条高相关结果里选择一个短讲解。",
+            why_recommended="这是兜底搜索入口，不是已筛好的单个视频。建议只看 1-2 个结果，再回到导学提交反思。",
+            score=0.22,
+            kind="search_fallback",
+        ),
+        VideoCandidate(
+            title=f"在 YouTube 搜索：{focus}",
+            url=f"https://www.youtube.com/results?search_query={encoded}",
+            platform="YouTube",
+            summary="没有拿到稳定视频直链时，用平台搜索页继续找公开讲解。",
+            why_recommended="这是兜底搜索入口。优先选择入门、直观、时长适中的讲解。",
+            score=0.2,
+            kind="search_fallback",
+        ),
+    ]
+    if language.lower().startswith("zh"):
+        return cards[: max(1, max_results)]
+    return [cards[1], cards[0]][: max(1, max_results)]
 
 
 def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
@@ -287,9 +328,11 @@ def _recommendation_reason(candidate: VideoCandidate, *, topic: str, hints: dict
     return reason
 
 
-def _build_response(videos: list[VideoCandidate], topic: str) -> str:
+def _build_response(videos: list[VideoCandidate], topic: str, *, fallback_search: bool = False) -> str:
     if not videos:
         return f"暂时没有找到足够稳定的「{topic}」学习视频。可以换一个更具体的关键词再试。"
+    if fallback_search:
+        return f"暂时没有拿到稳定的视频直链，我先为「{topic}」准备了公开视频平台搜索入口。建议只打开一个平台，选 1-2 个短讲解后回到导学提交反思。"
     lead = f"已为「{topic}」筛选 {len(videos)} 个公开视频，优先选择短时长、入门友好、可嵌入播放的内容。"
     first = videos[0]
     return f"{lead} 推荐先看《{first.title}》，再回到当前任务提交一句反思。"

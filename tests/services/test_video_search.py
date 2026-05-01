@@ -78,3 +78,29 @@ async def test_recommend_learning_videos_accepts_provider_link_aliases_and_redir
     urls = {item["url"] for item in result["videos"]}
     assert "https://www.youtube.com/watch?v=abcDEF12345" in urls
     assert "https://www.bilibili.com/video/BV1B7411m7LV" in urls
+
+
+@pytest.mark.asyncio
+async def test_recommend_learning_videos_returns_platform_search_fallbacks(monkeypatch) -> None:
+    async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
+        return {
+            "search_results": [
+                {
+                    "title": "梯度下降文字教程",
+                    "url": "https://example.com/gradient-descent",
+                    "snippet": "这是一篇普通网页，没有公开视频直链。",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(video_search, "web_search", _fake_web_search)
+
+    result = await video_search.recommend_learning_videos(topic="梯度下降", max_results=2)
+
+    assert result["success"] is True
+    assert result["fallback_search"] is True
+    assert len(result["videos"]) == 2
+    assert all(item["kind"] == "search_fallback" for item in result["videos"])
+    assert result["videos"][0]["url"].startswith("https://search.bilibili.com/")
+    assert result["videos"][1]["url"].startswith("https://www.youtube.com/results")
+    assert "搜索入口" in result["response"]

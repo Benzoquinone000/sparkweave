@@ -17,10 +17,15 @@ function safeEmbedUrl(url?: string) {
   return url;
 }
 
+function isFallbackVideo(video?: { kind?: string }) {
+  return video?.kind === "search_fallback";
+}
+
 export function ExternalVideoViewer({ result }: { result: ExternalVideoResult }) {
   const videos = result.videos ?? [];
-  const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos[0];
+  const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos.find((item) => !isFallbackVideo(item)) ?? videos[0];
   const embedUrl = safeEmbedUrl(featured?.embed_url);
+  const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
   const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
   const recordedVideoUrls = useRef(new Set<string>());
 
@@ -44,6 +49,8 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
         metadata: {
           rank: index + 1,
           platform: video.platform || "",
+          kind: video.kind || "video",
+          fallback_search: result.fallback_search || false,
           query: result.queries?.[0] || "",
           style_hint: result.style_hint || "",
           learner_profile_hints: result.learner_profile_hints ?? {},
@@ -53,13 +60,20 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
         recordedVideoUrls.current.delete(video.url || "");
       });
     },
-    [result.agent_chain, result.learner_profile_hints, result.queries, result.response, result.style_hint],
+    [
+      result.agent_chain,
+      result.fallback_search,
+      result.learner_profile_hints,
+      result.queries,
+      result.response,
+      result.style_hint,
+    ],
   );
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-3" data-testid="external-video-viewer">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">精选视频</Badge>
+        <Badge tone="brand">{hasFallbackSearch ? "搜索入口" : "精选视频"}</Badge>
         <Badge tone="neutral">{videos.length ? `${videos.length} 个推荐` : "等待结果"}</Badge>
       </div>
 
@@ -69,7 +83,9 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
         <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3" data-testid="external-video-watch-plan">
           <p className="text-xs font-semibold text-brand-teal">建议用法</p>
           <p className="mt-1 text-sm leading-6 text-slate-700">
-            先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。
+            {hasFallbackSearch
+              ? "先打开一个平台搜索入口，选 1-2 个短讲解，看完后回到导学提交反思或做一组练习。"
+              : "先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。"}
           </p>
         </div>
       ) : null}
@@ -115,7 +131,9 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                 )}
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={index === 0 ? "brand" : "neutral"}>{index === 0 ? "建议先看" : video.platform || "视频"}</Badge>
+                    <Badge tone={index === 0 ? "brand" : "neutral"}>
+                      {isFallbackVideo(video) ? "搜索入口" : index === 0 ? "建议先看" : video.platform || "视频"}
+                    </Badge>
                     {video.platform ? <Badge tone="neutral">{video.platform}</Badge> : null}
                     {formatDuration(video.duration_seconds) ? (
                       <span className="inline-flex items-center gap-1 text-xs text-slate-500">
@@ -140,7 +158,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                       className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
                     >
                       <ExternalLink size={13} />
-                      打开观看
+                      {isFallbackVideo(video) ? "打开搜索" : "打开观看"}
                     </a>
                   ) : null}
                 </div>

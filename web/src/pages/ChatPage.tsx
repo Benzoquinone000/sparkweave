@@ -657,6 +657,7 @@ function EmptyState({
     "我会根据你的画像和当前问题，自动选择答疑、练习、图解、视频或导学路径。你只需要点一下，或者直接输入问题。";
   const minutes = Number(action?.estimated_minutes || profile?.overview.preferred_time_budget_minutes || 10);
   const actions = quickActionsForProfile(profile);
+  const directStartPrompt = profile ? "继续学习" : `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`;
 
   return (
     <motion.div
@@ -707,12 +708,12 @@ function EmptyState({
             data-testid="chat-profile-start"
             disabled={disabled}
             className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 text-sm font-semibold text-brand-red hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => onQuickSend(cleanText(action?.suggested_prompt) || `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`)}
+            onClick={() => onQuickSend(directStartPrompt)}
             whileHover={disabled ? undefined : { y: -1 }}
             whileTap={disabled ? undefined : { scale: 0.99 }}
           >
             <BookOpenCheck size={16} />
-            直接开始
+            按画像继续
           </motion.button>
         </div>
 

@@ -49,6 +49,31 @@ test("chat profile starter turns learner profile into one-click actions", async 
   expect(consoleDomErrors).toEqual([]);
 });
 
+test("chat profile starter uses a simple continue command for profile-guided handoff", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "profile guided handoff smoke runs once");
+  await mockReferenceApis(page);
+  await installMockWebSocket(page, { resultOnlyContent: "已按画像继续学习。" });
+
+  await page.goto("/chat");
+  await expect(page.getByTestId("chat-profile-start")).toContainText("按画像继续");
+  await page.getByTestId("chat-profile-start").click();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const messages = (window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> }).__sparkWeaveWsMessages ?? [];
+        return messages.find((message) => message.type === "start_turn") ?? null;
+      }),
+    )
+    .toEqual(
+      expect.objectContaining({
+        type: "start_turn",
+        content: "继续学习",
+        capability: "chat",
+      }),
+    );
+});
+
 test("learner profile overview confirms current diagnosis", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "profile calibration smoke runs once");
   const reference = await mockReferenceApis(page);

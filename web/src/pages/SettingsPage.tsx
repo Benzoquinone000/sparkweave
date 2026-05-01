@@ -501,12 +501,15 @@ function formatSettingsTestEvent(kind: string, data: { message?: string; [key: s
 
 function friendlyServiceError(message: string) {
   if (!message) return "服务暂时不可用";
-  if (/timeout|timing out|504/i.test(message)) return "服务响应超时";
+  if (/timeout|timing out|504|upstream/i.test(message)) return "服务响应超时，稍后再试或换一个模型";
   if (/401|apikey|api key|secret|signature|unauthorized/i.test(message)) return "密钥或鉴权信息不正确";
+  if (/429|rate limit|too many requests|quota|insufficient/i.test(message)) return "调用额度或频率受限";
+  if (/500|502|503|internal server|bad gateway|service unavailable/i.test(message)) return "服务端暂时异常，稍后再试";
   if (/not configured|missing .*provider|missing_search_provider|search_provider/i.test(message)) return "还没有完成服务配置";
-  if (/not found|404/i.test(message)) return "服务地址可能不正确";
+  if (/model.*not|invalid model|model not found|unsupported model/i.test(message)) return "模型名称可能不正确";
+  if (/base_url|endpoint|url|not found|404/i.test(message)) return "服务地址可能不正确";
   if (/connection|connect|network/i.test(message)) return "网络或服务连接失败";
-  return message;
+  return "服务返回异常，请检查配置后重试";
 }
 
 function InlineLegacyText({ text }: { text: string }) {
@@ -638,11 +641,6 @@ function SystemProbePanel({
                         {result.model ? `${result.model} · ` : ""}
                         {typeof result.response_time_ms === "number" ? `${result.response_time_ms} ms` : "未返回耗时"}
                       </p>
-                      {result.error ? (
-                        <p className="mt-1 text-xs text-red-600">
-                          <InlineLegacyText text={withLegacyText(friendlyServiceError(result.error), result.error)} />
-                        </p>
-                      ) : null}
                     </>
                   ) : (
                     <p>尚未检测。</p>

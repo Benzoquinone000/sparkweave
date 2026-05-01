@@ -67,7 +67,7 @@ import type {
   VisualizeResult,
 } from "@/lib/types";
 
-type GuideSubPage = "main" | "setup" | "completeTask" | "routeMap" | "coursePackage";
+type GuideSubPage = "main" | "setup" | "completeTask" | "resourceChoice" | "routeMap" | "coursePackage";
 type DemoRecordingCueAction = "none" | "generate_current_seed" | "open_complete_task" | "open_route_map" | "open_course_package";
 type DemoRecordingCue = {
   title: string;
@@ -309,7 +309,6 @@ export function GuidePage() {
     [adaptiveGuideStrategy.recommendedResource, resourceButtonCopy],
   );
   const primaryResourceAction = resourceActions[0];
-  const alternateResourceActions = resourceActions.slice(1);
   useEffect(() => {
     if (hasUrlGuideSeed || goalTouched || goal.trim() || !profileSuggestedPrompt) return;
     const timer = window.setTimeout(() => {
@@ -892,6 +891,54 @@ export function GuidePage() {
               </GuideSubPageFrame>
             ) : null}
 
+            {guideSubPage === "resourceChoice" && currentTask ? (
+              <GuideSubPageFrame
+                eyebrow="学习材料"
+                title="选择一种学习材料"
+                description="系统已经把推荐项放在主流程里；这里仅用于你想换一种学习方式时使用。"
+                onBack={() => setGuideSubPage("main")}
+              >
+                <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+                  <Badge tone="brand">当前任务</Badge>
+                  <h3 className="mt-3 text-base font-semibold text-teal-950">{currentTask.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-teal-900">
+                    不确定怎么选就返回主流程，直接使用系统推荐。每次生成的材料都会回到当前任务里分页展示。
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {resourceActions.map((action, index) => {
+                    const recommended = index === 0;
+                    return (
+                      <button
+                        key={action.type}
+                        type="button"
+                        data-testid={`guide-resource-choice-${action.type}`}
+                        disabled={!activeSessionId || busy || Boolean(generatingType)}
+                        className={`min-h-32 rounded-lg border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                          recommended
+                            ? "border-teal-200 bg-teal-50 hover:border-teal-300"
+                            : "border-line bg-white hover:border-blue-200 hover:bg-blue-50"
+                        }`}
+                        onClick={() => {
+                          setGuideSubPage("main");
+                          void generateResource(action.type);
+                        }}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                            {generatingType === action.type ? <Loader2 size={16} className="animate-spin" /> : guideResourceIcon(action.type, 16)}
+                            {action.label}
+                          </span>
+                          {recommended ? <Badge tone="brand">推荐</Badge> : <Badge tone="neutral">{resourceLabel(action.type)}</Badge>}
+                        </span>
+                        <span className="mt-3 block text-sm leading-6 text-slate-600">{guideResourceDescription(action.type)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </GuideSubPageFrame>
+            ) : null}
+
             {guideSubPage === "routeMap" && session ? (
               <GuideSubPageFrame
                 eyebrow="完整路线"
@@ -1127,30 +1174,26 @@ export function GuidePage() {
                           画像依据：{adaptiveGuideStrategy.reasons[0].detail}
                         </p>
                       ) : null}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-slate-500">想换一种方式：</span>
-                        {alternateResourceActions.map((action) => (
-                          <Button
-                            key={action.type}
-                            tone="quiet"
-                            className="min-h-9 px-2 text-xs"
-                            disabled={!activeSessionId || busy || Boolean(generatingType)}
-                            onClick={() => void generateResource(action.type)}
-                          >
-                            {generatingType === action.type ? <Loader2 size={14} className="animate-spin" /> : guideResourceIcon(action.type, 14)}
-                            {action.label}
-                          </Button>
-                        ))}
+                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+                        <button
+                          type="button"
+                          data-testid="guide-open-complete-task"
+                          className="rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
+                          onClick={() => setGuideSubPage("completeTask")}
+                        >
+                          <span className="text-sm font-semibold text-ink">学完了，去提交</span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">选一下掌握状态，写一句反思，系统再给反馈。</span>
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="guide-open-resource-choice"
+                          className="rounded-lg border border-line bg-white p-4 text-left transition hover:border-blue-200 hover:bg-blue-50"
+                          onClick={() => setGuideSubPage("resourceChoice")}
+                        >
+                          <span className="text-sm font-semibold text-ink">换一种材料</span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">图解、练习、短视频、精选视频放到单独页。</span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        data-testid="guide-open-complete-task"
-                        className="w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
-                        onClick={() => setGuideSubPage("completeTask")}
-                      >
-                        <span className="text-sm font-semibold text-ink">学完了，去提交</span>
-                        <span className="mt-1 block text-xs leading-5 text-slate-500">选一下掌握状态，写一句反思，系统再给反馈。</span>
-                      </button>
                     </div>
                   ) : null}
                 </section>
@@ -3903,6 +3946,16 @@ function guideResourceIcon(type: GuideActionResourceType, size = 16) {
   if (type === "video") return <Video size={size} />;
   if (type === "external_video") return <Video size={size} />;
   return <Map size={size} />;
+}
+
+function guideResourceDescription(type: GuideActionResourceType) {
+  const descriptions: Record<GuideActionResourceType, string> = {
+    visual: "把概念关系画出来，适合先建立直觉。",
+    quiz: "用选择、判断、填空和简答验证理解，做完可获得反馈。",
+    video: "生成一段短讲解，适合需要步骤演示时使用。",
+    external_video: "从公开网络里找少量讲解视频，看完后回到导学提交反思。",
+  };
+  return descriptions[type];
 }
 
 function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLabel: string) {

@@ -17,8 +17,11 @@ from pathlib import Path
 import time
 from typing import Any
 
-from sparkweave.services.learner_evidence import LearnerEvidenceService, get_learner_evidence_service
 from sparkweave.services.guide_v2 import GuideV2Manager
+from sparkweave.services.learner_evidence import (
+    LearnerEvidenceService,
+    get_learner_evidence_service,
+)
 from sparkweave.services.memory import MemoryService, get_memory_service
 from sparkweave.services.notebook import NotebookManager, get_notebook_manager
 from sparkweave.services.paths import PathService, get_path_service
@@ -575,6 +578,7 @@ class LearnerProfileService:
                     metadata={
                         "verb": event.get("verb"),
                         "object_type": object_type,
+                        "resource_type": resource_type,
                         "ledger": True,
                         "concepts": concept_labels,
                     },

@@ -1177,7 +1177,43 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
+function metadataText(metadata: Record<string, unknown> | undefined, key: string) {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function evidenceVerbLabel(value: string) {
+  const map: Record<string, string> = {
+    viewed: "看过",
+    saved: "保存",
+    generated: "生成",
+    answered: "答题",
+    completed: "完成",
+    planned: "规划",
+    confirmed_profile: "确认画像",
+    corrected_profile: "修正画像",
+    rejected_profile: "否定画像",
+  };
+  return map[value] || value;
+}
+
+function resourceTypeLabel(value: string) {
+  const map: Record<string, string> = {
+    external_video: "公开视频",
+    video: "视频",
+    visual: "图解",
+    quiz: "练习",
+    research: "研究",
+    chat: "对话",
+    question: "题目",
+    solve: "解题",
+  };
+  return map[value] || value;
+}
+
 function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
+  const verb = evidenceVerbLabel(metadataText(item.metadata, "verb"));
+  const resourceType = resourceTypeLabel(metadataText(item.metadata, "resource_type"));
   return (
     <article className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1187,6 +1223,12 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
         </div>
         <span className="text-xs text-slate-500">{formatDate(item.created_at)}</span>
       </div>
+      {verb || resourceType ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {verb ? <Badge tone="neutral">{verb}</Badge> : null}
+          {resourceType ? <Badge tone={resourceType === "公开视频" || resourceType === "视频" ? "brand" : "neutral"}>{resourceType}</Badge> : null}
+        </div>
+      ) : null}
       {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-600">{item.summary}</p> : null}
       {item.score !== null && item.score !== undefined ? <p className="mt-2 text-xs text-slate-500">分数：{formatPercent(item.score)}</p> : null}
     </article>

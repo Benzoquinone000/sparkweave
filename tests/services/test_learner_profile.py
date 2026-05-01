@@ -195,6 +195,18 @@ async def test_learner_profile_reads_formal_evidence_ledger(tmp_path) -> None:
             "created_at": 1_777_000_000,
         }
     )
+    evidence.append_event(
+        {
+            "source": "resource",
+            "verb": "viewed",
+            "object_type": "resource",
+            "object_id": "https://example.com/video",
+            "title": "Gradient descent video",
+            "summary": "Learner opened a curated public video.",
+            "resource_type": "external_video",
+            "created_at": 1_777_000_100,
+        }
+    )
     service = LearnerProfileService(
         memory_service=_Memory(),
         guide_manager=_Guide(),
@@ -209,6 +221,8 @@ async def test_learner_profile_reads_formal_evidence_ledger(tmp_path) -> None:
     assert any(source["source_id"] == "evidence" for source in profile["sources"])
     assert any(item["label"] == "学习率判断错误" for item in profile["learning_state"]["weak_points"])
     assert any(item["concept_id"] == "learning-rate" for item in profile["learning_state"]["mastery"])
+    assert "external_video" in profile["stable_profile"]["preferences"]
+    assert any(item["metadata"].get("resource_type") == "external_video" for item in profile["evidence_preview"])
 
 
 @pytest.mark.asyncio

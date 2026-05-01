@@ -1811,11 +1811,11 @@ test("mobile settings saves runtime config and probes services without DOM error
   await page.getByTestId("settings-diagnostics-toggle").click();
   await page.getByTestId("settings-probe-llm").click();
   await expect.poll(() => settings.systemProbeTarget).toBe("llm");
-  await expect(page.getByTestId("settings-probe-result-llm")).toContainText("LLM connection successful");
+  await expect(page.getByTestId("settings-probe-result-llm")).toContainText("连接正常，可以使用");
 
   await page.getByTestId("settings-test-llm").click();
   await expect.poll(() => settings.serviceStartPayload?.service).toBe("llm");
-  await expect(page.getByTestId("settings-test-logs")).toContainText("LLM handshake ok");
+  await expect(page.getByTestId("settings-test-logs")).toContainText("服务响应正常");
   const eventSourceUrls = await page.evaluate(() => (window as typeof window & { __settingsEventSourceUrls?: string[] }).__settingsEventSourceUrls ?? []);
   expect(eventSourceUrls.some((url) => url.includes("/api/v1/settings/tests/llm/run-llm-complete/events"))).toBe(true);
   expect(errors).toEqual([]);
@@ -1848,7 +1848,7 @@ test("mobile settings manages topology tour and cancellable checks without DOM e
 
   await page.getByTestId("settings-probe-search").click();
   await expect.poll(() => settings.systemProbeTarget).toBe("search");
-  await expect(page.getByTestId("settings-probe-result-search")).toContainText("Search not configured");
+  await expect(page.getByTestId("settings-probe-result-search")).toContainText("还没有完成服务配置");
 
   await page.getByTestId("settings-test-search").click();
   await expect.poll(() => settings.serviceStartPayload?.service).toBe("search");

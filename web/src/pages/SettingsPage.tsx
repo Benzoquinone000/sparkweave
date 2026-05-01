@@ -506,19 +506,15 @@ function friendlyServiceError(message: string) {
   if (!message) return "服务暂时不可用";
   if (/timeout|timing out|504/i.test(message)) return "服务响应超时";
   if (/401|apikey|api key|secret|signature|unauthorized/i.test(message)) return "密钥或鉴权信息不正确";
+  if (/not configured|missing .*provider|missing_search_provider|search_provider/i.test(message)) return "还没有完成服务配置";
   if (/not found|404/i.test(message)) return "服务地址可能不正确";
   if (/connection|connect|network/i.test(message)) return "网络或服务连接失败";
   return message;
 }
 
 function InlineLegacyText({ text }: { text: string }) {
-  const [visible, legacy] = text.split(LEGACY_TEXT_SEPARATOR);
-  return (
-    <>
-      {visible}
-      {legacy ? <span className="dt-test-legacy">{legacy}</span> : null}
-    </>
-  );
+  const [visible] = text.split(LEGACY_TEXT_SEPARATOR);
+  return <>{visible}</>;
 }
 
 function systemProbeDisplayName(service: SystemProbeId) {

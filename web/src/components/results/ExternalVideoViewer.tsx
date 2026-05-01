@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -28,11 +28,13 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
   const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
   const recordedVideoUrls = useRef(new Set<string>());
+  const [viewedVideoUrls, setViewedVideoUrls] = useState<Set<string>>(() => new Set());
 
   const recordVideoViewed = useCallback(
     (video: (typeof videos)[number], index: number) => {
       if (!video.url || recordedVideoUrls.current.has(video.url)) return;
       recordedVideoUrls.current.add(video.url);
+      setViewedVideoUrls((prev) => new Set(prev).add(video.url || ""));
       void appendLearnerEvidence({
         source: "resource",
         source_id: `external_video:${video.url}`,
@@ -58,6 +60,11 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
         },
       }).catch(() => {
         recordedVideoUrls.current.delete(video.url || "");
+        setViewedVideoUrls((prev) => {
+          const next = new Set(prev);
+          next.delete(video.url || "");
+          return next;
+        });
       });
     },
     [
@@ -149,17 +156,27 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                     </p>
                   ) : null}
                   {video.url ? (
-                    <a
-                      href={video.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      data-testid={`external-video-open-${index}`}
-                      onClick={() => recordVideoViewed(video, index)}
-                      className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
-                    >
-                      <ExternalLink size={13} />
-                      {isFallbackVideo(video) ? "打开搜索" : "打开观看"}
-                    </a>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <a
+                        href={video.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        data-testid={`external-video-open-${index}`}
+                        onClick={() => recordVideoViewed(video, index)}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
+                      >
+                        <ExternalLink size={13} />
+                        {isFallbackVideo(video) ? "打开搜索" : "打开观看"}
+                      </a>
+                      {viewedVideoUrls.has(video.url) ? (
+                        <span
+                          className="inline-flex min-h-8 items-center rounded-md border border-line bg-canvas px-2 text-xs text-slate-500"
+                          data-testid={`external-video-evidence-${index}`}
+                        >
+                          已记入画像依据
+                        </span>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </div>

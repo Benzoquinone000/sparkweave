@@ -2926,6 +2926,7 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   await page.getByTestId("external-video-open-0").evaluate((node) => {
     node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   });
+  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入画像依据");
   await expect.poll(() => reference.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",
@@ -3015,6 +3016,7 @@ test("chat renders external video fallback search entries clearly", async ({ pag
   await page.getByTestId("external-video-open-0").evaluate((node) => {
     node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   });
+  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入画像依据");
   await expect.poll(() => reference.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",

@@ -15,6 +15,7 @@ const desktopShots = [
   { route: "/chat", files: ["screenshots-simplified-chat-drawer.png"], prepare: openChatContext },
   { route: "/knowledge", files: ["screenshots-knowledge.png", "screenshots-finalcheck-knowledge.png", "screenshots-review-knowledge.png", "screenshots-simplified-final-knowledge.png", "screenshots-simplified-knowledge-desktop.png"] },
   { route: "/notebook", files: ["screenshots-simplified-notebook.png"] },
+  { route: "/guide", files: ["screenshots-guide.png", "screenshots-simplified-guide.png"] },
   { route: "/question", files: ["screenshots-simplified-question.png", "screenshots-simplified-final-question.png"] },
   { route: "/vision", files: ["screenshots-simplified-vision.png", "screenshots-simplified-final-vision.png"] },
   { route: "/agents", files: ["screenshots-agents.png", "screenshots-finalcheck-agents.png", "screenshots-review-agents.png", "screenshots-simplified-agents-desktop.png"] },
@@ -28,17 +29,33 @@ const mobileShots = [
 ];
 
 async function main() {
+  const onlyRoutes = parseOnlyRoutes();
   const port = await findOpenPort(Number(process.env.SCREENSHOT_PORT || 43782));
   const baseURL = `http://127.0.0.1:${port}`;
   const server = await startServer(port, baseURL);
   const browser = await chromium.launch();
   try {
-    await captureGroup(browser, baseURL, desktop, desktopShots);
-    await captureGroup(browser, baseURL, mobile, mobileShots);
+    await captureGroup(browser, baseURL, desktop, filterShots(desktopShots, onlyRoutes));
+    await captureGroup(browser, baseURL, mobile, filterShots(mobileShots, onlyRoutes));
   } finally {
     await browser.close();
     stopServer(server);
   }
+}
+
+function parseOnlyRoutes() {
+  const raw = process.env.SCREENSHOT_ONLY || "";
+  const routes = raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (item.startsWith("/") ? item : `/${item}`));
+  return new Set(routes);
+}
+
+function filterShots(shots, onlyRoutes) {
+  if (!onlyRoutes.size) return shots;
+  return shots.filter((shot) => onlyRoutes.has(shot.route));
 }
 
 async function startServer(port, baseURL) {
@@ -165,6 +182,10 @@ async function installApiMocks(page) {
     if (pathname === "/api/v1/notebook/statistics") return route.fulfill({ json: { total_notebooks: 2, total_records: 8, total_questions: 12 } });
     if (pathname === "/api/v1/notebook/health") return route.fulfill({ json: { status: "healthy", service: "notebook" } });
     if (pathname.match(/^\/api\/v1\/notebook\/[^/]+$/)) return route.fulfill({ json: notebookDetail });
+    if (pathname === "/api/v1/learner-profile") return route.fulfill({ json: learnerProfile });
+    if (pathname === "/api/v1/learner-profile/refresh") return route.fulfill({ json: learnerProfile });
+    if (pathname === "/api/v1/guide/v2/templates") return route.fulfill({ json: { templates: guideV2CourseTemplates } });
+    if (pathname === "/api/v1/guide/v2/sessions") return route.fulfill({ json: { sessions: [] } });
     if (pathname === "/api/v1/question-notebook/categories") return route.fulfill({ json: questionCategories });
     if (pathname === "/api/v1/question-notebook/entries") return route.fulfill({ json: { items: questionEntries, total: questionEntries.length } });
     if (pathname.startsWith("/api/v1/question-notebook/entries/")) return route.fulfill({ json: questionEntries[0] });
@@ -398,6 +419,76 @@ const sparkBotHistory = [{ role: "assistant", content: "我们先从左右极限
 const guideSessions = [{ session_id: "guide-1", title: "函数极限学习路径", status: "ready", current_index: 1 }];
 const guidePages = { pages: [{ index: 0, title: "直观理解" }, { index: 1, title: "形式化定义" }, { index: 2, title: "典型题训练" }] };
 const guideDetail = { session_id: "guide-1", title: "函数极限学习路径", status: "ready", current_index: 1, pages: guidePages.pages };
+const learnerProfile = {
+  version: 1,
+  generated_at: "2026-05-01T00:00:00.000Z",
+  confidence: 0.82,
+  overview: {
+    current_focus: "先补齐梯度下降的直观理解",
+    preferred_time_budget_minutes: 45,
+    summary: "最近更适合用图解和短练习把抽象概念落地。",
+  },
+  stable_profile: {
+    goals: ["掌握机器学习基础并完成一个可展示的小项目"],
+    preferences: ["图解", "练习", "公开视频"],
+    strengths: ["能跟着示例理解流程"],
+    constraints: ["希望每次只做一件事"],
+  },
+  learning_state: {
+    weak_points: [{ label: "概念边界不清", confidence: 0.76, evidence_count: 2 }],
+    mastery: [],
+  },
+  recommendations: ["先用一张图解释梯度下降，再做 3 道小题确认。"],
+  next_action: {
+    title: "前测补基：梯度下降的直观理解",
+    suggested_prompt: "我想用 10 分钟补齐梯度下降的直观理解，先看图解再做练习。",
+    estimated_minutes: 10,
+    source_type: "weak_point",
+    source_label: "概念边界不清",
+    confidence: 0.76,
+  },
+  sources: [],
+  evidence_preview: [],
+  data_quality: { source_count: 4, evidence_count: 8 },
+};
+const guideV2CourseTemplates = [
+  {
+    id: "ml_foundations",
+    title: "机器学习基础",
+    course_id: "ML101",
+    course_name: "机器学习基础",
+    description: "用稳定样例串起画像、路线、图解、练习和反馈。",
+    level: "beginner",
+    suggested_weeks: 1,
+    default_goal: "理解机器学习基础，并完成梯度下降和模型评估的入门练习。",
+    default_preferences: ["visual", "practice"],
+    default_time_budget_minutes: 45,
+    demo_seed: {
+      title: "稳定机器学习演示",
+      scenario: "从画像进入导学，生成图解，完成练习并回写反馈。",
+      task_chain: [
+        { task_id: "T1", title: "课程全景图" },
+        { task_id: "T4", title: "梯度下降图解" },
+        { task_id: "T6", title: "模型评估练习" },
+      ],
+    },
+  },
+  {
+    id: "robotics_ros_foundations",
+    title: "智能机器人与 ROS 基础",
+    course_id: "ROBOT101",
+    course_name: "智能机器人与 ROS 基础",
+    description: "从机器人系统组成、ROS 通信到小项目实践，适合展示完整高校课程。",
+    level: "beginner",
+    suggested_weeks: 4,
+    credits: 2,
+    estimated_minutes: 720,
+    default_goal: "系统学习智能机器人与 ROS 基础，完成话题通信、服务调用和导航入门实践。",
+    default_preferences: ["visual", "practice", "project"],
+    default_time_budget_minutes: 60,
+    tags: ["机器人", "ROS", "项目实践"],
+  },
+];
 
 const coWriterHistory = [{ operation_id: "cw-1", title: "课程总结润色", selected_text: "DPO 是一种偏好优化方法。", edited_text: "DPO 是一种直接利用偏好数据优化策略的训练方法。" }];
 

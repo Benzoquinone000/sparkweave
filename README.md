@@ -46,6 +46,10 @@ SparkWeave 星火织学围绕“对话式学习画像自主构建、多智能体
 | --- | --- |
 | <img src="web/screenshots-simplified-notebook.png" alt="Notebook 沉淀" /> | <img src="web/screenshots-finalcheck-agents.png" alt="SparkBot 助教中心" /> |
 
+| 懒人式导学 | 系统设置 |
+| --- | --- |
+| <img src="web/screenshots-simplified-guide.png" alt="懒人式导学" /> | <img src="web/screenshots-simplified-final-settings.png" alt="系统设置" /> |
+
 | 页面 | 说明 |
 | --- | --- |
 | `/chat` | 主学习工作台，支持能力切换、知识库引用、多智能体轨迹、数学动画和可视化结果展示。 |

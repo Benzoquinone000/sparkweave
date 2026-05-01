@@ -36,10 +36,12 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
 
   await page.getByTestId("guide-demo-open-course-package").click();
   await expect(page.getByTestId("guide-course-package-panel")).toBeVisible();
-  await expect(page.getByTestId("guide-course-package-panel")).toContainText("Stable demo course package");
+  await expect(page.getByTestId("guide-course-package-panel")).toContainText("稳定演示产出包");
+  await expect(page.getByTestId("guide-course-package-panel")).not.toContainText("Stable demo course package");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toBeVisible();
-  await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7-minute demo route");
-  await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("Open guide route before recording.");
+  await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
+  await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
+  await expect(page.getByTestId("guide-demo-recording-checklist")).not.toContainText("7-minute demo route");
   expect(consoleDomErrors).toEqual([]);
 });
 

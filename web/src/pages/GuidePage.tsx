@@ -1913,19 +1913,19 @@ function DemoWrapUpCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="brand">演示收尾</Badge>
             <Badge tone={effectStatusTone(score)}>
-              {loading ? "检查中" : readiness?.label || "准备中"}
+              {loading ? "检查中" : guideDisplayText(readiness?.label, "准备中")}
             </Badge>
             {checks.length ? <Badge tone="neutral">{readyCount}/{checks.length} 项就绪</Badge> : null}
           </div>
           <h3 className="mt-3 text-base font-semibold text-ink">下一步看路线与产出包</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {readiness?.summary || "这次反馈已经回写学习画像。录屏时接着展示路线调整、演示就绪度和最终课程产出包。"}
+            {guideDisplayText(readiness?.summary, "这次反馈已经回写学习画像。录屏时接着展示路线调整、演示就绪度和最终课程产出包。")}
           </p>
         </div>
         {loading ? <Loader2 size={16} className="animate-spin text-brand-blue" /> : <BarChart3 size={18} className="text-brand-blue" />}
       </div>
       <p className="mt-3 rounded-lg border border-blue-100 bg-white p-2 text-xs leading-5 text-slate-600">
-        建议：{nextStep}
+        建议：{guideDisplayText(nextStep)}
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Button tone="secondary" className="min-h-10 justify-center" data-testid="guide-demo-open-route-map" onClick={onOpenRouteMap}>
@@ -2909,21 +2909,21 @@ function DemoReadinessCard({
           <Target size={16} className="text-brand-blue" />
           <p className="text-sm font-semibold text-ink">演示就绪</p>
         </div>
-        <Badge tone={effectStatusTone(score)}>{readiness.label || `${score} 分`}</Badge>
+        <Badge tone={effectStatusTone(score)}>{guideDisplayText(readiness.label, `${score} 分`)}</Badge>
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        {readiness.summary || "系统会检查画像、资源、练习、报告和可展示产物是否已经成链。"}
+        {guideDisplayText(readiness.summary, "系统会检查画像、资源、练习、报告和可展示产物是否已经成链。")}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {checks.slice(0, 5).map((item) => (
           <Badge key={item.id || item.label} tone={demoReadinessTone(item.status)}>
-            {item.label || item.id}：{demoReadinessLabel(item.status)}
+            {guideDisplayText(item.label || item.id)}：{demoReadinessLabel(item.status)}
           </Badge>
         ))}
       </div>
       {nextStep ? (
         <p className="mt-3 rounded-lg border border-line bg-canvas p-2 text-xs leading-5 text-slate-600">
-          下一步：{nextStep}
+          下一步：{guideDisplayText(nextStep)}
         </p>
       ) : null}
     </div>
@@ -2957,7 +2957,8 @@ function ReportActionButton({
   const prompt = String(action?.prompt || action?.detail || "");
   const canGenerate = Boolean(resourceType && taskId);
   const opensCoursePackage = ["course_package", "project"].includes(kind);
-  const label = action?.label || (opensCoursePackage ? "查看课程产出包" : canGenerate ? `生成${resourceLabel(resourceType)}` : "查看完整路线");
+  const rawLabel = action?.label || (opensCoursePackage ? "查看课程产出包" : canGenerate ? `生成${resourceLabel(resourceType)}` : "查看完整路线");
+  const label = guideDisplayText(rawLabel);
   const tone = primary ? "primary" : "secondary";
   const sizeClass = primary ? "w-full justify-center" : "min-h-9 px-3 text-xs";
 
@@ -3074,16 +3075,21 @@ function CoursePackagePanel({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <GraduationCap size={18} className="text-brand-teal" />
-          <h2 className="text-base font-semibold text-ink">课程产出包</h2>
+          <div>
+            <h2 className="text-base font-semibold text-ink">课程产出包</h2>
+            {coursePackage?.title ? (
+              <p className="mt-0.5 text-xs text-slate-500">{guideDisplayText(coursePackage.title)}</p>
+            ) : null}
+          </div>
         </div>
-        {loading ? <Loader2 size={16} className="animate-spin text-brand-teal" /> : <Badge tone="brand">{project.estimated_minutes ?? "-"}m</Badge>}
+        {loading ? <Loader2 size={16} className="animate-spin text-brand-teal" /> : <Badge tone="brand">{project.estimated_minutes ?? "-"} 分钟</Badge>}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        {coursePackage?.summary || "系统会把学习路径整理成最终项目、评分标准、复习计划和作品集索引。"}
+        {guideDisplayText(coursePackage?.summary, "系统会把学习路径整理成最终项目、评分标准、复习计划和作品集索引。")}
       </p>
       <div className="mt-4 rounded-lg border border-line bg-canvas p-3">
-        <p className="text-sm font-semibold text-ink">{project.title || "学习成果项目"}</p>
-        <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{project.scenario || "完成更多学习任务后会生成更贴合你的项目说明。"}</p>
+        <p className="text-sm font-semibold text-ink">{guideDisplayText(project.title, "学习成果项目")}</p>
+        <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{guideDisplayText(project.scenario, "完成更多学习任务后会生成更贴合你的项目说明。")}</p>
       </div>
       <CourseLearningStyleCard learningStyle={learningStyle} />
       <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} learningStyle={learningStyle} />
@@ -3101,22 +3107,22 @@ function CoursePackagePanel({
         {behaviorTags.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {behaviorTags.slice(0, 4).map((tag) => (
-              <Badge key={tag} tone="brand">{tag}</Badge>
+              <Badge key={tag} tone="brand">{guideDisplayText(tag)}</Badge>
             ))}
           </div>
         ) : null}
         {recentEvents.length ? (
           <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500">
-            最近：{recentEvents.slice(0, 2).map((event) => event.title || event.description || event.type).join(" / ")}
+            最近：{recentEvents.slice(0, 2).map((event) => guideDisplayText(event.title || event.description || event.type)).join(" / ")}
           </p>
         ) : null}
         {effectAssessment ? (
           <div className="mt-3 rounded-lg border border-line bg-canvas p-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-ink">学习效果</p>
-              <Badge tone={effectStatusTone(effectAssessment.score)}>{effectAssessment.label || Number(effectAssessment.score ?? 0)}</Badge>
+              <Badge tone={effectStatusTone(effectAssessment.score)}>{guideDisplayText(effectAssessment.label, `${Number(effectAssessment.score ?? 0)} 分`)}</Badge>
             </div>
-            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{effectAssessment.summary || "已生成学习效果评估。"}</p>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{guideDisplayText(effectAssessment.summary, "已生成学习效果评估。")}</p>
           </div>
         ) : null}
       </div>
@@ -3124,16 +3130,16 @@ function CoursePackagePanel({
         {rubric.slice(0, 3).map((item) => (
           <div key={item.criterion} className="rounded-lg border border-line bg-white p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-ink">{item.criterion}</p>
+              <p className="text-sm font-semibold text-ink">{guideDisplayText(item.criterion)}</p>
               <Badge tone="neutral">{item.weight ?? 0}%</Badge>
             </div>
-            <p className="mt-1 text-xs leading-5 text-slate-500">{item.baseline || item.excellent}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{guideDisplayText(item.baseline || item.excellent)}</p>
           </div>
         ))}
       </div>
       <EvalList
         title="复习重点"
-        items={review.slice(0, 3).map((item) => `${item.title || "知识点"}：${item.action || ""}`)}
+        items={review.slice(0, 3).map((item) => `${guideDisplayText(item.title, "知识点")}：${guideDisplayText(item.action)}`)}
         empty="完成更多任务后生成复习计划。"
         tone="brand"
       />
@@ -3200,8 +3206,8 @@ function CourseDemoRecordingChecklistCard({
   const persona = kit?.persona ?? seed?.persona ?? {};
   const assets = kit?.assets ?? [];
   const fallback = kit?.checklist?.[0] || blueprint?.fallbacks?.[0] || seed?.rehearsal_notes?.[0] || "";
-  const title = blueprint?.title || seed?.title || "录屏检查";
-  const summary = blueprint?.summary || kit?.summary || seed?.scenario || "打开画像、路线、资源、反馈和产出包，讲一条完整学习闭环。";
+  const title = guideDisplayText(blueprint?.title || seed?.title, "录屏检查");
+  const summary = guideDisplayText(blueprint?.summary || kit?.summary || seed?.scenario, "打开画像、路线、资源、反馈和产出包，讲一条完整学习闭环。");
   const hasContent = Boolean(blueprint || kit || seed || steps.length || assets.length || fallback);
 
   if (!hasContent) {
@@ -3216,16 +3222,16 @@ function CourseDemoRecordingChecklistCard({
           <p className="text-sm font-semibold text-ink">录屏检查</p>
         </div>
         <Badge tone={effectStatusTone(Number(blueprint?.readiness_score ?? 0))}>
-          {blueprint?.readiness_label || `${blueprint?.duration_minutes ?? 7} 分钟`}
+          {guideDisplayText(blueprint?.readiness_label, `${blueprint?.duration_minutes ?? 7} 分钟`)}
         </Badge>
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Badge tone="brand">{title}</Badge>
         {learningStyle?.label ? <Badge tone="success">{learningStyle.label}</Badge> : null}
-        {persona.name ? <Badge tone="neutral">{persona.name}</Badge> : null}
+        {persona.name ? <Badge tone="neutral">{guideDisplayText(persona.name)}</Badge> : null}
         {(persona.weak_points ?? []).slice(0, 1).map((item) => (
-          <Badge key={item} tone="warning">{item}</Badge>
+          <Badge key={item} tone="warning">{guideDisplayText(item)}</Badge>
         ))}
       </div>
       {steps.length ? (
@@ -3233,10 +3239,10 @@ function CourseDemoRecordingChecklistCard({
           {steps.map((step) => (
             <div key={step.key} className="rounded-lg border border-line bg-canvas p-2">
               <div className="flex items-center gap-2">
-                <Badge tone="brand">{step.label}</Badge>
-                <p className="min-w-0 truncate text-xs font-semibold text-ink">{step.title}</p>
+                <Badge tone="brand">{guideDisplayText(step.label)}</Badge>
+                <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(step.title)}</p>
               </div>
-              <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{step.detail || "按当前页面顺序展示即可。"}</p>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{guideDisplayText(step.detail, "按当前页面顺序展示即可。")}</p>
             </div>
           ))}
         </div>
@@ -3245,14 +3251,14 @@ function CourseDemoRecordingChecklistCard({
         <div className="mt-3 flex flex-wrap gap-2">
           {assets.slice(0, 2).map((asset) => (
             <Badge key={`${asset.type}-${asset.title}`} tone={fallbackAssetTone(asset.status)}>
-              {fallbackAssetLabel(asset.status)}：{asset.title || asset.type || "演示素材"}
+              {fallbackAssetLabel(asset.status)}：{guideDisplayText(asset.title || asset.type, "演示素材")}
             </Badge>
           ))}
         </div>
       ) : null}
       {fallback ? (
         <p className="mt-3 rounded-lg border border-line bg-canvas p-2 text-xs leading-5 text-slate-600">
-          兜底：{fallback}
+          兜底：{guideDisplayText(fallback)}
         </p>
       ) : null}
     </div>
@@ -4083,6 +4089,65 @@ function fallbackAssetLabel(status?: string): string {
   if (status === "ready") return "可直接展示";
   if (status === "seed") return "可现场生成";
   return "备用";
+}
+
+const GUIDE_DISPLAY_COPY: Record<string, string> = {
+  "Ready for recording": "可录屏",
+  Ready: "可录屏",
+  "Stable demo course package": "稳定演示产出包",
+  "Stable demo course package for a 7-minute recording.": "用于 7 分钟录屏的稳定课程产出包。",
+  "7-minute demo route": "7 分钟演示路线",
+  "Show profile, route, resource, feedback, and package.": "展示画像、路线、资源、反馈和产出包。",
+  "Open guide route before recording.": "录屏前先打开导学路线。",
+  "Profile, resource, feedback, report and package can now be shown as one chain.": "画像、资源、反馈、报告和产出包已经能串成一条闭环。",
+  "Open the route map, then open the course package.": "先看路线，再看课程产出包。",
+  "Open the route and course package": "查看路线和产出包",
+  "Use the route map and package to show the closed loop.": "用路线图和产出包展示学习闭环。",
+  "Machine Learning Foundations": "机器学习基础",
+  "Explain gradient descent": "讲清楚梯度下降",
+  "Build one visual resource and one feedback loop.": "生成一份图解资源，并完成一次反馈闭环。",
+  "Create route": "创建路线",
+  "Generate visual": "生成图解",
+  "Submit feedback": "提交反馈",
+  Route: "路线",
+  Visual: "图解",
+  Feedback: "反馈",
+  Profile: "画像",
+  profile: "画像",
+  feedback: "反馈",
+  "Closed loop": "闭环",
+  "Shows profile to feedback.": "能展示画像到反馈的闭环。",
+  Optimization: "优化方法",
+  "Do one short retest.": "做一次短复测。",
+  "Retest gradient descent.": "复测梯度下降。",
+  "Recording fallback kit": "录屏兜底包",
+  "Use stable artifacts if live generation is slow.": "现场生成变慢时，直接展示稳定产物。",
+  "Use saved visuals if generation is slow.": "生成变慢时，展示已保存图解。",
+  "Gradient descent visual": "梯度下降图解",
+  "Use saved visual.": "使用已保存图解。",
+  "Profile evidence": "画像证据",
+  "Profile is present.": "已有画像证据。",
+  "Open learner profile.": "打开学习画像。",
+  Resource: "资源",
+  "Visual resource was requested.": "已请求图解资源。",
+  "Feedback loop is visible.": "反馈闭环可见。",
+  "Demo learning report": "演示学习报告",
+  "The demo learner has a visible feedback loop.": "演示学习者已经形成可见反馈闭环。",
+  "Feedback recorded": "反馈已记录",
+  "Profile updated.": "画像已更新。",
+  Demo: "演示",
+  ready: "已就绪",
+  "Open route": "查看路线",
+  "Show the adjusted route.": "展示调整后的路线。",
+  "Stable ML foundations demo": "机器学习基础稳定演示",
+  "Demo learner": "演示学习者",
+  "Concept boundaries": "概念边界",
+};
+
+function guideDisplayText(value: unknown, fallback = ""): string {
+  const text = String(value ?? "").trim();
+  if (!text) return fallback;
+  return GUIDE_DISPLAY_COPY[text] || text;
 }
 
 function feedbackRouteBadge(

@@ -1,10 +1,12 @@
 import { Code2, Image as ImageIcon, Timer, Video } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
+import { ResourceEvidenceButton } from "@/components/results/ResourceEvidenceButton";
 import { apiUrl } from "@/lib/api";
+import { evidenceFingerprint } from "@/lib/evidence";
 import type { MathAnimatorResult } from "@/lib/types";
 
 function assetUrl(url: string) {
@@ -13,9 +15,35 @@ function assetUrl(url: string) {
 
 export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
   const [showCode, setShowCode] = useState(false);
-  const artifacts = result.artifacts ?? [];
-  const videos = artifacts.filter((item) => item.type === "video");
-  const images = artifacts.filter((item) => item.type === "image");
+  const artifacts = useMemo(() => result.artifacts ?? [], [result.artifacts]);
+  const videos = useMemo(() => artifacts.filter((item) => item.type === "video"), [artifacts]);
+  const images = useMemo(() => artifacts.filter((item) => item.type === "image"), [artifacts]);
+  const evidencePayload = useMemo(() => {
+    const primaryArtifact = artifacts[0];
+    const basis = primaryArtifact?.url || result.code?.content || result.response || "math-animation";
+    const fingerprint = evidenceFingerprint(basis);
+    const resourceType = videos.length ? "video" : "visual";
+    return {
+      source: "resource",
+      source_id: `math_animator:${fingerprint}`,
+      actor: "learner",
+      verb: "viewed",
+      object_type: "resource",
+      object_id: primaryArtifact?.url || `math_animator:${fingerprint}`,
+      title: videos.length ? "数学动画视频" : "数学动画图解",
+      summary: result.response || result.render?.visual_review?.summary || "",
+      resource_type: resourceType,
+      confidence: 0.5,
+      weight: 0.55,
+      metadata: {
+        output_mode: result.output_mode || "",
+        quality: result.render?.quality || "",
+        artifact_count: artifacts.length,
+        style_hint: result.style_hint || "",
+        learner_profile_hints: result.learner_profile_hints ?? {},
+      },
+    };
+  }, [artifacts, result, videos.length]);
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-3">
@@ -72,6 +100,7 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        <ResourceEvidenceButton payload={evidencePayload} testId="math-animation-evidence-button" />
         {result.timings && Object.keys(result.timings).length ? (
           <span className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2 py-1 text-xs text-slate-500">
             <Timer size={13} />

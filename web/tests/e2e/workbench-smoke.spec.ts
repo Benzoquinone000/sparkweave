@@ -3167,6 +3167,17 @@ test("chat renders mermaid visualization results", async ({ page }, testInfo) =>
 
   await expect(page.getByText("Mermaid visualization ready.")).toBeVisible();
   await expect(page.getByTestId("mermaid-preview").locator("svg")).toBeVisible();
+  await page.getByTestId("visualization-evidence-button").click();
+  await expect(page.getByTestId("visualization-evidence-button-recorded")).toContainText("已记入画像依据");
+  await expect.poll(() => references.evidencePayload).toEqual(
+    expect.objectContaining({
+      source: "resource",
+      verb: "viewed",
+      object_type: "resource",
+      resource_type: "visual",
+      metadata: expect.objectContaining({ render_type: "mermaid" }),
+    }),
+  );
   await expect(page.getByRole("button", { name: "显示代码" })).toBeVisible();
 
   await page.getByRole("button", { name: "保存当前结果" }).click();

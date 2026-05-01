@@ -5,6 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
+import { ResourceEvidenceButton } from "@/components/results/ResourceEvidenceButton";
+import { evidenceFingerprint } from "@/lib/evidence";
 import type { VisualizeResult } from "@/lib/types";
 
 let chartRegistered = false;
@@ -229,6 +231,29 @@ function ChartJsPreview({ code }: { code: string }) {
 export function VisualizationViewer({ result }: { result: VisualizeResult }) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const evidencePayload = useMemo(() => {
+    const fingerprint = evidenceFingerprint(`${result.render_type}:${result.code.content}`);
+    const title = result.analysis?.description || result.response || `${result.render_type} 图解`;
+    return {
+      source: "resource",
+      source_id: `visualize:${fingerprint}`,
+      actor: "learner",
+      verb: "viewed",
+      object_type: "resource",
+      object_id: `visualize:${fingerprint}`,
+      title: title.slice(0, 120),
+      summary: result.response || result.analysis?.rationale || result.analysis?.data_description || "",
+      resource_type: "visual",
+      confidence: 0.5,
+      weight: 0.55,
+      metadata: {
+        render_type: result.render_type,
+        chart_type: result.analysis?.chart_type || "",
+        style_hint: result.style_hint || "",
+        learner_profile_hints: result.learner_profile_hints ?? {},
+      },
+    };
+  }, [result]);
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(result.code.content);
@@ -258,6 +283,7 @@ export function VisualizationViewer({ result }: { result: VisualizeResult }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
+        <ResourceEvidenceButton payload={evidencePayload} testId="visualization-evidence-button" />
         <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={() => setShowCode((value) => !value)}>
           <Code2 size={14} />
           {showCode ? "隐藏代码" : "显示代码"}

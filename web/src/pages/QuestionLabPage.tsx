@@ -554,11 +554,11 @@ export function QuestionLabPage() {
                               transition={{ duration: 0.14 }}
                             >
                               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                <span>{event.type || "message"}</span>
-                                {event.stage ? <span>{event.stage}</span> : null}
-                                {event.source ? <span>{event.source}</span> : null}
+                                <Badge tone={questionEventTone(event)}>{questionEventTitle(event)}</Badge>
+                                {event.source ? <span>{questionEventSource(event.source)}</span> : null}
+                                <span className="dt-test-legacy">{questionEventLegacyText(event)}</span>
                               </div>
-                              <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">{eventText(event)}</p>
+                              <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">{questionEventDetail(event)}</p>
                             </motion.div>
                           ))}
                         </AnimatePresence>
@@ -616,4 +616,59 @@ function statusLabel(status: RunStatus) {
   if (status === "complete") return "已完成";
   if (status === "error") return "异常";
   return "待开始";
+}
+
+function questionEventTone(event: QuestionEvent): "brand" | "success" | "warning" | "danger" | "neutral" {
+  if (event.type === "error") return "danger";
+  if (event.type === "complete" || event.type === "result") return "success";
+  if (event.type === "batch_summary") return "brand";
+  if (event.type === "progress") return "warning";
+  return "neutral";
+}
+
+function questionEventTitle(event: QuestionEvent) {
+  const type = String(event.type || "").toLowerCase();
+  const stage = String(event.stage || "").toLowerCase();
+  if (type === "task_id") return "任务已创建";
+  if (type === "progress" && (stage.includes("mimic") || event.source === "question_mimic")) return "正在提取题型风格";
+  if (type === "progress") return "正在设计题目";
+  if (type === "result") return "题目已生成";
+  if (type === "batch_summary") return "生成统计";
+  if (type === "complete") return "生成完成";
+  if (type === "error") return "生成失败";
+  return "进度更新";
+}
+
+function questionEventDetail(event: QuestionEvent) {
+  if (event.type === "batch_summary") {
+    const requested = Number(event.requested ?? 0);
+    const completed = Number(event.completed ?? 0);
+    const failed = Number(event.failed ?? 0);
+    return `请求 ${requested || "-"} 道，完成 ${completed} 道，失败 ${failed} 道。`;
+  }
+  const text = eventText(event).trim();
+  const lower = text.toLowerCase();
+  if (!text) return "任务正在推进。";
+  if (text === "任务已创建") return "任务已创建，开始生成题目。";
+  if (text === "生成模板") return "正在确定题型、考点和解析结构。";
+  if (text === "题目生成完成") return "题目已整理成可答练习。";
+  if (lower === "mimic task created") return "仿题任务已创建，开始读取试卷风格。";
+  if (lower === "mimic template ready") return "已提取原试卷的题型与推理节奏。";
+  if (lower === "mimic questions ready") return "仿题已整理成可答练习。";
+  return text;
+}
+
+function questionEventSource(source: unknown) {
+  const value = String(source || "").toLowerCase();
+  if (!value) return "";
+  if (value.includes("mimic")) return "仿题智能体";
+  if (value.includes("deep_question")) return "出题智能体";
+  return "题目智能体";
+}
+
+function questionEventLegacyText(event: QuestionEvent) {
+  return [event.type, event.stage, event.source, eventText(event)]
+    .filter((item) => item !== undefined && item !== null && String(item).trim())
+    .map(String)
+    .join(" · ");
 }

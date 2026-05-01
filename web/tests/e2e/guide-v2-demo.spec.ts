@@ -25,6 +25,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await page.getByTestId("guide-demo-cue-action").click();
   await expect.poll(() => guide.resourcePayload?.resource_type).toBe("visual");
   await expect.poll(() => guide.resourcePayload?.prompt).toContain("gradient descent");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("智能体接力");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("画像");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("图解");
 
   await page.getByTestId("guide-open-complete-task").click();
   await page.getByTestId("guide-demo-apply-feedback").click();
@@ -240,6 +243,28 @@ async function mockGuideV2StableDemoApis(page: Page) {
     metadata: {},
   };
 
+  const visualArtifact = {
+    id: "artifact-visual",
+    type: "visual",
+    capability: "visualize",
+    title: "Gradient descent visual",
+    created_at: 1_700_000_120,
+    result: {
+      response: "Use the slope as a direction hint, then move step by step toward a lower loss.",
+      render_type: "mermaid",
+      code: {
+        content: "graph LR\nA[Current point] --> B[Compute slope]\nB --> C[Take one step]\nC --> D[Lower loss]",
+      },
+      learner_profile_hints: {
+        weak_points: ["Concept boundaries"],
+        preferences: ["visual", "practice"],
+        next_action: "Review the visual, then submit one reflection.",
+      },
+    },
+  };
+
+  const activeTask = () => (state.resourcePayload ? { ...task, artifact_refs: [visualArtifact] } : task);
+
   const session = {
     session_id: "guide-demo",
     goal: "Stable demo route",
@@ -282,6 +307,17 @@ async function mockGuideV2StableDemoApis(page: Page) {
     current_task: { ...task, status: "completed" },
     tasks: [{ ...task, status: "completed" }],
     progress: 55,
+  };
+
+  const sessionForRoute = () => {
+    const taskWithArtifacts = activeTask();
+    return { ...session, current_task: taskWithArtifacts, tasks: [taskWithArtifacts] };
+  };
+
+  const completedSessionForRoute = () => {
+    const taskWithArtifacts = activeTask();
+    const completedTask = { ...taskWithArtifacts, status: "completed" };
+    return { ...completedSession, current_task: completedTask, tasks: [completedTask] };
   };
 
   await page.route("**/api/v1/system/status", (route) =>
@@ -338,7 +374,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
     });
   });
   await page.route(/\/api\/v1\/guide\/v2\/sessions\/guide-demo$/, (route) =>
-    route.fulfill({ json: state.completePayload ? completedSession : session }),
+    route.fulfill({ json: state.completePayload ? completedSessionForRoute() : sessionForRoute() }),
   );
   await page.route("**/api/v1/guide/v2/sessions/guide-demo/study-plan", (route) =>
     route.fulfill({

@@ -3577,23 +3577,50 @@ function ArtifactAgentChain({
       tone: "success" as const,
     },
   ];
+  const summary =
+    artifact.type === "quiz"
+      ? "画像定向出题，提交后直接进入反馈和下一步调整。"
+      : `画像先定向，再由${specialist.label}生成当前材料，学完后回到提交页形成闭环。`;
 
   return (
-    <div className="mt-3 rounded-lg border border-line bg-white px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge tone="brand">协作链路</Badge>
+    <div className="mt-3 rounded-lg border border-line bg-white px-3 py-3" data-testid="guide-artifact-agent-route">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Badge tone="brand">智能体接力</Badge>
+          <span className="text-xs font-medium text-ink">{summary}</span>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         {steps.map((step, index) => (
           <Fragment key={step.label}>
-            {index > 0 ? <span className="text-slate-300">→</span> : null}
-            <Badge tone={step.tone}>{step.label}</Badge>
+            <motion.div
+              className="min-w-[8rem] shrink-0 rounded-md border border-line bg-canvas px-3 py-2"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.16, delay: index * 0.04 }}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`h-1.5 w-1.5 rounded-full ${agentRouteDotTone(step.tone)}`} />
+                <span className="text-xs font-semibold text-ink">{shortGuideAgentName(step.label)}</span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{step.detail}</p>
+            </motion.div>
+            {index < steps.length - 1 ? <span className="mt-5 shrink-0 text-slate-300">→</span> : null}
           </Fragment>
         ))}
       </div>
-      <p className="mt-2 text-xs leading-5 text-slate-500">
-        {steps.map((step) => step.detail).join("；")}。
-      </p>
     </div>
   );
+}
+
+function shortGuideAgentName(label: string) {
+  return label.replace(/智能体$/, "");
+}
+
+function agentRouteDotTone(tone: "brand" | "neutral" | "success") {
+  if (tone === "brand") return "bg-brand-teal";
+  if (tone === "success") return "bg-emerald-500";
+  return "bg-brand-blue";
 }
 
 function ArtifactPersonalizationCard({

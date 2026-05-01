@@ -75,6 +75,7 @@ export function buildNotebookAsset({
     visualizeType: visualizeResult?.render_type,
     mathArtifactCount: mathResult?.artifacts?.length ?? 0,
     externalVideoCount: externalVideoResult?.videos?.length ?? 0,
+    externalVideoFallback: externalVideoResult?.fallback_search === true,
   });
   const output = sections.length ? sections.join("\n\n") : displayContent || "本次任务暂无可保存内容。";
 
@@ -115,18 +116,20 @@ function getAssetKind(
     visualizeType,
     mathArtifactCount,
     externalVideoCount,
+    externalVideoFallback,
   }: {
     quizCount: number;
     visualizeType?: string;
     mathArtifactCount: number;
     externalVideoCount: number;
+    externalVideoFallback: boolean;
   },
 ) {
   const capability = getMessageCapability(message);
   if (quizCount) return `题目练习 · ${quizCount} 题`;
   if (visualizeType) return `知识可视化 · ${visualizeType}`;
   if (mathArtifactCount) return `数学动画 · ${mathArtifactCount} 个产物`;
-  if (externalVideoCount) return `精选视频 · ${externalVideoCount} 个`;
+  if (externalVideoCount) return `${externalVideoFallback ? "视频搜索入口" : "精选视频"} · ${externalVideoCount} 个`;
   if (capability === "deep_solve") return "深度解题";
   if (capability === "deep_research") return "研究报告";
   return "AI 对话";
@@ -201,6 +204,7 @@ function formatExternalVideoSection(result: NonNullable<ReturnType<typeof extrac
     .map((item, index) =>
       [
         `${index + 1}. [${item.title}](${item.url})`,
+        item.kind === "search_fallback" ? "   - 类型：搜索入口" : "",
         item.platform ? `   - 平台：${item.platform}` : "",
         item.channel ? `   - 来源：${item.channel}` : "",
         item.why_recommended ? `   - 推荐原因：${item.why_recommended}` : "",

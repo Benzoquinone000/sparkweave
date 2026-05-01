@@ -1184,6 +1184,7 @@ function metadataText(metadata: Record<string, unknown> | undefined, key: string
 
 function evidenceVerbLabel(value: string) {
   const map: Record<string, string> = {
+    requested: "请求",
     viewed: "看过",
     saved: "保存",
     generated: "生成",
@@ -1195,6 +1196,27 @@ function evidenceVerbLabel(value: string) {
     rejected_profile: "否定画像",
   };
   return map[value] || value;
+}
+
+function evidenceSourceLabel(value: string) {
+  const map: Record<string, string> = {
+    chat: "学习对话",
+    evidence: "学习记录",
+    guide: "导学任务",
+    guide_v2: "导学任务",
+    guide_resource: "学习资源",
+    guide_quiz: "练习反馈",
+    notebook: "笔记本",
+    question_notebook: "题库",
+    profile_calibration: "画像校准",
+    external_video_search: "公开视频智能体",
+    math_animator: "短视频智能体",
+    visualize: "图解智能体",
+    deep_question: "出题智能体",
+    deep_research: "研究智能体",
+    deep_solve: "解题智能体",
+  };
+  return map[value] || value || "学习记录";
 }
 
 function resourceTypeLabel(value: string) {
@@ -1214,11 +1236,12 @@ function resourceTypeLabel(value: string) {
 function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
   const verb = evidenceVerbLabel(metadataText(item.metadata, "verb"));
   const resourceType = resourceTypeLabel(metadataText(item.metadata, "resource_type"));
+  const sourceLabel = evidenceSourceLabel(item.source_label);
   return (
     <article className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium text-brand-teal">{item.source_label}</p>
+          <p className="text-xs font-medium text-brand-teal">{sourceLabel}</p>
           <h3 className="mt-1 font-semibold text-ink">{item.title}</h3>
         </div>
         <span className="text-xs text-slate-500">{formatDate(item.created_at)}</span>

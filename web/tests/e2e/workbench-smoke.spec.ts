@@ -64,6 +64,11 @@ test("learner profile overview confirms current diagnosis", async ({ page }, tes
     }),
   );
   await expect(page.getByText("已确认。系统会更放心地按这个方向安排学习。")).toBeVisible();
+
+  await page.getByTestId("learner-profile-tab-evidence").click();
+  await expect(page.getByText("公开视频智能体", { exact: true })).toBeVisible();
+  await expect(page.getByText("请求", { exact: true })).toBeVisible();
+  await expect(page.getByText("公开视频", { exact: true }).first()).toBeVisible();
 });
 
 test("routes to core workbench areas", async ({ page }) => {
@@ -3891,6 +3896,21 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     evidence_preview: [],
     data_quality: { source_count: 3, evidence_count: 5, calibration_count: 0 },
   };
+  const profileEvidenceItems = [
+    {
+      evidence_id: "evidence-video-open",
+      source_id: "evidence.external_video_search",
+      source_label: "external_video_search",
+      title: "公开视频",
+      summary: "用户请求公开视频智能体查找梯度下降资料。",
+      created_at: "2026-05-02T08:00:00.000Z",
+      metadata: {
+        verb: "requested",
+        object_type: "learning_preference",
+        resource_type: "external_video",
+      },
+    },
+  ];
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
       json: {
@@ -3905,6 +3925,9 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/learner-profile", (route) => route.fulfill({ json: learnerProfile }));
   await page.route("**/api/v1/learner-profile/refresh", (route) => route.fulfill({ json: learnerProfile }));
+  await page.route(/\/api\/v1\/learner-profile\/evidence-preview(?:[?#]|$)/, (route) =>
+    route.fulfill({ json: { items: profileEvidenceItems, total: profileEvidenceItems.length } }),
+  );
   await page.route("**/api/v1/learner-profile/calibrations", async (route) => {
     state.calibrationPayload = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({
@@ -3946,9 +3969,14 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     }
     await route.fulfill({
       json: {
-        items: [],
-        total: 0,
-        summary: { event_count: 0, by_source: {}, by_verb: {}, by_object_type: {} },
+        items: profileEvidenceItems,
+        total: profileEvidenceItems.length,
+        summary: {
+          event_count: 1,
+          by_source: { external_video_search: 1 },
+          by_verb: { requested: 1 },
+          by_object_type: { learning_preference: 1 },
+        },
       },
     });
   });

@@ -161,6 +161,8 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
   await page.goto("/memory");
   await expect(page.getByRole("heading", { name: "系统现在怎么理解你" })).toBeVisible();
   await expect(page.getByTestId("learner-profile-overview")).toContainText("现在只做这一件事");
+  await expect(page.getByTestId("learner-progress-style-card")).toContainText("你的学习推进方式");
+  await expect(page.getByTestId("learner-progress-style-card")).toContainText("系统接下来会优先");
   await expect(page.getByTestId("learner-profile-primary-action")).toHaveAttribute("href", /\/guide\?/);
 
   await page.goto("/playground");

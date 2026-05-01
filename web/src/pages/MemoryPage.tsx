@@ -69,6 +69,13 @@ type LearningProgressStyle = {
   } | null;
 };
 
+type EvidenceBrief = {
+  title: string;
+  summary: string;
+  stats: Array<{ label: string; value: string }>;
+  cues: string[];
+};
+
 const PAGE_TABS: Array<{ key: PageTab; label: string; helper: string; icon: typeof Brain }> = [
   { key: "profile", label: "概览", helper: "先看下一步", icon: UserRound },
   { key: "evidence", label: "依据", helper: "为什么这样判断", icon: Database },
@@ -722,6 +729,7 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
   const evidence = useLearnerProfileEvidencePreview(source, 40);
   const sources = profile?.sources ?? [];
   const items = evidence.data?.items ?? profile?.evidence_preview ?? [];
+  const brief = buildEvidenceBrief(items, profile);
 
   return (
     <motion.section
@@ -738,6 +746,8 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
         </div>
         {evidence.isFetching ? <Loader2 size={18} className="animate-spin text-brand-teal" /> : null}
       </div>
+
+      {brief ? <EvidenceBriefCard brief={brief} /> : null}
 
       <div className="flex flex-wrap gap-2">
         <FilterButton active={!source} onClick={() => setSource(null)}>
@@ -765,6 +775,93 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
       )}
     </motion.section>
   );
+}
+
+function EvidenceBriefCard({ brief }: { brief: EvidenceBrief }) {
+  return (
+    <div className="rounded-lg border border-teal-100 bg-teal-50 p-4" data-testid="learner-evidence-brief">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Badge tone="brand">证据结论</Badge>
+          <h3 className="mt-2 text-base font-semibold text-teal-950">{brief.title}</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-teal-900">{brief.summary}</p>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {brief.stats.map((item) => (
+          <div key={`${item.label}-${item.value}`} className="rounded-md border border-teal-100 bg-white/80 px-3 py-2">
+            <p className="text-[11px] font-medium text-slate-500">{item.label}</p>
+            <p className="mt-1 truncate text-sm font-semibold text-ink">{item.value}</p>
+          </div>
+        ))}
+      </div>
+      {brief.cues.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {brief.cues.map((cue) => (
+            <span key={cue} className="rounded-md border border-teal-100 bg-white/80 px-2 py-1 text-xs text-teal-800">
+              {cue}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function buildEvidenceBrief(items: LearnerEvidencePreview[], profile?: LearnerProfileSnapshot): EvidenceBrief | null {
+  const total = Number(profile?.data_quality.evidence_count ?? items.length);
+  if (!items.length && !total) return null;
+
+  const latest = items[0];
+  const verbs = countTop(items.map((item) => evidenceVerbLabel(metadataText(item.metadata, "verb"))).filter(Boolean));
+  const resourceTypes = countTop(items.map((item) => resourceTypeLabel(metadataText(item.metadata, "resource_type"))).filter(Boolean));
+  const sourceLabels = countTop(items.map((item) => evidenceSourceLabel(item.source_label)).filter(Boolean));
+  const scores = items
+    .map((item) => (typeof item.score === "number" && Number.isFinite(item.score) ? item.score : null))
+    .filter((value): value is number => value !== null);
+  const averageScore = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : null;
+  const latestVerb = latest ? evidenceVerbLabel(metadataText(latest.metadata, "verb")) : "";
+  const latestResource = latest ? resourceTypeLabel(metadataText(latest.metadata, "resource_type")) : "";
+  const latestSource = latest ? evidenceSourceLabel(latest.source_label) : "";
+
+  let title = "证据正在帮系统收敛判断";
+  if (latestVerb === "看过" && latestResource) title = `最近在用${latestResource}补理解`;
+  else if (latestVerb === "答题") title = "最近留下了练习证据";
+  else if (latestVerb === "完成") title = "最近完成了一步导学任务";
+  else if (latestVerb === "确认画像" || latestVerb === "修正画像" || latestVerb === "否定画像") title = "最近主动校准了画像";
+  else if (latestSource) title = `最近证据来自${latestSource}`;
+
+  const summaryParts = [
+    total ? `当前画像累计参考 ${total} 条学习证据。` : "",
+    latest?.summary || latest?.title ? `最近一条是“${latest.summary || latest.title}”。` : "",
+    averageScore !== null ? `最近可评分证据均值约 ${Math.round(averageScore * 100)}%。` : "",
+  ].filter(Boolean);
+  const summary = summaryParts.length
+    ? summaryParts.join("")
+    : "系统会优先看你真实做过、看过、答过和校准过的记录，而不是只凭一次对话下结论。";
+
+  const stats = [
+    { label: "累计证据", value: total ? `${total} 条` : `${items.length} 条` },
+    { label: "当前筛选", value: items.length ? `${items.length} 条` : "暂无" },
+    { label: "最新记录", value: latest?.created_at ? formatDate(latest.created_at) : "暂无" },
+  ];
+  if (averageScore !== null) stats[1] = { label: "最近得分", value: formatPercent(averageScore) };
+
+  const cues = [
+    ...verbs.slice(0, 2).map((item) => `行为：${item.label} ${item.count} 次`),
+    ...resourceTypes.slice(0, 2).map((item) => `资源：${item.label}`),
+    ...sourceLabels.slice(0, 2).map((item) => `来源：${item.label}`),
+  ].slice(0, 5);
+
+  return { title, summary, stats, cues };
+}
+
+function countTop(values: string[]) {
+  const counts = new Map<string, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
 function MemoryEditor({

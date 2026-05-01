@@ -66,6 +66,8 @@ test("learner profile overview confirms current diagnosis", async ({ page }, tes
   await expect(page.getByText("已确认。系统会更放心地按这个方向安排学习。")).toBeVisible();
 
   await page.getByTestId("learner-profile-tab-evidence").click();
+  await expect(page.getByTestId("learner-evidence-brief")).toContainText("证据结论");
+  await expect(page.getByTestId("learner-evidence-brief")).toContainText("累计参考");
   await expect(page.getByText("公开视频智能体", { exact: true })).toBeVisible();
   await expect(page.getByText("请求", { exact: true })).toBeVisible();
   await expect(page.getByText("公开视频", { exact: true }).first()).toBeVisible();

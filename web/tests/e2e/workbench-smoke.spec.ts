@@ -2778,6 +2778,13 @@ test("chat keeps raw message trace while task snapshot shows completion", async 
   await installMockWebSocket(page, {
     holdOpen: true,
     events: [
+      {
+        type: "progress",
+        source: "dialogue_coordinator",
+        stage: "coordinating",
+        content: "Awakened Knowledge Visualization Agent.",
+        metadata: { trace_kind: "agent_handoff", profile_hints_applied: true },
+      },
       { type: "stage_start", stage: "thinking" },
       { type: "progress", stage: "thinking", content: "Thinking..." },
       { type: "stage_end", stage: "thinking" },
@@ -2794,6 +2801,7 @@ test("chat keeps raw message trace while task snapshot shows completion", async 
   const messageTrace = page.locator("article").filter({ hasText: "思考过程" }).last();
   const collaboration = page.getByTestId("agent-collaboration").last();
   await expect(collaboration).toContainText("智能体协作");
+  await expect(collaboration).toContainText("画像已参与");
   await expect(collaboration).toContainText("对话协调智能体");
   await expect(collaboration).toContainText("讲解智能体");
   await expect(messageTrace).toContainText("stage_start · thinking");

@@ -682,6 +682,7 @@ class ChatGraph:
         decision: CoordinatorDecision,
     ) -> TutorState:
         delegated_context = self._delegated_context(context, decision)
+        profile_hints = self._learner_profile_hints(context)
         await stream.progress(
             f"Awakened {SPECIALIST_LABELS.get(decision.capability, decision.capability)}.",
             source="dialogue_coordinator",
@@ -692,6 +693,8 @@ class ChatGraph:
                 "target_agent": SPECIALIST_LABELS.get(decision.capability, decision.capability),
                 "confidence": decision.confidence,
                 "reason": decision.reason,
+                "profile_hints_applied": bool(profile_hints),
+                "profile_hint_keys": sorted(key for key in profile_hints.keys() if key != "profile_context"),
             },
         )
         if self.specialist_runner is not None:

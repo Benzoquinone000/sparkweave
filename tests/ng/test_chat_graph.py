@@ -176,6 +176,11 @@ async def test_chat_graph_coordinator_delegates_animation_request():
     assert captured["context"].config_overrides["output_mode"] == "video"
     assert "概念边界不清" in captured["context"].config_overrides["style_hint"]
     assert "10 minutes" in captured["context"].config_overrides["style_hint"]
+    handoff_events = [
+        event for event in bus._history if event.metadata.get("trace_kind") == "agent_handoff"
+    ]
+    assert handoff_events[-1].metadata["profile_hints_applied"] is True
+    assert "weak_points" in handoff_events[-1].metadata["profile_hint_keys"]
     assert state["final_answer"] == "animation ready"
 
 

@@ -285,9 +285,12 @@ export function AgentCollaborationPanel({
   status?: "streaming" | "done" | "error";
 }) {
   const steps = useMemo(() => buildAgentSteps(events, capability ?? "chat", status), [capability, events, status]);
-  const activeCount = steps.filter((step) => step.touched || step.status === "running" || step.status === "complete").length;
+  const visibleSteps = steps.filter((step) => step.touched || step.status === "running" || step.status === "complete" || step.status === "error");
+  const displayedSteps = visibleSteps.length ? visibleSteps : steps.slice(0, 1);
+  const activeCount = visibleSteps.length;
   const hasError = steps.some((step) => step.status === "error");
   const running = steps.some((step) => step.status === "running");
+  const profileAware = events.some((event) => event.metadata?.profile_hints_applied);
 
   if (!events.length) return null;
 
@@ -295,18 +298,21 @@ export function AgentCollaborationPanel({
     <div className="mt-2 rounded-lg border border-line bg-white p-3" data-testid="agent-collaboration">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-ink">智能体协作 · {steps.length} 个角色编排</p>
+          <p className="text-xs font-semibold text-ink">智能体协作 · {displayedSteps.length} 个角色参与</p>
           <p className="mt-1 text-xs text-slate-500">
-            {activeCount ? `${activeCount} 个角色已参与本轮学习任务` : "正在等待协作信号"}
+            {profileAware ? "已参考学习画像，再调度本轮学习任务" : activeCount ? "已按任务自动调度" : "正在等待协作信号"}
           </p>
         </div>
-        <Badge tone={hasError ? "danger" : running ? "warning" : "success"}>
-          {hasError ? "异常" : running ? "协作中" : "已完成"}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          {profileAware ? <Badge tone="brand">画像已参与</Badge> : null}
+          <Badge tone={hasError ? "danger" : running ? "warning" : "success"}>
+            {hasError ? "异常" : running ? "协作中" : "已完成"}
+          </Badge>
+        </div>
       </div>
 
       <div className="mt-3 grid gap-2">
-        {steps.map((step, index) => (
+        {displayedSteps.map((step, index) => (
           <AgentStepRow key={step.key} step={step} index={index} />
         ))}
       </div>

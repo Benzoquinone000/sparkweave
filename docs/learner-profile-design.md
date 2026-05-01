@@ -106,7 +106,7 @@ data/user/learner_profile/
   "course_id": "ml_foundations",
   "node_id": "gradient_descent",
   "task_id": "task_...",
-  "resource_type": "text | visual | video | quiz | research",
+  "resource_type": "text | visual | video | external_video | quiz | research",
   "score": 0.82,
   "is_correct": true,
   "duration_seconds": 420,
@@ -317,7 +317,7 @@ score >= 0.85      -> mastered
 
 - 资源生成只说明系统提供过什么。
 - 资源查看、练习提交、保存或反馈才说明资源是否有效。
-- 视频/图解/练习偏好应由使用行为和用户反馈共同决定。
+- 视频/公开视频/图解/练习偏好应由使用行为和用户反馈共同决定；`viewed external_video` 和 Notebook 保存事件都应进入证据账本。
 
 ## 隐私与安全边界
 
@@ -364,7 +364,7 @@ score >= 0.85      -> mastered
 ### P5：驱动导学和推荐
 
 - Guide V2 创建路线读取统一画像，详见 [学习画像 P5 Guide V2 导学接入统一画像](./learner-profile-p5-guide-integration.md)。
-- 当前任务和资源推荐基于 weak_points、preferences、mastery。
+- 当前任务和资源推荐基于 weak_points、preferences、mastery，并区分系统生成短视频与网络精选公开视频。
 - 导学完成后把评估结果写回统一画像。
 
 ### P6：学习效果评估融合

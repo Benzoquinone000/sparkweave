@@ -1,4 +1,4 @@
-import { extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
+import { extractExternalVideoResult, extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
 import { extractQuizQuestions } from "@/lib/quiz";
 import type { CapabilityId, ChatMessage, NotebookRecord } from "@/lib/types";
@@ -28,7 +28,8 @@ export function hasNotebookAssetOutput(message: ChatMessage) {
   const quizQuestions = capability === "deep_question" ? extractQuizQuestions(resultEvent?.metadata) : null;
   const visualizeResult = capability === "visualize" ? extractVisualizeResult(resultEvent?.metadata) : null;
   const mathResult = capability === "math_animator" ? extractMathAnimatorResult(resultEvent?.metadata) : null;
-  return Boolean(getMessageDisplayContent(message) || quizQuestions?.length || visualizeResult || mathResult);
+  const externalVideoResult = extractExternalVideoResult(resultEvent?.metadata);
+  return Boolean(getMessageDisplayContent(message) || quizQuestions?.length || visualizeResult || mathResult || externalVideoResult);
 }
 
 export function buildNotebookAsset({
@@ -49,6 +50,7 @@ export function buildNotebookAsset({
   const quizQuestions = capability === "deep_question" ? extractQuizQuestions(resultEvent?.metadata) : null;
   const visualizeResult = capability === "visualize" ? extractVisualizeResult(resultEvent?.metadata) : null;
   const mathResult = capability === "math_animator" ? extractMathAnimatorResult(resultEvent?.metadata) : null;
+  const externalVideoResult = extractExternalVideoResult(resultEvent?.metadata);
   const trace = (message.events ?? [])
     .filter((event) => event.type !== "content")
     .map((event) => ({
@@ -65,12 +67,14 @@ export function buildNotebookAsset({
     quizQuestions?.length ? formatQuizSection(quizQuestions) : "",
     visualizeResult ? formatVisualizationSection(visualizeResult) : "",
     mathResult ? formatMathAnimatorSection(mathResult) : "",
+    externalVideoResult ? formatExternalVideoSection(externalVideoResult) : "",
   ].filter(Boolean);
 
   const assetKind = getAssetKind(message, {
     quizCount: quizQuestions?.length ?? 0,
     visualizeType: visualizeResult?.render_type,
     mathArtifactCount: mathResult?.artifacts?.length ?? 0,
+    externalVideoCount: externalVideoResult?.videos?.length ?? 0,
   });
   const output = sections.length ? sections.join("\n\n") : displayContent || "本次任务暂无可保存内容。";
 
@@ -91,6 +95,7 @@ export function buildNotebookAsset({
       visualize: visualizeResult ?? null,
       quiz: quizQuestions?.length ? { count: quizQuestions.length, questions: quizQuestions } : null,
       math_animator: mathResult ?? null,
+      external_video: externalVideoResult ?? null,
       trace,
     },
   };
@@ -109,16 +114,19 @@ function getAssetKind(
     quizCount,
     visualizeType,
     mathArtifactCount,
+    externalVideoCount,
   }: {
     quizCount: number;
     visualizeType?: string;
     mathArtifactCount: number;
+    externalVideoCount: number;
   },
 ) {
   const capability = getMessageCapability(message);
   if (quizCount) return `题目练习 · ${quizCount} 题`;
   if (visualizeType) return `知识可视化 · ${visualizeType}`;
   if (mathArtifactCount) return `数学动画 · ${mathArtifactCount} 个产物`;
+  if (externalVideoCount) return `精选视频 · ${externalVideoCount} 个`;
   if (capability === "deep_solve") return "深度解题";
   if (capability === "deep_research") return "研究报告";
   return "AI 对话";
@@ -186,4 +194,20 @@ function formatMathAnimatorSection(result: NonNullable<ReturnType<typeof extract
     ? ["", "```python", result.code.content, "```"].join("\n")
     : "";
   return ["## 数学动画资产", "", artifacts || "- 暂无渲染产物", code].filter(Boolean).join("\n");
+}
+
+function formatExternalVideoSection(result: NonNullable<ReturnType<typeof extractExternalVideoResult>>) {
+  const videos = (result.videos ?? [])
+    .map((item, index) =>
+      [
+        `${index + 1}. [${item.title}](${item.url})`,
+        item.platform ? `   - 平台：${item.platform}` : "",
+        item.channel ? `   - 来源：${item.channel}` : "",
+        item.why_recommended ? `   - 推荐原因：${item.why_recommended}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n");
+  return ["## 精选视频", "", result.response || "", videos || "- 暂无可保存的视频链接"].filter(Boolean).join("\n");
 }

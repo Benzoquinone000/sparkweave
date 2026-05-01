@@ -154,6 +154,46 @@ async def test_chat_graph_coordinator_delegates_animation_request():
 
 
 @pytest.mark.asyncio
+async def test_chat_graph_coordinator_delegates_external_video_request(monkeypatch):
+    async def fake_recommend_learning_videos(**kwargs):
+        assert kwargs["topic"] == "recommend video about gradient descent"
+        return {
+            "success": True,
+            "render_type": "external_video",
+            "response": "Found 1 learning video.",
+            "videos": [
+                {
+                    "title": "Gradient descent explained",
+                    "url": "https://www.youtube.com/watch?v=abc123",
+                    "platform": "YouTube",
+                    "embed_url": "https://www.youtube.com/embed/abc123",
+                    "why_recommended": "Beginner friendly.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "sparkweave.services.video_search.recommend_learning_videos",
+        fake_recommend_learning_videos,
+    )
+
+    bus = StreamBus()
+    graph = ChatGraph(
+        model=FakeModel([]),
+        tool_registry=FakeToolRegistry(),
+    )
+    context = UnifiedContext(user_message="recommend video about gradient descent")
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "Found 1 learning video."
+    result_events = [event for event in bus._history if event.type == StreamEventType.RESULT]
+    assert result_events[-1].source == "external_video_search"
+    assert result_events[-1].metadata["render_type"] == "external_video"
+    assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
+
+
+@pytest.mark.asyncio
 async def test_chat_graph_coordinator_delegates_research_with_default_tools():
     captured = {}
 

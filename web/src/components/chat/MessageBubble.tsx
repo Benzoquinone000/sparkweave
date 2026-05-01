@@ -6,9 +6,10 @@ import { AgentCollaborationPanel } from "@/components/chat/AgentCollaborationPan
 import { Badge } from "@/components/ui/Badge";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { QuizViewer } from "@/components/quiz/QuizViewer";
+import { ExternalVideoViewer } from "@/components/results/ExternalVideoViewer";
 import { MathAnimatorViewer } from "@/components/results/MathAnimatorViewer";
 import { VisualizationViewer } from "@/components/results/VisualizationViewer";
-import { extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
+import { extractExternalVideoResult, extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
 import { hasNotebookAssetOutput } from "@/lib/notebookAssets";
 import { extractQuizQuestions } from "@/lib/quiz";
@@ -36,6 +37,7 @@ export function MessageBubble({
     !isUser && effectiveCapability === "math_animator" ? extractMathAnimatorResult(resultEvent?.metadata) : null;
   const visualizeResult =
     !isUser && effectiveCapability === "visualize" ? extractVisualizeResult(resultEvent?.metadata) : null;
+  const externalVideoResult = !isUser ? extractExternalVideoResult(resultEvent?.metadata) : null;
   const canSaveAsset = !isUser && hasNotebookAssetOutput(message);
 
   return (
@@ -84,6 +86,8 @@ export function MessageBubble({
           {!isUser && canSaveAsset ? <span className="dt-test-legacy">最终回答</span> : null}
           {mathAnimatorResult ? (
             <MathAnimatorViewer result={mathAnimatorResult} />
+          ) : externalVideoResult ? (
+            <ExternalVideoViewer result={externalVideoResult} />
           ) : visualizeResult ? (
             <VisualizationViewer result={visualizeResult} />
           ) : quizQuestions?.length ? (

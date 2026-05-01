@@ -1,0 +1,101 @@
+import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
+
+import { Badge } from "@/components/ui/Badge";
+import type { ExternalVideoResult } from "@/lib/types";
+
+function formatDuration(seconds?: number | null) {
+  if (!seconds || !Number.isFinite(seconds)) return "";
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} 分钟`;
+}
+
+function safeEmbedUrl(url?: string) {
+  if (!url || !/^https?:\/\//.test(url)) return "";
+  return url;
+}
+
+export function ExternalVideoViewer({ result }: { result: ExternalVideoResult }) {
+  const videos = result.videos ?? [];
+  const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos[0];
+  const embedUrl = safeEmbedUrl(featured?.embed_url);
+
+  return (
+    <div className="rounded-lg border border-line bg-canvas p-3" data-testid="external-video-viewer">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="brand">精选视频</Badge>
+        <Badge tone="neutral">{videos.length ? `${videos.length} 个推荐` : "等待结果"}</Badge>
+      </div>
+
+      {result.response ? <p className="mt-3 text-sm leading-6 text-slate-600">{result.response}</p> : null}
+
+      {embedUrl ? (
+        <div className="mt-4 overflow-hidden rounded-lg border border-line bg-black">
+          <iframe
+            title={featured?.title || "精选学习视频"}
+            src={embedUrl}
+            className="aspect-video w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+      ) : null}
+
+      {videos.length ? (
+        <div className="mt-4 grid gap-3">
+          {videos.map((video, index) => (
+            <article key={`${video.url}-${index}`} className="rounded-lg border border-line bg-white p-3">
+              <div className="grid gap-3 md:grid-cols-[9rem_minmax(0,1fr)]">
+                {video.thumbnail ? (
+                  <img
+                    src={video.thumbnail}
+                    alt=""
+                    className="aspect-video w-full rounded-lg border border-line bg-slate-100 object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-teal-50 text-brand-teal">
+                    <PlayCircle size={28} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={index === 0 ? "brand" : "neutral"}>{index === 0 ? "建议先看" : video.platform || "视频"}</Badge>
+                    {video.platform ? <Badge tone="neutral">{video.platform}</Badge> : null}
+                    {formatDuration(video.duration_seconds) ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                        <Timer size={13} />
+                        {formatDuration(video.duration_seconds)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <h4 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-ink">{video.title || "学习视频"}</h4>
+                  {video.why_recommended || video.summary ? (
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">
+                      {video.why_recommended || video.summary}
+                    </p>
+                  ) : null}
+                  {video.url ? (
+                    <a
+                      href={video.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
+                    >
+                      <ExternalLink size={13} />
+                      打开观看
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <Search size={16} />
+          暂时没有找到稳定的视频链接，可以换一个更具体的关键词再试。
+        </div>
+      )}
+    </div>
+  );
+}

@@ -23,6 +23,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
+import { ExternalVideoViewer } from "@/components/results/ExternalVideoViewer";
 import { MathAnimatorViewer } from "@/components/results/MathAnimatorViewer";
 import { VisualizationViewer } from "@/components/results/VisualizationViewer";
 import { Badge } from "@/components/ui/Badge";
@@ -57,6 +58,7 @@ import type {
   GuideV2Session,
   GuideV2StudyPlan,
   GuideV2Task,
+  ExternalVideoResult,
   LearnerProfileSnapshot,
   MathAnimatorResult,
   NotebookRecord,
@@ -3370,8 +3372,9 @@ function ResourceLearningSteps({
 function sortGuideArtifactsForLearning(artifacts: GuideV2Artifact[]) {
   const order: Record<string, number> = {
     visual: 0,
-    video: 1,
-    quiz: 2,
+    external_video: 1,
+    video: 2,
+    quiz: 3,
   };
   return [...artifacts].sort((left, right) => {
     const leftOrder = order[String(left.type)] ?? 9;
@@ -3382,8 +3385,11 @@ function sortGuideArtifactsForLearning(artifacts: GuideV2Artifact[]) {
 }
 
 function resourceStepLabel(type: string, index: number, artifacts: GuideV2Artifact[]) {
-  const hasConceptResourceBefore = artifacts.slice(0, index).some((item) => item.type === "visual" || item.type === "video");
+  const hasConceptResourceBefore = artifacts
+    .slice(0, index)
+    .some((item) => item.type === "visual" || item.type === "video" || item.type === "external_video");
   if (type === "visual") return index === 0 ? "先看图解" : "再看图解";
+  if (type === "external_video") return index === 0 ? "先看精选视频" : "再看精选视频";
   if (type === "video") return index === 0 ? "先看短视频" : "再看短视频";
   if (type === "quiz") return hasConceptResourceBefore ? "再做练习" : "先做练习";
   return resourceLabel(type);
@@ -3391,6 +3397,7 @@ function resourceStepLabel(type: string, index: number, artifacts: GuideV2Artifa
 
 function resourceStepHint(type: string) {
   if (type === "visual") return "先建立直觉和结构。";
+  if (type === "external_video") return "用外部讲解补充视角。";
   if (type === "video") return "跟着步骤过一遍。";
   if (type === "quiz") return "用题目确认是否掌握。";
   return "看完后继续下一步。";
@@ -3416,8 +3423,9 @@ function ResourceArtifact({
   const renderType = readString(result ?? {}, "render_type");
   const hasVisual = Boolean(artifact.type === "visual" && renderType && asRecord(result?.code)?.content);
   const hasVideo = Boolean(artifact.type === "video" && (Array.isArray(result?.artifacts) || asRecord(result?.code)?.content));
+  const hasExternalVideo = Boolean(artifact.type === "external_video" && Array.isArray(result?.videos));
   const questions = extractGuideQuizItems(result);
-  const showResponse = Boolean(response && !(artifact.type === "quiz" && questions.length));
+  const showResponse = Boolean(response && !(artifact.type === "quiz" && questions.length) && artifact.type !== "external_video");
   const personalization = extractArtifactPersonalization(artifact);
 
   return (
@@ -3452,6 +3460,7 @@ function ResourceArtifact({
 
       {hasVisual ? <div className="mt-4"><VisualizationViewer result={result as unknown as VisualizeResult} /></div> : null}
       {hasVideo ? <div className="mt-4"><MathAnimatorViewer result={result as unknown as MathAnimatorResult} /></div> : null}
+      {hasExternalVideo ? <div className="mt-4"><ExternalVideoViewer result={result as unknown as ExternalVideoResult} /></div> : null}
       {artifact.type === "quiz" && questions.length ? (
         <QuestionPreview items={questions} submitting={quizSubmitting} onSubmit={onSubmitQuiz} />
       ) : null}
@@ -3562,6 +3571,12 @@ function agentRoleForArtifact(artifact: GuideV2Artifact) {
     return {
       label: "动画智能体",
       detail: "把关键步骤拆成可播放的短视频讲解。",
+    };
+  }
+  if (type === "external_video" || capability === "external_video_search") {
+    return {
+      label: "视频检索智能体",
+      detail: "从公开视频中筛选适合当前画像和任务的学习材料。",
     };
   }
   if (type === "quiz" || capability === "deep_question") {
@@ -3812,6 +3827,7 @@ function taskTypeLabel(type: string) {
     explain: "讲解",
     visualize: "图解",
     video: "视频",
+    external_video: "精选视频",
     practice: "练习",
     remediation: "补救",
     quiz: "复测",
@@ -3825,17 +3841,18 @@ function resourceLabel(type: string) {
   const labels: Record<string, string> = {
     visual: "图解",
     video: "短视频",
+    external_video: "精选视频",
     quiz: "练习",
   };
   return labels[type] || type || "资源";
 }
 
-type GuideActionResourceType = "visual" | "quiz" | "video";
+type GuideActionResourceType = "visual" | "quiz" | "video" | "external_video";
 
-const guideActionResourceTypes: GuideActionResourceType[] = ["visual", "quiz", "video"];
+const guideActionResourceTypes: GuideActionResourceType[] = ["visual", "external_video", "quiz", "video"];
 
 function normalizeGuideActionResourceType(type: GuideV2ResourceType): GuideActionResourceType {
-  if (type === "quiz" || type === "video") return type;
+  if (type === "quiz" || type === "video" || type === "external_video") return type;
   return "visual";
 }
 
@@ -3853,6 +3870,7 @@ function buildGuideResourceActions(
 function guideResourceIcon(type: GuideActionResourceType, size = 16) {
   if (type === "quiz") return <ListChecks size={size} />;
   if (type === "video") return <Video size={size} />;
+  if (type === "external_video") return <Video size={size} />;
   return <Map size={size} />;
 }
 
@@ -3861,12 +3879,14 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     visual: "看图解",
     quiz: "做练习",
     video: "看短视频",
+    external_video: "找精选视频",
   };
 
   if (trendLabel.includes("修正路径")) {
     copy.visual = recommended === "visual" ? "先看补救图解" : "看补救图解";
     copy.quiz = recommended === "quiz" ? "先做复测题" : "做复测题";
     copy.video = recommended === "video" ? "看纠错讲解" : "看纠错讲解";
+    copy.external_video = recommended === "external_video" ? "先找讲解视频" : "找讲解视频";
     return copy;
   }
 
@@ -3874,6 +3894,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "先看关键图解" : "看关键图解";
     copy.quiz = recommended === "quiz" ? "直接做验证题" : "做验证题";
     copy.video = recommended === "video" ? "看步骤串讲" : "看步骤串讲";
+    copy.external_video = recommended === "external_video" ? "找参考视频" : "找参考视频";
     return copy;
   }
 
@@ -3881,6 +3902,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "快速看图解" : "看图解";
     copy.quiz = recommended === "quiz" ? "直接做这组题" : "做这组题";
     copy.video = recommended === "video" ? "快速看短视频" : "看短视频";
+    copy.external_video = recommended === "external_video" ? "快速找视频" : "找精选视频";
     return copy;
   }
 
@@ -3888,12 +3910,14 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "先看这张图解" : "看这张图解";
     copy.quiz = recommended === "quiz" ? "做这组补强题" : "做补强题";
     copy.video = recommended === "video" ? "看补强短视频" : "看补强短视频";
+    copy.external_video = recommended === "external_video" ? "先找公开视频" : "找公开视频";
     return copy;
   }
 
   if (recommended === "visual") copy.visual = "先看这张图解";
   if (recommended === "quiz") copy.quiz = "先做这组题";
   if (recommended === "video") copy.video = "先看这段短视频";
+  if (recommended === "external_video") copy.external_video = "先找精选视频";
   return copy;
 }
 
@@ -3903,7 +3927,7 @@ function isResearchResourceType(type: string) {
 }
 
 function normalizeResourceType(type: unknown): GuideActionResourceType {
-  if (type === "visual" || type === "video" || type === "quiz") {
+  if (type === "visual" || type === "video" || type === "quiz" || type === "external_video") {
     return type;
   }
   return "visual";
@@ -5091,6 +5115,14 @@ function deriveArtifactProgressStyle({
       label: "练习驱动型",
       explanation: "系统判断你更适合先通过动手作答来压实理解，所以这份资源会更强调可检验和可反馈。",
       recommendation: "建议先独立完成，再结合反馈看错因，会比只看讲解更容易形成稳定掌握。",
+    };
+  }
+
+  if (artifactType === "external_video") {
+    return {
+      label: "外部补充型",
+      explanation: "系统判断你适合先参考公开视频，用另一个讲解视角降低理解门槛，再回到当前任务做反馈。",
+      recommendation: "建议只看一到两个精选视频，不要陷入搜索；看完立刻回到导学提交一句反思。",
     };
   }
 

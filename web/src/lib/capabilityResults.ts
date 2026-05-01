@@ -1,4 +1,4 @@
-import type { MathAnimatorArtifact, MathAnimatorResult, VisualizeResult } from "@/lib/types";
+import type { ExternalVideoResult, MathAnimatorArtifact, MathAnimatorResult, VisualizeResult } from "@/lib/types";
 
 function stripCodeFences(source: string) {
   const trimmed = source.trim();
@@ -94,5 +94,29 @@ export function extractVisualizeResult(resultMetadata: Record<string, unknown> |
       metadata.review && typeof metadata.review === "object"
         ? (metadata.review as VisualizeResult["review"])
         : undefined,
+  };
+}
+
+export function extractExternalVideoResult(resultMetadata: Record<string, unknown> | undefined): ExternalVideoResult | null {
+  if (!resultMetadata) return null;
+  if (resultMetadata.render_type !== "external_video" && !Array.isArray(resultMetadata.videos)) return null;
+  const videos = Array.isArray(resultMetadata.videos)
+    ? resultMetadata.videos.filter((item): item is NonNullable<ExternalVideoResult["videos"]>[number] => {
+        if (!item || typeof item !== "object") return false;
+        const record = item as Record<string, unknown>;
+        return typeof record.title === "string" && typeof record.url === "string";
+      })
+    : [];
+  if (!videos.length && !resultMetadata.response) return null;
+  return {
+    success: resultMetadata.success !== false,
+    render_type: "external_video",
+    response: String(resultMetadata.response ?? ""),
+    videos,
+    queries: Array.isArray(resultMetadata.queries) ? resultMetadata.queries.map(String) : undefined,
+    search_errors: Array.isArray(resultMetadata.search_errors) ? resultMetadata.search_errors.map(String) : undefined,
+    agent_chain: Array.isArray(resultMetadata.agent_chain)
+      ? (resultMetadata.agent_chain as ExternalVideoResult["agent_chain"])
+      : undefined,
   };
 }

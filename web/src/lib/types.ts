@@ -644,7 +644,31 @@ export interface GuidePages {
   [key: string]: unknown;
 }
 
-export type GuideV2ResourceType = "visual" | "video" | "quiz" | "research";
+export type GuideV2ResourceType = "visual" | "video" | "external_video" | "quiz" | "research";
+
+export interface ExternalVideoRecommendation {
+  title?: string;
+  url?: string;
+  platform?: string;
+  summary?: string;
+  thumbnail?: string;
+  embed_url?: string;
+  channel?: string;
+  duration_seconds?: number | null;
+  published_at?: string;
+  why_recommended?: string;
+  score?: number;
+}
+
+export interface ExternalVideoResult {
+  success?: boolean;
+  render_type?: "external_video" | string;
+  response?: string;
+  videos?: ExternalVideoRecommendation[];
+  queries?: string[];
+  search_errors?: string[];
+  agent_chain?: Array<{ label?: string; detail?: string }>;
+}
 
 export interface GuideV2Artifact {
   id: string;

@@ -886,6 +886,20 @@ def _artifact_to_markdown(session: dict, task: dict, artifact: dict) -> str:
                 url = item.get("url") or ""
                 lines.append(f"- {label}: {url}")
         lines.append("")
+    if str(artifact.get("type") or "") == "external_video" and isinstance(result.get("videos"), list):
+        lines.append("## 精选视频")
+        for index, item in enumerate(result["videos"], start=1):
+            if not isinstance(item, dict):
+                continue
+            title = item.get("title") or f"视频 {index}"
+            url = item.get("url") or ""
+            platform = item.get("platform") or "公开视频"
+            reason = item.get("why_recommended") or item.get("summary") or ""
+            lines.append(f"{index}. [{title}]({url})")
+            lines.append(f"   - 平台：{platform}")
+            if reason:
+                lines.append(f"   - 推荐原因：{reason}")
+        lines.append("")
     code = result.get("code") if isinstance(result.get("code"), dict) else {}
     code_content = str(code.get("content") or "").strip()
     if code_content:

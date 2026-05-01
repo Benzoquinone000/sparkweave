@@ -18,6 +18,7 @@ import uuid
 from sparkweave.logging import get_logger
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.paths import get_path_service
+from sparkweave.services.video_search import recommend_learning_videos
 
 CompletionFn = Callable[..., Awaitable[str]]
 CapabilityRunnerFn = Callable[[str, Any], Awaitable[dict[str, Any]]]
@@ -2033,20 +2034,31 @@ class GuideV2Manager:
                 },
             )
         node = next((item for item in session.course_map.nodes if item.node_id == task.node_id), None)
-        context = self._build_resource_context(
-            session=session,
-            task=task,
-            node=node,
-            resource_type=normalized_type,
-            prompt=prompt,
-            capability=capability,
-            config=config,
-        )
+        learner_profile_hints = self._resource_profile_hints(session, task, node)
         try:
-            if event_sink and self.capability_runner is _run_langgraph_capability:
-                result = await _run_langgraph_capability(capability, context, event_sink=event_sink)
+            if normalized_type == "external_video":
+                result = await recommend_learning_videos(
+                    topic=task.title,
+                    learner_hints=learner_profile_hints,
+                    prompt=prompt,
+                    language="zh",
+                    max_results=3,
+                    event_sink=event_sink,
+                )
             else:
-                result = await self.capability_runner(capability, context)
+                context = self._build_resource_context(
+                    session=session,
+                    task=task,
+                    node=node,
+                    resource_type=normalized_type,
+                    prompt=prompt,
+                    capability=capability,
+                    config=config,
+                )
+                if event_sink and self.capability_runner is _run_langgraph_capability:
+                    result = await _run_langgraph_capability(capability, context, event_sink=event_sink)
+                else:
+                    result = await self.capability_runner(capability, context)
         except Exception as exc:
             self.logger.warning(
                 "Guide v2 resource generation failed: session=%s task=%s type=%s error=%s",
@@ -2077,7 +2089,7 @@ class GuideV2Manager:
             "created_at": time.time(),
             "status": "ready",
             "config": config,
-            "personalization": context.metadata.get("learner_profile_hints"),
+            "personalization": learner_profile_hints,
             "result": result,
         }
         task.artifact_refs.append(artifact)
@@ -2245,6 +2257,14 @@ class GuideV2Manager:
             "math_animator": "video",
             "短视频": "video",
             "动画": "video",
+            "external_video": "external_video",
+            "curated_video": "external_video",
+            "web_video": "external_video",
+            "online_video": "external_video",
+            "selected_video": "external_video",
+            "精选视频": "external_video",
+            "网络视频": "external_video",
+            "公开视频": "external_video",
             "quiz": "quiz",
             "practice": "quiz",
             "question": "quiz",
@@ -2278,6 +2298,15 @@ class GuideV2Manager:
                     "style_hint": "简洁课堂板书风格，公式分步出现，避免拥挤排版。",
                 },
             )
+        if resource_type == "external_video":
+            return (
+                "external_video_search",
+                {
+                    "mode": "curated_links",
+                    "sources": ["web", "bilibili", "youtube"],
+                    "max_results": 3,
+                },
+            )
         if resource_type == "quiz":
             return (
                 "deep_question",
@@ -2306,6 +2335,7 @@ class GuideV2Manager:
         labels = {
             "visual": "概念图解",
             "video": "短视频讲解",
+            "external_video": "精选视频",
             "quiz": "交互练习",
             "research": "拓展资料",
         }
@@ -2323,6 +2353,7 @@ class GuideV2Manager:
         resource_goals = {
             "visual": "生成一张可直接用于学习的知识图解，突出概念关系、步骤和关键公式。",
             "video": "生成一段适合学生观看的短视频讲解脚本和 Manim 动画，分步解释，不要堆砌文字。",
+            "external_video": "从公开网络中筛选适合当前任务的学习视频，只推荐少量高相关、入门友好的视频链接。",
             "quiz": "生成一组可交互练习题，题型要混合，包含答案、解析、难度和考察点。",
             "research": "整理适合当前任务的学习资料和下一步阅读建议，优先结合知识库上下文。",
         }
@@ -4547,7 +4578,7 @@ class GuideV2Manager:
                     resource_type = str(item.get("resource_type") or "").strip()
                     if resource_type == "practice":
                         resource_type = "quiz"
-                    if resource_type not in {"visual", "video", "quiz", "research"}:
+                    if resource_type not in {"visual", "video", "external_video", "quiz", "research"}:
                         continue
                     phase = str(item.get("phase") or "前测策略").strip()
                     action_text = str(item.get("action") or "").strip()
@@ -4985,6 +5016,7 @@ class GuideV2Manager:
         labels = {
             "visual": "图解",
             "video": "短视频",
+            "external_video": "精选视频",
             "quiz": "练习",
             "research": "资料",
         }
@@ -6747,7 +6779,7 @@ class GuideV2Manager:
 
     @staticmethod
     def _resource_counts(session: GuideSessionV2) -> dict[str, int]:
-        counts = {"visual": 0, "video": 0, "quiz": 0, "research": 0, "other": 0}
+        counts = {"visual": 0, "video": 0, "external_video": 0, "quiz": 0, "research": 0, "other": 0}
         for task in session.tasks:
             for artifact in task.artifact_refs:
                 artifact_type = str(artifact.get("type") or "").strip() or "other"

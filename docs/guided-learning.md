@@ -385,6 +385,7 @@ Guide V2 的资源不是独立存放的文档，而是附着在某个 `LearningT
 | --- | --- | --- |
 | `visual` | `visualize` | `{ "render_mode": "svg" }` |
 | `video` | `math_animator` | `output_mode=video`、`quality`、`max_retries=2` |
+| `external_video` | `external_video_search` | 复用 `web_search` 检索公开视频，筛选 2-3 个适合当前画像和任务的链接 |
 | `quiz` | `deep_question` | `mode=custom`、`num_questions=4`、`question_type=mixed` |
 | `research` | `deep_research` | `mode=learning_path`、`depth=quick`、`sources=["kb","web"]` |
 
@@ -393,6 +394,7 @@ Guide V2 的资源不是独立存放的文档，而是附着在某个 `LearningT
 ```text
 diagram / visualize / 图解 -> visual
 animation / math_animator / 短视频 / 动画 -> video
+external_video / curated_video / web_video / 精选视频 / 网络视频 / 公开视频 -> external_video
 practice / question / 练习 / 题目 -> quiz
 materials / reading / 资料 -> research
 ```
@@ -550,7 +552,7 @@ data/user/workspace/guide/v2/learner_memory.json
 | 创建路线 | 选择课程模板、目标、水平、时间、周期、偏好、薄弱点、Notebook 引用 |
 | 历史路线 | 列出 Guide V2 sessions |
 | 当前任务 | 展示现在要做什么、为什么先做它、完成后去哪里提交 |
-| 任务资源 | 图解、短视频、交互练习等围绕当前任务生成，资源卡显示生成依据和协作链路 |
+| 任务资源 | 图解、短视频、精选公开视频、交互练习等围绕当前任务生成，资源卡显示生成依据和协作链路 |
 | 提交反馈 | 收集掌握评分、困难点和反思，并写回画像与评估 |
 | 知识地图 | 作为路线理解和可视化入口，不抢占主流程 |
 | 任务队列 | 展示路线进度，避免一次性展开全部细节 |
@@ -564,6 +566,10 @@ data/user/workspace/guide/v2/learner_memory.json
 - 几个依据标签：综合掌握、学习进度、最近反馈、优先卡点。
 
 如果学习处方触发了图解、练习或复测生成，前端会在报告下方显示“处方产物”，用户可以直接查看、保存到 Notebook，或提交练习反馈，不需要再回到任务页找结果。刷新页面后，前端也会从 `action_brief.target_task_id` 指向的任务里恢复已有产物。
+
+`external_video` 是面向实用学习的补充资源：系统不会把搜索结果列表直接丢给用户，而是根据当前任务标题、薄弱点、偏好和公开网页结果筛选少量视频卡片。前端展示封面、平台、推荐理由、可嵌入播放器和“打开观看”按钮；保存到 Notebook 时只保存链接与推荐理由，不下载视频内容。
+
+同一套 `external_video_search` 也接入了普通对话协调智能体：学习者在对话页直接说“推荐一个梯度下降讲解视频”时，不需要先进入导学页，系统会自动走“画像提示 -> 视频检索 -> 相关性筛选 -> 视频卡片”的轻量流程。
 
 处方产物里的练习提交后，不会把页面带回普通任务反馈流，而是在报告页内显示“处方复测”结果，继续保持报告 -> 处方 -> 复测 -> 画像回写的闭环。
 

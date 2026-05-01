@@ -28,6 +28,7 @@ DELEGABLE_CAPABILITIES = {
     "deep_question",
     "deep_research",
     "deep_solve",
+    "external_video_search",
     "math_animator",
     "visualize",
 }
@@ -36,6 +37,7 @@ SPECIALIST_LABELS = {
     "deep_question": "Question Generation Agent",
     "deep_research": "Research and Learning Path Agent",
     "deep_solve": "Deep Solve Agent",
+    "external_video_search": "Learning Video Search Agent",
     "math_animator": "Math Animation Agent",
     "visualize": "Knowledge Visualization Agent",
 }
@@ -68,6 +70,26 @@ ANIMATION_TERMS = (
     "animation",
     "animate",
     "video",
+)
+VIDEO_SEARCH_TERMS = (
+    "\u627e\u89c6\u9891",
+    "\u63a8\u8350\u89c6\u9891",
+    "\u89c6\u9891\u63a8\u8350",
+    "\u89c6\u9891\u8d44\u6e90",
+    "\u7cbe\u9009\u89c6\u9891",
+    "\u516c\u5f00\u89c6\u9891",
+    "\u516c\u5f00\u8bfe",
+    "\u7f51\u8bfe",
+    "\u8bb2\u89e3\u89c6\u9891",
+    "\u6559\u5b66\u89c6\u9891",
+    "bilibili",
+    "youtube",
+    "external video",
+    "find video",
+    "recommend video",
+    "learning video",
+    "lecture video",
+    "video resource",
 )
 QUESTION_TERMS = (
     "出题",
@@ -602,6 +624,14 @@ class ChatGraph:
         if self._contains_any(text, NO_DELEGATE_TERMS):
             return CoordinatorDecision(reason="The learner asked for a direct answer.")
 
+        if self._looks_like_external_video_request(text):
+            return CoordinatorDecision(
+                capability="external_video_search",
+                confidence=0.9,
+                reason="The learner asked to find or recommend public learning videos.",
+                config=self._external_video_config(context),
+            )
+
         if self._contains_any(text, ANIMATION_TERMS):
             return CoordinatorDecision(
                 capability="math_animator",
@@ -686,6 +716,8 @@ class ChatGraph:
             from sparkweave.graphs.deep_research import DeepResearchGraph
 
             return await DeepResearchGraph().run(context, stream)
+        if capability == "external_video_search":
+            return await ChatGraph._run_external_video_search(context, stream)
         if capability == "visualize":
             from sparkweave.graphs.visualize import VisualizeGraph
 
@@ -772,6 +804,42 @@ class ChatGraph:
         return ChatGraph._contains_any(text, action_terms)
 
     @staticmethod
+    def _looks_like_external_video_request(text: str) -> bool:
+        if not ChatGraph._contains_any(text, VIDEO_SEARCH_TERMS):
+            return False
+        generate_markers = (
+            "\u751f\u6210\u89c6\u9891",
+            "\u5236\u4f5c\u89c6\u9891",
+            "\u505a\u4e00\u4e2a\u89c6\u9891",
+            "\u505a\u4e2a\u89c6\u9891",
+            "\u751f\u6210\u77ed\u89c6\u9891",
+            "\u52a8\u753b",
+            "manim",
+            "generate video",
+            "create video",
+            "make video",
+            "animation",
+            "animate",
+        )
+        find_markers = (
+            "\u627e",
+            "\u63a8\u8350",
+            "\u68c0\u7d22",
+            "\u641c",
+            "\u516c\u5f00",
+            "\u8d44\u6e90",
+            "\u94fe\u63a5",
+            "find",
+            "recommend",
+            "search",
+            "link",
+            "resource",
+        )
+        if ChatGraph._contains_any(text, generate_markers) and not ChatGraph._contains_any(text, find_markers):
+            return False
+        return True
+
+    @staticmethod
     def _looks_like_solve_request(text: str) -> bool:
         if not ChatGraph._contains_any(text, SOLVE_TERMS):
             return False
@@ -844,6 +912,93 @@ class ChatGraph:
         if "web_search" not in tools:
             tools.append("web_search")
         return tools
+
+    @staticmethod
+    async def _run_external_video_search(
+        context: UnifiedContext,
+        stream: StreamBus,
+    ) -> TutorState:
+        from sparkweave.services.video_search import recommend_learning_videos
+
+        hints = ChatGraph._external_video_config(context)
+        progress_tasks: list[asyncio.Task[None]] = []
+
+        def _event_sink(event_type: str, payload: dict[str, Any]) -> None:
+            message = str(payload.get("message") or "")
+            stage = str(payload.get("stage") or event_type or "searching")
+            progress_tasks.append(
+                asyncio.create_task(
+                    stream.progress(
+                        message,
+                        source="external_video_search",
+                        stage=stage,
+                        metadata={
+                            "trace_kind": str(event_type or "video_search"),
+                            "capability": "external_video_search",
+                            **payload,
+                        },
+                    )
+                )
+            )
+
+        async with stream.stage(
+            "searching",
+            source="external_video_search",
+            metadata={
+                "trace_kind": "agent_work",
+                "capability": "external_video_search",
+                "agent_cluster": SPECIALIST_LABELS["external_video_search"],
+            },
+        ):
+            result = await recommend_learning_videos(
+                topic=context.user_message,
+                learner_hints=hints,
+                prompt=context.user_message,
+                language=context.language or "zh",
+                max_results=int(hints.get("max_results") or 3),
+                event_sink=_event_sink,
+            )
+            if progress_tasks:
+                await asyncio.gather(*progress_tasks)
+
+        response = str(result.get("response") or "")
+        async with stream.stage("responding", source="external_video_search"):
+            if response:
+                await stream.content(response, source="external_video_search", stage="responding")
+            await stream.result(
+                {
+                    **result,
+                    "runtime": "langgraph",
+                    "capability": "external_video_search",
+                },
+                source="external_video_search",
+            )
+        return {
+            "final_answer": response,
+            "external_video_result": result,
+        }
+
+    @staticmethod
+    def _external_video_config(context: UnifiedContext) -> dict[str, Any]:
+        profile_text = "\n".join(
+            item
+            for item in (
+                context.memory_context,
+                context.history_context,
+                context.notebook_context,
+            )
+            if item
+        )
+        hints: dict[str, Any] = {
+            "max_results": 3,
+            "preferences": [],
+            "weak_points": [],
+        }
+        if profile_text:
+            hints["profile_context"] = profile_text[:1200]
+        if context.knowledge_bases:
+            hints["knowledge_bases"] = list(context.knowledge_bases)
+        return hints
 
     @staticmethod
     def _extract_question_count(text: str) -> int:

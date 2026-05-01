@@ -868,6 +868,7 @@ test("sparkbot lifecycle buttons call start stop and destroy endpoints", async (
 
 test("legacy guide query links load the target session", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "legacy guide route smoke runs once");
+  test.skip(true, "Guide V1 query route was replaced by the Guide V2 task flow; see guide-v2-demo.spec.ts.");
   await mockGuideApis(page);
   const guideRequests: string[] = [];
   page.on("request", (request) => {
@@ -888,6 +889,7 @@ test("legacy guide query links load the target session", async ({ page }, testIn
 
 test("guide saves the active session as a notebook record", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "guide notebook save smoke runs once");
+  test.skip(true, "Guide V1 notebook save UI was replaced by Guide V2 artifact saving; see guide-v2-demo.spec.ts.");
   const guide = await mockGuideApis(page);
 
   await page.goto("/guide?session=guide-legacy");
@@ -911,6 +913,7 @@ test("guide saves the active session as a notebook record", async ({ page }, tes
 
 test("guide creates sessions with selected notebook references", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "guide notebook reference smoke runs once");
+  test.skip(true, "Guide V1 session creation UI was replaced by Guide V2 setup; see guide-v2-demo.spec.ts.");
   const guide = await mockGuideApis(page);
 
   await page.goto("/guide");
@@ -929,6 +932,7 @@ test("guide creates sessions with selected notebook references", async ({ page }
 
 test("guide live controls use websocket channel", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "guide websocket smoke runs once");
+  test.skip(true, "Guide V1 live controls were removed to keep Guide V2 learner-facing and simple.");
   await mockGuideApis(page);
   await installMockGuideWebSocket(page);
 
@@ -947,6 +951,7 @@ test("guide live controls use websocket channel", async ({ page }, testInfo) => 
 
 test("guide controls fall back to REST endpoints when websocket is unavailable", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "guide REST fallback smoke runs once");
+  test.skip(true, "Guide V1 REST control panel was removed; Guide V2 resource jobs are covered separately.");
   const guide = await mockGuideApis(page);
   await installUnavailableGuideWebSocket(page);
 
@@ -985,6 +990,7 @@ test("guide controls fall back to REST endpoints when websocket is unavailable",
 
 test("guide deletes the active session and falls back to another session", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "guide delete smoke runs once");
+  test.skip(true, "Guide V1 management flow was retired after the Guide V2 redesign.");
   const guide = await mockGuideApis(page);
 
   await page.goto("/guide?session=guide-legacy");
@@ -2107,6 +2113,7 @@ test("mobile sparkbot edits souls and schema channels without DOM errors", async
 
 test("mobile guide loads sessions and uses websocket controls without DOM errors", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile guide smoke only");
+  test.skip(true, "Guide V1 mobile websocket controls were removed; Guide V2 demo covers the current flow.");
   const errors: string[] = [];
   const consoleDomErrors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -2149,6 +2156,7 @@ test("mobile guide loads sessions and uses websocket controls without DOM errors
 
 test("mobile guide creates saves and deletes sessions without DOM errors", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile guide management smoke only");
+  test.skip(true, "Guide V1 mobile management flow was replaced by Guide V2 setup and artifacts.");
   const errors: string[] = [];
   const consoleDomErrors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

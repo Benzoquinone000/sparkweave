@@ -11,6 +11,23 @@
 
 更完整的调研记录、项目内证据源盘点、风险清单和测试矩阵见 [学习画像开发前调研笔记](./learner-profile-research-notes.md)。
 
+### 0. 补充调研：画像要服务“下一步行动”
+
+2026-05-02 继续查阅学习分析仪表盘与自适应学习系统相关综述后，得到一个更明确的实现取向：SparkWeave 的画像页不应变成指标墙，而应把证据压缩成“现在先做什么、为什么、做完如何回写”。近期综述普遍强调 student-facing dashboard 需要从“展示分析”转向“支持学习”，尤其要结合反馈、反思、自我调节和下一步行动；自适应学习系统中的 learner model 也不能只记录标签，还要把知识水平、学习行为、资源偏好和评估结果连接到 adaptation model。
+
+对项目实现的约束：
+
+- 画像首页默认只保留一个首要行动和少量理由，不平铺证据明细。
+- 证据页负责解释“为什么这样判断”，但默认仍用用户语言，不展示原始事件 JSON。
+- 导学、聊天、题目、视频和 Notebook 都要把结果回写成证据，让画像不断更新。
+- 推荐动作必须能被点击执行，例如进入导学、生成练习、找精选视频、画图解，而不是只给一句建议。
+
+参考：
+
+- Learning analytics dashboards are increasingly becoming about learning and not just analytics: https://link.springer.com/article/10.1007/s10639-023-12401-4
+- Development and techniques in learner model in adaptive e-learning system: A systematic review: https://www.sciencedirect.com/science/article/pii/S0360131524001982
+- A Systematic Review of Empirical Studies on Learning Analytics Dashboards: A Self-Regulated Learning Perspective: https://eric.ed.gov/?id=EJ1279917
+
 ### 1. 学习行为要按“事件”沉淀
 
 xAPI 将学习经历抽象为 statement，核心结构是 `actor`、`verb`、`object`，并可携带 `result`、`context`、`timestamp` 等信息。SparkWeave 不需要完整实现 xAPI/LRS，但应该借鉴这种事件化思想：每次答题、看视频、生成图解、提交反思、保存笔记，都可以成为画像的证据。

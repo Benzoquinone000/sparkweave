@@ -67,7 +67,7 @@ export function TaskSnapshot({
 
       {traceEvents.length ? (
         <div className="mt-3 rounded-lg border border-line bg-canvas p-3">
-          <p className="text-xs font-semibold text-slate-500">思考过程</p>
+          <p className="text-xs font-semibold text-slate-500">协作状态</p>
           <div className="mt-3 space-y-2">
             {traceEvents.map((event, index) => {
               const trace = formatTraceEvent(event);
@@ -133,7 +133,10 @@ function formatStatus(status: "idle" | "connecting" | "streaming" | "error") {
 
 function getTraceEvents(assistant: ChatMessage | null) {
   const events = (assistant?.events ?? []).filter((event) => event.type !== "content");
-  const compacted = assistant?.status === "done" ? events.filter((event) => !isGenericThinkingProgress(event)) : events;
+  const compacted =
+    assistant?.status === "done"
+      ? events.filter((event) => !isGenericThinkingProgress(event) && !isThinkingBoundary(event))
+      : events;
   return compacted.slice(-6);
 }
 
@@ -141,6 +144,11 @@ function isGenericThinkingProgress(event: StreamEvent) {
   const stage = String(event.stage ?? "").toLowerCase();
   const content = String(event.content ?? "").trim().toLowerCase();
   return event.type === "progress" && stage === "thinking" && (!content || content === "thinking...");
+}
+
+function isThinkingBoundary(event: StreamEvent) {
+  const stage = String(event.stage ?? "").toLowerCase();
+  return stage === "thinking" && (event.type === "stage_start" || event.type === "stage_end");
 }
 
 function formatTraceEvent(event: StreamEvent): { title: string; detail?: string; content?: string; tone?: "default" | "success" | "danger" } {

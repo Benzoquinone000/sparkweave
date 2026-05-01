@@ -1211,6 +1211,12 @@ test("notebook deep links select records and question follow-up sessions", async
   await expect(page.getByRole("heading", { name: "导学页面预览" })).toBeVisible();
   await expect(page.getByTestId("guide-asset-preview")).toBeVisible();
 
+  await page.goto("/notebook?notebook=nb-link&record=rec-video");
+  await expect(page.getByTestId("notebook-record-rec-video")).toContainText("Saved external video asset");
+  await expect(page.getByRole("heading", { name: "精选视频资产预览" })).toBeVisible();
+  await expect(page.getByTestId("external-video-viewer")).toContainText("梯度下降直观讲解");
+  await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
+
   await page.goto("/notebook?tab=questions&entry=7");
   await expect(page.getByText("Follow-up question target").first()).toBeVisible();
   await page.locator("aside").getByRole("button").nth(1).click();
@@ -5296,7 +5302,7 @@ async function mockNotebookDeepLinkApis(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/notebook/list", (route) =>
     route.fulfill({
       json: {
-        notebooks: [{ id: "nb-link", name: "Deep Link Notebook", description: "Direct route target", record_count: 1 }],
+        notebooks: [{ id: "nb-link", name: "Deep Link Notebook", description: "Direct route target", record_count: 3 }],
         total: 1,
       },
     }),
@@ -5346,6 +5352,43 @@ async function mockNotebookDeepLinkApis(page: import("@playwright/test").Page) {
                 session_id: "guide-asset-session",
                 current_index: 0,
                 pages: [{ index: 0, title: "Saved Guide Asset" }],
+              },
+            },
+          },
+          {
+            id: "rec-video",
+            record_id: "rec-video",
+            record_type: "chat",
+            title: "Saved external video asset",
+            summary: "精选视频 · 2 个",
+            user_query: "找梯度下降公开视频",
+            output: "## 精选视频\n\n已为「梯度下降」筛选 2 个公开视频。",
+            metadata: {
+              session_id: "session-video-record",
+              asset_kind: "精选视频 · 2 个",
+              external_video: {
+                success: true,
+                render_type: "external_video",
+                response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+                videos: [
+                  {
+                    title: "梯度下降直观讲解",
+                    url: "https://www.bilibili.com/video/BV1gradient01",
+                    platform: "Bilibili",
+                    why_recommended: "贴合当前卡点：概念边界不清。",
+                    duration_seconds: 540,
+                  },
+                  {
+                    title: "Gradient Descent Explained",
+                    url: "https://www.youtube.com/watch?v=abc123",
+                    platform: "YouTube",
+                    duration_seconds: 720,
+                  },
+                ],
+                agent_chain: [
+                  { label: "画像智能体", detail: "读取学习偏好。" },
+                  { label: "视频检索智能体", detail: "检索公开视频。" },
+                ],
               },
             },
           },

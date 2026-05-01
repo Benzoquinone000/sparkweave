@@ -134,17 +134,17 @@ def _iter_search_items(result: Any) -> list[dict[str, str]]:
             items.append(
                 {
                     "title": _clean_text(raw.get("title")),
-                    "url": _clean_text(raw.get("url")),
+                    "url": _clean_text(raw.get("url") or raw.get("link") or raw.get("href")),
                     "snippet": _clean_text(raw.get("snippet") or raw.get("content")),
-                    "source": _clean_text(raw.get("source") or raw.get("website")),
-                    "date": _clean_text(raw.get("date")),
+                    "source": _clean_text(raw.get("source") or raw.get("website") or raw.get("platform")),
+                    "date": _clean_text(raw.get("date") or raw.get("published_at") or raw.get("published")),
                 }
             )
     return items
 
 
 def _candidate_from_item(item: dict[str, str]) -> VideoCandidate | None:
-    url = item.get("url", "")
+    url = _find_video_url(" ".join([item.get("url", ""), item.get("snippet", "")]))
     if not url:
         return None
     platform, canonical_url, embed_url, thumbnail = _parse_video_url(url)
@@ -166,7 +166,17 @@ def _candidate_from_item(item: dict[str, str]) -> VideoCandidate | None:
 
 
 def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
-    url = unquote(raw_url.strip())
+    url = _unwrap_redirect_url(unquote(raw_url.strip()))
+    bvid_only = re.fullmatch(r"BV[0-9A-Za-z]{8,}", url)
+    if bvid_only:
+        bvid = bvid_only.group(0)
+        canonical = f"https://www.bilibili.com/video/{bvid}"
+        return (
+            "Bilibili",
+            canonical,
+            f"https://player.bilibili.com/player.html?bvid={bvid}&poster=1&danmaku=0",
+            "",
+        )
     normalized = url if re.match(r"^https?://", url) else f"https:{url}" if url.startswith("//") else f"https://{url}"
     parsed = urlparse(normalized)
     host = parsed.netloc.lower()
@@ -204,6 +214,39 @@ def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
         )
 
     return "", "", "", ""
+
+
+def _find_video_url(text: str) -> str:
+    candidates = [text.strip()]
+    candidates.extend(re.findall(r"https?://[^\s<>'\")]+", text))
+    candidates.extend(re.findall(r"(?:www\.)?(?:youtube\.com|youtu\.be|bilibili\.com)/[^\s<>'\")]+", text, flags=re.IGNORECASE))
+    candidates.extend(re.findall(r"(?:BV[0-9A-Za-z]{8,})", text))
+    for candidate in candidates:
+        cleaned = candidate.strip().rstrip(".,，。；;)")
+        if not cleaned:
+            continue
+        platform, canonical, _embed, _thumbnail = _parse_video_url(cleaned)
+        if platform and canonical:
+            return cleaned
+    return ""
+
+
+def _unwrap_redirect_url(raw_url: str) -> str:
+    current = raw_url.strip()
+    for _ in range(2):
+        normalized = current if re.match(r"^https?://", current) else f"https://{current}"
+        parsed = urlparse(normalized)
+        query = parse_qs(parsed.query)
+        redirected = ""
+        for key in ("url", "u", "q", "target", "to", "redirect", "uddg"):
+            values = query.get(key) or []
+            if values and re.match(r"^https?://", values[0], flags=re.IGNORECASE):
+                redirected = unquote(values[0])
+                break
+        if not redirected or redirected == current:
+            return current
+        current = redirected
+    return current
 
 
 def _score_candidate(candidate: VideoCandidate, *, topic: str, hints: dict[str, Any], language: str) -> float:

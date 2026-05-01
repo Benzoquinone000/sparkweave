@@ -829,6 +829,8 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     assert report["action_brief"]["primary_action"]["target_task_id"]
     assert report["action_brief"]["primary_action"]["resource_type"] in {"visual", "quiz"}
     assert report["action_brief"]["primary_action"]["prompt"]
+    assert len(report["action_brief"]["steps"]) == 3
+    assert report["action_brief"]["steps"][-1]["label"] == "系统会"
     assert report["action_brief"]["signals"]
     assert report["demo_readiness"]["score"] >= 0
     assert report["demo_readiness"]["label"]

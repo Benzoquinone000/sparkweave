@@ -5482,13 +5482,37 @@ class GuideV2Manager:
                 ]
             )
 
+        steps = GuideV2Manager._report_action_steps(primary, summary)
         return {
             "title": title,
             "summary": summary,
             "primary_action": primary,
             "secondary_actions": secondary[:2],
             "signals": signals[:4],
+            "steps": steps,
         }
+
+    @staticmethod
+    def _report_action_steps(primary: dict[str, Any], summary: str) -> list[dict[str, str]]:
+        kind = str(primary.get("kind") or "").strip()
+        primary_detail = str(primary.get("detail") or summary or "先完成当前建议动作。").strip()
+        if kind == "save_report":
+            return [
+                {"label": "现在", "detail": "先把本轮学习报告保存下来，形成可复盘证据。"},
+                {"label": "接着", "detail": "回到路线或课程产出包，把下一步任务接上。"},
+                {"label": "系统会", "detail": "保留这次学习记录，后续画像和报告会继续引用。"},
+            ]
+        if kind == "course_package":
+            return [
+                {"label": "现在", "detail": "进入课程小项目，把当前知识转成一个可展示成果。"},
+                {"label": "完成后", "detail": "补充项目说明、关键证据和反思。"},
+                {"label": "系统会", "detail": "把项目表现写入学习报告，判断是否能迁移应用。"},
+            ]
+        return [
+            {"label": "现在", "detail": primary_detail},
+            {"label": "完成后", "detail": "提交答案、评分或一句反思，让系统拿到真实学习证据。"},
+            {"label": "系统会", "detail": "把结果回写学习画像，并调整下一步路线和资源推荐。"},
+        ]
 
     @staticmethod
     def _report_signal_tone(score: float) -> str:

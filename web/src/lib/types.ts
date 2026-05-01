@@ -1318,12 +1318,16 @@ export interface GuideV2LearningReport {
       resource_type?: GuideV2ResourceType | string;
       prompt?: string;
     }>;
-    signals?: Array<{
-      label?: string;
-      value?: string;
-      tone?: "neutral" | "brand" | "success" | "warning" | "danger" | string;
-    }>;
-  };
+      signals?: Array<{
+        label?: string;
+        value?: string;
+        tone?: "neutral" | "brand" | "success" | "warning" | "danger" | string;
+      }>;
+      steps?: Array<{
+        label?: string;
+        detail?: string;
+      }>;
+    };
   demo_readiness?: {
     score?: number;
     label?: string;

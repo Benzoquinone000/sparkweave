@@ -2916,6 +2916,7 @@ function ReportActionBriefCard({
   const primary = brief.primary_action ?? {};
   const secondary = brief.secondary_actions ?? [];
   const signals = brief.signals ?? [];
+  const steps = brief.steps ?? [];
 
   return (
     <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3">
@@ -2927,6 +2928,16 @@ function ReportActionBriefCard({
         <Badge tone="brand">先做</Badge>
       </div>
       <p className="mt-2 text-sm leading-6 text-teal-800">{brief.summary || primary.detail || "系统已经把下一步压缩成一个明确动作。"}</p>
+      {steps.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-3" data-testid="guide-report-action-steps">
+          {steps.slice(0, 3).map((item, index) => (
+            <div key={`${item.label}-${item.detail}-${index}`} className="rounded-lg border border-teal-100 bg-white/80 p-3">
+              <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "按这一步继续推进。")}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {signals.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {signals.slice(0, 4).map((item) => (

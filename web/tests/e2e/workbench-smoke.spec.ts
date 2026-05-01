@@ -27,6 +27,8 @@ test("chat profile starter turns learner profile into one-click actions", async 
   await page.goto("/chat");
 
   await expect(page.getByTestId("chat-profile-starter")).toContainText("梯度下降的直观理解");
+  await expect(page.getByTestId("chat-profile-starter")).toContainText("默认：即时答疑");
+  await expect(page.getByTestId("chat-profile-starter")).not.toContainText("默认：chat");
   const guideHref = await page.getByTestId("chat-profile-guide").getAttribute("href");
   expect(decodeURIComponent(guideHref ?? "")).toContain("梯度下降的直观理解");
   expect(decodeURIComponent(guideHref ?? "")).toContain("source_label=概念边界不清");

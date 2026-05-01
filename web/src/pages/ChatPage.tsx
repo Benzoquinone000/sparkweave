@@ -36,7 +36,7 @@ import { ToolSelector } from "@/components/chat/ToolSelector";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
-import { defaultConfigForCapability, defaultToolsForCapability, getCapability } from "@/lib/capabilities";
+import { capabilityLabel, defaultConfigForCapability, defaultToolsForCapability, getCapability } from "@/lib/capabilities";
 import { getSession } from "@/lib/api";
 import type {
   CapabilityId,
@@ -682,7 +682,7 @@ function EmptyState({
             <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
               <span className="rounded-md border border-line bg-canvas px-2 py-1">{Math.max(3, minutes)} 分钟</span>
-              <span className="rounded-md border border-line bg-canvas px-2 py-1">默认：{activeCapability}</span>
+              <span className="rounded-md border border-line bg-canvas px-2 py-1">默认：{capabilityLabel(activeCapability)}</span>
               {profile?.confidence ? (
                 <span className="rounded-md border border-line bg-canvas px-2 py-1">
                   画像可信度 {Math.round(profile.confidence * 100)}%

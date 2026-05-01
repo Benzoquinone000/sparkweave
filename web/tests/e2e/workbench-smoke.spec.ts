@@ -727,7 +727,7 @@ test("sparkbot chat streams websocket replies", async ({ page }, testInfo) => {
   await botChat.getByPlaceholder("向 SparkBot 提问...").fill("解释导数");
   await botChat.getByRole("button", { name: "发送" }).click();
 
-  await expect(botChat.getByText("思考：Planning derivative hint")).toBeVisible();
+  await expect(botChat).not.toContainText("Planning derivative hint");
   await expect(botChat.getByText("导数表示瞬时变化率。斜率是 2。")).toBeVisible();
   await expect(botChat.getByText("记得复盘切线斜率。")).toBeVisible();
   await expect.poll(() =>
@@ -2005,7 +2005,7 @@ test("mobile sparkbot streams agent replies without DOM errors", async ({ page }
   const botChat = page.getByTestId("sparkbot-chat");
   await botChat.locator("input").fill("Explain derivative on mobile");
   await botChat.locator('button[type="submit"]').click();
-  await expect(botChat).toContainText("Planning derivative hint");
+  await expect(botChat).not.toContainText("Planning derivative hint");
   await expect(botChat).toContainText("2");
   await expect
     .poll(() =>

@@ -866,9 +866,9 @@ function SparkBotChat({ botId, running }: { botId: string | null; running: boole
               <Badge tone={message.status === "error" ? "danger" : message.role === "user" ? "brand" : "neutral"}>
                 {message.role === "user" ? "你" : "助教"}
               </Badge>
-              {message.thinking ? (
+              {message.thinking && message.status !== "done" ? (
                 <p className="mt-2 rounded-md border border-line bg-canvas px-2 py-1 text-xs leading-5 text-slate-500">
-                  思考：{message.thinking}
+                  助教正在整理思路
                 </p>
               ) : null}
               <p className="mt-2 whitespace-pre-wrap text-slate-700">{message.content || "等待回复..."}</p>

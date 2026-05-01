@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { capabilityLabel, defaultConfigForCapability, defaultToolsForCapability, getCapability } from "@/lib/capabilities";
 import { getSession } from "@/lib/api";
+import { sessionDisplayTitle } from "@/lib/sessionDisplay";
 import type {
   CapabilityId,
   ChatAttachment,
@@ -476,8 +477,6 @@ export function ChatPage() {
                   messages={runtime.messages}
                   status={runtime.status}
                   stageLabel={stageLabel}
-                  sessionId={runtime.sessionId}
-                  turnId={runtime.turnId}
                   onSaveMessage={setSaveMessage}
                 />
                 <div className="mt-3">
@@ -793,9 +792,9 @@ function SessionHistoryPanel({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
 
-  const startRename = (session: SessionSummary) => {
+  const startRename = (session: SessionSummary, index: number) => {
     setRenamingId(session.session_id);
-    setTitleDraft(session.title || "未命名会话");
+    setTitleDraft(sessionDisplayTitle(session, index));
   };
 
   const submitRename = async (targetSessionId: string) => {
@@ -842,7 +841,7 @@ function SessionHistoryPanel({
         </div>
       </div>
       <div className="mt-3 max-h-[calc(100vh-190px)] space-y-1.5 overflow-y-auto pr-1">
-        {sessions.slice(0, 8).map((session) => (
+        {sessions.slice(0, 8).map((session, index) => (
           <div
             key={session.session_id}
             data-testid={`${testIdPrefix}-session-card-${session.session_id}`}
@@ -896,7 +895,7 @@ function SessionHistoryPanel({
                 >
                   <span className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                      {session.title || "未命名会话"}
+                      {sessionDisplayTitle(session, index)}
                     </span>
                     {loadingSessionId === session.session_id ? (
                       <Loader2 size={14} className="animate-spin text-brand-teal" />
@@ -910,7 +909,7 @@ function SessionHistoryPanel({
                   <button
                     type="button"
                     className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-brand-teal"
-                    onClick={() => startRename(session)}
+                    onClick={() => startRename(session, index)}
                     data-testid={`${testIdPrefix}-session-rename-${session.session_id}`}
                     aria-label="重命名会话"
                   >

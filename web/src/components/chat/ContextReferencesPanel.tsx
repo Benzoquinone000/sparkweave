@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectInput } from "@/components/ui/Field";
 import { useNotebookDetail } from "@/hooks/useApiQueries";
 import { capabilityLabel } from "@/lib/capabilities";
+import { sessionDisplayTitle } from "@/lib/sessionDisplay";
 import type { NotebookReference, NotebookRecord, NotebookSummary, SessionSummary } from "@/lib/types";
 
 interface ContextReferencesPanelProps {
@@ -106,7 +107,7 @@ export function ContextReferencesPanel({
             ) : null}
           </div>
           <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-            {selectableSessions.map((session) => {
+            {selectableSessions.map((session, index) => {
               const sessionId = session.session_id || session.id;
               const active = selectedHistory.has(sessionId);
               return (
@@ -128,7 +129,7 @@ export function ContextReferencesPanel({
                     <Check size={12} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">{session.title || "未命名会话"}</span>
+                    <span className="block truncate text-sm font-medium text-ink">{sessionDisplayTitle(session, index)}</span>
                     <span className="mt-1 block truncate text-xs text-slate-500">
                       {capabilityLabel(session.preferences?.capability)} · {session.message_count ?? 0} 条消息
                     </span>

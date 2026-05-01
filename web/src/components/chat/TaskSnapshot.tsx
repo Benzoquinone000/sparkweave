@@ -15,14 +15,11 @@ export function TaskSnapshot({
   messages,
   status,
   stageLabel,
-  sessionId,
   onSaveMessage,
 }: {
   messages: ChatMessage[];
   status: "idle" | "connecting" | "streaming" | "error";
   stageLabel: string;
-  sessionId: string | null;
-  turnId: string | null;
   onSaveMessage: (message: ChatMessage) => void;
 }) {
   const assistant = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant") ?? null, [messages]);
@@ -106,7 +103,6 @@ export function TaskSnapshot({
           发送后会显示答案、题目、图表或动画结果。
         </p>
       )}
-      {sessionId ? <span className="dt-test-legacy">会话 {sessionId}</span> : null}
     </section>
   );
 }

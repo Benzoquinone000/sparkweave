@@ -1505,7 +1505,8 @@ test("mobile chat streams websocket results without DOM errors", async ({ page }
 
   await expect(page.getByText("Mobile final answer from mock runtime.")).toBeVisible();
   await page.getByTestId("chat-context-toggle").click();
-  await expect(page.getByTestId("chat-mobile-context-drawer").getByText("session-new").first()).toBeVisible();
+  await expect(page.getByTestId("chat-mobile-context-drawer")).toContainText("已建立");
+  await expect(page.getByTestId("chat-mobile-context-drawer")).not.toContainText("session-new");
   expect(errors).toEqual([]);
   expect(consoleDomErrors).toEqual([]);
 });

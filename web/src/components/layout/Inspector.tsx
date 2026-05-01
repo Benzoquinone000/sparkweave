@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { useDashboardActivities, useDashboardActivity, useKnowledgeBases, useSessions, useSystemStatus } from "@/hooks/useApiQueries";
 import { capabilityLabel } from "@/lib/capabilities";
+import { sessionDisplayTitle } from "@/lib/sessionDisplay";
 import type { DashboardActivityDetail } from "@/lib/types";
 
 export function Inspector({ onClose }: { onClose: () => void }) {
@@ -108,9 +109,9 @@ export function Inspector({ onClose }: { onClose: () => void }) {
               ))}
               {selectedActivityId ? <ActivityDetail detail={activityDetail.data} loading={activityDetail.isLoading} /> : null}
               {!activities.data?.length && sessions.data?.length
-                ? (sessions.data ?? []).slice(0, 5).map((session) => (
+                ? (sessions.data ?? []).slice(0, 5).map((session, index) => (
                     <div key={session.session_id} className="dt-soft-enter rounded-lg border border-line bg-white px-3 py-2">
-                      <p className="truncate text-sm font-medium text-ink">{session.title || "未命名会话"}</p>
+                      <p className="truncate text-sm font-medium text-ink">{sessionDisplayTitle(session, index)}</p>
                       <p className="mt-1 truncate text-xs text-slate-500">{session.message_count} 条消息</p>
                     </div>
                   ))

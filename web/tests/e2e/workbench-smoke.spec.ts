@@ -2838,7 +2838,7 @@ test("chat keeps raw message trace while task snapshot shows completion", async 
 
 test("chat renders external video results as learner-facing cards", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "external video smoke runs once");
-  await mockReferenceApis(page);
+  const reference = await mockReferenceApis(page);
   await installMockWebSocket(page, {
     events: [
       {
@@ -2883,6 +2883,25 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
   await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开观看" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "保存当前结果" }).click();
+  const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
+  await expect(modal.getByText("精选视频 · 2 个").first()).toBeVisible();
+  await modal.getByRole("button", { name: "保存" }).click();
+  await expect.poll(() => reference.savedPayload).toEqual(
+    expect.objectContaining({
+      output: expect.stringContaining("## 精选视频"),
+      metadata: expect.objectContaining({
+        asset_kind: "精选视频 · 2 个",
+        external_video: expect.objectContaining({
+          render_type: "external_video",
+          videos: expect.arrayContaining([
+            expect.objectContaining({ title: "梯度下降直观讲解" }),
+          ]),
+        }),
+      }),
+    }),
+  );
 });
 
 test("chat records deep question quiz answers", async ({ page }, testInfo) => {

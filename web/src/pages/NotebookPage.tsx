@@ -24,6 +24,7 @@ import {
 import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ExternalVideoViewer } from "@/components/results/ExternalVideoViewer";
 import { MathAnimatorViewer } from "@/components/results/MathAnimatorViewer";
 import { VisualizationViewer } from "@/components/results/VisualizationViewer";
 import { Badge } from "@/components/ui/Badge";
@@ -32,7 +33,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { Metric } from "@/components/ui/Metric";
-import type { MathAnimatorResult, NotebookDetail, NotebookRecord, QuestionCategory, QuestionNotebookEntry, QuizQuestion, VisualizeResult } from "@/lib/types";
+import type {
+  ExternalVideoResult,
+  MathAnimatorResult,
+  NotebookDetail,
+  NotebookRecord,
+  QuestionCategory,
+  QuestionNotebookEntry,
+  QuizQuestion,
+  VisualizeResult,
+} from "@/lib/types";
 import {
   useNotebookDetail,
   useNotebookHealth,
@@ -856,6 +866,18 @@ function RecordAssetPreview({ record, asset }: { record: NotebookRecord; asset: 
     );
   }
 
+  if (asset.externalVideo) {
+    return (
+      <div className="mt-4 border-t border-line pt-4">
+        <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+          <Video size={16} className="text-brand-blue" />
+          精选视频资产预览
+        </h4>
+        <ExternalVideoViewer result={asset.externalVideo} />
+      </div>
+    );
+  }
+
   if (asset.guideHtml) {
     return (
       <div className="mt-4 border-t border-line pt-4">
@@ -891,6 +913,7 @@ function getRecordAsset(record: NotebookRecord) {
   const metadata = asRecord(record.metadata);
   const visualize = isVisualizeResult(metadata?.visualize) ? metadata.visualize : null;
   const mathAnimator = isMathAnimatorResult(metadata?.math_animator) ? metadata.math_animator : null;
+  const externalVideo = isExternalVideoResult(metadata?.external_video) ? metadata.external_video : null;
   const quizQuestions = getQuizQuestions(metadata?.quiz);
   const guideHtml = getGuideHtml(record, metadata);
   const kind = typeof metadata?.asset_kind === "string" ? metadata.asset_kind : "";
@@ -898,9 +921,10 @@ function getRecordAsset(record: NotebookRecord) {
     kind,
     visualize,
     mathAnimator,
+    externalVideo,
     quizQuestions,
     guideHtml,
-    hasPreview: Boolean(visualize || mathAnimator || quizQuestions.length || guideHtml || record.output),
+    hasPreview: Boolean(visualize || mathAnimator || externalVideo || quizQuestions.length || guideHtml || record.output),
   };
 }
 
@@ -923,6 +947,11 @@ function isMathAnimatorResult(value: unknown): value is MathAnimatorResult {
   const record = asRecord(value);
   if (!record) return false;
   return Array.isArray(record.artifacts) || Boolean(record.code) || typeof record.response === "string";
+}
+
+function isExternalVideoResult(value: unknown): value is ExternalVideoResult {
+  const record = asRecord(value);
+  return Boolean(record && Array.isArray(record.videos));
 }
 
 function getQuizQuestions(value: unknown): QuizQuestion[] {

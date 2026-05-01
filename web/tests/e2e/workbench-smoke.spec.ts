@@ -2901,6 +2901,26 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
   await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开观看" }).first()).toBeVisible();
+  await page.getByTestId("external-video-open-0").evaluate((node) => {
+    node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  });
+  await expect.poll(() => reference.evidencePayload).toEqual(
+    expect.objectContaining({
+      source: "resource",
+      verb: "viewed",
+      object_type: "resource",
+      object_id: "https://www.bilibili.com/video/BV1gradient01",
+      title: "梯度下降直观讲解",
+      resource_type: "external_video",
+      metadata: expect.objectContaining({
+        rank: 1,
+        platform: "Bilibili",
+        learner_profile_hints: expect.objectContaining({
+          current_focus: "梯度下降",
+        }),
+      }),
+    }),
+  );
 
   await page.getByRole("button", { name: "保存当前结果" }).click();
   const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
@@ -3756,6 +3776,7 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     sessionDeleteTarget?: string;
     quizResultPayload?: { sessionId: string; answers: Array<Record<string, unknown>> };
     calibrationPayload?: Record<string, unknown>;
+    evidencePayload?: Record<string, unknown>;
   } = {};
   let chatSessions = [
     {
@@ -3826,6 +3847,41 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
           ...learnerProfile,
           data_quality: { ...learnerProfile.data_quality, calibration_count: 1 },
         },
+      },
+    });
+  });
+  await page.route(/\/api\/v1\/learner-profile\/evidence(?:[?#]|$)/, async (route) => {
+    if (route.request().method() === "POST") {
+      state.evidencePayload = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        json: {
+          event: {
+            id: "evidence-video-open",
+            source: state.evidencePayload.source,
+            source_id: state.evidencePayload.source_id,
+            actor: state.evidencePayload.actor,
+            verb: state.evidencePayload.verb,
+            object_type: state.evidencePayload.object_type,
+            object_id: state.evidencePayload.object_id,
+            title: state.evidencePayload.title,
+            summary: state.evidencePayload.summary,
+            resource_type: state.evidencePayload.resource_type,
+            duration_seconds: state.evidencePayload.duration_seconds,
+            confidence: state.evidencePayload.confidence,
+            mistake_types: [],
+            created_at: 1_700_000_900,
+            weight: state.evidencePayload.weight,
+            metadata: state.evidencePayload.metadata,
+          },
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        summary: { event_count: 0, by_source: {}, by_verb: {}, by_object_type: {} },
       },
     });
   });

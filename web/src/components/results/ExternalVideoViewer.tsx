@@ -1,7 +1,9 @@
+import { useCallback, useRef } from "react";
 import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
+import { appendLearnerEvidence } from "@/lib/api";
 import type { ExternalVideoResult } from "@/lib/types";
 
 function formatDuration(seconds?: number | null) {
@@ -20,6 +22,39 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos[0];
   const embedUrl = safeEmbedUrl(featured?.embed_url);
   const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
+  const recordedVideoUrls = useRef(new Set<string>());
+
+  const recordVideoViewed = useCallback(
+    (video: (typeof videos)[number], index: number) => {
+      if (!video.url || recordedVideoUrls.current.has(video.url)) return;
+      recordedVideoUrls.current.add(video.url);
+      void appendLearnerEvidence({
+        source: "resource",
+        source_id: `external_video:${video.url}`,
+        actor: "learner",
+        verb: "viewed",
+        object_type: "resource",
+        object_id: video.url,
+        title: video.title || "External learning video",
+        summary: video.why_recommended || video.summary || result.response || "",
+        resource_type: "external_video",
+        duration_seconds: video.duration_seconds ?? null,
+        confidence: 0.48,
+        weight: 0.6,
+        metadata: {
+          rank: index + 1,
+          platform: video.platform || "",
+          query: result.queries?.[0] || "",
+          style_hint: result.style_hint || "",
+          learner_profile_hints: result.learner_profile_hints ?? {},
+          agent_chain: result.agent_chain ?? [],
+        },
+      }).catch(() => {
+        recordedVideoUrls.current.delete(video.url || "");
+      });
+    },
+    [result.agent_chain, result.learner_profile_hints, result.queries, result.response, result.style_hint],
+  );
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-3" data-testid="external-video-viewer">
@@ -100,6 +135,8 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                       href={video.url}
                       target="_blank"
                       rel="noreferrer"
+                      data-testid={`external-video-open-${index}`}
+                      onClick={() => recordVideoViewed(video, index)}
                       className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
                     >
                       <ExternalLink size={13} />

@@ -119,6 +119,7 @@ class VisualizeGraph:
                     f"User request:\n{state['user_message']}\n\n"
                     f"Conversation context:\n{self._history_context(state) or '(none)'}\n\n"
                     f"Render mode hint: {config['render_mode']}\n\n"
+                    f"Learner style hint: {config['style_hint'] or '(none)'}\n\n"
                     "Return JSON with keys: render_type, description, data_description, "
                     "chart_type, visual_elements, rationale."
                 ),
@@ -142,6 +143,7 @@ class VisualizeGraph:
     async def _generate_node(self, state: TutorState) -> dict[str, Any]:
         stream = state["stream"]
         analysis = self._analysis(state)
+        config = self._config(state)
         async with stream.stage("generating", source=self.source):
             await stream.progress(
                 "Generating visualization code...",
@@ -154,6 +156,7 @@ class VisualizeGraph:
                 user=(
                     f"User request:\n{state['user_message']}\n\n"
                     f"Conversation context:\n{self._history_context(state) or '(none)'}\n\n"
+                    f"Learner style hint: {config['style_hint'] or '(none)'}\n\n"
                     f"Analysis:\n{json.dumps(analysis, ensure_ascii=False, indent=2)}\n\n"
                     "Generate the visualization code now."
                 ),
@@ -290,7 +293,10 @@ class VisualizeGraph:
                     original_label="User request",
                     partial=partial,
                     trace_summary=trace_summary,
-                    extra_context=f"Render mode hint: {config['render_mode']}",
+                    extra_context=(
+                        f"Render mode hint: {config['render_mode']}\n"
+                        f"Learner style hint: {config['style_hint'] or '(none)'}"
+                    ),
                     final_instruction="Emit the JSON object now.",
                 ),
             )
@@ -395,7 +401,10 @@ class VisualizeGraph:
         render_mode = str(overrides.get("render_mode") or "auto").strip().lower()
         if render_mode not in {"auto", "svg", "chartjs", "mermaid"}:
             render_mode = "auto"
-        return {"render_mode": render_mode}
+        return {
+            "render_mode": render_mode,
+            "style_hint": str(overrides.get("style_hint") or "").strip()[:500],
+        }
 
     @staticmethod
     def _history_context(state: TutorState) -> str:

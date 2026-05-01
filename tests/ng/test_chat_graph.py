@@ -41,6 +41,27 @@ class FakeToolRegistry:
         )
 
 
+def learner_profile_metadata() -> dict:
+    return {
+        "learner_profile_context": {
+            "available": True,
+            "text": "[Learner Profile Context]\n- weak_points: 概念边界不清\n- preferences: 公开视频, 图解",
+            "hints": {
+                "current_focus": "梯度下降",
+                "level": "beginner",
+                "time_budget_minutes": 10,
+                "preferences": ["公开视频", "图解"],
+                "weak_points": ["概念边界不清"],
+                "mastery_needs_attention": ["梯度符号"],
+                "next_action": {
+                    "title": "前测补基：梯度下降的直观理解",
+                    "estimated_minutes": 10,
+                },
+            },
+        }
+    }
+
+
 @pytest.mark.asyncio
 async def test_chat_graph_runs_without_tools():
     from langchain_core.messages import AIMessage
@@ -143,13 +164,18 @@ async def test_chat_graph_coordinator_delegates_animation_request():
         tool_registry=FakeToolRegistry(),
         specialist_runner=fake_specialist,
     )
-    context = UnifiedContext(user_message="请生成一个极限动画讲解")
+    context = UnifiedContext(
+        user_message="请生成一个极限动画讲解",
+        metadata=learner_profile_metadata(),
+    )
 
     state = await graph.run(context, bus)
 
     assert captured["capability"] == "math_animator"
     assert captured["context"].active_capability == "math_animator"
     assert captured["context"].config_overrides["output_mode"] == "video"
+    assert "概念边界不清" in captured["context"].config_overrides["style_hint"]
+    assert "10 minutes" in captured["context"].config_overrides["style_hint"]
     assert state["final_answer"] == "animation ready"
 
 
@@ -157,6 +183,10 @@ async def test_chat_graph_coordinator_delegates_animation_request():
 async def test_chat_graph_coordinator_delegates_external_video_request(monkeypatch):
     async def fake_recommend_learning_videos(**kwargs):
         assert kwargs["topic"] == "recommend video about gradient descent"
+        assert kwargs["learner_hints"]["weak_points"] == ["概念边界不清"]
+        assert kwargs["learner_hints"]["preferences"] == ["公开视频", "图解"]
+        assert "梯度下降" in kwargs["learner_hints"]["concepts"]
+        assert "profile_context" in kwargs["learner_hints"]
         return {
             "success": True,
             "render_type": "external_video",
@@ -182,7 +212,10 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
         model=FakeModel([]),
         tool_registry=FakeToolRegistry(),
     )
-    context = UnifiedContext(user_message="recommend video about gradient descent")
+    context = UnifiedContext(
+        user_message="recommend video about gradient descent",
+        metadata=learner_profile_metadata(),
+    )
 
     state = await graph.run(context, bus)
 
@@ -191,6 +224,37 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].source == "external_video_search"
     assert result_events[-1].metadata["render_type"] == "external_video"
     assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_coordinator_delegates_questions_with_profile_guidance():
+    captured = {}
+
+    async def fake_specialist(capability, context, stream):
+        captured["capability"] = capability
+        captured["context"] = context
+        await stream.result({"response": "quiz ready"}, source=capability)
+        return {"final_answer": "quiz ready"}
+
+    bus = StreamBus()
+    graph = ChatGraph(
+        model=FakeModel([]),
+        tool_registry=FakeToolRegistry(),
+        specialist_runner=fake_specialist,
+    )
+    context = UnifiedContext(
+        user_message="请生成3道梯度下降选择题",
+        metadata=learner_profile_metadata(),
+    )
+
+    state = await graph.run(context, bus)
+
+    assert captured["capability"] == "deep_question"
+    assert captured["context"].config_overrides["question_type"] == "choice"
+    assert captured["context"].config_overrides["num_questions"] == 3
+    assert "概念边界不清" in captured["context"].config_overrides["preference"]
+    assert "前测补基" in captured["context"].config_overrides["preference"]
+    assert state["final_answer"] == "quiz ready"
 
 
 @pytest.mark.asyncio

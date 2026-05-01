@@ -637,7 +637,7 @@ class ChatGraph:
                 capability="math_animator",
                 confidence=0.92,
                 reason="The learner asked for an animation or video-style explanation.",
-                config=self._math_animator_config(text),
+                config=self._math_animator_config(context, text),
             )
 
         if self._contains_any(text, QUESTION_TERMS):
@@ -645,7 +645,7 @@ class ChatGraph:
                 capability="deep_question",
                 confidence=0.9,
                 reason="The learner asked to generate interactive practice questions.",
-                config=self._question_config(context.user_message, text),
+                config=self._question_config(context, context.user_message, text),
             )
 
         if self._contains_any(text, VISUALIZE_TERMS) and self._has_visual_action(text):
@@ -653,7 +653,7 @@ class ChatGraph:
                 capability="visualize",
                 confidence=0.88,
                 reason="The learner asked for a diagram or knowledge visualization.",
-                config=self._visualize_config(text),
+                config=self._visualize_config(context, text),
             )
 
         if self._contains_any(text, RESEARCH_TERMS):
@@ -862,29 +862,43 @@ class ChatGraph:
         return ChatGraph._contains_any(text, math_markers)
 
     @staticmethod
-    def _visualize_config(text: str) -> dict[str, Any]:
+    def _visualize_config(context: UnifiedContext, text: str) -> dict[str, Any]:
+        config: dict[str, Any]
         if ChatGraph._contains_any(text, ("流程图", "关系图", "思维导图", "mermaid", "flowchart", "diagram")):
-            return {"render_mode": "mermaid"}
-        if ChatGraph._contains_any(text, ("图表", "柱状图", "折线图", "饼图", "chart", "bar", "line", "pie", "trend")):
-            return {"render_mode": "chartjs"}
-        return {"render_mode": "auto"}
+            config = {"render_mode": "mermaid"}
+        elif ChatGraph._contains_any(text, ("图表", "柱状图", "折线图", "饼图", "chart", "bar", "line", "pie", "trend")):
+            config = {"render_mode": "chartjs"}
+        else:
+            config = {"render_mode": "auto"}
+        guidance = ChatGraph._learner_profile_guidance(context)
+        if guidance:
+            config["style_hint"] = guidance
+        return config
 
     @staticmethod
-    def _math_animator_config(text: str) -> dict[str, Any]:
+    def _math_animator_config(context: UnifiedContext, text: str) -> dict[str, Any]:
         output_mode = "video"
         if ChatGraph._contains_any(text, ("分镜", "插图", "图片", "image", "storyboard")):
             output_mode = "image"
-        return {"output_mode": output_mode, "quality": "medium"}
+        config = {"output_mode": output_mode, "quality": "medium"}
+        guidance = ChatGraph._learner_profile_guidance(context)
+        if guidance:
+            config["style_hint"] = guidance
+        return config
 
     @staticmethod
-    def _question_config(original: str, text: str) -> dict[str, Any]:
+    def _question_config(context: UnifiedContext, original: str, text: str) -> dict[str, Any]:
+        preference = "Generate interactive practice questions for the learner."
+        guidance = ChatGraph._learner_profile_guidance(context)
+        if guidance:
+            preference = f"{preference} Personalize with: {guidance}"
         return {
             "mode": "custom",
             "topic": original.strip(),
             "num_questions": ChatGraph._extract_question_count(text),
             "difficulty": "",
             "question_type": ChatGraph._infer_question_type(text),
-            "preference": "Generate interactive practice questions for the learner.",
+            "preference": preference,
         }
 
     @staticmethod
@@ -898,11 +912,15 @@ class ChatGraph:
             sources.append("web")
         if "paper_search" in enabled:
             sources.append("papers")
-        return {
+        config: dict[str, Any] = {
             "mode": mode,
             "depth": "standard",
             "sources": sources or ["web"],
         }
+        hints = ChatGraph._learner_profile_hints(context)
+        if hints:
+            config["learner_profile_hints"] = hints
+        return config
 
     @staticmethod
     def _research_tools(context: UnifiedContext) -> list[str] | None:
@@ -990,15 +1008,125 @@ class ChatGraph:
             if item
         )
         hints: dict[str, Any] = {
+            **ChatGraph._learner_profile_hints(context),
             "max_results": 3,
-            "preferences": [],
-            "weak_points": [],
         }
-        if profile_text:
+        hints.setdefault("preferences", [])
+        hints.setdefault("weak_points", [])
+        if profile_text and not hints.get("profile_context"):
             hints["profile_context"] = profile_text[:1200]
         if context.knowledge_bases:
             hints["knowledge_bases"] = list(context.knowledge_bases)
         return hints
+
+    @staticmethod
+    def _learner_profile_hints(context: UnifiedContext) -> dict[str, Any]:
+        profile = context.metadata.get("learner_profile_context")
+        if not isinstance(profile, dict):
+            return {}
+        raw_hints = profile.get("hints")
+        if not isinstance(raw_hints, dict):
+            raw_hints = {}
+
+        hints: dict[str, Any] = {}
+        for key in ("current_focus", "summary", "level"):
+            value = ChatGraph._hint_text(raw_hints.get(key), limit=220)
+            if value:
+                hints[key] = value
+        time_budget = raw_hints.get("time_budget_minutes")
+        if isinstance(time_budget, (int, float)) and int(time_budget) > 0:
+            hints["time_budget_minutes"] = int(time_budget)
+
+        for key in ("goals", "preferences", "strengths", "weak_points", "mastery_needs_attention"):
+            values = ChatGraph._hint_strings(raw_hints.get(key), limit=4)
+            if values:
+                hints[key] = values
+
+        next_action = raw_hints.get("next_action")
+        if isinstance(next_action, dict):
+            action = {
+                "kind": ChatGraph._hint_text(next_action.get("kind")),
+                "title": ChatGraph._hint_text(next_action.get("title")),
+                "summary": ChatGraph._hint_text(next_action.get("summary"), limit=260),
+                "estimated_minutes": next_action.get("estimated_minutes"),
+            }
+            action = {key: value for key, value in action.items() if value}
+            if action:
+                hints["next_action"] = action
+
+        concepts = ChatGraph._merge_hint_strings(
+            [
+                hints.get("current_focus"),
+                *(hints.get("weak_points") or []),
+                *(hints.get("mastery_needs_attention") or []),
+            ],
+            limit=6,
+        )
+        if concepts:
+            hints["concepts"] = concepts
+
+        profile_text = ChatGraph._hint_text(profile.get("text"), limit=1200)
+        if profile_text:
+            hints["profile_context"] = profile_text
+        return hints
+
+    @staticmethod
+    def _learner_profile_guidance(context: UnifiedContext) -> str:
+        hints = ChatGraph._learner_profile_hints(context)
+        if not hints:
+            return ""
+        parts: list[str] = []
+        level = hints.get("level")
+        if level:
+            parts.append(f"level={level}")
+        weak_points = hints.get("weak_points") or hints.get("mastery_needs_attention")
+        if weak_points:
+            parts.append(f"focus weak points: {', '.join(ChatGraph._hint_strings(weak_points, limit=3))}")
+        preferences = hints.get("preferences")
+        if preferences:
+            parts.append(f"respect preferences: {', '.join(ChatGraph._hint_strings(preferences, limit=3))}")
+        time_budget = hints.get("time_budget_minutes")
+        if time_budget:
+            parts.append(f"fit within about {time_budget} minutes")
+        action = hints.get("next_action")
+        if isinstance(action, dict) and action.get("title"):
+            parts.append(f"align with next action: {action['title']}")
+        return "; ".join(part for part in parts if part)[:500]
+
+    @staticmethod
+    def _hint_text(value: Any, *, limit: int = 180) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        text = " ".join(text.split())
+        if len(text) <= limit:
+            return text
+        return text[:limit].rstrip() + "..."
+
+    @staticmethod
+    def _hint_strings(value: Any, *, limit: int = 4) -> list[str]:
+        if value is None:
+            return []
+        raw_items = value if isinstance(value, list) else [value]
+        items: list[str] = []
+        for item in raw_items:
+            text = ChatGraph._hint_text(item)
+            if text and text not in items:
+                items.append(text)
+            if len(items) >= limit:
+                break
+        return items
+
+    @staticmethod
+    def _merge_hint_strings(values: list[Any], *, limit: int) -> list[str]:
+        merged: list[str] = []
+        for value in values:
+            for item in ChatGraph._hint_strings(value, limit=limit):
+                if item not in merged:
+                    merged.append(item)
+                if len(merged) >= limit:
+                    return merged
+        return merged
 
     @staticmethod
     def _extract_question_count(text: str) -> int:

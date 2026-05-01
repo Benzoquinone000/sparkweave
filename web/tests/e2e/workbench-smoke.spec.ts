@@ -136,6 +136,8 @@ test("chat exposes capability-specific settings", async ({ page }, testInfo) => 
     testInfo.project.name === "mobile" ? page.getByLabel(name).last() : page.getByLabel(name).first();
   await page.getByRole("button", { name: /题目生成/ }).click();
   await expect(visibleControl("题目数量")).toBeVisible();
+  await expect(page.getByRole("button", { name: /精选视频/ })).toBeVisible();
+  await page.getByRole("button", { name: /精选视频/ }).click();
   await page.getByRole("button", { name: /知识可视化/ }).click();
   await expect(visibleControl("渲染模式")).toBeVisible();
   await page.getByRole("button", { name: /数学动画/ }).click();

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SelectInput } from "@/components/ui/Field";
 import { useNotebookDetail } from "@/hooks/useApiQueries";
+import { capabilityLabel } from "@/lib/capabilities";
 import type { NotebookReference, NotebookRecord, NotebookSummary, SessionSummary } from "@/lib/types";
 
 interface ContextReferencesPanelProps {
@@ -129,7 +130,7 @@ export function ContextReferencesPanel({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-ink">{session.title || "未命名会话"}</span>
                     <span className="mt-1 block truncate text-xs text-slate-500">
-                      {session.preferences?.capability || "聊天"} · {session.message_count ?? 0} 条消息
+                      {capabilityLabel(session.preferences?.capability)} · {session.message_count ?? 0} 条消息
                     </span>
                   </span>
                 </button>

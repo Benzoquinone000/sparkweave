@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles,
   SquareFunction,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -74,6 +75,17 @@ export const CAPABILITIES: CapabilityDefinition[] = [
     },
   },
   {
+    id: "external_video_search",
+    label: "精选视频",
+    shortLabel: "Video",
+    description: "从公开视频中筛选少量适合当前任务的讲解资源。",
+    icon: Video,
+    tools: ["web_search"],
+    config: {
+      max_results: 3,
+    },
+  },
+  {
     id: "visualize",
     label: "知识可视化",
     shortLabel: "Visualize",
@@ -109,6 +121,11 @@ export const TOOL_OPTIONS = [
 
 export function getCapability(id: CapabilityId) {
   return CAPABILITIES.find((item) => item.id === id) ?? CAPABILITIES[0];
+}
+
+export function capabilityLabel(id: string | null | undefined) {
+  const capability = CAPABILITIES.find((item) => item.id === id);
+  return capability?.label || id || "聊天";
 }
 
 export function defaultToolsForCapability(id: CapabilityId) {

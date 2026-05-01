@@ -3500,6 +3500,7 @@ function ResourceArtifact({
   const questions = extractGuideQuizItems(result);
   const showResponse = Boolean(response && !(artifact.type === "quiz" && questions.length) && artifact.type !== "external_video");
   const personalization = extractArtifactPersonalization(artifact);
+  const specialist = agentRoleForArtifact(artifact);
 
   return (
     <motion.article
@@ -3511,7 +3512,7 @@ function ResourceArtifact({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Badge tone="brand">{resourceLabel(String(artifact.type))}</Badge>
-          {artifact.capability ? <Badge tone="neutral">{artifact.capability}</Badge> : null}
+          {artifact.capability ? <Badge tone="neutral">{specialist.label}</Badge> : null}
         </div>
         <div className="flex items-center gap-2">
           <Button

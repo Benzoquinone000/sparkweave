@@ -1,6 +1,7 @@
 import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
+import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
 import type { ExternalVideoResult } from "@/lib/types";
 
 function formatDuration(seconds?: number | null) {
@@ -28,6 +29,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       </div>
 
       {result.response ? <p className="mt-3 text-sm leading-6 text-slate-600">{result.response}</p> : null}
+      <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
       {featured ? (
         <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3" data-testid="external-video-watch-plan">
           <p className="text-xs font-semibold text-brand-teal">建议用法</p>

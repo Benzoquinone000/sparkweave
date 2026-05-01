@@ -1215,6 +1215,7 @@ test("notebook deep links select records and question follow-up sessions", async
   await expect(page.getByTestId("notebook-record-rec-video")).toContainText("Saved external video asset");
   await expect(page.getByRole("heading", { name: "精选视频资产预览" })).toBeVisible();
   await expect(page.getByTestId("external-video-viewer")).toContainText("梯度下降直观讲解");
+  await expect(page.getByTestId("personalization-brief")).toContainText("概念边界不清");
   await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
 
   await page.goto("/notebook?tab=questions&entry=7");
@@ -2855,6 +2856,13 @@ test("chat renders external video results as learner-facing cards", async ({ pag
           success: true,
           render_type: "external_video",
           response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+          learner_profile_hints: {
+            current_focus: "梯度下降",
+            weak_points: ["概念边界不清"],
+            preferences: ["公开视频", "图解"],
+            time_budget_minutes: 10,
+            next_action: { title: "前测补基：梯度下降的直观理解" },
+          },
           videos: [
             {
               title: "梯度下降直观讲解",
@@ -2885,6 +2893,8 @@ test("chat renders external video results as learner-facing cards", async ({ pag
   await page.getByRole("button", { name: /发送/ }).click();
 
   await expect(page.getByTestId("external-video-viewer")).toBeVisible();
+  await expect(page.getByTestId("personalization-brief")).toContainText("按你的画像生成");
+  await expect(page.getByTestId("personalization-brief")).toContainText("概念边界不清");
   await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
   await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
   await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
@@ -2901,6 +2911,10 @@ test("chat renders external video results as learner-facing cards", async ({ pag
         asset_kind: "精选视频 · 2 个",
         external_video: expect.objectContaining({
           render_type: "external_video",
+          learner_profile_hints: expect.objectContaining({
+            current_focus: "梯度下降",
+            weak_points: ["概念边界不清"],
+          }),
           videos: expect.arrayContaining([
             expect.objectContaining({ title: "梯度下降直观讲解" }),
           ]),
@@ -5370,6 +5384,13 @@ async function mockNotebookDeepLinkApis(page: import("@playwright/test").Page) {
                 success: true,
                 render_type: "external_video",
                 response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+                learner_profile_hints: {
+                  current_focus: "梯度下降",
+                  weak_points: ["概念边界不清"],
+                  preferences: ["公开视频", "图解"],
+                  time_budget_minutes: 10,
+                  next_action: { title: "前测补基：梯度下降的直观理解" },
+                },
                 videos: [
                   {
                     title: "梯度下降直观讲解",

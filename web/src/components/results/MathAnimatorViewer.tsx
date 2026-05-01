@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
 import { apiUrl } from "@/lib/api";
 import type { MathAnimatorResult } from "@/lib/types";
 
@@ -23,6 +24,8 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
         {result.output_mode ? <Badge tone="neutral">{result.output_mode}</Badge> : null}
         {result.render?.quality ? <Badge tone="neutral">质量 {result.render.quality}</Badge> : null}
       </div>
+
+      <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
 
       {videos.length ? (
         <section className="mt-4 space-y-3">

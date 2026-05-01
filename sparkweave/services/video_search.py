@@ -96,6 +96,7 @@ async def recommend_learning_videos(
         "videos": [item.to_dict() for item in videos],
         "queries": queries,
         "search_errors": errors,
+        "learner_profile_hints": _public_learner_hints(hints),
         "agent_chain": [
             {"label": "画像智能体", "detail": "读取当前薄弱点、偏好和时间预算。"},
             {"label": "视频检索智能体", "detail": "从公开网页中检索候选视频并提取可播放链接。"},
@@ -292,6 +293,23 @@ def _build_response(videos: list[VideoCandidate], topic: str) -> str:
     lead = f"已为「{topic}」筛选 {len(videos)} 个公开视频，优先选择短时长、入门友好、可嵌入播放的内容。"
     first = videos[0]
     return f"{lead} 推荐先看《{first.title}》，再回到当前任务提交一句反思。"
+
+
+def _public_learner_hints(hints: dict[str, Any]) -> dict[str, Any]:
+    allowed = {
+        "current_focus",
+        "summary",
+        "level",
+        "time_budget_minutes",
+        "goals",
+        "preferences",
+        "strengths",
+        "weak_points",
+        "mastery_needs_attention",
+        "concepts",
+        "next_action",
+    }
+    return {key: hints[key] for key in allowed if key in hints}
 
 
 def _important_terms(topic: str, hints: dict[str, Any]) -> list[str]:

@@ -873,9 +873,12 @@ class ChatGraph:
             config = {"render_mode": "chartjs"}
         else:
             config = {"render_mode": "auto"}
+        hints = ChatGraph._learner_profile_hints(context)
         guidance = ChatGraph._learner_profile_guidance(context)
         if guidance:
             config["style_hint"] = guidance
+        if hints:
+            config["learner_profile_hints"] = hints
         return config
 
     @staticmethod
@@ -884,9 +887,12 @@ class ChatGraph:
         if ChatGraph._contains_any(text, ("分镜", "插图", "图片", "image", "storyboard")):
             output_mode = "image"
         config = {"output_mode": output_mode, "quality": "medium"}
+        hints = ChatGraph._learner_profile_hints(context)
         guidance = ChatGraph._learner_profile_guidance(context)
         if guidance:
             config["style_hint"] = guidance
+        if hints:
+            config["learner_profile_hints"] = hints
         return config
 
     @staticmethod

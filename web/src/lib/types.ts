@@ -254,6 +254,8 @@ export interface MathAnimatorArtifact {
 export interface MathAnimatorResult {
   response?: string;
   output_mode?: "video" | "image";
+  learner_profile_hints?: Record<string, unknown>;
+  style_hint?: string;
   code?: {
     language?: string;
     content?: string;
@@ -278,6 +280,8 @@ export interface MathAnimatorResult {
 export interface VisualizeResult {
   response?: string;
   render_type: "svg" | "chartjs" | "mermaid";
+  learner_profile_hints?: Record<string, unknown>;
+  style_hint?: string;
   code: {
     language?: string;
     content: string;
@@ -665,6 +669,8 @@ export interface ExternalVideoResult {
   success?: boolean;
   render_type?: "external_video" | string;
   response?: string;
+  learner_profile_hints?: Record<string, unknown>;
+  style_hint?: string;
   videos?: ExternalVideoRecommendation[];
   queries?: string[];
   search_errors?: string[];

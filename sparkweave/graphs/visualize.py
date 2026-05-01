@@ -226,6 +226,7 @@ class VisualizeGraph:
 
     async def _write_node(self, state: TutorState) -> dict[str, Any]:
         stream = state["stream"]
+        config = self._config(state)
         analysis = self._analysis(state)
         review = self._review(state)
         final_code = review["optimized_code"] or state.get("visualization_code", "")
@@ -243,6 +244,8 @@ class VisualizeGraph:
                 },
                 "analysis": analysis,
                 "review": review,
+                "style_hint": config["style_hint"],
+                "learner_profile_hints": config["learner_profile_hints"],
                 "runtime": "langgraph",
             },
             source=self.source,
@@ -348,6 +351,8 @@ class VisualizeGraph:
                     },
                     "analysis": analysis,
                     "review": review,
+                    "style_hint": config["style_hint"],
+                    "learner_profile_hints": config["learner_profile_hints"],
                     "metadata": answer_now_metadata(),
                     "runtime": "langgraph",
                 },
@@ -404,7 +409,27 @@ class VisualizeGraph:
         return {
             "render_mode": render_mode,
             "style_hint": str(overrides.get("style_hint") or "").strip()[:500],
+            "learner_profile_hints": VisualizeGraph._profile_hints(overrides.get("learner_profile_hints")),
         }
+
+    @staticmethod
+    def _profile_hints(value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        allowed = {
+            "current_focus",
+            "summary",
+            "level",
+            "time_budget_minutes",
+            "goals",
+            "preferences",
+            "strengths",
+            "weak_points",
+            "mastery_needs_attention",
+            "concepts",
+            "next_action",
+        }
+        return {key: value[key] for key in allowed if key in value}
 
     @staticmethod
     def _history_context(state: TutorState) -> str:

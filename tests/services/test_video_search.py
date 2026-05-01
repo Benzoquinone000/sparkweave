@@ -44,6 +44,8 @@ async def test_recommend_learning_videos_ranks_public_video_links(monkeypatch) -
     assert result["success"] is True
     assert result["render_type"] == "external_video"
     assert len(result["videos"]) == 2
+    assert result["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
+    assert result["learner_profile_hints"]["preferences"] == ["video", "visual"]
     assert result["videos"][0]["platform"] == "Bilibili"
     assert result["videos"][0]["embed_url"].startswith("https://player.bilibili.com/player.html")
     assert "概念边界不清" in result["videos"][0]["why_recommended"]

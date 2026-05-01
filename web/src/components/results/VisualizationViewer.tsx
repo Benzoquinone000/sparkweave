@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
 import type { VisualizeResult } from "@/lib/types";
 
 let chartRegistered = false;
@@ -244,6 +245,7 @@ export function VisualizationViewer({ result }: { result: VisualizeResult }) {
       </div>
 
       {result.response ? <p className="mt-3 text-sm leading-6 text-slate-600">{result.response}</p> : null}
+      <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
 
       <div className="mt-4">
         {result.render_type === "svg" ? (

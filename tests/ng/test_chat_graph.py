@@ -136,13 +136,17 @@ async def test_chat_graph_coordinator_delegates_visualization_request():
         tool_registry=FakeToolRegistry(),
         specialist_runner=fake_specialist,
     )
-    context = UnifiedContext(user_message="请画一个神经网络流程图")
+    context = UnifiedContext(
+        user_message="请画一个神经网络流程图",
+        metadata=learner_profile_metadata(),
+    )
 
     state = await graph.run(context, bus)
 
     assert captured["capability"] == "visualize"
     assert captured["context"].active_capability == "visualize"
     assert captured["context"].config_overrides["render_mode"] == "mermaid"
+    assert captured["context"].config_overrides["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
     assert captured["context"].metadata["delegated_by_coordinator"] == "chat"
     assert state["final_answer"].startswith("```mermaid")
     assert any(event.stage == "coordinating" for event in bus._history)
@@ -175,6 +179,7 @@ async def test_chat_graph_coordinator_delegates_animation_request():
     assert captured["context"].active_capability == "math_animator"
     assert captured["context"].config_overrides["output_mode"] == "video"
     assert "概念边界不清" in captured["context"].config_overrides["style_hint"]
+    assert captured["context"].config_overrides["learner_profile_hints"]["preferences"] == ["公开视频", "图解"]
     assert "10 minutes" in captured["context"].config_overrides["style_hint"]
     handoff_events = [
         event for event in bus._history if event.metadata.get("trace_kind") == "agent_handoff"
@@ -205,6 +210,7 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
                     "why_recommended": "Beginner friendly.",
                 }
             ],
+            "learner_profile_hints": kwargs["learner_hints"],
         }
 
     monkeypatch.setattr(
@@ -229,6 +235,7 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].source == "external_video_search"
     assert result_events[-1].metadata["render_type"] == "external_video"
     assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
+    assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
 
 
 @pytest.mark.asyncio

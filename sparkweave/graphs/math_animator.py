@@ -709,6 +709,7 @@ class MathAnimatorGraph:
 
     async def _write_node(self, state: TutorState) -> dict[str, Any]:
         stream = state["stream"]
+        config = self._config(state)
         render_result = self._render(state)
         summary = self._summary(state)
         timings = dict(state.get("timings") or {})
@@ -741,6 +742,8 @@ class MathAnimatorGraph:
             },
             "analysis": state.get("math_analysis", {}),
             "design": state.get("math_design", {}),
+            "style_hint": config["style_hint"],
+            "learner_profile_hints": config["learner_profile_hints"],
             "runtime": "langgraph",
         }
         if summary.get("answer_now"):
@@ -862,11 +865,31 @@ class MathAnimatorGraph:
             "output_mode": output_mode,
             "quality": quality,
             "style_hint": str(overrides.get("style_hint") or "").strip()[:500],
+            "learner_profile_hints": MathAnimatorGraph._profile_hints(overrides.get("learner_profile_hints")),
             "max_retries": max_retries,
             "enable_visual_review": MathAnimatorGraph._truthy_config(
                 overrides.get("enable_visual_review", overrides.get("visual_review", False))
             ),
         }
+
+    @staticmethod
+    def _profile_hints(value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        allowed = {
+            "current_focus",
+            "summary",
+            "level",
+            "time_budget_minutes",
+            "goals",
+            "preferences",
+            "strengths",
+            "weak_points",
+            "mastery_needs_attention",
+            "concepts",
+            "next_action",
+        }
+        return {key: value[key] for key in allowed if key in value}
 
     @staticmethod
     def _truthy_config(value: Any) -> bool:

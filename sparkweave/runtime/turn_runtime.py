@@ -21,6 +21,7 @@ _ASSISTANT_CAPABILITIES = {
     "deep_solve",
     "deep_question",
     "deep_research",
+    "external_video_search",
     "visualize",
     "math_animator",
 }

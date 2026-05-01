@@ -6,6 +6,7 @@ const CAPABILITY_IDS = new Set<CapabilityId>([
   "deep_solve",
   "deep_question",
   "deep_research",
+  "external_video_search",
   "visualize",
   "math_animator",
 ]);
@@ -13,6 +14,7 @@ const SPECIALIST_CAPABILITIES = new Set<CapabilityId>([
   "deep_solve",
   "deep_question",
   "deep_research",
+  "external_video_search",
   "visualize",
   "math_animator",
 ]);

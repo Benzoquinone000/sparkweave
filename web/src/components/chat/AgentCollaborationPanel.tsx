@@ -66,6 +66,40 @@ const BLUEPRINTS: Record<CapabilityId, AgentBlueprint[]> = {
       icon: MessageSquareText,
     },
   ],
+  external_video_search: [
+    {
+      key: "profile",
+      title: "画像提示智能体",
+      description: "读取当前学习目标、薄弱点和资源偏好",
+      stages: ["coordinating", "planning"],
+      eventTypes: ["stage_start", "progress"],
+      icon: Sparkles,
+    },
+    {
+      key: "search",
+      title: "视频检索智能体",
+      description: "从公开网页中检索可观看的课程视频",
+      stages: ["searching", "search", "retrieval"],
+      eventTypes: ["progress", "sources"],
+      icon: Search,
+    },
+    {
+      key: "ranking",
+      title: "筛选排序智能体",
+      description: "按相关性、入门友好和可嵌入性挑选少量结果",
+      stages: ["ranked", "ranking", "filtering"],
+      metadataHints: ["video_search"],
+      icon: ShieldCheck,
+    },
+    {
+      key: "card",
+      title: "资源卡片智能体",
+      description: "把精选视频整理成可播放、可保存的学习卡片",
+      stages: ["responding", "response", "final"],
+      eventTypes: ["result"],
+      icon: MessageSquareText,
+    },
+  ],
   deep_solve: [
     {
       key: "planner",

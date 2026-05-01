@@ -63,7 +63,7 @@ export function MessageBubble({
             <span className={`font-semibold ${isUser ? "text-brand-teal" : "text-ink"}`}>
               {isUser ? "你" : message.status === "streaming" ? "SparkWeave 正在回答" : "SparkWeave"}
             </span>
-            {effectiveCapability ? <Badge tone="neutral">{effectiveCapability}</Badge> : null}
+            {effectiveCapability ? <Badge tone="neutral">{capabilityBadgeLabel(effectiveCapability)}</Badge> : null}
             {message.attachments?.length ? <Badge tone="warning">{message.attachments.length} 个附件</Badge> : null}
             {!isUser && (displayContent || canSaveAsset) ? (
               <div className="ml-auto flex gap-2">
@@ -117,6 +117,11 @@ export function MessageBubble({
       ) : null}
     </motion.article>
   );
+}
+
+function capabilityBadgeLabel(capability: string) {
+  if (capability === "external_video_search") return "精选视频";
+  return capability;
 }
 
 function AttachmentStrip({ attachments }: { attachments: NonNullable<ChatMessage["attachments"]> }) {

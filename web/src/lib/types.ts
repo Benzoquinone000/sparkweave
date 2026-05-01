@@ -486,6 +486,647 @@ export interface GuidePages {
   [key: string]: unknown;
 }
 
+export type GuideV2ResourceType = "visual" | "video" | "quiz" | "research";
+
+export interface GuideV2Artifact {
+  id: string;
+  type: GuideV2ResourceType | string;
+  capability?: CapabilityId | string;
+  title?: string;
+  status?: string;
+  created_at?: number;
+  config?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+}
+
+export interface GuideV2Task {
+  task_id: string;
+  node_id: string;
+  type: string;
+  title: string;
+  instruction: string;
+  estimated_minutes?: number;
+  status?: string;
+  success_criteria?: string[];
+  artifact_refs?: GuideV2Artifact[];
+  origin?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GuideV2PlanEvent {
+  event_id: string;
+  type: string;
+  reason: string;
+  created_at?: number;
+  evidence_id?: string;
+  task_id?: string;
+  inserted_task_ids?: string[];
+  skipped_task_ids?: string[];
+}
+export interface GuideV2Session {
+  session_id: string;
+  goal: string;
+  status: string;
+  created_at?: number;
+  updated_at?: number;
+  profile?: Record<string, unknown>;
+  course_map?: {
+    title?: string;
+    nodes?: Array<Record<string, unknown>>;
+    edges?: Array<Record<string, string>>;
+    generated_by?: string;
+    metadata?: Record<string, unknown>;
+  };
+  learning_path?: Record<string, unknown>;
+  tasks?: GuideV2Task[];
+  current_task?: GuideV2Task | null;
+  evidence?: Array<Record<string, unknown>>;
+  mastery?: Record<string, Record<string, unknown>>;
+  recommendations?: string[];
+  plan_events?: GuideV2PlanEvent[];
+  progress?: number;
+  notebook_context?: string;
+}
+
+export interface GuideV2SessionSummary {
+  session_id: string;
+  goal: string;
+  status?: string;
+  created_at?: number;
+  updated_at?: number;
+  progress?: number;
+  current_task?: GuideV2Task | null;
+  node_count?: number;
+  task_count?: number;
+}
+
+export interface GuideV2LearnerMemory {
+  success?: boolean;
+  memory_version?: number;
+  generated_at?: number;
+  session_count?: number;
+  completed_session_count?: number;
+  evidence_count?: number;
+  scored_evidence_count?: number;
+  average_score?: number | null;
+  low_score_count?: number;
+  quiz_attempt_count?: number;
+  resource_counts?: Record<string, number>;
+  preferred_time_budget_minutes?: number;
+  suggested_level?: string;
+  confidence?: number;
+  top_preferences?: Array<{ label?: string; count?: number }>;
+  persistent_weak_points?: Array<{ label?: string; count?: number }>;
+  common_mistakes?: Array<{ label?: string; count?: number }>;
+  strengths?: Array<{ label?: string; count?: number }>;
+  recent_goals?: Array<{
+    session_id?: string;
+    goal?: string;
+    status?: string;
+    updated_at?: number;
+    progress?: number;
+  }>;
+  next_guidance?: string[];
+  summary?: string;
+  last_activity_at?: number | null;
+}
+
+export interface GuideV2CourseTemplate {
+  id: string;
+  title: string;
+  course_id?: string;
+  course_name?: string;
+  description?: string;
+  target_learners?: string;
+  level?: string;
+  suggested_weeks?: number;
+  credits?: number;
+  estimated_minutes?: number;
+  tags?: string[];
+  default_goal?: string;
+  default_preferences?: string[];
+  default_time_budget_minutes?: number;
+  learning_outcomes?: string[];
+  assessment?: Array<Record<string, unknown>>;
+  project_milestones?: Array<Record<string, unknown>>;
+}
+
+export interface GuideV2StudyPlan {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  summary: string;
+  horizon?: string;
+  daily_time_budget?: number;
+  remaining_minutes?: number;
+  blocks: Array<{
+    id: string;
+    index?: number;
+    title: string;
+    focus?: string;
+    status?: string;
+    estimated_minutes?: number;
+    completed_tasks?: number;
+    total_tasks?: number;
+    task_ids?: string[];
+    tasks?: Array<{
+      task_id?: string;
+      node_id?: string;
+      node_title?: string;
+      type?: string;
+      title?: string;
+      status?: string;
+      estimated_minutes?: number;
+      success_criteria?: string[];
+      artifact_count?: number;
+    }>;
+    recommended_actions?: string[];
+  }>;
+  checkpoints: Array<{
+    id: string;
+    title: string;
+    trigger?: string;
+    status?: string;
+    average_score?: number | null;
+    criteria?: string[];
+    evidence?: Record<string, unknown>;
+  }>;
+  current_block?: Record<string, unknown> | null;
+  next_checkpoint?: Record<string, unknown> | null;
+  effect_assessment?: GuideV2LearningReport["effect_assessment"];
+  strategy_adjustments?: string[];
+  rules?: string[];
+}
+
+export interface GuideV2LearningBehaviorSummary {
+  event_count?: number;
+  evidence_count?: number;
+  resource_count?: number;
+  quiz_attempt_count?: number;
+  path_adjustment_count?: number;
+  profile_update_count?: number;
+  last_activity_at?: number;
+  average_scored_activity?: number;
+  type_counts?: Record<string, number>;
+}
+
+export interface GuideV2LearningTimeline {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  summary: GuideV2LearningBehaviorSummary;
+  events: GuideV2LearningTimelineEvent[];
+  recent_events: GuideV2LearningTimelineEvent[];
+  behavior_tags?: string[];
+}
+
+export interface GuideV2LearningTimelineEvent {
+  id: string;
+  type: string;
+  label?: string;
+  title: string;
+  description?: string;
+  created_at?: number;
+  score?: number | null;
+  task_id?: string;
+  task_title?: string;
+  node_title?: string;
+  impact?: string;
+  source?: string;
+  resource_type?: string;
+  mistake_types?: string[];
+  inserted_task_ids?: string[];
+  skipped_task_ids?: string[];
+  feedback_title?: string;
+  feedback_summary?: string;
+  feedback_tone?: string;
+  learning_feedback?: GuideV2LearningFeedback;
+}
+
+export interface GuideV2CoachBriefing {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  coach_mode?: string;
+  priority_reason?: string;
+  mistake_summary?: GuideV2MistakeReview["summary"];
+  priority_mistake?: GuideV2MistakeReview["clusters"][number] | null;
+  headline: string;
+  summary: string;
+  focus: {
+    task_id?: string;
+    task_title?: string;
+    task_type?: string;
+    node_id?: string;
+    node_title?: string;
+    estimated_minutes?: number;
+    status?: string;
+    mastery_score?: number;
+    mastery_status?: string;
+    success_criteria?: string[];
+  };
+  next_actions?: string[];
+  blockers?: string[];
+  evidence_reasons?: string[];
+  micro_plan?: Array<{
+    step?: number;
+    title?: string;
+    duration_minutes?: number;
+    action_type?: string;
+    resource_type?: string;
+    target_task_id?: string;
+  }>;
+  coach_actions?: Array<{
+    id?: string;
+    action_type?: string;
+    label?: string;
+    title?: string;
+    type?: GuideV2ResourceType;
+    resource_type?: string;
+    target_task_id?: string;
+    target_task_title?: string;
+    prompt?: string;
+    primary?: boolean;
+  }>;
+  resource_shortcuts?: GuideV2ResourceRecommendation[];
+  behavior_summary?: GuideV2LearningBehaviorSummary;
+  feedback_digest?: GuideV2LearningReport["feedback_digest"];
+  effect_assessment?: GuideV2LearningReport["effect_assessment"];
+  strategy_adjustments?: string[];
+  recent_events?: GuideV2LearningTimelineEvent[];
+}
+
+export interface GuideV2MistakeReview {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  summary: {
+    cluster_count?: number;
+    open_cluster_count?: number;
+    closed_cluster_count?: number;
+    low_score_evidence_count?: number;
+    remediation_task_count?: number;
+    pending_remediation_count?: number;
+    retest_task_count?: number;
+    pending_retest_count?: number;
+    closed_loop?: boolean;
+  };
+  clusters: Array<{
+    label?: string;
+    count?: number;
+    source?: string;
+    task_ids?: string[];
+    task_titles?: string[];
+    latest_at?: number;
+    latest_reflection?: string;
+    average_score?: number | null;
+    severity?: string;
+    loop_status?: string;
+    pending_remediation_task_ids?: string[];
+    pending_retest_task_ids?: string[];
+    related_remediation_task_ids?: string[];
+    related_retest_task_ids?: string[];
+    latest_retest_score?: number | null;
+    closed_at?: number | null;
+    passed_retest_count?: number;
+    suggested_action?: string;
+  }>;
+  remediation_tasks?: GuideV2Task[];
+  retest_tasks?: GuideV2Task[];
+  retest_plan?: Array<{
+    step?: number;
+    title?: string;
+    action_type?: string;
+    task_id?: string;
+  }>;
+}
+
+export type GuideV2DiagnosticValue = string | number | boolean | string[];
+
+export interface GuideV2DiagnosticQuestion {
+  question_id: string;
+  type: "single_choice" | "multi_select" | "scale" | string;
+  prompt: string;
+  options?: Array<{ value: string; label: string }>;
+  min?: number;
+  max?: number;
+  labels?: Record<string, string>;
+  node_id?: string;
+  node_title?: string;
+}
+
+export interface GuideV2Diagnostic {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  status?: string;
+  summary: string;
+  questions: GuideV2DiagnosticQuestion[];
+  last_result?: {
+    readiness_score?: number;
+    readiness_label?: string;
+    weak_points?: string[];
+    current_bottleneck?: string;
+    bottleneck_label?: string;
+    learning_strategy?: Array<{
+      phase?: string;
+      action?: string;
+      resource_type?: string;
+      success_check?: string;
+    }>;
+    recommendations?: string[];
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface GuideV2DiagnosticAnswer {
+  question_id: string;
+  value: GuideV2DiagnosticValue;
+}
+
+export interface GuideV2DiagnosticSubmitResult {
+  success?: boolean;
+  session_id: string;
+  diagnosis: {
+    readiness_score?: number;
+    readiness_label?: string;
+    weak_points?: string[];
+    preferred_resource?: string;
+    current_bottleneck?: string;
+    bottleneck_label?: string;
+    learning_strategy?: Array<{
+      phase?: string;
+      action?: string;
+      resource_type?: string;
+      success_check?: string;
+    }>;
+    recommendations?: string[];
+    [key: string]: unknown;
+  };
+  evidence?: Record<string, unknown>;
+  adjustments?: GuideV2PlanEvent[];
+  session?: GuideV2Session;
+}
+
+export interface GuideV2ProfileDialogue {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  status?: string;
+  summary: string;
+  suggested_prompts: string[];
+  last_signals?: Record<string, unknown> | null;
+}
+
+export interface GuideV2ProfileDialogueResult {
+  success?: boolean;
+  session_id: string;
+  signals: Record<string, unknown>;
+  assistant_reply: string;
+  evidence?: Record<string, unknown>;
+  adjustments?: GuideV2PlanEvent[];
+  session?: GuideV2Session;
+}
+
+export interface GuideV2LearningFeedback {
+  title?: string;
+  summary?: string;
+  tone?: "neutral" | "success" | "warning" | "danger" | "brand" | string;
+  score_percent?: number | null;
+  evidence_quality?: {
+    score?: number;
+    label?: string;
+    strengths?: string[];
+    gaps?: string[];
+    next_evidence_prompt?: string;
+  };
+  task_id?: string;
+  task_title?: string;
+  next_task_id?: string;
+  next_task_title?: string;
+  adjustment_types?: string[];
+  actions?: string[];
+  session_status?: string;
+}
+
+export interface GuideV2TaskCompletionResult {
+  success?: boolean;
+  session: GuideV2Session;
+  completed_task?: GuideV2Task;
+  evidence?: Record<string, unknown>;
+  adjustments?: GuideV2PlanEvent[];
+  next_task?: GuideV2Task | null;
+  learning_feedback?: GuideV2LearningFeedback;
+}
+
+export interface GuideV2QuizSubmitResult {
+  success?: boolean;
+  session_id: string;
+  task_id: string;
+  artifact_id: string;
+  attempt?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  adjustments?: GuideV2PlanEvent[];
+  next_task?: GuideV2Task | null;
+  learning_feedback?: GuideV2LearningFeedback;
+  session?: GuideV2Session;
+  question_notebook?: {
+    saved?: boolean;
+    count?: number;
+    session_id?: string;
+  };
+}
+
+export interface GuideV2Evaluation {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  overall_score: number;
+  readiness: string;
+  progress: number;
+  completed_tasks: number;
+  skipped_tasks?: number;
+  total_tasks: number;
+  path_adjustment_count?: number;
+  average_evidence_score: number;
+  average_mastery: number;
+  mastery_distribution: Record<string, number>;
+  resource_counts: Record<string, number>;
+  question_count: number;
+  evidence_count: number;
+  evidence_trend: Array<{
+    evidence_id?: string;
+    task_id?: string;
+    task_title?: string;
+    score?: number | null;
+    reflection?: string;
+    created_at?: number;
+  }>;
+  node_evaluations: Array<Record<string, unknown>>;
+  strengths: string[];
+  risk_signals: string[];
+  next_actions: string[];
+}
+
+export interface GuideV2LearningReport {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  title: string;
+  summary: string;
+  overview: {
+    overall_score?: number;
+    readiness?: string;
+    progress?: number;
+    completed_tasks?: number;
+    skipped_tasks?: number;
+    total_tasks?: number;
+    path_adjustment_count?: number;
+    average_evidence_score?: number;
+    average_mastery?: number;
+  };
+  profile?: Record<string, unknown>;
+  node_cards: Array<{
+    node_id?: string;
+    title?: string;
+    status?: string;
+    mastery_score?: number;
+    completed_tasks?: number;
+    total_tasks?: number;
+    artifact_count?: number;
+    difficulty?: string;
+    mastery_target?: string;
+    suggestion?: string;
+  }>;
+  resource_summary?: Record<string, number>;
+  evidence_summary?: {
+    count?: number;
+    trend?: Array<Record<string, unknown>>;
+    latest_reflection?: string;
+  };
+  behavior_summary?: GuideV2LearningBehaviorSummary;
+  behavior_tags?: string[];
+  feedback_digest?: {
+    count?: number;
+    success_count?: number;
+    warning_count?: number;
+    brand_count?: number;
+    latest?: {
+      event_id?: string;
+      task_id?: string;
+      task_title?: string;
+      title?: string;
+      summary?: string;
+      tone?: string;
+      score_percent?: number | null;
+      created_at?: number;
+      actions?: string[];
+    } | null;
+    items?: Array<{
+      event_id?: string;
+      task_id?: string;
+      task_title?: string;
+      title?: string;
+      summary?: string;
+      tone?: string;
+      score_percent?: number | null;
+      created_at?: number;
+      actions?: string[];
+    }>;
+  };
+  effect_assessment?: {
+    score?: number;
+    label?: string;
+    summary?: string;
+    dimensions?: Array<{
+      id?: string;
+      label?: string;
+      score?: number;
+      status?: string;
+      evidence?: string;
+    }>;
+    strategy_adjustments?: string[];
+  };
+  timeline_events?: GuideV2LearningTimelineEvent[];
+  mistake_review?: Pick<GuideV2MistakeReview, "summary" | "clusters" | "retest_plan">;
+  interventions?: GuideV2PlanEvent[];
+  risks?: string[];
+  strengths?: string[];
+  next_plan?: string[];
+  demo_script?: string[];
+  markdown?: string;
+}
+
+export interface GuideV2CoursePackage {
+  success?: boolean;
+  session_id: string;
+  generated_at?: number;
+  title: string;
+  summary: string;
+  course_metadata?: Record<string, unknown>;
+  capstone_project: {
+    title?: string;
+    scenario?: string;
+    deliverables?: string[];
+    steps?: string[];
+    focus_nodes?: string[];
+    estimated_minutes?: number;
+  };
+  rubric: Array<{
+    criterion?: string;
+    weight?: number;
+    excellent?: string;
+    baseline?: string;
+  }>;
+  portfolio: Array<{
+    artifact_id?: string;
+    task_id?: string;
+    task_title?: string;
+    type?: string;
+    capability?: string;
+    title?: string;
+    status?: string;
+    summary?: string;
+  }>;
+  review_plan: Array<{
+    node_id?: string;
+    title?: string;
+    priority?: string;
+    action?: string;
+    mastery_score?: number;
+  }>;
+  demo_outline?: string[];
+  learning_report?: {
+    overall_score?: number;
+    readiness?: string;
+    progress?: number;
+    behavior_summary?: GuideV2LearningBehaviorSummary;
+    behavior_tags?: string[];
+    recent_timeline_events?: GuideV2LearningTimelineEvent[];
+    effect_assessment?: GuideV2LearningReport["effect_assessment"];
+    mistake_summary?: GuideV2MistakeReview["summary"];
+    mistake_clusters?: GuideV2MistakeReview["clusters"];
+    risks?: string[];
+    next_actions?: string[];
+  };
+  markdown?: string;
+}
+
+export interface GuideV2ResourceRecommendation {
+  id: string;
+  priority: "high" | "medium" | "low" | string;
+  resource_type: GuideV2ResourceType | string;
+  capability?: CapabilityId | string;
+  title: string;
+  reason: string;
+  prompt: string;
+  target_task_id: string;
+  target_task_title?: string;
+  target_node_id?: string;
+  effect_score?: number;
+  effect_label?: string;
+}
+
 export interface SparkBotSummary {
   bot_id: string;
   name?: string;
@@ -562,6 +1203,11 @@ export interface SystemStatus {
     provider?: string | null;
     error?: string;
   };
+  ocr?: {
+    status: string;
+    provider?: string | null;
+    error?: string;
+  };
 }
 
 export interface SystemTestResponse {
@@ -629,6 +1275,11 @@ export interface EndpointProfile {
   api_key?: string;
   api_version?: string;
   proxy?: string;
+  strategy?: string;
+  timeout?: string;
+  max_pages?: string;
+  dpi?: string;
+  min_text_chars?: string;
   extra_headers?: Record<string, string>;
   models?: ModelItem[];
 }
@@ -645,6 +1296,7 @@ export interface ModelCatalog {
     llm: ServiceCatalog;
     embedding: ServiceCatalog;
     search: ServiceCatalog;
+    ocr?: ServiceCatalog;
   };
 }
 
@@ -660,6 +1312,7 @@ export interface SettingsResponse {
     llm: ProviderChoice[];
     embedding: ProviderChoice[];
     search: ProviderChoice[];
+    ocr?: ProviderChoice[];
   };
 }
 

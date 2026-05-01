@@ -28,11 +28,11 @@
 | `sparkweave/runtime/` | 运行时选择、turn 管理、上下文构造、LangGraph runner |
 | `sparkweave/graphs/` | `chat`、`deep_solve`、`deep_question`、`deep_research`、`visualize`、`math_animator` 图实现 |
 | `sparkweave/tools/` | 内置工具和工具注册表 |
-| `sparkweave/services/` | LLM、Embedding、RAG、搜索、会话、记忆、Notebook、OCR、设置等服务 |
+| `sparkweave/services/` | LLM、Embedding、RAG、搜索、会话、记忆、Notebook、SparkBot、OCR、设置等服务 |
 | `sparkweave/knowledge/` | 知识库目录管理、初始化、增量导入和进度 |
 | `sparkweave/api/` | FastAPI 应用和路由 |
 | `sparkweave/plugins/` | 可选 playground 插件 manifest 发现 |
-| `sparkweave/sparkbot/` | SparkBot 长期智能体、渠道、技能和工具 |
+| `sparkweave/sparkbot/` | SparkBot 长期智能体的专用技能、MCP、媒体和工作区工具 |
 
 ## 运行时相关文件
 
@@ -87,8 +87,9 @@ FastAPI 应用在 `sparkweave/api/main.py` 中组装。主要路由：
 | `/api/v1/notebook` | `routers/notebook.py` | Notebook 和记录管理 |
 | `/api/v1/question-notebook` | `routers/question_notebook.py` | 题目记录和分类 |
 | `/api/v1/plugins` | `routers/plugins_api.py` | 工具、能力、playground 插件列表与执行 |
-| `/api/v1/sparkbot` | `routers/sparkbot.py` | SparkBot 实例、渠道、文件和聊天 |
-| `/api/v1/guide` | `routers/guide.py` | 导学会话和页面 |
+| `/api/v1/sparkbot` | `routers/sparkbot.py` | SparkBot 实例、Soul 模板、渠道、文件、历史和聊天 |
+| `/api/v1/guide` | `routers/guide.py` | 旧版导学会话和 HTML 页面 |
+| `/api/v1/guide/v2` | `routers/guide_v2.py` | Guide V2 学习路径、资源、证据、报告和课程包 |
 | `/api/v1/co_writer` | `routers/co_writer.py` | 协作写作与流式编辑 |
 | `/api/v1/vision` | `routers/vision_solver.py` | 图像题解析 |
 
@@ -112,8 +113,10 @@ FastAPI 应用在 `sparkweave/api/main.py` 中组装。主要路由：
 | `data/user/chat_history.db` | SQLite 会话、消息、turn event、题目本数据 |
 | `data/user/settings/` | UI 设置和模型 catalog |
 | `data/user/workspace/chat/` | chat/deep_solve/deep_question/deep_research/math_animator 产物 |
+| `data/user/workspace/guide/` | 旧版导学 session、Guide V2 session、learner memory 和模板 |
 | `data/user/workspace/notebook/` | Notebook JSON 文件和索引 |
 | `data/memory/` | `SUMMARY.md` 和 `PROFILE.md` |
+| `data/memory/SparkBots/` | SparkBot 配置、工作区、session、cron、日志和私有记忆 |
 | `data/knowledge_bases/` | 知识库 raw 文件、索引、metadata、配置 |
 
 这些目录保存本地运行状态，通常不应提交到 Git。

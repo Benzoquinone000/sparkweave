@@ -37,6 +37,10 @@ WebSocket 主入口是 `/api/v1/ws`。一次 turn 的核心字段来自 `TurnReq
 
 工具协议、注册表、内置工具行为和各能力如何补参、过滤、执行工具，见 [Tools 工具系统](./tools.md)。
 
+Guide V2 不是主 WebSocket 的独立 capability，但它会把学习任务映射到 `visualize`、`math_animator`、`deep_question`、`deep_research` 等能力来生成图解、视频、练习和资料；这条编排链路见 [导学空间与 Guide V2](./guided-learning.md)。
+
+SparkBot 也不是 Level 2 capability。它是长期运行的 Bot 实例系统，有自己的 WebSocket、工作区 prompt、渠道、工具循环和后台任务；边界见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
+
 ## Chat
 
 `chat` 是默认能力，适合短问答、资料追问和轻量工具调用。

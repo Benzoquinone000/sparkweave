@@ -53,4 +53,10 @@ def explain_provider_error(service: str, error: BaseException | str) -> str:
             "请确认 APPID、Embedding APIKey、APISecret 都已保存并应用。"
         )
 
+    if service_name == "ocr" and "credentials are not configured" in lower:
+        return "讯飞 OCR 缺少 APPID、APIKey 或 APISecret。请在设置页的 OCR / 扫描 PDF 中填写并保存应用。"
+
+    if service_name == "ocr" and ("hmac" in lower or "signature" in lower or "unauthorized" in lower):
+        return "讯飞 OCR 鉴权失败。请确认 OCR APPID、APIKey、APISecret 属于同一个讯飞 OCR 应用。"
+
     return text

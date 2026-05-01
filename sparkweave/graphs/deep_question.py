@@ -40,6 +40,12 @@ QUESTION_SYSTEM_PROMPT = """\
 You are SparkWeave's quiz generation graph. Generate useful learning questions
 that match the requested topic, difficulty, and question type. Keep outputs
 structured so the quiz UI can render them directly.
+
+Treat each question as an assessment signal: test one concrete knowledge point,
+make distractors diagnose common misconceptions, and write explanations that
+teach why the correct answer is correct and why tempting wrong answers fail.
+Support interactive practice across choice, true_false, fill_blank, written,
+and coding questions.
 """
 
 
@@ -145,7 +151,9 @@ class DeepQuestionGraph:
                 system=(
                     "Generate concise quiz templates. Return templates that are "
                     "diverse, aligned to the requested difficulty/type, and not "
-                    "full questions yet."
+                    "full questions yet. Cover different cognitive levels when "
+                    "possible: recall, understanding, application, and diagnosis "
+                    "of misconceptions."
                 ),
                 user=(
                     f"Topic: {topic}\n"
@@ -884,16 +892,21 @@ class DeepQuestionGraph:
             'correct_answer as "True" or "False" and keep options empty or '
             'as {"True":"Correct","False":"Incorrect"}. For fill_blank, '
             "include a visible blank such as ____ in the question and put the "
-            "expected phrase in correct_answer."
+            "expected phrase in correct_answer. For written, make the expected "
+            "answer concise and gradeable. For coding, specify input/output or "
+            "observable behavior clearly. Explanations must include the tested "
+            "knowledge point and a short reason a learner can act on."
         )
         if mode == "mimic":
             return (
                 "Generate one new quiz question that mimics the reference exam "
                 "question's style, difficulty, and skill focus without copying it. "
+                "Keep it suitable for interactive practice and avoid ambiguity. "
                 f"Return JSON only. {type_rules}"
             )
         return (
-            "Generate one high-quality quiz question from the template. "
+            "Generate one high-quality quiz question from the template. Make it "
+            "interactive, unambiguous, and aligned to the learner's topic. "
             f"Return JSON only. {type_rules}"
         )
 

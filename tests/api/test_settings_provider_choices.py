@@ -84,3 +84,12 @@ def test_settings_provider_choices_include_search_base_urls() -> None:
     assert search["perplexity"]["base_url"] == "https://api.perplexity.ai"
     assert search["serper"]["base_url"] == "https://google.serper.dev"
     assert search["iflytek_spark"]["base_url"] == "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search"
+
+
+def test_settings_provider_choices_include_ocr_options() -> None:
+    choices = settings_router._provider_choices()
+    ocr = {item["value"]: item for item in choices["ocr"]}
+
+    assert ocr["iflytek"]["label"] == "iFlytek OCR for LLM"
+    assert ocr["iflytek"]["base_url"] == "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+    assert ocr["disabled"]["label"] == "Disabled"

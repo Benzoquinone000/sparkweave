@@ -10,7 +10,10 @@ from sparkweave.services.math_animator_support.models import (
     VisualReviewResult,
 )
 from sparkweave.services.math_animator_support.renderer import ManimRenderError
-from sparkweave.services.math_animator_support.retry_manager import CodeRetryManager
+from sparkweave.services.math_animator_support.retry_manager import (
+    DEFAULT_REPAIR_TIMEOUT_SECONDS,
+    CodeRetryManager,
+)
 
 
 class _FakeRenderer:
@@ -58,6 +61,25 @@ async def test_retry_manager_emits_status_and_recovers() -> None:
         "Retry #1 code generated. Re-rendering now.",
         "Starting render attempt 2/3.",
     ]
+
+
+def test_retry_manager_uses_relaxed_repair_timeout_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _unused_repair(_code: str, _error: str, _attempt: int) -> GeneratedCode:
+        return GeneratedCode(code="pass", rationale="unused")
+
+    monkeypatch.delenv("SPARKWEAVE_MATH_ANIMATOR_REPAIR_TIMEOUT", raising=False)
+    manager = CodeRetryManager(
+        renderer=_FakeRenderer(),
+        repair_callback=_unused_repair,
+    )
+    assert manager.repair_timeout_seconds == DEFAULT_REPAIR_TIMEOUT_SECONDS
+
+    monkeypatch.setenv("SPARKWEAVE_MATH_ANIMATOR_REPAIR_TIMEOUT", "420")
+    manager = CodeRetryManager(
+        renderer=_FakeRenderer(),
+        repair_callback=_unused_repair,
+    )
+    assert manager.repair_timeout_seconds == 420.0
 
 
 @pytest.mark.asyncio

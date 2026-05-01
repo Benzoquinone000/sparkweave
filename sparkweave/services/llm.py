@@ -33,6 +33,8 @@ T = TypeVar("T")
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 1.0
 DEFAULT_EXPONENTIAL_BACKOFF = True
+DEFAULT_LLM_CONNECT_TIMEOUT = 10.0
+DEFAULT_LLM_REQUEST_TIMEOUT = 900.0
 
 API_PROVIDER_PRESETS = {
     "openai": {
@@ -1135,6 +1137,38 @@ def _token_payload(model: str, kwargs: dict[str, object]) -> dict[str, object]:
     return get_token_limit_kwargs(model, max_tokens)
 
 
+def _positive_float_from_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning("Invalid %s=%r; falling back to %.1f seconds.", name, raw, default)
+        return default
+    if value <= 0:
+        logger.warning("Invalid %s=%r; falling back to %.1f seconds.", name, raw, default)
+        return default
+    return value
+
+
+def _openai_timeout_from_env() -> Any:
+    import httpx
+
+    connect_timeout = _positive_float_from_env(
+        "LLM_CONNECT_TIMEOUT", DEFAULT_LLM_CONNECT_TIMEOUT
+    )
+    request_timeout = _positive_float_from_env(
+        "LLM_REQUEST_TIMEOUT", DEFAULT_LLM_REQUEST_TIMEOUT
+    )
+    return httpx.Timeout(
+        connect=connect_timeout,
+        read=request_timeout,
+        write=request_timeout,
+        pool=request_timeout,
+    )
+
+
 def _client_kwargs(
     *,
     provider_name: str,
@@ -1157,6 +1191,7 @@ def _client_kwargs(
                 "api_version": api_version or "2024-02-15-preview",
                 "default_headers": headers,
                 "max_retries": 0,
+                "timeout": _openai_timeout_from_env(),
             },
         )
 
@@ -1168,6 +1203,7 @@ def _client_kwargs(
             "base_url": base_url or default_base,
             "default_headers": headers,
             "max_retries": 0,
+            "timeout": _openai_timeout_from_env(),
         },
     )
 
@@ -1559,7 +1595,12 @@ async def fetch_models(
     """Fetch model ids from an OpenAI-compatible endpoint."""
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(api_key=api_key or "no-key", base_url=base_url, max_retries=0)
+    client = AsyncOpenAI(
+        api_key=api_key or "no-key",
+        base_url=base_url,
+        max_retries=0,
+        timeout=_openai_timeout_from_env(),
+    )
     response = await client.models.list()
     return [str(item.id) for item in getattr(response, "data", [])]
 
@@ -1580,6 +1621,8 @@ __all__ = [
     "CLOUD_DOMAINS",
     "DEFAULT_CAPABILITIES",
     "DEFAULT_EXPONENTIAL_BACKOFF",
+    "DEFAULT_LLM_CONNECT_TIMEOUT",
+    "DEFAULT_LLM_REQUEST_TIMEOUT",
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RETRY_DELAY",
     "LLMCircuitBreakerError",

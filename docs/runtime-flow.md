@@ -1,6 +1,6 @@
 # 运行时链路
 
-本文档说明一次用户请求如何从 CLI 或 Web 前端进入后端，如何被转成 `UnifiedContext`，如何执行 LangGraph capability，并最终把事件、消息和记忆写回本地数据。
+本文档说明一次用户请求如何从 CLI 或 Web 前端进入后端，如何被转成 `UnifiedContext`，如何执行 LangGraph capability，并最终把事件、消息和记忆写回本地数据。SparkBot/Agents 的长期 Bot 实例不走这条 turn runtime，详见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 
 ## 核心对象
 
@@ -142,6 +142,8 @@ visualize
 - 历史会话引用上下文。
 - 附件对象列表。
 - `turn_id`、runtime、conversation summary 等 metadata。
+
+Notebook、Memory、历史引用和题目追问上下文的更细说明见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
 
 如果 config 中有 `_persist_user_message=false`，则当前用户输入不会写入 messages 表。`followup_question_context` 会被转成 system message，用于题目追问场景。
 

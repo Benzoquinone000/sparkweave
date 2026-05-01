@@ -6,7 +6,9 @@ import {
   autoMarkText,
   chatGuideSession,
   completeGuideSession,
+  completeGuideV2Task,
   createGuideSession,
+  createGuideV2Session,
   createKnowledgeBase,
   createNotebook,
   createQuestionCategory,
@@ -17,6 +19,7 @@ import {
   deleteSparkBotSoul,
   deleteKnowledgeBase,
   deleteGuideSession,
+  deleteGuideV2Session,
   deleteNotebook,
   deleteNotebookRecord,
   deleteQuestionCategory,
@@ -34,9 +37,23 @@ import {
   getSettings,
   getSettingsCatalog,
   getGuideHealth,
+  getGuideV2Health,
+  getGuideV2LearnerMemory,
+  getGuideV2CoachBriefing,
+  generateGuideV2TaskResource,
+  getGuideV2CoursePackage,
+  getGuideV2Diagnostic,
+  getGuideV2Evaluation,
+  getGuideV2LearningTimeline,
+  getGuideV2LearningReport,
+  getGuideV2MistakeReview,
+  getGuideV2ProfileDialogue,
+  getGuideV2ResourceRecommendations,
+  getGuideV2StudyPlan,
   getKnowledgeBaseDetail,
   getGuidePages,
   getGuideSession,
+  getGuideV2Session,
   getGuideHtml,
   getAgentConfig,
   getSidebarSettings,
@@ -57,6 +74,8 @@ import {
   listDashboardActivities,
   listKnowledgeConfigs,
   listGuideSessions,
+  listGuideV2Sessions,
+  listGuideV2Templates,
   listKnowledgeBases,
   listLinkedFolders,
   listNotebooks,
@@ -80,11 +99,19 @@ import {
   addQuestionEntryToCategory,
   navigateGuideSession,
   readSparkBotFile,
+  saveGuideV2CoursePackage,
+  saveGuideV2Artifact,
+  saveGuideV2Report,
+  startGuideV2TaskResourceJob,
+  submitGuideV2Diagnostic,
+  submitGuideV2ProfileDialogue,
+  submitGuideV2QuizResults,
   refreshMemory,
   removeQuestionEntryFromCategory,
   renameQuestionCategory,
   resetUiSettings,
   resetGuideSession,
+  refreshGuideV2Recommendations,
   retryGuidePage,
   reopenSetupTour,
   startGuideSession,
@@ -474,6 +501,124 @@ export function useGuidePages(sessionId: string | null) {
   });
 }
 
+export function useGuideV2Health() {
+  return useQuery({
+    queryKey: ["guide-v2-health"],
+    queryFn: getGuideV2Health,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useGuideV2Sessions() {
+  return useQuery({
+    queryKey: ["guide-v2-sessions"],
+    queryFn: listGuideV2Sessions,
+  });
+}
+
+export function useGuideV2Templates() {
+  return useQuery({
+    queryKey: ["guide-v2-templates"],
+    queryFn: listGuideV2Templates,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useGuideV2LearnerMemory() {
+  return useQuery({
+    queryKey: ["guide-v2-learner-memory"],
+    queryFn: getGuideV2LearnerMemory,
+  });
+}
+
+export function useGuideV2SessionDetail(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-session", sessionId],
+    queryFn: () => getGuideV2Session(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2Evaluation(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-evaluation", sessionId],
+    queryFn: () => getGuideV2Evaluation(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2StudyPlan(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-study-plan", sessionId],
+    queryFn: () => getGuideV2StudyPlan(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2LearningTimeline(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-learning-timeline", sessionId],
+    queryFn: () => getGuideV2LearningTimeline(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2CoachBriefing(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-coach-briefing", sessionId],
+    queryFn: () => getGuideV2CoachBriefing(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2MistakeReview(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-mistake-review", sessionId],
+    queryFn: () => getGuideV2MistakeReview(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2Diagnostic(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-diagnostic", sessionId],
+    queryFn: () => getGuideV2Diagnostic(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2ProfileDialogue(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-profile-dialogue", sessionId],
+    queryFn: () => getGuideV2ProfileDialogue(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2LearningReport(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-learning-report", sessionId],
+    queryFn: () => getGuideV2LearningReport(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2CoursePackage(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-course-package", sessionId],
+    queryFn: () => getGuideV2CoursePackage(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
+export function useGuideV2ResourceRecommendations(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["guide-v2-resource-recommendations", sessionId],
+    queryFn: () => getGuideV2ResourceRecommendations(sessionId || ""),
+    enabled: Boolean(sessionId),
+  });
+}
+
 export function useCoWriterHistory() {
   return useQuery({
     queryKey: ["co-writer-history"],
@@ -836,6 +981,97 @@ export function useGuideMutations() {
     }),
     remove: useMutation({
       mutationFn: deleteGuideSession,
+      onSettled: (_result, _error, sessionId) => settle(sessionId),
+    }),
+  };
+}
+
+export function useGuideV2Mutations() {
+  const queryClient = useQueryClient();
+  const settle = (sessionId?: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["guide-v2-sessions"] });
+    void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
+    if (sessionId) {
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-session", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-evaluation", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-study-plan", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-learning-timeline", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-coach-briefing", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-mistake-review", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-diagnostic", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-profile-dialogue", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-learning-report", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-course-package", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-resource-recommendations", sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
+    }
+  };
+  return {
+    create: useMutation({
+      mutationFn: createGuideV2Session,
+      onSettled: () => {
+        void queryClient.invalidateQueries({ queryKey: ["guide-v2-sessions"] });
+        void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
+      },
+    }),
+    completeTask: useMutation({
+      mutationFn: completeGuideV2Task,
+      onSettled: (_result, _error, input) => settle(input.sessionId),
+    }),
+    generateResource: useMutation({
+      mutationFn: generateGuideV2TaskResource,
+      onSettled: (_result, _error, input) => settle(input.sessionId),
+    }),
+    startResourceJob: useMutation({
+      mutationFn: startGuideV2TaskResourceJob,
+      onSettled: (_result, _error, input) => settle(input.sessionId),
+    }),
+    saveArtifact: useMutation({
+      mutationFn: saveGuideV2Artifact,
+      onSettled: (_result, _error, input) => {
+        settle(input.sessionId);
+        void queryClient.invalidateQueries({ queryKey: ["notebooks"] });
+        void queryClient.invalidateQueries({ queryKey: ["notebook-stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["question-entries"] });
+      },
+    }),
+    saveReport: useMutation({
+      mutationFn: saveGuideV2Report,
+      onSettled: (_result, _error, input) => {
+        settle(input.sessionId);
+        void queryClient.invalidateQueries({ queryKey: ["notebooks"] });
+        void queryClient.invalidateQueries({ queryKey: ["notebook-stats"] });
+      },
+    }),
+    saveCoursePackage: useMutation({
+      mutationFn: saveGuideV2CoursePackage,
+      onSettled: (_result, _error, input) => {
+        settle(input.sessionId);
+        void queryClient.invalidateQueries({ queryKey: ["notebooks"] });
+        void queryClient.invalidateQueries({ queryKey: ["notebook-stats"] });
+      },
+    }),
+    submitQuiz: useMutation({
+      mutationFn: submitGuideV2QuizResults,
+      onSettled: (_result, _error, input) => {
+        settle(input.sessionId);
+        void queryClient.invalidateQueries({ queryKey: ["question-entries"] });
+      },
+    }),
+    submitDiagnostic: useMutation({
+      mutationFn: submitGuideV2Diagnostic,
+      onSettled: (_result, _error, input) => settle(input.sessionId),
+    }),
+    submitProfileDialogue: useMutation({
+      mutationFn: submitGuideV2ProfileDialogue,
+      onSettled: (_result, _error, input) => settle(input.sessionId),
+    }),
+    refreshRecommendations: useMutation({
+      mutationFn: refreshGuideV2Recommendations,
+      onSettled: (_result, _error, sessionId) => settle(sessionId),
+    }),
+    remove: useMutation({
+      mutationFn: deleteGuideV2Session,
       onSettled: (_result, _error, sessionId) => settle(sessionId),
     }),
   };

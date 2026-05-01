@@ -51,6 +51,48 @@ def _patch_client(monkeypatch: MonkeyPatch, result: object) -> None:
     monkeypatch.setattr(llm, "_client_kwargs", lambda **_kwargs: (_FakeClient, {}))
 
 
+def test_client_kwargs_uses_relaxed_default_timeout(monkeypatch: MonkeyPatch) -> None:
+    """OpenAI-compatible clients should wait long enough for slow model sessions."""
+    monkeypatch.delenv("LLM_CONNECT_TIMEOUT", raising=False)
+    monkeypatch.delenv("LLM_REQUEST_TIMEOUT", raising=False)
+
+    _client_cls, kwargs = llm._client_kwargs(
+        provider_name="openai",
+        api_key="sk-test",
+        base_url="https://example.test/v1",
+        api_version=None,
+        extra_headers={},
+    )
+
+    assert kwargs["timeout"].as_dict() == {
+        "connect": llm.DEFAULT_LLM_CONNECT_TIMEOUT,
+        "read": llm.DEFAULT_LLM_REQUEST_TIMEOUT,
+        "write": llm.DEFAULT_LLM_REQUEST_TIMEOUT,
+        "pool": llm.DEFAULT_LLM_REQUEST_TIMEOUT,
+    }
+
+
+def test_client_kwargs_reads_timeout_env(monkeypatch: MonkeyPatch) -> None:
+    """LLM timeout knobs should be overridable without code changes."""
+    monkeypatch.setenv("LLM_CONNECT_TIMEOUT", "12")
+    monkeypatch.setenv("LLM_REQUEST_TIMEOUT", "345")
+
+    _client_cls, kwargs = llm._client_kwargs(
+        provider_name="openai",
+        api_key="sk-test",
+        base_url="https://example.test/v1",
+        api_version=None,
+        extra_headers={},
+    )
+
+    assert kwargs["timeout"].as_dict() == {
+        "connect": 12.0,
+        "read": 345.0,
+        "write": 345.0,
+        "pool": 345.0,
+    }
+
+
 @pytest.mark.asyncio
 async def test_sdk_complete_extracts_message_content(monkeypatch: MonkeyPatch) -> None:
     """SDK complete should parse message content from OpenAI-style responses."""

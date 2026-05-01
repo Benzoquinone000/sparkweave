@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 import threading
+import time
 from typing import Awaitable, Callable
 
 from sparkweave.services.paths import get_path_service
 
+from .formula_rendering import prepare_manim_formula_code
 from .models import RenderedArtifact, RenderResult
 from .utils import slugify_filename, trim_error_message
 
@@ -27,6 +30,30 @@ QUALITY_FLAG_MAP = {
     "medium": "-qm",
     "high": "-qh",
 }
+DEFAULT_RENDER_TIMEOUT_SECONDS = 900.0
+DEFAULT_RENDER_LOG_TAIL_LINES = 400
+
+
+def _positive_float_from_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def _positive_int_from_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 class ManimRenderError(RuntimeError):
@@ -39,11 +66,30 @@ class ManimRenderService:
         turn_id: str,
         progress_callback: Callable[[str, bool], Awaitable[None]] | None = None,
         python_executable: str | None = None,
+        render_timeout_seconds: float | None = None,
+        log_tail_lines: int | None = None,
     ) -> None:
         self.turn_id = turn_id
         self.path_service = get_path_service()
         self.progress_callback = progress_callback
         self.python_executable = python_executable or sys.executable
+        self.render_timeout_seconds = (
+            render_timeout_seconds
+            if render_timeout_seconds is not None
+            else _positive_float_from_env(
+                "SPARKWEAVE_MATH_ANIMATOR_RENDER_TIMEOUT",
+                DEFAULT_RENDER_TIMEOUT_SECONDS,
+            )
+        )
+        self.log_tail_lines = max(
+            20,
+            log_tail_lines
+            if log_tail_lines is not None
+            else _positive_int_from_env(
+                "SPARKWEAVE_MATH_ANIMATOR_LOG_TAIL_LINES",
+                DEFAULT_RENDER_LOG_TAIL_LINES,
+            ),
+        )
         self.base_dir = self.path_service.get_agent_dir("math_animator") / turn_id
         self.source_dir = self.base_dir / "source"
         self.artifacts_dir = self.base_dir / "artifacts"
@@ -56,9 +102,10 @@ class ManimRenderService:
         await self._emit_progress(
             f"Preparing {output_mode} render workspace (quality={quality})."
         )
+        render_code = prepare_manim_formula_code(code)
         source_name = "scene.py" if output_mode == "video" else "scene_image.py"
         source_path = self.source_dir / source_name
-        source_path.write_text(code, encoding="utf-8")
+        source_path.write_text(render_code, encoding="utf-8")
         await self._emit_progress(f"Saved generated code to {source_name}.", raw=True)
 
         if output_mode == "image":
@@ -97,7 +144,7 @@ class ManimRenderService:
 
         artifacts: list[RenderedArtifact] = []
         for idx, match in enumerate(matches, start=1):
-            block_code = match.group(2).strip()
+            block_code = prepare_manim_formula_code(match.group(2).strip())
             block_path = self.source_dir / f"image_block_{idx:02d}.py"
             block_path.write_text(block_code, encoding="utf-8")
             scene_name = self._extract_scene_name(block_code)
@@ -159,12 +206,17 @@ class ManimRenderService:
         # for Windows compatibility (SelectorEventLoop doesn't support
         # asyncio subprocesses). Reader threads + asyncio.Queue preserve
         # real-time streaming output.
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=self._subprocess_env(),
-        )
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=self._subprocess_env(),
+            )
+        except OSError as exc:
+            raise ManimRenderError(
+                f"Failed to start Manim process with Python `{self.python_executable}`: {exc}"
+            ) from exc
 
         _SENTINEL = None
         queue: asyncio.Queue[tuple[str, str] | None] = asyncio.Queue()
@@ -181,11 +233,24 @@ class ManimRenderService:
         threading.Thread(target=_reader, args=(process.stdout, "stdout"), daemon=True).start()
         threading.Thread(target=_reader, args=(process.stderr, "stderr"), daemon=True).start()
 
-        stdout_lines: list[str] = []
-        stderr_lines: list[str] = []
+        stdout_lines: deque[str] = deque(maxlen=self.log_tail_lines)
+        stderr_lines: deque[str] = deque(maxlen=self.log_tail_lines)
         streams_open = 2
+        deadline = time.monotonic() + self.render_timeout_seconds
         while streams_open > 0:
-            item = await queue.get()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                await self._stop_process(process)
+                raise ManimRenderError(
+                    f"Manim render timed out after {int(self.render_timeout_seconds)}s."
+                )
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=remaining)
+            except asyncio.TimeoutError as exc:
+                await self._stop_process(process)
+                raise ManimRenderError(
+                    f"Manim render timed out after {int(self.render_timeout_seconds)}s."
+                ) from exc
             if item is _SENTINEL:
                 streams_open -= 1
                 continue
@@ -201,6 +266,20 @@ class ManimRenderService:
                     "\n".join(part for part in ["\n".join(stdout_lines), "\n".join(stderr_lines)] if part)
                 )
             )
+
+    async def _stop_process(self, process: subprocess.Popen) -> None:
+        if process.poll() is not None:
+            return
+        await self._emit_progress(
+            f"Stopping Manim process after {int(self.render_timeout_seconds)}s timeout.",
+            raw=True,
+        )
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
 
     async def _emit_progress(self, message: str, raw: bool = False) -> None:
         if self.progress_callback is None:

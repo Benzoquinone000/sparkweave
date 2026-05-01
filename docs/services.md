@@ -1,6 +1,6 @@
 # 服务层与数据流
 
-`sparkweave/services/` 是后端能力的支撑层。运行时和图节点不直接处理所有外部系统细节，而是通过服务层访问模型、搜索、RAG、会话、记忆、Notebook、OCR 和文件路径。
+`sparkweave/services/` 是后端能力的支撑层。运行时和图节点不直接处理所有外部系统细节，而是通过服务层访问模型、搜索、RAG、会话、记忆、Notebook、导学、SparkBot、OCR 和文件路径。
 
 ## 服务总览
 
@@ -16,6 +16,8 @@
 | 记忆 | `services/memory.py` | `SUMMARY.md`、`PROFILE.md` 两文件记忆 |
 | Notebook | `services/notebook.py`、`services/notebook_summary.py` | Notebook JSON 存储、记录管理、摘要生成 |
 | 上下文 | `services/context.py` | 会话历史压缩和 Notebook 引用分析 |
+| 导学 | `services/guide_generation.py`、`services/guide_v2.py` | 旧版 HTML 导学、Guide V2 学习路径、证据闭环和资源生成 |
+| SparkBot | `services/sparkbot.py`、`sparkweave/sparkbot/` | 长期助教实例、工作区、渠道、工具、heartbeat、cron 和 team |
 | OCR | `services/ocr.py` | 讯飞 OCR、扫描版 PDF 文本提取 |
 | 视觉 | `services/vision.py`、`services/vision_input.py` | 图像题解析和 GeoGebra pipeline |
 | 数学动画 | `services/math_animator.py`、`services/math_animator_support/` | Manim 渲染、重试、视觉复核 |
@@ -245,6 +247,8 @@ data/memory/PROFILE.md
 - `refresh_from_turn()`：每轮 assistant 回复后自动尝试更新记忆。
 - `refresh_from_session()`：从最近会话手动刷新。
 
+Memory 的两文件模型、迁移规则、API、自动刷新和 prompt 注入细节见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
+
 ## Notebook
 
 Notebook 服务：
@@ -278,6 +282,41 @@ Notebook 可以被：
 - CLI 导入 Markdown。
 - Chat turn 通过 `notebook_references` 引用。
 - `NotebookAnalysisAgent` 摘要后注入到 prompt。
+
+主 Notebook 与题目本的边界、记录结构、保存入口、引用分析和排查方式见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
+
+## 导学
+
+导学服务：
+
+```text
+sparkweave/services/guide_generation.py
+sparkweave/services/guide_v2.py
+```
+
+`guide_generation.py` 维护兼容旧入口的 HTML 导学 session；`guide_v2.py` 维护新的结构化学习路径、课程模板、任务队列、学习证据、掌握度、错因闭环、资源生成和报告/课程包。完整链路见 [导学空间与 Guide V2](./guided-learning.md)。
+
+## SparkBot
+
+SparkBot 服务入口：
+
+```text
+sparkweave/services/sparkbot.py
+sparkweave/sparkbot/tools.py
+sparkweave/sparkbot/mcp.py
+sparkweave/sparkbot/media.py
+sparkweave/sparkbot/transcription.py
+```
+
+它维护的是长期运行的 Bot 实例，而不是主聊天 runtime 的一次 turn。核心职责包括：
+
+- `SparkBotManager`：加载/保存 `config.yaml`、迁移旧目录、启动停止 Bot、读写工作区文件、记录历史。
+- `SparkBotAgentLoop`：处理 Web 和外部渠道消息、构造 SparkBot prompt、执行 JSON tool calls、处理 `/new`、`/team`、`/btw`、`/cron` 等命令。
+- `SparkBotChannelManager`：按 `ChannelsConfig` 启动 Telegram、Slack、Discord、Email、Feishu、Matrix 等渠道。
+- `SparkBotWorkspaceContext`：读取 `SOUL.md`、`USER.md`、`TOOLS.md`、`AGENTS.md`、技能、全局 Memory 和 Bot 私有 Memory。
+- `SparkBotHeartbeatService` 与 `SparkBotCronService`：主动提醒、后台 turn 和定时任务。
+
+默认持久化位置是 `data/memory/SparkBots/<bot_id>/`，详情见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 
 ## OCR 与扫描版 PDF
 

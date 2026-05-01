@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, GitBranch, LayoutList, Loader2, PlugZap, RefreshCw, RotateCcw, Rocket, Save, Settings2, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, GitBranch, LayoutList, Loader2, PlugZap, RefreshCw, RotateCcw, Rocket, Save, Settings2, XCircle } from "lucide-react";
 import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -43,14 +43,14 @@ const SERVICES = [
   { id: "llm" as const, label: "问答模型" },
   { id: "embedding" as const, label: "向量模型" },
   { id: "search" as const, label: "联网搜索" },
+  { id: "ocr" as const, label: "OCR 识别" },
 ];
-
-const CUSTOM_MODEL_VALUE = "__sparkweave_custom_model__";
 
 const SYSTEM_PROBES = [
   { id: "llm" as const, label: "问答模型", detail: "测试问答模型" },
   { id: "embeddings" as const, label: "向量模型", detail: "测试向量模型" },
   { id: "search" as const, label: "联网搜索", detail: "测试搜索服务" },
+  { id: "ocr" as const, label: "OCR 识别", detail: "测试扫描 PDF 识别服务" },
 ];
 
 type ServiceId = (typeof SERVICES)[number]["id"];
@@ -79,6 +79,21 @@ type SearchForm = {
   provider: string;
   baseUrl: string;
   apiKey: string;
+};
+
+type OcrForm = {
+  provider: string;
+  strategy: string;
+  appId: string;
+  apiKey: string;
+  apiSecret: string;
+  baseUrl: string;
+  serviceId: string;
+  category: string;
+  timeout: string;
+  maxPages: string;
+  dpi: string;
+  minTextChars: string;
 };
 
 export function SettingsPage() {
@@ -199,6 +214,7 @@ export function SettingsPage() {
           llm: String(status.data?.llm?.status || "pending"),
           embedding: String(status.data?.embeddings?.status || "pending"),
           search: String(status.data?.search?.status || "optional"),
+          ocr: String(status.data?.ocr?.status || "optional"),
         },
       });
       await settingsMutations.updateUi.mutateAsync(ui);
@@ -362,7 +378,7 @@ export function SettingsPage() {
                   </Button>
                 ) : null}
               </div>
-              <div className="mt-4 grid gap-2 md:grid-cols-3">
+              <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 {SERVICES.map((service) => (
                   <motion.button
                     key={service.id}
@@ -478,6 +494,12 @@ function ServiceStatusStrip({ status }: { status?: SystemStatus }) {
       value: status?.search?.provider || status?.search?.status || "可选",
       ok: status?.search?.status === "configured" || Boolean(status?.search?.provider),
       error: status?.search?.error,
+    },
+    {
+      label: "OCR",
+      value: status?.ocr?.provider || status?.ocr?.status || "可选",
+      ok: status?.ocr?.status === "configured" || Boolean(status?.ocr?.provider),
+      error: status?.ocr?.error,
     },
   ];
   return (
@@ -599,6 +621,8 @@ function SettingsCatalogEditor({
   const llmProfile = activeProfile(settings.catalog.services.llm);
   const embeddingProfile = activeProfile(settings.catalog.services.embedding);
   const searchProfile = activeProfile(settings.catalog.services.search);
+  const ocrService = settings.catalog.services.ocr ?? { active_profile_id: undefined, profiles: [] };
+  const ocrProfile = activeProfile(ocrService);
   const llmModel = activeModel(settings.catalog.services.llm, llmProfile);
   const embeddingModel = activeModel(settings.catalog.services.embedding, embeddingProfile);
   const initialLlmBinding = llmProfile?.binding || "openai";
@@ -631,14 +655,30 @@ function SettingsCatalogEditor({
     baseUrl: searchProfile?.base_url || "",
     apiKey: "",
   });
+  const [ocr, setOcr] = useState<OcrForm>({
+    provider: ocrProfile?.provider || "iflytek",
+    strategy: ocrProfile?.strategy || "auto",
+    appId: ocrProfile?.extra_headers?.app_id || "",
+    apiKey: "",
+    apiSecret: "",
+    baseUrl: ocrProfile?.base_url || "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+    serviceId: ocrProfile?.extra_headers?.service_id || "se75ocrbm",
+    category: ocrProfile?.extra_headers?.category || "ch_en_public_cloud",
+    timeout: ocrProfile?.timeout || "30",
+    maxPages: ocrProfile?.max_pages || "20",
+    dpi: ocrProfile?.dpi || "180",
+    minTextChars: ocrProfile?.min_text_chars || "80",
+  });
   const activeLlmProvider = useMemo(
     () => settings.providers.llm.find((provider) => provider.value === llm.binding),
     [llm.binding, settings.providers.llm],
   );
+  const activeEmbeddingProvider = useMemo(
+    () => settings.providers.embedding.find((provider) => provider.value === embedding.binding),
+    [embedding.binding, settings.providers.embedding],
+  );
   const llmModelOptions = activeLlmProvider?.models ?? [];
-  const hasLlmModelOptions = llmModelOptions.length > 0;
-  const llmModelIsPreset = llmModelOptions.includes(llm.model);
-  const llmModelSelectValue = llmModelIsPreset ? llm.model : CUSTOM_MODEL_VALUE;
+  const embeddingModelOptions = activeEmbeddingProvider?.models ?? [];
   const isIflytekLlm = llm.binding === "iflytek_spark_ws";
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -647,6 +687,7 @@ function SettingsCatalogEditor({
     applyLlmForm(nextCatalog.services.llm, llm);
     applyEmbeddingForm(nextCatalog.services.embedding, embedding);
     applySearchForm(nextCatalog.services.search, search);
+    applyOcrForm(nextCatalog, ocr);
     const ui = { language: settings.ui.language, theme: settings.ui.theme };
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
     if (submitter?.dataset.action === "complete-tour" && onCompleteTour) {
@@ -717,35 +758,15 @@ function SettingsCatalogEditor({
               data-testid="settings-llm-base-url"
             />
           </FieldShell>
-          <FieldShell label="模型名称" hint={hasLlmModelOptions ? "按供应商预置，可切换自定义" : "输入模型 ID"}>
-            {hasLlmModelOptions ? (
-              <SelectInput
-                value={llmModelSelectValue}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setLlm((current) => ({
-                    ...current,
-                    model: value === CUSTOM_MODEL_VALUE ? current.model : value,
-                  }));
-                }}
-                data-testid="settings-llm-model-select"
-              >
-                {llmModelOptions.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-                <option value={CUSTOM_MODEL_VALUE}>自定义模型...</option>
-              </SelectInput>
-            ) : null}
-            {!hasLlmModelOptions || !llmModelIsPreset ? (
-              <TextInput
-                className={hasLlmModelOptions ? "mt-2" : undefined}
-                value={llm.model}
-                onChange={(event) => setLlm((current) => ({ ...current, model: event.target.value }))}
-                data-testid="settings-llm-model"
-              />
-            ) : null}
+          <FieldShell label="模型名称" hint={llmModelOptions.length ? "可选择预设，也可以直接输入模型 ID" : "输入模型 ID"}>
+            <PresetModelInput
+              id="settings-llm-model"
+              value={llm.model}
+              options={llmModelOptions}
+              onChange={(model) => setLlm((current) => ({ ...current, model }))}
+              testId="settings-llm-model"
+              presetTestId="settings-llm-model-select"
+            />
           </FieldShell>
           {isIflytekLlm ? (
             <>
@@ -832,11 +853,14 @@ function SettingsCatalogEditor({
               data-testid="settings-embedding-base-url"
             />
           </FieldShell>
-          <FieldShell label="模型名称">
-            <TextInput
+          <FieldShell label="模型名称" hint={embeddingModelOptions.length ? "可选择预设，也可以直接输入模型 ID" : undefined}>
+            <PresetModelInput
+              id="settings-embedding-model"
               value={embedding.model}
-              onChange={(event) => setEmbedding((current) => ({ ...current, model: event.target.value }))}
-              data-testid="settings-embedding-model"
+              options={embeddingModelOptions}
+              onChange={(model) => setEmbedding((current) => ({ ...current, model }))}
+              testId="settings-embedding-model"
+              presetTestId="settings-embedding-model-select"
             />
           </FieldShell>
           <FieldShell label="向量维度">
@@ -913,6 +937,114 @@ function SettingsCatalogEditor({
               data-testid="settings-search-api-key"
             />
           </FieldShell>
+        </ConfigBlock>
+
+        <ConfigBlock title="OCR / 扫描 PDF">
+          <ProviderSelect
+            label="OCR 提供方"
+            value={ocr.provider}
+            providers={settings.providers.ocr ?? fallbackOcrProviders()}
+            testId="settings-ocr-provider"
+            onChange={(value, provider) =>
+              setOcr((current) => ({
+                ...current,
+                provider: value,
+                baseUrl: provider?.base_url ?? current.baseUrl,
+              }))
+            }
+          />
+          <FieldShell label="PDF OCR 策略">
+            <SelectInput
+              value={ocr.strategy}
+              onChange={(event) => setOcr((current) => ({ ...current, strategy: event.target.value }))}
+              data-testid="settings-ocr-strategy"
+            >
+              <option value="auto">自动：文本过少时 OCR</option>
+              <option value="iflytek_first">优先 OCR：扫描版 PDF 推荐</option>
+            </SelectInput>
+          </FieldShell>
+          <FieldShell label="APPID" hint={ocrProfile?.extra_headers?.app_id ? "已配置，留空保留" : "讯飞 OCR 必填"}>
+            <TextInput
+              value={ocr.appId}
+              onChange={(event) => setOcr((current) => ({ ...current, appId: event.target.value }))}
+              disabled={ocr.provider === "disabled"}
+              data-testid="settings-ocr-appid"
+            />
+          </FieldShell>
+          <FieldShell label="APIKey" hint={ocrProfile?.api_key ? "已配置，留空保留" : "讯飞 OCR 必填"}>
+            <TextInput
+              type="password"
+              value={ocr.apiKey}
+              onChange={(event) => setOcr((current) => ({ ...current, apiKey: event.target.value }))}
+              disabled={ocr.provider === "disabled"}
+              data-testid="settings-ocr-api-key"
+            />
+          </FieldShell>
+          <FieldShell label="APISecret" hint={ocrProfile?.extra_headers?.api_secret ? "已配置，留空保留" : "讯飞 OCR 必填"}>
+            <TextInput
+              type="password"
+              value={ocr.apiSecret}
+              onChange={(event) => setOcr((current) => ({ ...current, apiSecret: event.target.value }))}
+              disabled={ocr.provider === "disabled"}
+              data-testid="settings-ocr-api-secret"
+            />
+          </FieldShell>
+          <FieldShell label="服务地址">
+            <TextInput
+              value={ocr.baseUrl}
+              onChange={(event) => setOcr((current) => ({ ...current, baseUrl: event.target.value }))}
+              disabled={ocr.provider === "disabled"}
+              data-testid="settings-ocr-base-url"
+            />
+          </FieldShell>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FieldShell label="最大页数">
+              <TextInput
+                value={ocr.maxPages}
+                onChange={(event) => setOcr((current) => ({ ...current, maxPages: event.target.value }))}
+                data-testid="settings-ocr-max-pages"
+              />
+            </FieldShell>
+            <FieldShell label="DPI">
+              <TextInput
+                value={ocr.dpi}
+                onChange={(event) => setOcr((current) => ({ ...current, dpi: event.target.value }))}
+                data-testid="settings-ocr-dpi"
+              />
+            </FieldShell>
+            <FieldShell label="超时秒数">
+              <TextInput
+                value={ocr.timeout}
+                onChange={(event) => setOcr((current) => ({ ...current, timeout: event.target.value }))}
+                data-testid="settings-ocr-timeout"
+              />
+            </FieldShell>
+            <FieldShell label="触发字符数">
+              <TextInput
+                value={ocr.minTextChars}
+                onChange={(event) => setOcr((current) => ({ ...current, minTextChars: event.target.value }))}
+                data-testid="settings-ocr-min-text-chars"
+              />
+            </FieldShell>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FieldShell label="Service ID">
+              <TextInput
+                value={ocr.serviceId}
+                onChange={(event) => setOcr((current) => ({ ...current, serviceId: event.target.value }))}
+                disabled={ocr.provider === "disabled"}
+                data-testid="settings-ocr-service-id"
+              />
+            </FieldShell>
+            <FieldShell label="Category">
+              <TextInput
+                value={ocr.category}
+                onChange={(event) => setOcr((current) => ({ ...current, category: event.target.value }))}
+                disabled={ocr.provider === "disabled"}
+                data-testid="settings-ocr-category"
+              />
+            </FieldShell>
+          </div>
         </ConfigBlock>
       </div>
     </form>
@@ -1321,6 +1453,83 @@ function ProviderSelect({
   );
 }
 
+function PresetModelInput({
+  id,
+  value,
+  options,
+  onChange,
+  testId,
+  presetTestId,
+}: {
+  id: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  testId: string;
+  presetTestId?: string;
+}) {
+  const uniqueOptions = Array.from(new Set(options.filter(Boolean)));
+  const [open, setOpen] = useState(false);
+  const query = value.trim().toLowerCase();
+  const visibleOptions = query
+    ? uniqueOptions.filter((model) => model.toLowerCase().includes(query))
+    : uniqueOptions;
+  return (
+    <div className="relative">
+      <TextInput
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => {
+          if (uniqueOptions.length) setOpen(true);
+        }}
+        onBlur={() => {
+          window.setTimeout(() => setOpen(false), 120);
+        }}
+        placeholder="输入模型 ID"
+        className={uniqueOptions.length ? "pr-10" : undefined}
+        data-testid={testId}
+      />
+      {uniqueOptions.length ? (
+        <button
+          type="button"
+          className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-ink"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setOpen((current) => !current)}
+          aria-label="选择预设模型"
+          data-testid={presetTestId}
+        >
+          <ChevronDown size={16} className={open ? "rotate-180 transition" : "transition"} />
+        </button>
+      ) : null}
+      {uniqueOptions.length && open ? (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-lg">
+          {visibleOptions.length ? (
+            visibleOptions.map((model) => (
+              <button
+                key={model}
+                type="button"
+                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-teal-50 ${
+                  model === value ? "bg-teal-50 text-brand-teal" : "text-ink"
+                }`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(model);
+                  setOpen(false);
+                }}
+              >
+                {model}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-sm text-slate-500">没有匹配的预设，继续手动输入。</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function chooseProviderModel(currentModel: string, provider?: ProviderChoice, previousProvider?: ProviderChoice) {
   const defaultModel = provider?.default_model?.trim();
   if (!defaultModel) return currentModel;
@@ -1336,6 +1545,17 @@ function chooseProviderModel(currentModel: string, provider?: ProviderChoice, pr
     return defaultModel;
   }
   return currentModel;
+}
+
+function fallbackOcrProviders(): ProviderChoice[] {
+  return [
+    {
+      value: "iflytek",
+      label: "iFlytek OCR for LLM",
+      base_url: "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+    },
+    { value: "disabled", label: "Disabled", base_url: "" },
+  ];
 }
 
 function activeProfile(service: ServiceCatalog): EndpointProfile | undefined {
@@ -1419,6 +1639,26 @@ function applySearchForm(service: ServiceCatalog, form: SearchForm) {
   profile.provider = form.provider;
   profile.base_url = form.baseUrl.trim();
   if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+}
+
+function applyOcrForm(catalog: ModelCatalog, form: OcrForm) {
+  catalog.services.ocr = catalog.services.ocr ?? { active_profile_id: undefined, profiles: [] };
+  const profile = ensureProfile(catalog.services.ocr, "ocr-profile-default");
+  profile.provider = form.provider;
+  profile.strategy = form.strategy;
+  profile.base_url = form.baseUrl.trim();
+  profile.timeout = form.timeout.trim() || "30";
+  profile.max_pages = form.maxPages.trim() || "20";
+  profile.dpi = form.dpi.trim() || "180";
+  profile.min_text_chars = form.minTextChars.trim() || "80";
+  if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+  const extraHeaders = { ...(profile.extra_headers || {}) };
+  if (form.appId.trim()) extraHeaders.app_id = form.appId.trim();
+  if (form.apiSecret.trim()) extraHeaders.api_secret = form.apiSecret.trim();
+  extraHeaders.service_id = form.serviceId.trim() || "se75ocrbm";
+  extraHeaders.category = form.category.trim() || "ch_en_public_cloud";
+  profile.extra_headers = extraHeaders;
+  profile.models = [];
 }
 
 function normalizeNavOrder(value: SettingsResponse["ui"]["sidebar_nav_order"] | undefined): SidebarSettings["nav_order"] {

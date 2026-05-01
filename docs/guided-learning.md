@@ -1,0 +1,615 @@
+# 导学空间与 Guide V2
+
+导学空间是 SparkWeave 中最像“学习驾驶舱”的模块。它不只是回答一个问题，而是把学习目标拆成路线、任务、资源、证据、掌握度、错因闭环和最终产出包。
+
+当前代码里有两条导学线：
+
+- `/api/v1/guide`：兼容旧入口的 HTML 导学页，生成知识点页面、支持聊天和页面修复。
+- `/api/v1/guide/v2`：新的结构化学习路径驾驶舱，围绕 profile、course map、tasks、evidence、mastery、recommendations 持续调整路线。
+
+## 一图看懂
+
+![Guide V2 学习闭环](./assets/guided-learning-loop.svg)
+
+关键分工：
+
+- Guide V2 的 session 是独立 JSON 文件，不走主聊天 `turn_events`。
+- Guide V2 的长期画像是 `learner_memory.json`，不同于全局两文件 Memory 的 `data/memory/SUMMARY.md` 和 `PROFILE.md`。
+- 资源生成会调用已有 capability：`visualize`、`math_animator`、`deep_question`、`deep_research`。
+- 资源、报告、课程产出包可以保存到主 Notebook，练习题和答题结果可以同步到题目本。
+
+## 代码地图
+
+| 领域 | 文件 | 责任 |
+| --- | --- | --- |
+| 旧版导学 API | `sparkweave/api/routers/guide.py` | `/api/v1/guide/*` REST 和 WebSocket |
+| 旧版导学服务 | `sparkweave/services/guide_generation.py` | HTML 页面导学、知识点、聊天、页面状态 |
+| Guide V2 API | `sparkweave/api/routers/guide_v2.py` | `/api/v1/guide/v2/*` REST、SSE resource job、保存入口 |
+| Guide V2 服务 | `sparkweave/services/guide_v2.py` | 学习画像、路线、任务、证据、评估、资源、报告 |
+| Notebook 引用分析 | `sparkweave/services/context.py` | `NotebookAnalysisAgent` 压缩引用记录 |
+| Notebook 保存 | `sparkweave/services/notebook.py` | `guided_learning` 记录写入 |
+| 题目本保存 | `sparkweave/services/session_store.py` | quiz artifact 和 quiz result 写入 `notebook_entries` |
+| 前端页面 | `web/src/pages/GuidePage.tsx` | Guide V2 工作台 |
+| 前端 API | `web/src/lib/api.ts` | Guide / Guide V2 HTTP 和 SSE 客户端 |
+| 前端类型 | `web/src/lib/types.ts` | Guide V2 session、task、artifact、report 类型 |
+| React Query | `web/src/hooks/useApiQueries.ts` | Guide V2 查询缓存和失效策略 |
+
+## 数据目录
+
+旧版导学默认目录：
+
+```text
+data/user/workspace/guide/
+  session_<session_id>.json
+```
+
+Guide V2 默认目录：
+
+```text
+data/user/workspace/guide/v2/
+  session_<session_id>.json
+  learner_memory.json
+  templates/
+    <template_id>.json
+```
+
+额外课程模板目录：
+
+```text
+data/course_templates/
+  <template_id>.json
+```
+
+`GuideV2Manager.list_course_templates()` 会先返回内置模板，再读取两个模板目录中的 JSON。重复 ID 会被跳过，内置模板优先。当前内置模板是 `ml_foundations`，带有课程 ID、学习结果、评估方式和项目里程碑。
+
+## 旧版导学
+
+旧版 `/api/v1/guide` 保留了历史接口形状，但内部已经由 `sparkweave.services.guide_generation` 接管，不再依赖旧 agent 实现。
+
+### Session 模型
+
+`GuidedSession` 字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `session_id` | 8 位短 ID |
+| `notebook_name` | 显示标题，来自用户输入前 50 字符 |
+| `knowledge_points` | 知识点数组 |
+| `current_index` | 当前知识点索引，初始 `-1` |
+| `chat_history` | 导学页面内聊天记录 |
+| `status` | `initialized`、`learning`、`completed` |
+| `html_pages` | 已生成页面，key 是索引字符串 |
+| `page_statuses` | `pending`、`generating`、`ready`、`failed` |
+| `page_errors` | 页面生成错误 |
+| `summary` | 完成后的学习总结 |
+| `notebook_context` | 由 Notebook 引用分析得到的上下文 |
+
+### 创建流程
+
+`POST /api/v1/guide/create_session` 接受：
+
+```json
+{
+  "user_input": "我想学习导数",
+  "notebook_id": null,
+  "records": null,
+  "notebook_references": []
+}
+```
+
+输入优先级：
+
+1. 直接使用 `user_input`。
+2. 如果没有 `user_input` 且传了 `records`，从每条记录的 `user_query` 拼成学习请求。
+3. 如果没有 `user_input` 且传了 `notebook_id`，读取该 Notebook 所有记录并拼学习请求。
+4. 如果传了 `notebook_references`，先用 `NotebookAnalysisAgent` 分析记录，再把 `[Notebook Context]` 拼到用户问题前。
+
+`GuideManager._design_knowledge_points()` 会尝试让 LLM 返回知识点 JSON；失败时走 deterministic fallback，通常生成 3 个知识点。每个页面由 `_render_page()` 渲染成 HTML。
+
+### 旧版 API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v1/guide/create_session` | 创建导学 session |
+| `POST` | `/api/v1/guide/start` | 跳到第一个知识点并生成页面 |
+| `POST` | `/api/v1/guide/navigate` | 跳转到指定知识点 |
+| `POST` | `/api/v1/guide/complete` | 完成导学并生成 summary |
+| `POST` | `/api/v1/guide/chat` | 围绕当前知识点聊天 |
+| `POST` | `/api/v1/guide/fix_html` | 在当前 HTML 页面追加修复说明 |
+| `POST` | `/api/v1/guide/retry_page` | 清掉某页并重新生成 |
+| `POST` | `/api/v1/guide/reset` | 重置 current index 和聊天历史 |
+| `GET` | `/api/v1/guide/sessions` | 列表 |
+| `GET` | `/api/v1/guide/session/{session_id}` | 详情 |
+| `GET` | `/api/v1/guide/session/{session_id}/html` | 当前 HTML |
+| `GET` | `/api/v1/guide/session/{session_id}/pages` | 页面状态和 HTML 字典 |
+| `DELETE` | `/api/v1/guide/session/{session_id}` | 删除 session 文件 |
+| `WS` | `/api/v1/guide/ws/{session_id}` | 旧版实时导学 |
+
+WebSocket 消息类型：
+
+```text
+start
+navigate
+complete
+chat
+fix_html
+get_session
+get_pages
+retry_page
+reset
+```
+
+旧版导学适合保留兼容，但新开发优先面向 Guide V2。
+
+## Guide V2 Session 模型
+
+`GuideSessionV2` 是导学空间的核心状态，保存到 `session_<id>.json`。
+
+| 对象 | 关键字段 | 说明 |
+| --- | --- | --- |
+| `LearnerProfile` | `goal`、`level`、`time_budget_minutes`、`horizon`、`preferences`、`weak_points` | 学习画像 |
+| `CourseMap` | `title`、`nodes`、`edges`、`generated_by`、`metadata` | 知识地图 |
+| `CourseNode` | `node_id`、`title`、`prerequisites`、`difficulty`、`mastery_target` | 知识节点 |
+| `LearningPath` | `node_sequence`、`current_task_id`、`today_focus`、`next_recommendation` | 学习路线 |
+| `LearningTask` | `task_id`、`node_id`、`type`、`title`、`instruction`、`artifact_refs`、`origin` | 可执行任务 |
+| `LearningEvidence` | `evidence_id`、`task_id`、`type`、`score`、`reflection`、`mistake_types` | 学习证据 |
+| `MasteryState` | `node_id`、`score`、`status`、`evidence_count` | 掌握度 |
+| `PlanAdjustmentEvent` | `type`、`reason`、`inserted_task_ids`、`skipped_task_ids` | 路线调整记录 |
+
+状态值：
+
+- session `status`：`planned`、`learning`、`completed`。
+- task `status`：`pending`、`completed`、`skipped`。
+- task `origin`：`planned`、`learner_memory`、`profile_dialogue`、`diagnostic_remediation`、`adaptive_remediation`、`adaptive_retest`、`adaptive_transfer` 等。
+
+## 创建 Guide V2 路线
+
+前端 `GuidePage` 调用：
+
+```ts
+createGuideV2Session({
+  goal,
+  level,
+  horizon,
+  timeBudgetMinutes,
+  courseTemplateId,
+  preferences,
+  weakPoints,
+  notebookReferences,
+  useMemory: true,
+});
+```
+
+后端请求：
+
+```json
+{
+  "goal": "我想用 30 分钟理解梯度下降，并做几道练习确认掌握。",
+  "level": "beginner",
+  "time_budget_minutes": 30,
+  "horizon": "today",
+  "preferences": ["visual", "practice"],
+  "weak_points": ["公式推导"],
+  "notebook_context": "",
+  "course_template_id": "",
+  "notebook_references": [
+    { "notebook_id": "a1b2c3d4", "record_ids": ["r1"] }
+  ],
+  "use_memory": true
+}
+```
+
+创建步骤：
+
+1. Router 校验 `goal` 非空。
+2. 如果传了 `notebook_references`，用主 Notebook manager 解析记录，再用 `NotebookAnalysisAgent` 合成上下文。
+3. `GuideV2Manager.create_session()` 在 `use_memory=true` 时刷新并读取 `learner_memory.json`。
+4. `_build_profile()` 合并显式输入、跨 session 记忆和启发式推断。
+5. 若选择 `course_template_id`，优先用课程模板；否则尝试 `_build_plan_with_llm()`。
+6. LLM 失败或返回不可用时，使用 fallback nodes/tasks。
+7. 归一化 `CourseMap`、`LearningTask`、`LearningPath`。
+8. 初始化 mastery、recommendations。
+9. `_apply_memory_to_new_session()` 可能把长期薄弱点插入成 `memory_warmup` 任务。
+10. 保存 session JSON，并刷新 `learner_memory.json`。
+
+### LLM 规划 contract
+
+`_build_plan_with_llm()` 要求 LLM 返回 JSON，包含：
+
+```text
+course_map
+learning_path
+tasks
+recommendations
+```
+
+节点最多归一化前 8 个，任务最多归一化前 24 个。节点缺失时走 fallback；任务缺失时根据节点生成 fallback tasks。
+
+### 课程模板
+
+外部模板示例：
+
+```json
+{
+  "id": "linear_algebra",
+  "title": "线性代数入门",
+  "course_id": "MATH101",
+  "description": "矩阵、向量空间与线性变换。",
+  "level": "beginner",
+  "suggested_weeks": 6,
+  "default_goal": "我想系统学习线性代数。",
+  "default_preferences": ["visual", "practice"],
+  "default_time_budget_minutes": 45,
+  "learning_outcomes": ["能解释矩阵乘法的几何含义"]
+}
+```
+
+模板用于前端预填目标和偏好，也用于后端生成完整课程路线。新增模板时放在 `data/course_templates/` 或 `data/user/workspace/guide/v2/templates/`。
+
+## 学习证据闭环
+
+完成当前任务：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/complete
+```
+
+请求：
+
+```json
+{
+  "score": 0.85,
+  "reflection": "我能解释链式法则如何传递梯度。",
+  "mistake_types": ["公式或步骤断裂"]
+}
+```
+
+服务端会：
+
+1. 将任务标记为 `completed`。
+2. 创建 `LearningEvidence`，写入 score、reflection、mistake_types。
+3. 计算 `evidence_quality`。
+4. 更新对应知识节点的 mastery。
+5. 用证据更新 profile。
+6. 调用 `_adapt_learning_path()` 动态调整路线。
+7. 找到下一条 pending task，更新 `current_task_id`。
+8. 生成 `learning_feedback` 并写入 evidence metadata。
+9. 保存 session 和 learner memory。
+
+路线调整规则：
+
+| 条件 | 行为 |
+| --- | --- |
+| `score < 0.65` 且当前任务不是补救任务 | 插入 `adaptive_remediation` 和 `adaptive_retest` |
+| `score >= 0.92` | 尝试跳过同节点下重复铺垫任务 |
+| `score >= 0.85` 且路线已无 pending task | 追加 `adaptive_transfer` 迁移挑战 |
+
+这些调整都会写入 `plan_events`，前端的 “PlanEventsPanel” 和报告会展示它们。
+
+## 前测和画像对话
+
+Guide V2 有两种主动校准画像的方式。
+
+### 前测 Diagnostic
+
+```http
+GET /api/v1/guide/v2/sessions/{session_id}/diagnostic
+POST /api/v1/guide/v2/sessions/{session_id}/diagnostic
+```
+
+前测问题包括：
+
+- 学习经验
+- 时间是否合适
+- 偏好资源
+- 当前卡点
+- 各知识点信心分
+
+提交后会创建 `type="diagnostic"` 的 evidence，并调用：
+
+- `_apply_diagnostic_profile()`
+- `_apply_diagnostic_mastery()`
+- `_adapt_path_from_diagnostic()`
+
+如果诊断显示准备度不足，路线可能插入 `diagnostic_remediation` 任务。
+
+### Profile Dialogue
+
+```http
+GET /api/v1/guide/v2/sessions/{session_id}/profile-dialogue
+POST /api/v1/guide/v2/sessions/{session_id}/profile-dialogue
+```
+
+用户可以直接说：
+
+```text
+我今天只有 20 分钟，公式推导不太会，希望先看图解再做题。
+```
+
+服务会抽取 time budget、preferences、weak points、readiness score 等信号，更新 profile，并可能插入 `profile_dialogue` focus task。
+
+## 资源生成
+
+Guide V2 的资源不是独立存放的文档，而是附着在某个 `LearningTask.artifact_refs` 上。
+
+支持资源类型：
+
+| resource_type | Capability | 关键 config |
+| --- | --- | --- |
+| `visual` | `visualize` | `{ "render_mode": "svg" }` |
+| `video` | `math_animator` | `output_mode=video`、`quality`、`max_retries=2` |
+| `quiz` | `deep_question` | `mode=custom`、`num_questions=4`、`question_type=mixed` |
+| `research` | `deep_research` | `mode=learning_path`、`depth=quick`、`sources=["kb","web"]` |
+
+别名也会归一化：
+
+```text
+diagram / visualize / 图解 -> visual
+animation / math_animator / 短视频 / 动画 -> video
+practice / question / 练习 / 题目 -> quiz
+materials / reading / 资料 -> research
+```
+
+同步生成：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/resources
+```
+
+异步 job：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/resources/jobs
+GET  /api/v1/guide/v2/resource-jobs/{job_id}/events
+```
+
+SSE 事件：
+
+```text
+status
+trace
+result
+complete
+failed
+```
+
+`GuideV2Manager.generate_resource()` 会构造一个 `UnifiedContext`：
+
+- `session_id = guide-v2-<session_id>`
+- `active_capability` 是映射后的 capability
+- `config_overrides` 是资源类型对应配置
+- `language = zh`
+- `notebook_context = session.notebook_context`
+- `metadata.guide_session_id`、`guide_task_id`、`guide_node_id`、`guide_resource_type`
+
+注意：资源生成直接调用 capability runner，不走主聊天 WebSocket 的 turn/session 持久化。结果会写回 Guide V2 session 的 `artifact_refs`。
+
+## Quiz 与题目本
+
+生成 `quiz` 资源后，artifact 的 `result.results` 会被 `_extract_questions()` 转成题目本格式。
+
+保存 artifact：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact_id}/save
+```
+
+请求：
+
+```json
+{
+  "notebook_ids": ["a1b2c3d4"],
+  "title": "",
+  "summary": "",
+  "save_questions": true
+}
+```
+
+行为：
+
+- 如果有 `notebook_ids`，保存一条主 Notebook 记录，`record_type="guided_learning"`。
+- 如果 artifact 是 `quiz` 且 `save_questions=true`，同步题目到题目本 session `guide_v2_<session_id>`。
+- 如果既没有 Notebook 目标，也没有题目可保存，会返回 400。
+
+提交 quiz 结果：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact_id}/quiz-results
+```
+
+服务会：
+
+1. 校验 artifact 是 quiz。
+2. 归一化 answers。
+3. 计算得分。
+4. 写入 artifact 的 `quiz_attempts`。
+5. 将任务标记为 completed。
+6. 创建 `type="quiz"` 的 evidence。
+7. 更新 mastery、profile、plan events、learning feedback。
+8. 默认把答题结果同步到题目本。
+
+## 报告、课程包和推荐
+
+Guide V2 提供一组读取型产出：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/sessions/{id}/evaluation` | 总分、进度、掌握度、资源计数、风险和下一步 |
+| `GET` | `/sessions/{id}/study-plan` | 学习块、checkpoint、剩余时间、规则 |
+| `GET` | `/sessions/{id}/learning-timeline` | 行为、证据、资源、调整事件时间线 |
+| `GET` | `/sessions/{id}/mistake-review` | 错因 cluster、补救任务、复测计划 |
+| `GET` | `/sessions/{id}/coach-briefing` | 当前优先任务、微计划、资源快捷入口 |
+| `GET` | `/sessions/{id}/resource-recommendations` | 基于学习效果和资源缺口的推荐 |
+| `GET` | `/sessions/{id}/report` | 学习效果报告，包含 markdown |
+| `GET` | `/sessions/{id}/course-package` | 课程产出包，包含 capstone、rubric、portfolio、markdown |
+
+保存报告：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/report/save
+```
+
+保存课程包：
+
+```http
+POST /api/v1/guide/v2/sessions/{session_id}/course-package/save
+```
+
+这两个接口都要求 `notebook_ids` 非空，并保存为 `record_type="guided_learning"`。
+
+## Learner Memory
+
+Guide V2 的 `learner_memory.json` 是跨 Guide session 的聚合画像，位置：
+
+```text
+data/user/workspace/guide/v2/learner_memory.json
+```
+
+它聚合：
+
+- session count
+- completed session count
+- evidence count
+- average score
+- low score count
+- quiz attempt count
+- resource counts
+- preferred time budget
+- suggested level
+- top preferences
+- persistent weak points
+- common mistakes
+- strengths
+- recent goals
+- next guidance
+
+每次 `_save_session()` 后都会刷新 learner memory。创建新路线时，如果 `use_memory=true`，`_build_profile()` 会继承偏好、薄弱点和建议水平；`_apply_memory_to_new_session()` 还可能插入 `memory_warmup` 任务。
+
+这套 memory 与全局 Memory 文档互不相同：
+
+| 系统 | 路径 | 作用 |
+| --- | --- | --- |
+| 全局 Memory | `data/memory/SUMMARY.md`、`PROFILE.md` | 主聊天上下文长期背景 |
+| Guide V2 learner memory | `data/user/workspace/guide/v2/learner_memory.json` | 导学路线之间的学习证据聚合 |
+
+不要把 `learner_memory.json` 当成全局 Memory，也不要从主聊天 Memory API 读取它。
+
+## 前端工作台
+
+`web/src/pages/GuidePage.tsx` 目前主要是 Guide V2 工作台，页面结构：
+
+| 区域 | 说明 |
+| --- | --- |
+| 创建路线 | 选择课程模板、目标、水平、时间、周期、偏好、薄弱点、Notebook 引用 |
+| 历史路线 | 列出 Guide V2 sessions |
+| Coach Briefing | 当前建议、优先错因、微计划、资源快捷入口 |
+| Profile Dialogue | 用自然语言更新学习画像 |
+| Diagnostic | 前测问卷 |
+| 当前任务 | 完成标准、评分、反思、错因标签 |
+| 多智能体资源 | 图解、短视频、练习、资料生成，带 SSE 进度 |
+| 知识地图 | 节点、难度、掌握度 |
+| 任务队列 | 每个 task 的状态 |
+| 学习画像 | profile 和来源摘要 |
+| 长期画像 | Guide V2 learner memory |
+| Timeline / Mistake Review | 学习行为和错因闭环 |
+| Report / Course Package | 生成并保存报告和课程包 |
+
+React Query 缓存失效在 `useGuideV2Mutations()` 中集中处理。完成任务、生成资源、保存 artifact、提交 quiz、前测、画像对话、刷新推荐都会失效 session、evaluation、study plan、timeline、coach briefing、mistake review、report、course package、resource recommendations 和 learner memory。
+
+## API 总览
+
+基础端点：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v1/guide/v2/health` | 健康检查 |
+| `GET` | `/api/v1/guide/v2/templates` | 课程模板 |
+| `GET` | `/api/v1/guide/v2/sessions` | session 列表 |
+| `POST` | `/api/v1/guide/v2/sessions` | 创建路线 |
+| `GET` | `/api/v1/guide/v2/sessions/{session_id}` | session 详情 |
+| `DELETE` | `/api/v1/guide/v2/sessions/{session_id}` | 删除 session |
+| `GET` | `/api/v1/guide/v2/learner-memory` | Guide V2 跨 session 画像 |
+
+学习闭环端点：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/sessions/{id}/tasks/{task_id}/complete` | 完成任务并写学习证据 |
+| `GET` | `/sessions/{id}/diagnostic` | 前测 |
+| `POST` | `/sessions/{id}/diagnostic` | 提交前测并调整路线 |
+| `GET` | `/sessions/{id}/profile-dialogue` | 画像对话提示 |
+| `POST` | `/sessions/{id}/profile-dialogue` | 提交画像对话 |
+| `POST` | `/sessions/{id}/recommendations/refresh` | 刷新建议 |
+
+资源与保存端点：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/sessions/{id}/tasks/{task_id}/resources` | 同步生成资源 |
+| `POST` | `/sessions/{id}/tasks/{task_id}/resources/jobs` | 启动资源生成 job |
+| `GET` | `/resource-jobs/{job_id}/events` | SSE 监听 job |
+| `POST` | `/sessions/{id}/tasks/{task_id}/artifacts/{artifact_id}/save` | 保存 artifact 到 Notebook/题目本 |
+| `POST` | `/sessions/{id}/tasks/{task_id}/artifacts/{artifact_id}/quiz-results` | 提交 quiz 结果 |
+| `POST` | `/sessions/{id}/report/save` | 保存学习报告到 Notebook |
+| `POST` | `/sessions/{id}/course-package/save` | 保存课程产出包到 Notebook |
+
+## 开发清单
+
+新增 Guide V2 字段时，同步检查：
+
+- `sparkweave/services/guide_v2.py` dataclass。
+- `GuideSessionV2.from_dict()` 的兼容默认值。
+- `web/src/lib/types.ts` 对应 interface。
+- `web/src/pages/GuidePage.tsx` 展示和空状态。
+- `tests/services/test_guide_v2.py`。
+
+新增资源类型时，同步检查：
+
+- `_normalize_resource_type()` alias。
+- `_resource_capability()` capability 映射和 config。
+- `_resource_title()`、`_resource_prompt()`。
+- `web/src/pages/GuidePage.tsx` 的 `resourceOptions`。
+- `web/src/lib/types.ts` 的 `GuideV2ResourceType`。
+- 保存到 Notebook 的 markdown 展示。
+
+调整学习证据或路线适配时，同步检查：
+
+- `complete_task()` 和 `submit_quiz_attempt()` 是否保持一致。
+- `_update_mastery()`、`_update_profile_from_evidence()`。
+- `_adapt_learning_path()` 的 plan event。
+- `_learning_feedback()`。
+- `build_learning_timeline()`、`build_mistake_review()`、`build_coach_briefing()`。
+
+调整保存行为时，同步检查：
+
+- 主 Notebook `record_type="guided_learning"`。
+- 题目本 session ID `guide_v2_<session_id>`。
+- `web/src/hooks/useApiQueries.ts` 是否失效 `notebooks`、`notebook-stats`、`question-entries`。
+- [Notebook、Memory 与上下文引用](./notebook-memory-context.md) 中的边界说明。
+
+## 常见排查
+
+| 现象 | 排查方向 |
+| --- | --- |
+| 创建路线失败 | `goal` 是否为空；LLM 失败时应走 fallback；检查 `session_*.json` 是否写入 |
+| Notebook 引用没有进入路线 | 检查 `notebook_references`、`NotebookAnalysisAgent` 输出和 `notebook_context` |
+| 资源生成没有出现在任务里 | 检查 resource job SSE 是否有 `result`/`complete`，以及 task 的 `artifact_refs` |
+| quiz 结果没有进题目本 | 确认 artifact 类型是 `quiz`、`save_questions=true`，检查 `guide_v2_<session_id>` |
+| 低分后没有补救任务 | 确认 score 小于 `0.65`，且当前任务不是 `adaptive_remediation` |
+| 新路线没有继承长期画像 | 确认 `use_memory=true`，`learner_memory.json` 中 `evidence_count > 0` |
+| 保存报告失败 | `/report/save` 和 `/course-package/save` 必须传有效 `notebook_ids` |
+| 前端状态旧 | 检查 `useGuideV2Mutations()` 是否失效了对应 query key |
+
+## 测试索引
+
+| 覆盖点 | 测试 |
+| --- | --- |
+| 旧版 guide router 使用 NG 服务 | `tests/api/test_guide_router.py` |
+| 旧版 GuideManager 生命周期 | `tests/ng/test_guide_generation_service.py` |
+| Guide V2 fallback 创建、LLM 规划、模板、删除 | `tests/services/test_guide_v2.py` |
+| Guide V2 learner memory 继承 | `tests/services/test_guide_v2.py` |
+| 任务完成、掌握度、路线调整 | `tests/services/test_guide_v2.py` |
+| 前测和画像对话 | `tests/services/test_guide_v2.py` |
+| 资源生成和 artifact 附着 | `tests/services/test_guide_v2.py` |
+| quiz attempt、learning feedback、报告、课程包、资源推荐 | `tests/services/test_guide_v2.py` |
+| Guide V2 API 全流程 | `tests/api/test_guide_v2_router.py` |

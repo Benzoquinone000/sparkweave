@@ -2,7 +2,7 @@
 
 SparkWeave 的主运行链路是 turn-based：每次用户请求都会创建一个 `turn`，运行期间持续产出事件，结束后把事件汇总成一条 assistant message。理解这层以后，WebSocket 续流、历史会话、题目追问、Notebook 引用和记忆刷新都会更容易调试。
 
-本文聚焦新的 NG/LangGraph 运行时：
+本文聚焦新的 NG/LangGraph 运行时。SparkBot 的 `/api/v1/sparkbot/{bot_id}/ws` 使用独立的 `history.jsonl` 和 `workspace/sessions/*.jsonl`，不写入 `data/user/chat_history.db`；详见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 
 ```text
 SparkWeaveApp / /api/v1/ws
@@ -171,6 +171,8 @@ Session already has an active turn: <turn_id>
 ### 5. 构造 UnifiedContext
 
 `build_turn_context()` 把原始 payload 变成图可用的 `UnifiedContext`。
+
+Notebook、Memory 和历史引用的专题说明见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
 
 它会读取并注入：
 

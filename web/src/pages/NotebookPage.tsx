@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookMarked,
   CheckCircle2,
+  ChevronLeft,
   ChevronDown,
   ChevronUp,
   Edit3,
@@ -44,6 +45,8 @@ import {
   useQuestionNotebookMutations,
 } from "@/hooks/useApiQueries";
 
+type NotebookView = "browse" | "create" | "record" | "questions";
+
 export function NotebookPage() {
   const location = useLocation();
   const notebooks = useNotebooks();
@@ -74,6 +77,7 @@ export function NotebookPage() {
     difficulty: "medium",
   });
   const [quickQuestionStatus, setQuickQuestionStatus] = useState("");
+  const [view, setView] = useState<NotebookView>("browse");
   const notebookSectionRef = useRef<HTMLDivElement | null>(null);
   const questionSectionRef = useRef<HTMLElement | null>(null);
   const searchParams = useMemo(() => getSearchParams(location.search), [location.search]);
@@ -103,10 +107,12 @@ export function NotebookPage() {
 
   useEffect(() => {
     if (routeTab === "questions" || routeQuestionKey) {
+      setView("questions");
       questionSectionRef.current?.scrollIntoView({ block: "start" });
       return;
     }
     if (routeTab === "notebooks" || routeNotebookId || routeRecordId) {
+      setView("browse");
       notebookSectionRef.current?.scrollIntoView({ block: "start" });
     }
   }, [routeNotebookId, routeQuestionKey, routeRecordId, routeTab]);
@@ -123,6 +129,7 @@ export function NotebookPage() {
     setSelectedId(result.notebook.id);
     setNewName("");
     setNewDescription("");
+    setView("browse");
   };
 
   const addManualRecord = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -157,6 +164,7 @@ export function NotebookPage() {
     }
     setManualTitle("");
     setManualOutput("");
+    setView("browse");
   };
 
   const createCategory = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -239,23 +247,35 @@ export function NotebookPage() {
           <Metric label="题目收藏" value={questionEntries.data?.length ?? 0} detail="收藏题目" />
         </motion.div>
 
-        <div ref={notebookSectionRef} className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div ref={notebookSectionRef} className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           <section className="rounded-lg border border-line bg-white p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-ink">笔记本列表</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-ink">我的笔记本</h2>
               <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={() => void notebooks.refetch()}>
                 <RefreshCw size={14} />
                 刷新
               </Button>
             </div>
+            <Button
+              tone={view === "create" ? "primary" : "secondary"}
+              className="mt-3 w-full justify-center"
+              data-testid="notebook-create-toggle"
+              onClick={() => setView("create")}
+            >
+              <Plus size={16} />
+              新建笔记本
+            </Button>
             <div className="mt-4 space-y-1">
               {items.map((item) => (
                 <motion.button
                   key={item.id}
                   type="button"
-                  onClick={() => setSelectedId(item.id)}
+                  onClick={() => {
+                    setSelectedId(item.id);
+                    setView("browse");
+                  }}
                   className={`dt-interactive w-full rounded-lg border px-3 py-3 text-left transition ${
-                    activeNotebookId === item.id ? "border-teal-200 bg-teal-50" : "border-transparent bg-white hover:border-teal-200 hover:bg-canvas"
+                    activeNotebookId === item.id && view !== "questions" ? "border-teal-200 bg-teal-50" : "border-transparent bg-white hover:border-teal-200 hover:bg-canvas"
                   }`}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.99 }}
@@ -275,68 +295,344 @@ export function NotebookPage() {
             </div>
             {!items.length ? (
               <div className="mt-5">
-                <EmptyState icon={<BookMarked size={24} />} title="还没有笔记本" description="创建笔记本后，聊天和写作结果可以保存到这里。" />
+                <EmptyState icon={<BookMarked size={24} />} title="还没有笔记本" description="先新建一个主题，再把聊天、导学和练习结果沉淀进来。" />
               </div>
             ) : null}
+            <div className="mt-4 border-t border-line pt-3">
+              <Button
+                tone={view === "questions" ? "primary" : "quiet"}
+                className="w-full justify-center"
+                onClick={() => setView("questions")}
+              >
+                <ListChecks size={16} />
+                题目本
+              </Button>
+            </div>
           </section>
 
-          <section className="rounded-lg border border-line bg-white p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-ink">{detail.data?.name || "笔记本详情"}</h2>
-                <p className="mt-1 text-sm text-slate-500">{detail.data?.description || "选择一个笔记本查看记录。"}</p>
-              </div>
-              {activeNotebookId ? (
-                <Button
-                  tone="danger"
-                  data-testid="notebook-delete"
-                  onClick={() => {
-                    if (window.confirm("删除这个笔记本？")) void mutations.remove.mutateAsync(activeNotebookId);
-                  }}
-                  disabled={mutations.remove.isPending}
-                >
-                  <Trash2 size={16} />
-                  删除
+          <AnimatePresence mode="wait" initial={false}>
+            {view === "create" ? (
+              <motion.section
+                key="create-notebook"
+                className="rounded-lg border border-line bg-white p-4"
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Button tone="quiet" className="mb-4 min-h-8 px-2 text-xs" onClick={() => setView("browse")}>
+                  <ChevronLeft size={14} />
+                  返回笔记本
                 </Button>
-              ) : null}
-            </div>
-            {activeNotebookId && detail.data ? (
-              <NotebookMetaEditor
-                key={detail.data.id}
-                notebook={detail.data}
-                pending={mutations.update.isPending}
-                onSave={(payload) => mutations.update.mutateAsync({ notebookId: activeNotebookId, ...payload })}
-              />
-            ) : null}
-            <div className="mt-5 grid gap-3">
-              <AnimatePresence initial={false}>
-                {(detail.data?.records ?? []).slice(0, 12).map((record) => (
-                  <motion.div
-                    key={record.id || record.record_id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                  >
-                    <RecordCard
-                      record={record}
-                      active={Boolean(routeRecordId && routeRecordId === String(record.id || record.record_id || ""))}
-                      onEdit={() => setEditingRecord(record)}
-                      onDelete={() => {
-                        const recordId = String(record.id || record.record_id || "");
-                        if (activeNotebookId && recordId && window.confirm("删除这条记录？")) {
-                          void mutations.deleteRecord.mutateAsync({ notebookId: activeNotebookId, recordId });
-                        }
-                      }}
+                <div>
+                  <Badge tone="brand">新建</Badge>
+                  <h2 className="mt-3 text-lg font-semibold text-ink">创建一个学习主题</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">只需要填写名称。描述可以简单写清楚这本笔记准备用来沉淀什么。</p>
+                </div>
+                <form className="mt-5 grid gap-3" onSubmit={createNotebook}>
+                  <FieldShell label="名称">
+                    <TextInput
+                      value={newName}
+                      onChange={(event) => setNewName(event.target.value)}
+                      placeholder="例如 高数错题复盘"
+                      data-testid="notebook-create-name"
                     />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {activeNotebookId && !detail.data?.records?.length ? (
-                <EmptyState icon={<FileText size={24} />} title="暂无记录" description="可以从聊天页保存，也可以在下方手动补充一条学习记录。" />
-              ) : null}
-            </div>
-          </section>
+                  </FieldShell>
+                  <FieldShell label="描述">
+                    <TextArea
+                      value={newDescription}
+                      onChange={(event) => setNewDescription(event.target.value)}
+                      placeholder="这本笔记打算沉淀什么？"
+                      data-testid="notebook-create-description"
+                    />
+                  </FieldShell>
+                  <Button
+                    tone="primary"
+                    type="submit"
+                    disabled={!newName.trim() || mutations.create.isPending}
+                    data-testid="notebook-create-submit"
+                  >
+                    {mutations.create.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    创建笔记本
+                  </Button>
+                </form>
+              </motion.section>
+            ) : null}
+
+            {view === "record" ? (
+              <motion.section
+                key="manual-record"
+                className="rounded-lg border border-line bg-white p-4"
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Button tone="quiet" className="mb-4 min-h-8 px-2 text-xs" onClick={() => setView("browse")}>
+                  <ChevronLeft size={14} />
+                  返回笔记本
+                </Button>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <Badge tone={activeNotebookId ? "brand" : "neutral"}>{detail.data?.name || "未选择笔记本"}</Badge>
+                    <h2 className="mt-3 text-lg font-semibold text-ink">补充一条学习记录</h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">适合补课堂笔记、错因、复盘结论。写完后会进入当前笔记本。</p>
+                  </div>
+                </div>
+                <form className="mt-5 grid gap-3" onSubmit={addManualRecord}>
+                  <FieldShell label="标题">
+                    <TextInput
+                      value={manualTitle}
+                      onChange={(event) => setManualTitle(event.target.value)}
+                      placeholder="本次复盘主题"
+                      data-testid="notebook-manual-title"
+                    />
+                  </FieldShell>
+                  <FieldShell label="内容">
+                    <TextArea
+                      value={manualOutput}
+                      onChange={(event) => setManualOutput(event.target.value)}
+                      placeholder="关键推理、错因、小结..."
+                      className="min-h-44"
+                      data-testid="notebook-manual-output"
+                    />
+                  </FieldShell>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      tone="secondary"
+                      type="submit"
+                      disabled={!activeNotebookId || !manualTitle.trim() || !manualOutput.trim() || mutations.addRecord.isPending}
+                      data-testid="notebook-manual-submit"
+                    >
+                      {mutations.addRecord.isPending ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                      直接写入
+                    </Button>
+                    <Button
+                      tone="primary"
+                      type="submit"
+                      data-action="with-summary"
+                      disabled={!activeNotebookId || !manualTitle.trim() || !manualOutput.trim() || mutations.addRecordWithSummary.isPending}
+                      data-testid="notebook-manual-summary-submit"
+                    >
+                      {mutations.addRecordWithSummary.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      生成摘要并写入
+                    </Button>
+                  </div>
+                  <AnimatePresence>
+                    {manualSummaryPreview ? (
+                      <motion.p
+                        className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm leading-6 text-slate-600"
+                        data-testid="notebook-summary-preview"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        {manualSummaryPreview}
+                      </motion.p>
+                    ) : null}
+                  </AnimatePresence>
+                </form>
+              </motion.section>
+            ) : null}
+
+            {view === "questions" ? (
+              <motion.section
+                key="question-notebook"
+                ref={questionSectionRef}
+                className="rounded-lg border border-line bg-white p-4"
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <Button tone="quiet" className="mb-4 min-h-8 px-2 text-xs" onClick={() => setView("browse")}>
+                  <ChevronLeft size={14} />
+                  返回笔记本
+                </Button>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <Badge tone="brand">题目本</Badge>
+                    <h2 className="mt-3 text-lg font-semibold text-ink">收藏题目与错题复盘</h2>
+                    <p className="mt-1 text-sm text-slate-500">集中查看题目、答案、解析和分类。</p>
+                  </div>
+                  <form className="flex gap-2" onSubmit={createCategory}>
+                    <TextInput
+                      value={categoryName}
+                      onChange={(event) => setCategoryName(event.target.value)}
+                      placeholder="新分类"
+                      className="min-w-40"
+                      data-testid="question-category-create-name"
+                    />
+                    <Button
+                      tone="secondary"
+                      type="submit"
+                      disabled={!categoryName.trim() || questionMutations.createCategory.isPending}
+                      data-testid="question-category-create-submit"
+                    >
+                      <Tag size={16} />
+                      添加
+                    </Button>
+                  </form>
+                </div>
+
+                <CategoryManager
+                  categories={categories.data ?? []}
+                  renamingCategoryId={renamingCategoryId}
+                  categoryDraft={categoryDraft}
+                  pending={questionMutations.renameCategory.isPending || questionMutations.deleteCategory.isPending}
+                  onStartRename={(category) => {
+                    setRenamingCategoryId(category.id);
+                    setCategoryDraft(category.name);
+                  }}
+                  onDraft={setCategoryDraft}
+                  onRename={async (categoryId) => {
+                    if (!categoryDraft.trim()) return;
+                    await questionMutations.renameCategory.mutateAsync({ categoryId, name: categoryDraft.trim() });
+                    setRenamingCategoryId(null);
+                    setCategoryDraft("");
+                  }}
+                  onCancelRename={() => {
+                    setRenamingCategoryId(null);
+                    setCategoryDraft("");
+                  }}
+                  onDelete={(categoryId) => {
+                    if (window.confirm("删除这个分类？")) void questionMutations.deleteCategory.mutateAsync(categoryId);
+                  }}
+                />
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="grid gap-3">
+                    <AnimatePresence initial={false}>
+                      {(questionEntries.data ?? []).slice(0, 12).map((entry) => (
+                        <motion.div
+                          key={entry.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
+                        >
+                          <QuestionCard
+                            entry={entry}
+                            active={activeQuestion?.id === entry.id}
+                            pending={questionMutations.updateEntry.isPending || questionMutations.deleteEntry.isPending}
+                            onSelect={() => setSelectedQuestionId(entry.id)}
+                            onToggleBookmark={() => questionMutations.updateEntry.mutateAsync({ entryId: entry.id, bookmarked: !entry.bookmarked })}
+                            onDelete={() => {
+                              if (window.confirm("删除这道题？")) void questionMutations.deleteEntry.mutateAsync(entry.id);
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    {!questionEntries.data?.length ? <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">暂无题目记录。</p> : null}
+                  </div>
+
+                  <QuestionDetail
+                    entry={activeQuestion}
+                    categories={categories.data ?? []}
+                    pending={questionMutations.addEntryToCategory.isPending || questionMutations.removeEntryFromCategory.isPending}
+                    onAddCategory={(entryId, categoryId) => questionMutations.addEntryToCategory.mutateAsync({ entryId, categoryId })}
+                    onRemoveCategory={(entryId, categoryId) => questionMutations.removeEntryFromCategory.mutateAsync({ entryId, categoryId })}
+                  />
+                </div>
+
+                <section className="mt-5 rounded-lg border border-line bg-canvas p-3">
+                  <QuickQuestionPanel
+                    value={quickQuestion}
+                    status={quickQuestionStatus}
+                    pending={questionMutations.upsertEntry.isPending || questionMutations.lookupEntry.isPending}
+                    onChange={setQuickQuestion}
+                    onLookup={() => void lookupQuickQuestion()}
+                    onSubmit={upsertQuickQuestion}
+                  />
+                </section>
+              </motion.section>
+            ) : null}
+
+            {view === "browse" ? (
+              <motion.section
+                key="notebook-detail"
+                className="rounded-lg border border-line bg-white p-4"
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <Badge tone="brand">当前笔记本</Badge>
+                    <h2 className="mt-3 text-lg font-semibold text-ink">{detail.data?.name || "笔记本详情"}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{detail.data?.description || "选择一个笔记本查看记录。"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      tone="secondary"
+                      data-testid="notebook-manual-toggle"
+                      onClick={() => setView("record")}
+                      disabled={!activeNotebookId}
+                    >
+                      <Edit3 size={16} />
+                      手动记录
+                    </Button>
+                    <Button tone="secondary" onClick={() => setView("questions")}>
+                      <ListChecks size={16} />
+                      题目本
+                    </Button>
+                    {activeNotebookId ? (
+                      <Button
+                        tone="danger"
+                        data-testid="notebook-delete"
+                        onClick={() => {
+                          if (window.confirm("删除这个笔记本？")) void mutations.remove.mutateAsync(activeNotebookId);
+                        }}
+                        disabled={mutations.remove.isPending}
+                      >
+                        <Trash2 size={16} />
+                        删除
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                {activeNotebookId && detail.data ? (
+                  <NotebookMetaEditor
+                    key={detail.data.id}
+                    notebook={detail.data}
+                    pending={mutations.update.isPending}
+                    onSave={(payload) => mutations.update.mutateAsync({ notebookId: activeNotebookId, ...payload })}
+                  />
+                ) : null}
+                <div className="mt-5 grid gap-3">
+                  <AnimatePresence initial={false}>
+                    {(detail.data?.records ?? []).slice(0, 12).map((record) => (
+                      <motion.div
+                        key={record.id || record.record_id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <RecordCard
+                          record={record}
+                          active={Boolean(routeRecordId && routeRecordId === String(record.id || record.record_id || ""))}
+                          onEdit={() => setEditingRecord(record)}
+                          onDelete={() => {
+                            const recordId = String(record.id || record.record_id || "");
+                            if (activeNotebookId && recordId && window.confirm("删除这条记录？")) {
+                              void mutations.deleteRecord.mutateAsync({ notebookId: activeNotebookId, recordId });
+                            }
+                          }}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  {activeNotebookId && !detail.data?.records?.length ? (
+                    <EmptyState icon={<FileText size={24} />} title="暂无记录" description="从聊天页保存，或点“手动记录”补充一条复盘。" />
+                  ) : null}
+                </div>
+              </motion.section>
+            ) : null}
+          </AnimatePresence>
         </div>
 
         {editingRecord && activeNotebookId ? (
@@ -352,212 +648,6 @@ export function NotebookPage() {
             }}
           />
         ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="notebook-create-toggle">
-              <div>
-                <h2 className="text-base font-semibold text-ink">创建笔记本</h2>
-                <p className="mt-1 text-sm text-slate-500">需要整理新主题时再创建。</p>
-              </div>
-              <Badge tone="neutral">新建</Badge>
-            </summary>
-            <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={createNotebook}>
-              <FieldShell label="名称">
-                <TextInput
-                  value={newName}
-                  onChange={(event) => setNewName(event.target.value)}
-                  placeholder="例如 高数错题复盘"
-                  data-testid="notebook-create-name"
-                />
-              </FieldShell>
-              <FieldShell label="描述">
-                <TextArea
-                  value={newDescription}
-                  onChange={(event) => setNewDescription(event.target.value)}
-                  placeholder="这本笔记打算沉淀什么？"
-                  data-testid="notebook-create-description"
-                />
-              </FieldShell>
-              <Button
-                tone="primary"
-                type="submit"
-                disabled={!newName.trim() || mutations.create.isPending}
-                data-testid="notebook-create-submit"
-              >
-                {mutations.create.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                创建
-              </Button>
-            </form>
-          </details>
-
-          <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="notebook-manual-toggle">
-              <div>
-                <h2 className="text-base font-semibold text-ink">手动记录</h2>
-                <p className="mt-1 text-sm text-slate-500">补充课堂笔记、错因和复盘。</p>
-              </div>
-              <Badge tone={activeNotebookId ? "brand" : "neutral"}>{activeNotebookId ? "当前笔记本" : "未选择"}</Badge>
-            </summary>
-            <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={addManualRecord}>
-              <FieldShell label="标题">
-                <TextInput
-                  value={manualTitle}
-                  onChange={(event) => setManualTitle(event.target.value)}
-                  placeholder="本次复盘主题"
-                  data-testid="notebook-manual-title"
-                />
-              </FieldShell>
-              <FieldShell label="内容">
-                <TextArea
-                  value={manualOutput}
-                  onChange={(event) => setManualOutput(event.target.value)}
-                  placeholder="关键推理、错因、小结..."
-                  data-testid="notebook-manual-output"
-                />
-              </FieldShell>
-              <Button
-                tone="secondary"
-                type="submit"
-                disabled={!activeNotebookId || !manualTitle.trim() || !manualOutput.trim() || mutations.addRecord.isPending}
-                data-testid="notebook-manual-submit"
-              >
-                {mutations.addRecord.isPending ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                写入当前笔记本
-              </Button>
-              <Button
-                tone="primary"
-                type="submit"
-                data-action="with-summary"
-                disabled={!activeNotebookId || !manualTitle.trim() || !manualOutput.trim() || mutations.addRecordWithSummary.isPending}
-                data-testid="notebook-manual-summary-submit"
-              >
-                {mutations.addRecordWithSummary.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                生成摘要并写入
-              </Button>
-              <AnimatePresence>
-                {manualSummaryPreview ? (
-                  <motion.p
-                    className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm leading-6 text-slate-600"
-                    data-testid="notebook-summary-preview"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    {manualSummaryPreview}
-                  </motion.p>
-                ) : null}
-              </AnimatePresence>
-            </form>
-          </details>
-        </div>
-
-        <section ref={questionSectionRef} className="rounded-lg border border-line bg-white p-3">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-ink">题目本</h2>
-              <p className="mt-1 text-sm text-slate-500">集中管理收藏题目、答题结果和分类。</p>
-            </div>
-            <form className="flex gap-2" onSubmit={createCategory}>
-              <TextInput
-                value={categoryName}
-                onChange={(event) => setCategoryName(event.target.value)}
-                placeholder="新分类"
-                className="min-w-40"
-                data-testid="question-category-create-name"
-              />
-              <Button
-                tone="secondary"
-                type="submit"
-                disabled={!categoryName.trim() || questionMutations.createCategory.isPending}
-                data-testid="question-category-create-submit"
-              >
-                <Tag size={16} />
-                添加
-              </Button>
-            </form>
-          </div>
-
-          <CategoryManager
-            categories={categories.data ?? []}
-            renamingCategoryId={renamingCategoryId}
-            categoryDraft={categoryDraft}
-            pending={questionMutations.renameCategory.isPending || questionMutations.deleteCategory.isPending}
-            onStartRename={(category) => {
-              setRenamingCategoryId(category.id);
-              setCategoryDraft(category.name);
-            }}
-            onDraft={setCategoryDraft}
-            onRename={async (categoryId) => {
-              if (!categoryDraft.trim()) return;
-              await questionMutations.renameCategory.mutateAsync({ categoryId, name: categoryDraft.trim() });
-              setRenamingCategoryId(null);
-              setCategoryDraft("");
-            }}
-            onCancelRename={() => {
-              setRenamingCategoryId(null);
-              setCategoryDraft("");
-            }}
-            onDelete={(categoryId) => {
-              if (window.confirm("删除这个分类？")) void questionMutations.deleteCategory.mutateAsync(categoryId);
-            }}
-          />
-
-          <details className="mt-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary className="dt-interactive flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 py-1" data-testid="question-quick-toggle">
-              <span>
-                <span className="block text-sm font-semibold text-ink">题目快录</span>
-                <span className="mt-1 block text-sm text-slate-500">从外部结果补录单题。</span>
-              </span>
-              <Badge tone="neutral">按需</Badge>
-            </summary>
-            <QuickQuestionPanel
-              value={quickQuestion}
-              status={quickQuestionStatus}
-              pending={questionMutations.upsertEntry.isPending || questionMutations.lookupEntry.isPending}
-              onChange={setQuickQuestion}
-              onLookup={() => void lookupQuickQuestion()}
-              onSubmit={upsertQuickQuestion}
-            />
-          </details>
-
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="grid gap-3">
-              <AnimatePresence initial={false}>
-                {(questionEntries.data ?? []).slice(0, 12).map((entry) => (
-                  <motion.div
-                    key={entry.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                  >
-                    <QuestionCard
-                      entry={entry}
-                      active={activeQuestion?.id === entry.id}
-                      pending={questionMutations.updateEntry.isPending || questionMutations.deleteEntry.isPending}
-                      onSelect={() => setSelectedQuestionId(entry.id)}
-                      onToggleBookmark={() => questionMutations.updateEntry.mutateAsync({ entryId: entry.id, bookmarked: !entry.bookmarked })}
-                      onDelete={() => {
-                        if (window.confirm("删除这道题？")) void questionMutations.deleteEntry.mutateAsync(entry.id);
-                      }}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {!questionEntries.data?.length ? <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">暂无题目记录。</p> : null}
-            </div>
-
-            <QuestionDetail
-              entry={activeQuestion}
-              categories={categories.data ?? []}
-              pending={questionMutations.addEntryToCategory.isPending || questionMutations.removeEntryFromCategory.isPending}
-              onAddCategory={(entryId, categoryId) => questionMutations.addEntryToCategory.mutateAsync({ entryId, categoryId })}
-              onRemoveCategory={(entryId, categoryId) => questionMutations.removeEntryFromCategory.mutateAsync({ entryId, categoryId })}
-            />
-          </div>
-        </section>
       </div>
     </div>
   );

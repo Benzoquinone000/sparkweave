@@ -157,11 +157,15 @@ WebSocket 事件、`seq` 续流、历史消息 hydrate 和 session detail 的关
 | Knowledge | `/api/v1/knowledge/*`、知识库进度 WebSocket、SSE task stream |
 | Notebook | `/api/v1/notebook/*`、`/api/v1/question-notebook/*` |
 | Settings | `/api/v1/settings/*`、`/api/v1/system/*` |
-| Agents | `/api/v1/sparkbot/*`、SparkBot WebSocket |
+| Agents | `/api/v1/sparkbot/*`、SparkBot WebSocket、`/api/v1/agent-config/*` |
 | Guide | `/api/v1/guide/*`、Guide WebSocket |
 | Co-Writer | `/api/v1/co_writer/*`、SSE stream |
 | Vision | `/api/v1/vision/analyze`、`/api/v1/vision/solve` |
 | Playground | `/api/v1/plugins/*` |
+
+NotebookPage、MemoryPage、Chat 引用面板与后端上下文注入的完整契约见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
+GuidePage 的学习路径驾驶舱、资源 job、题目本/Notebook 保存和查询缓存约定见 [导学空间与 Guide V2](./guided-learning.md)。
+AgentsPage 的 SparkBot 生命周期、渠道 schema、工作区文件、聊天 WebSocket 和缓存失效约定见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 
 ## 前后端契约
 

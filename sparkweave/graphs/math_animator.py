@@ -32,9 +32,12 @@ from sparkweave.services import math_animator as math_services
 
 MATH_ANIMATOR_SYSTEM_PROMPT = """\
 You are SparkWeave's math animation graph. Build concise educational Manim
-scripts that explain mathematical ideas visually. Prefer Text, DecimalNumber,
-NumberPlane, axes, labels, and simple shapes over LaTeX-only constructs so the
-code remains renderable in lightweight environments.
+scripts that explain mathematical ideas visually. Use MathTex for equations
+and mathematical symbols, Text for prose and Chinese labels, and shapes/axes
+for intuition. Keep equations compact, readable, and inside the camera frame.
+Prefer a teaching sequence of 3-5 short scenes: introduce the concept, build
+the visual model, animate the key transformation, connect it to the formula,
+then give a brief takeaway or example.
 """
 
 
@@ -296,7 +299,9 @@ class MathAnimatorGraph:
                 system=(
                     "Analyze the math animation request. Return JSON only. "
                     "Focus on the learning goal, mathematical concepts, visual "
-                    "targets, and narrative steps."
+                    "targets, and narrative steps. Identify the smallest visual "
+                    "model that can teach the idea clearly, and avoid turning the "
+                    "video into a static wall of formulas."
                 ),
                 user=(
                     f"User request:\n{state['user_message']}\n\n"
@@ -341,7 +346,9 @@ class MathAnimatorGraph:
                 system=(
                     "Design a compact Manim storyboard from the concept analysis. "
                     "Return JSON only. Include scene outline, style, notes, and "
-                    "constraints that help code render reliably."
+                    "constraints that help code render reliably. Keep each scene "
+                    "visually simple: one main idea, one focal object, and no more "
+                    "than two formula lines visible at the same time."
                 ),
                 user=(
                     f"User request:\n{state['user_message']}\n\n"
@@ -502,6 +509,11 @@ class MathAnimatorGraph:
                     "Repair generated Manim code after a render failure. "
                     "Return JSON only with keys: code, rationale. Preserve the "
                     "requested output mode and remove the cause of the failure. "
+                    "Keep formulas readable: use MathTex only for LaTeX math, "
+                    "Text for prose or Chinese text, split long derivations into "
+                    "several short lines, and keep formula objects inside frame. "
+                    "Every MathTex/Tex expression must be a quoted Python string, "
+                    "preferably a raw string such as MathTex(r\"x^2 + y^2\"). "
                     "If the failure mentions LaTeX, latex, dvi, preview.sty, "
                     "Tex, or MathTex, repair the TeX expression when possible; "
                     "only replace it with Text and Unicode formulas when the "
@@ -1034,13 +1046,28 @@ class MathAnimatorGraph:
                 "only of one or more blocks wrapped exactly as "
                 "### YON_IMAGE_1_START ### ... ### YON_IMAGE_1_END ###. "
                 "Each block must define a renderable Scene class. Use MathTex "
-                "for compact mathematical formulas and Text for prose."
+                "for compact mathematical formulas and Text for prose or Chinese. "
+                "Never put Chinese words inside MathTex/Tex. Split long formulas "
+                "into readable steps and keep every formula inside the frame. Use "
+                "a clean white or very light background with high-contrast text."
             )
         return (
             "Generate Python Manim code for a video animation. Return JSON only "
             "with code and rationale. Define one renderable Scene class. Use "
             "MathTex for compact mathematical formulas, Text for prose, and "
-            "geometric objects for the explanation."
+            "geometric objects for the explanation. Never put Chinese words "
+            "inside MathTex/Tex; use Text for Chinese labels. Split long "
+            "derivations into multiple MathTex lines, use font_size around "
+            "34-42, arrange formulas vertically, and keep them inside the frame. "
+            "Every MathTex/Tex argument must be a quoted Python string, preferably "
+            "a raw string like MathTex(r\"\\frac{a}{b}\"). "
+            "For axes labels containing Chinese or prose, pass Text(...) objects "
+            "to get_axis_labels instead of raw strings. Do not use "
+            "Axes.x_axis_length or Axes.y_axis_length; use axes.x_axis.length, "
+            "axes.y_axis.length, or coordinate transforms such as axes.c2p. "
+            "Animate in short steps with waits under 1.5 seconds; avoid showing "
+            "more than two formula lines at once; use VGroup/arrange to keep "
+            "labels stable and readable."
         )
 
     @staticmethod

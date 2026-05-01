@@ -363,6 +363,47 @@ def test_search_iflytek_spark_missing_credentials(tmp_path: Path, monkeypatch: p
     assert resolved.missing_credentials is True
 
 
+def test_env_store_renders_ocr_catalog_settings(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["services"]["ocr"] = {
+        "active_profile_id": "ocr-p",
+        "profiles": [
+            {
+                "id": "ocr-p",
+                "name": "OCR",
+                "provider": "iflytek",
+                "strategy": "iflytek_first",
+                "base_url": "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+                "api_key": "ocr-key",
+                "timeout": "45",
+                "max_pages": "12",
+                "dpi": "200",
+                "min_text_chars": "40",
+                "extra_headers": {
+                    "app_id": "ocr-app",
+                    "api_secret": "ocr-secret",
+                    "service_id": "se75ocrbm",
+                    "category": "ch_en_public_cloud",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_OCR_PROVIDER"] == "iflytek"
+    assert rendered["SPARKWEAVE_PDF_OCR_STRATEGY"] == "iflytek_first"
+    assert rendered["SPARKWEAVE_OCR_TIMEOUT"] == "45"
+    assert rendered["SPARKWEAVE_OCR_MAX_PAGES"] == "12"
+    assert rendered["SPARKWEAVE_OCR_DPI"] == "200"
+    assert rendered["SPARKWEAVE_OCR_MIN_TEXT_CHARS"] == "40"
+    assert rendered["IFLYTEK_OCR_APPID"] == "ocr-app"
+    assert rendered["IFLYTEK_OCR_API_KEY"] == "ocr-key"
+    assert rendered["IFLYTEK_OCR_API_SECRET"] == "ocr-secret"
+
+
 def test_search_serper_missing_credentials(tmp_path: Path) -> None:
     catalog = _build_catalog(
         search_profile={

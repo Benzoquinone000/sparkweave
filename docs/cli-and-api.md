@@ -127,6 +127,8 @@ sparkweave/api/routers/unified_ws.py
 | `history_references` | 历史会话引用 |
 | `attachments` | 文件或图片附件 |
 
+Notebook 引用、历史引用和 Memory 注入的上下文构造细节见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)。
+
 ### 订阅与恢复
 
 订阅 turn：
@@ -206,12 +208,13 @@ FastAPI 应用在 `sparkweave/api/main.py` 组装。常用前缀：
 | `/api/v1/notebook` | Notebook 管理 |
 | `/api/v1/question-notebook` | 题目记录和分类 |
 | `/api/v1/plugins` | Playground 工具和能力测试 |
-| `/api/v1/sparkbot` | SparkBot 管理 |
+| `/api/v1/sparkbot` | SparkBot 实例、Soul 模板、渠道、工作区文件和聊天 |
 | `/api/v1/guide` | 导学空间 |
+| `/api/v1/guide/v2` | Guide V2 学习路径驾驶舱 |
 | `/api/v1/co_writer` | 协作写作 |
 | `/api/v1/vision` | 图像题解析 |
 
-知识库接口细节见 [知识库详解](./knowledge-base.md)，题目生成和题目本接口见 [题目工作流](./question-workflows.md)。
+知识库接口细节见 [知识库详解](./knowledge-base.md)，题目生成和题目本接口见 [题目工作流](./question-workflows.md)，主 Notebook 与 Memory 接口见 [Notebook、Memory 与上下文引用](./notebook-memory-context.md)，Guide V2 接口见 [导学空间与 Guide V2](./guided-learning.md)，SparkBot 与 Agents 接口见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 设置页、系统状态和 Provider 连接测试见 [设置与 Provider 配置](./settings-and-providers.md)。
 
 ## Python Facade

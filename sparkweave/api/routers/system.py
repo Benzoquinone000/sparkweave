@@ -3,6 +3,7 @@ System Status API Router
 Manages system status checks and model connection tests
 """
 
+import asyncio
 from datetime import datetime
 import time
 
@@ -14,6 +15,7 @@ from sparkweave.services.diagnostics import explain_provider_error
 from sparkweave.services.embedding import EmbeddingClient, get_embedding_config, reset_embedding_client
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.llm import get_llm_config, get_token_limit_kwargs
+from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, XfyunOcrConfig, recognize_image_with_iflytek
 from sparkweave.services.rag_support.factory import reset_pipeline_cache
 from sparkweave.services.search import web_search
 
@@ -73,6 +75,7 @@ async def get_system_status():
         "llm": {"status": "unknown", "model": None, "testable": True},
         "embeddings": {"status": "unknown", "model": None, "testable": True},
         "search": {"status": "optional", "provider": None, "testable": True},
+        "ocr": {"status": "optional", "provider": None, "testable": True},
     }
 
     # Check backend status (this endpoint itself proves backend is online)
@@ -132,6 +135,17 @@ async def get_system_status():
     except Exception as e:
         result["search"]["status"] = "error"
         result["search"]["error"] = str(e)
+
+    try:
+        ocr_config = XfyunOcrConfig.from_env()
+        if ocr_config is None:
+            result["ocr"]["status"] = "not_configured"
+        else:
+            result["ocr"]["status"] = "configured"
+            result["ocr"]["provider"] = "iflytek"
+    except Exception as e:
+        result["ocr"]["status"] = "error"
+        result["ocr"]["error"] = str(e)
 
     return result
 
@@ -308,6 +322,47 @@ async def test_search_connection():
         return TestResponse(
             success=False,
             message=f"Search connection check failed: {detail}",
+            response_time_ms=round(response_time, 2),
+            error=detail,
+        )
+
+
+@router.post("/test/ocr", response_model=TestResponse)
+async def test_ocr_connection():
+    start_time = time.time()
+
+    try:
+        ocr_config = XfyunOcrConfig.from_env()
+        if ocr_config is None:
+            return TestResponse(
+                success=False,
+                message="OCR not configured",
+                error="Set iFlytek OCR APPID, APIKey and APISecret in Settings.",
+            )
+
+        text = await asyncio.to_thread(
+            recognize_image_with_iflytek,
+            OCR_SMOKE_TEST_PNG,
+            encoding="png",
+            config=ocr_config,
+        )
+        response_time = (time.time() - start_time) * 1000
+        return TestResponse(
+            success=True,
+            message="OCR connection successful" if text.strip() else "OCR connection successful; no text detected in smoke image",
+            model="iflytek",
+            response_time_ms=round(response_time, 2),
+        )
+
+    except ValueError as e:
+        detail = explain_provider_error("ocr", e)
+        return TestResponse(success=False, message=f"OCR configuration error: {detail}", error=detail)
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        detail = explain_provider_error("ocr", e)
+        return TestResponse(
+            success=False,
+            message=f"OCR connection check failed: {detail}",
             response_time_ms=round(response_time, 2),
             error=detail,
         )

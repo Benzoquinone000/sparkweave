@@ -27,7 +27,9 @@ from sparkweave.llm import chat_messages, create_chat_model
 VISUALIZE_SYSTEM_PROMPT = """\
 You are SparkWeave's visualization graph. Analyze the learner's request,
 generate renderable SVG, Chart.js, or Mermaid code, review it, and return a
-viewer-ready result. Prefer correctness and direct renderability over ornament.
+viewer-ready result. Prefer correctness, direct renderability, and learning
+clarity over ornament. Every visual should help a student understand a concept,
+relationship, process, comparison, or data pattern at a glance.
 """
 
 RenderType = Literal["svg", "chartjs", "mermaid"]
@@ -109,7 +111,9 @@ class VisualizeGraph:
                     "Analyze the visualization request and choose the best render type. "
                     "Return JSON only. Use svg for custom illustrations/schematics, "
                     "chartjs for quantitative charts, and mermaid for flowcharts, "
-                    "sequence diagrams, state diagrams, mindmaps, and similar structures."
+                    "sequence diagrams, state diagrams, mindmaps, and similar structures. "
+                    "Prefer the simplest format that makes the learning relation clear. "
+                    "Identify the key labels and avoid decorative elements that do not teach."
                 ),
                 user=(
                     f"User request:\n{state['user_message']}\n\n"
@@ -473,17 +477,21 @@ class VisualizeGraph:
             return (
                 "Generate a Chart.js configuration object expression only. "
                 "Do not call new Chart, do not access DOM, and do not wrap in prose. "
-                "A JavaScript object literal is acceptable."
+                "A JavaScript object literal is acceptable. Use clear labels, readable "
+                "colors, and concise dataset names that explain the learning point."
             )
         if render_type == "mermaid":
             return (
                 "Generate Mermaid DSL only. Do not wrap in prose. Use a diagram "
                 "type supported by Mermaid such as flowchart, sequenceDiagram, "
-                "classDiagram, stateDiagram, mindmap, or timeline."
+                "classDiagram, stateDiagram, mindmap, or timeline. Keep node text "
+                "short and user-facing; avoid implementation jargon unless requested."
             )
         return (
             "Generate complete raw SVG markup only. The SVG must start with <svg, "
-            "include viewBox/width/height, and avoid scripts or external assets."
+            "include viewBox/width/height, and avoid scripts or external assets. "
+            "Use a clean educational layout with stable spacing, readable labels, "
+            "high contrast, and no decorative clutter."
         )
 
     @staticmethod

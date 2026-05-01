@@ -1,0 +1,124 @@
+<svg width="1280" height="780" viewBox="0 0 1280 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SparkBot Agents Runtime Flow</title>
+  <desc id="desc">A diagram showing AgentsPage, SparkBot API, SparkBotManager, agent loop, channels, workspace, tools, heartbeat and cron.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="52%" stop-color="#eef8f6"/>
+      <stop offset="100%" stop-color="#f5f3ff"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; rx: 18; }
+      .soft { fill: rgba(255,255,255,0.72); stroke: #dbe4ef; stroke-width: 1; rx: 14; }
+      .title { font: 700 22px Arial, sans-serif; fill: #0f172a; }
+      .label { font: 700 15px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 13px Arial, sans-serif; fill: #475569; }
+      .tiny { font: 12px Arial, sans-serif; fill: #64748b; }
+      .white { fill: #ffffff; }
+      .arrow { stroke: #334155; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .arrowSoft { stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 5 5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1280" height="780" fill="url(#bg)"/>
+  <text x="52" y="58" class="title">SparkBot / Agents Runtime</text>
+  <text x="52" y="84" class="small">Long-lived bot instances with their own workspace, channels, tools, heartbeat, cron and chat WebSocket.</text>
+
+  <rect x="50" y="130" width="250" height="190" class="panel"/>
+  <rect x="70" y="154" width="210" height="42" rx="12" fill="url(#blue)"/>
+  <text x="92" y="181" class="label white">AgentsPage</text>
+  <text x="72" y="226" class="small">/agents</text>
+  <text x="72" y="250" class="small">/agents/:botId/chat</text>
+  <text x="72" y="274" class="small">React Query + WebSocket</text>
+  <text x="72" y="298" class="tiny">profile, tools, runtime, channels, files</text>
+
+  <rect x="370" y="112" width="260" height="235" class="panel"/>
+  <rect x="392" y="136" width="216" height="42" rx="12" fill="url(#teal)"/>
+  <text x="414" y="163" class="label white">/api/v1/sparkbot</text>
+  <text x="392" y="207" class="small">REST: create, patch, stop, destroy</text>
+  <text x="392" y="232" class="small">REST: souls, schemas, files, history</text>
+  <text x="392" y="257" class="small">WS: /{bot_id}/ws</text>
+  <text x="392" y="282" class="tiny">secrets masked unless include_secrets=true</text>
+  <text x="392" y="306" class="tiny">omitted fields preserve config; explicit empty clears</text>
+
+  <rect x="700" y="96" width="250" height="270" class="panel"/>
+  <rect x="722" y="120" width="206" height="42" rx="12" fill="url(#purple)"/>
+  <text x="744" y="147" class="label white">SparkBotManager</text>
+  <text x="722" y="192" class="small">loads config.yaml</text>
+  <text x="722" y="217" class="small">seeds workspace files and skills</text>
+  <text x="722" y="242" class="small">starts loop, router, channels</text>
+  <text x="722" y="267" class="small">starts heartbeat and cron</text>
+  <text x="722" y="292" class="small">auto-starts on API lifespan</text>
+  <text x="722" y="317" class="tiny">data/memory/SparkBots/&lt;bot_id&gt;/</text>
+
+  <rect x="1010" y="130" width="220" height="190" class="panel"/>
+  <rect x="1032" y="154" width="176" height="42" rx="12" fill="url(#amber)"/>
+  <text x="1054" y="181" class="label white">Workspace</text>
+  <text x="1032" y="226" class="small">SOUL.md / USER.md</text>
+  <text x="1032" y="250" class="small">TOOLS.md / AGENTS.md</text>
+  <text x="1032" y="274" class="small">HEARTBEAT.md</text>
+  <text x="1032" y="298" class="tiny">skills, memory, sessions, logs</text>
+
+  <rect x="106" y="430" width="255" height="215" class="panel"/>
+  <text x="130" y="462" class="label">Channel Adapters</text>
+  <text x="130" y="496" class="small">Telegram, Slack, Discord</text>
+  <text x="130" y="520" class="small">DingTalk, Feishu, Matrix</text>
+  <text x="130" y="544" class="small">Email, Mochat, QQ, WeCom</text>
+  <text x="130" y="568" class="small">WhatsApp</text>
+  <text x="130" y="604" class="tiny">inbound -> bus.inbound</text>
+  <text x="130" y="626" class="tiny">outbound &lt;- bus.outbound</text>
+
+  <rect x="445" y="424" width="340" height="230" class="panel"/>
+  <text x="468" y="456" class="label">SparkBotAgentLoop</text>
+  <rect x="468" y="482" width="138" height="38" rx="10" fill="#e0f2fe" stroke="#bae6fd"/>
+  <text x="488" y="506" class="small">commands</text>
+  <rect x="624" y="482" width="138" height="38" rx="10" fill="#dcfce7" stroke="#bbf7d0"/>
+  <text x="648" y="506" class="small">prompt</text>
+  <rect x="468" y="538" width="138" height="38" rx="10" fill="#fef3c7" stroke="#fde68a"/>
+  <text x="492" y="562" class="small">tool loop</text>
+  <rect x="624" y="538" width="138" height="38" rx="10" fill="#ede9fe" stroke="#ddd6fe"/>
+  <text x="646" y="562" class="small">history</text>
+  <text x="468" y="612" class="tiny">/new, /stop, /team, /btw, /cron</text>
+  <text x="468" y="636" class="tiny">LLM JSON tool_calls -> ToolResult -> final reply</text>
+
+  <rect x="870" y="424" width="330" height="230" class="panel"/>
+  <text x="894" y="456" class="label">Tools and Proactive Runtime</text>
+  <text x="894" y="492" class="small">Workspace tools: read/write/edit/list/exec</text>
+  <text x="894" y="516" class="small">Web tools: web_search, web_fetch</text>
+  <text x="894" y="540" class="small">NG tools: rag, reason, paper_search...</text>
+  <text x="894" y="564" class="small">Runtime tools: message, spawn, cron, team</text>
+  <text x="894" y="588" class="small">MCP tools: mcp_{server}_{tool}</text>
+  <text x="894" y="622" class="tiny">heartbeat reads HEARTBEAT.md; cron persists jobs.json</text>
+
+  <path d="M 300 220 C 330 220, 338 220, 370 220" class="arrow"/>
+  <path d="M 630 226 C 660 226, 670 226, 700 226" class="arrow"/>
+  <path d="M 950 226 C 980 226, 988 226, 1010 226" class="arrow"/>
+  <path d="M 730 366 C 720 400, 700 414, 665 424" class="arrow"/>
+  <path d="M 445 538 C 405 538, 390 538, 361 538" class="arrow"/>
+  <path d="M 785 538 C 820 538, 835 538, 870 538" class="arrow"/>
+  <path d="M 1032 424 C 1032 385, 1032 355, 1032 320" class="arrowSoft"/>
+  <path d="M 530 424 C 500 380, 500 360, 500 347" class="arrowSoft"/>
+  <path d="M 615 654 C 615 696, 840 696, 1020 654" class="arrowSoft"/>
+
+  <rect x="52" y="700" width="1176" height="42" rx="14" fill="#ffffff" opacity="0.82" stroke="#dbe4ef"/>
+  <text x="76" y="726" class="small">Key boundary: SparkBot is not a Level 2 capability turn. It has its own long-lived instance, prompt builder, WebSocket, channels, workspace tools and persistent bot state.</text>
+</svg>

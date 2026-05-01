@@ -24,6 +24,8 @@ copy .env.example .env
 | `LLM_API_KEY` | 是 | 模型访问密钥 |
 | `LLM_HOST` | 是 | OpenAI-compatible API 地址 |
 | `LLM_API_VERSION` | 否 | Azure OpenAI 等提供商可能需要 |
+| `LLM_CONNECT_TIMEOUT` | 否 | 模型服务连接超时，默认 `10` 秒 |
+| `LLM_REQUEST_TIMEOUT` | 否 | 单次模型请求等待时间，默认 `900` 秒 |
 
 OpenAI-compatible 示例：
 
@@ -32,6 +34,8 @@ LLM_BINDING=openai
 LLM_MODEL=gpt-4o-mini
 LLM_API_KEY=your-api-key
 LLM_HOST=https://api.openai.com/v1
+LLM_CONNECT_TIMEOUT=10
+LLM_REQUEST_TIMEOUT=900
 ```
 
 本地 LM Studio 示例：
@@ -130,8 +134,8 @@ SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first
 IFLYTEK_OCR_APPID=your-appid
 IFLYTEK_OCR_API_KEY=your-api-key
 IFLYTEK_OCR_API_SECRET=your-api-secret
-IFLYTEK_OCR_URL=https://api.xf-yun.com/v1/private/sf8e6aca1
-IFLYTEK_OCR_SERVICE_ID=sf8e6aca1
+IFLYTEK_OCR_URL=https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm
+IFLYTEK_OCR_SERVICE_ID=se75ocrbm
 IFLYTEK_OCR_CATEGORY=ch_en_public_cloud
 ```
 
@@ -142,6 +146,8 @@ OCR 在知识库 PDF 解析和图像题能力中的调用链路见 [视觉输入
 | 变量 | 说明 |
 | --- | --- |
 | `SPARKWEAVE_MANIM_PYTHON` | 指定 Manim 使用的 Python 解释器 |
+| `SPARKWEAVE_MATH_ANIMATOR_REPAIR_TIMEOUT` | Manim 代码自动修复等待时间，默认 `300` 秒 |
+| `SPARKWEAVE_MATH_ANIMATOR_RENDER_TIMEOUT` | Manim 单次渲染最长等待时间，默认 `900` 秒 |
 
 只有当 Manim 位于另一个 Python 环境时，才需要显式配置。
 

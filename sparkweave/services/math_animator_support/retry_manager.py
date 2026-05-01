@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Awaitable, Callable
 
 from .models import GeneratedCode, RetryAttempt, VisualReviewResult
 from .renderer import ManimRenderError, ManimRenderService
+
+DEFAULT_REPAIR_TIMEOUT_SECONDS = 300.0
+DEFAULT_REVIEW_TIMEOUT_SECONDS = 120.0
+
+
+def _positive_float_from_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 def _is_non_retriable_environment_error(message: str) -> bool:
@@ -28,8 +43,8 @@ class CodeRetryManager:
         on_retry: Callable[[RetryAttempt], Awaitable[None]] | None = None,
         on_status: Callable[[str], Awaitable[None]] | None = None,
         max_retries: int = 4,
-        repair_timeout_seconds: float = 180.0,
-        review_timeout_seconds: float = 120.0,
+        repair_timeout_seconds: float | None = None,
+        review_timeout_seconds: float = DEFAULT_REVIEW_TIMEOUT_SECONDS,
     ) -> None:
         self.renderer = renderer
         self.repair_callback = repair_callback
@@ -37,7 +52,14 @@ class CodeRetryManager:
         self.on_retry = on_retry
         self.on_status = on_status
         self.max_retries = max_retries
-        self.repair_timeout_seconds = repair_timeout_seconds
+        self.repair_timeout_seconds = (
+            repair_timeout_seconds
+            if repair_timeout_seconds is not None
+            else _positive_float_from_env(
+                "SPARKWEAVE_MATH_ANIMATOR_REPAIR_TIMEOUT",
+                DEFAULT_REPAIR_TIMEOUT_SECONDS,
+            )
+        )
         self.review_timeout_seconds = review_timeout_seconds
 
     async def render_with_retries(

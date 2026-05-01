@@ -91,3 +91,38 @@ def test_system_search_probe_awaits_ng_search(monkeypatch: pytest.MonkeyPatch) -
     assert calls == [{"query": "SparkWeave health check", "provider": "duckduckgo"}]
 
 
+def test_system_ocr_probe_uses_iflytek_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(url="https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: config))
+
+    def _fake_recognize(image: bytes, **kwargs):
+        calls.append({"image": image, **kwargs})
+        return "OK"
+
+    monkeypatch.setattr(system_module, "recognize_image_with_iflytek", _fake_recognize)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/ocr")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek"
+    assert calls
+    assert calls[0]["encoding"] == "png"
+    assert calls[0]["config"] is config
+
+
+def test_system_ocr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: None))
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/ocr")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "OCR not configured"
+
+

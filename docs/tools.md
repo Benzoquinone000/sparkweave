@@ -39,6 +39,8 @@ UnifiedContext.enabled_tools
 | `sparkweave/api/main.py` | 启动时校验 capability manifest 引用的 tool 是否已注册 |
 | `sparkweave/sparkbot/tools.py` | SparkBot 专用工作区工具注册表 |
 
+SparkBot 的工具并不是主聊天图的 Level 1 工具调用链路：它有自己的工作区、JSON tool call loop、runtime tools、MCP 连接和工具日志。完整边界见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
+
 ## 协议层
 
 所有默认工具都实现 `BaseTool`：

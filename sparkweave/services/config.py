@@ -652,6 +652,11 @@ def strip_provider_prefix(model: str, spec: ProviderSpec | None) -> str:
     return model
 
 
+DEFAULT_IFLYTEK_OCR_URL = "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+DEFAULT_IFLYTEK_OCR_SERVICE_ID = "se75ocrbm"
+DEFAULT_IFLYTEK_OCR_CATEGORY = "ch_en_public_cloud"
+
+
 ENV_KEY_ORDER = (
     "BACKEND_PORT",
     "FRONTEND_PORT",
@@ -670,6 +675,18 @@ ENV_KEY_ORDER = (
     "SEARCH_API_KEY",
     "SEARCH_BASE_URL",
     "SEARCH_PROXY",
+    "SPARKWEAVE_OCR_PROVIDER",
+    "SPARKWEAVE_PDF_OCR_STRATEGY",
+    "SPARKWEAVE_OCR_TIMEOUT",
+    "SPARKWEAVE_OCR_MAX_PAGES",
+    "SPARKWEAVE_OCR_DPI",
+    "SPARKWEAVE_OCR_MIN_TEXT_CHARS",
+    "IFLYTEK_OCR_APPID",
+    "IFLYTEK_OCR_API_KEY",
+    "IFLYTEK_OCR_API_SECRET",
+    "IFLYTEK_OCR_URL",
+    "IFLYTEK_OCR_SERVICE_ID",
+    "IFLYTEK_OCR_CATEGORY",
 )
 
 
@@ -698,6 +715,7 @@ class ConfigSummary:
     llm: dict[str, str]
     embedding: dict[str, str]
     search: dict[str, str]
+    ocr: dict[str, str]
 
 
 class EnvStore:
@@ -757,6 +775,47 @@ class EnvStore:
                 "base_url": values.get("SEARCH_BASE_URL", os.getenv("SEARCH_BASE_URL", "")),
                 "proxy": values.get("SEARCH_PROXY", os.getenv("SEARCH_PROXY", "")),
             },
+            ocr={
+                "provider": values.get(
+                    "SPARKWEAVE_OCR_PROVIDER",
+                    os.getenv("SPARKWEAVE_OCR_PROVIDER", "iflytek"),
+                ),
+                "strategy": values.get(
+                    "SPARKWEAVE_PDF_OCR_STRATEGY",
+                    os.getenv("SPARKWEAVE_PDF_OCR_STRATEGY", "auto"),
+                ),
+                "timeout": values.get(
+                    "SPARKWEAVE_OCR_TIMEOUT",
+                    os.getenv("SPARKWEAVE_OCR_TIMEOUT", "30"),
+                ),
+                "max_pages": values.get(
+                    "SPARKWEAVE_OCR_MAX_PAGES",
+                    os.getenv("SPARKWEAVE_OCR_MAX_PAGES", "20"),
+                ),
+                "dpi": values.get("SPARKWEAVE_OCR_DPI", os.getenv("SPARKWEAVE_OCR_DPI", "180")),
+                "min_text_chars": values.get(
+                    "SPARKWEAVE_OCR_MIN_TEXT_CHARS",
+                    os.getenv("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "80"),
+                ),
+                "app_id": values.get("IFLYTEK_OCR_APPID", os.getenv("IFLYTEK_OCR_APPID", "")),
+                "api_key": values.get("IFLYTEK_OCR_API_KEY", os.getenv("IFLYTEK_OCR_API_KEY", "")),
+                "api_secret": values.get(
+                    "IFLYTEK_OCR_API_SECRET",
+                    os.getenv("IFLYTEK_OCR_API_SECRET", ""),
+                ),
+                "url": values.get(
+                    "IFLYTEK_OCR_URL",
+                    os.getenv("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL),
+                ),
+                "service_id": values.get(
+                    "IFLYTEK_OCR_SERVICE_ID",
+                    os.getenv("IFLYTEK_OCR_SERVICE_ID", DEFAULT_IFLYTEK_OCR_SERVICE_ID),
+                ),
+                "category": values.get(
+                    "IFLYTEK_OCR_CATEGORY",
+                    os.getenv("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY),
+                ),
+            },
         )
 
     def write(self, values: dict[str, str]) -> None:
@@ -790,12 +849,15 @@ class EnvStore:
         llm_service = services.get("llm", {})
         embedding_service = services.get("embedding", {})
         search_service = services.get("search", {})
+        ocr_service = services.get("ocr", {})
 
         llm_profile = self._get_active_profile(llm_service)
         llm_model = self._get_active_model(llm_service, llm_profile)
         embedding_profile = self._get_active_profile(embedding_service)
         embedding_model = self._get_active_model(embedding_service, embedding_profile)
         search_profile = self._get_active_profile(search_service)
+        ocr_profile = self._get_active_profile(ocr_service)
+        ocr_extra = (ocr_profile or {}).get("extra_headers") or {}
 
         current = self.load()
         return {
@@ -816,6 +878,47 @@ class EnvStore:
             "SEARCH_API_KEY": str((search_profile or {}).get("api_key") or ""),
             "SEARCH_BASE_URL": str((search_profile or {}).get("base_url") or ""),
             "SEARCH_PROXY": str((search_profile or {}).get("proxy") or ""),
+            "SPARKWEAVE_OCR_PROVIDER": str(
+                (ocr_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_OCR_PROVIDER", "iflytek")
+            ),
+            "SPARKWEAVE_PDF_OCR_STRATEGY": str(
+                (ocr_profile or {}).get("strategy")
+                or current.get("SPARKWEAVE_PDF_OCR_STRATEGY", "auto")
+            ),
+            "SPARKWEAVE_OCR_TIMEOUT": str(
+                (ocr_profile or {}).get("timeout") or current.get("SPARKWEAVE_OCR_TIMEOUT", "30")
+            ),
+            "SPARKWEAVE_OCR_MAX_PAGES": str(
+                (ocr_profile or {}).get("max_pages")
+                or current.get("SPARKWEAVE_OCR_MAX_PAGES", "20")
+            ),
+            "SPARKWEAVE_OCR_DPI": str(
+                (ocr_profile or {}).get("dpi") or current.get("SPARKWEAVE_OCR_DPI", "180")
+            ),
+            "SPARKWEAVE_OCR_MIN_TEXT_CHARS": str(
+                (ocr_profile or {}).get("min_text_chars")
+                or current.get("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "80")
+            ),
+            "IFLYTEK_OCR_APPID": str(ocr_extra.get("app_id") or current.get("IFLYTEK_OCR_APPID", "")),
+            "IFLYTEK_OCR_API_KEY": str(
+                (ocr_profile or {}).get("api_key") or current.get("IFLYTEK_OCR_API_KEY", "")
+            ),
+            "IFLYTEK_OCR_API_SECRET": str(
+                ocr_extra.get("api_secret") or current.get("IFLYTEK_OCR_API_SECRET", "")
+            ),
+            "IFLYTEK_OCR_URL": str(
+                (ocr_profile or {}).get("base_url")
+                or current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
+            ),
+            "IFLYTEK_OCR_SERVICE_ID": str(
+                ocr_extra.get("service_id")
+                or current.get("IFLYTEK_OCR_SERVICE_ID", DEFAULT_IFLYTEK_OCR_SERVICE_ID)
+            ),
+            "IFLYTEK_OCR_CATEGORY": str(
+                ocr_extra.get("category")
+                or current.get("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY)
+            ),
         }
 
     def _get_active_profile(self, service: dict[str, Any]) -> dict[str, Any] | None:
@@ -860,6 +963,10 @@ def _search_shell() -> dict[str, Any]:
     return {"active_profile_id": None, "profiles": []}
 
 
+def _ocr_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
 def _default_catalog() -> dict[str, Any]:
     return {
         "version": 1,
@@ -867,6 +974,7 @@ def _default_catalog() -> dict[str, Any]:
             "llm": _service_shell(),
             "embedding": _service_shell(),
             "search": _search_shell(),
+            "ocr": _ocr_shell(),
         },
     }
 
@@ -999,6 +1107,40 @@ class ModelCatalogService:
             }
             changed = True
 
+        ocr_service = services.setdefault("ocr", _ocr_shell())
+        if not ocr_service.get("profiles") and (
+            summary.ocr["provider"]
+            or summary.ocr["app_id"]
+            or summary.ocr["api_key"]
+            or summary.ocr["api_secret"]
+        ):
+            profile_id = "ocr-profile-default"
+            services["ocr"] = {
+                "active_profile_id": profile_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default OCR Provider",
+                        "provider": summary.ocr["provider"] or "iflytek",
+                        "strategy": summary.ocr["strategy"] or "auto",
+                        "base_url": summary.ocr["url"],
+                        "api_key": summary.ocr["api_key"],
+                        "timeout": summary.ocr["timeout"] or "30",
+                        "max_pages": summary.ocr["max_pages"] or "20",
+                        "dpi": summary.ocr["dpi"] or "180",
+                        "min_text_chars": summary.ocr["min_text_chars"] or "80",
+                        "extra_headers": {
+                            "app_id": summary.ocr["app_id"],
+                            "api_secret": summary.ocr["api_secret"],
+                            "service_id": summary.ocr["service_id"] or DEFAULT_IFLYTEK_OCR_SERVICE_ID,
+                            "category": summary.ocr["category"] or DEFAULT_IFLYTEK_OCR_CATEGORY,
+                        },
+                        "models": [],
+                    }
+                ],
+            }
+            changed = True
+
         return changed
 
     def _sync_active_services_from_env(self, catalog: dict[str, Any]) -> bool:
@@ -1083,6 +1225,34 @@ class ModelCatalogService:
                 service["active_profile_id"] = profile_id
             return self.get_active_profile(catalog, "search") or service["profiles"][0]
 
+        def ensure_ocr_profile() -> dict[str, Any]:
+            service = services.setdefault("ocr", _ocr_shell())
+            profiles = service.setdefault("profiles", [])
+            if not profiles:
+                profile_id = "ocr-profile-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default OCR Provider",
+                    "provider": "iflytek",
+                    "strategy": "auto",
+                    "base_url": DEFAULT_IFLYTEK_OCR_URL,
+                    "api_key": "",
+                    "timeout": "30",
+                    "max_pages": "20",
+                    "dpi": "180",
+                    "min_text_chars": "80",
+                    "extra_headers": {
+                        "app_id": "",
+                        "api_secret": "",
+                        "service_id": DEFAULT_IFLYTEK_OCR_SERVICE_ID,
+                        "category": DEFAULT_IFLYTEK_OCR_CATEGORY,
+                    },
+                    "models": [],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+            return self.get_active_profile(catalog, "ocr") or service["profiles"][0]
+
         if {"LLM_BINDING", "LLM_MODEL", "LLM_API_KEY", "LLM_HOST", "LLM_API_VERSION"}.intersection(
             env_values
         ):
@@ -1157,6 +1327,46 @@ class ModelCatalogService:
                     profile[field_name] = value
                     changed = True
 
+        ocr_keys = {
+            "SPARKWEAVE_OCR_PROVIDER",
+            "SPARKWEAVE_PDF_OCR_STRATEGY",
+            "SPARKWEAVE_OCR_TIMEOUT",
+            "SPARKWEAVE_OCR_MAX_PAGES",
+            "SPARKWEAVE_OCR_DPI",
+            "SPARKWEAVE_OCR_MIN_TEXT_CHARS",
+            "IFLYTEK_OCR_APPID",
+            "IFLYTEK_OCR_API_KEY",
+            "IFLYTEK_OCR_API_SECRET",
+            "IFLYTEK_OCR_URL",
+            "IFLYTEK_OCR_SERVICE_ID",
+            "IFLYTEK_OCR_CATEGORY",
+        }
+        if ocr_keys.intersection(env_values):
+            profile = ensure_ocr_profile()
+            extra_headers = profile.setdefault("extra_headers", {})
+            for env_key, field_name, value in (
+                ("SPARKWEAVE_OCR_PROVIDER", "provider", summary.ocr["provider"]),
+                ("SPARKWEAVE_PDF_OCR_STRATEGY", "strategy", summary.ocr["strategy"]),
+                ("SPARKWEAVE_OCR_TIMEOUT", "timeout", summary.ocr["timeout"]),
+                ("SPARKWEAVE_OCR_MAX_PAGES", "max_pages", summary.ocr["max_pages"]),
+                ("SPARKWEAVE_OCR_DPI", "dpi", summary.ocr["dpi"]),
+                ("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "min_text_chars", summary.ocr["min_text_chars"]),
+                ("IFLYTEK_OCR_API_KEY", "api_key", summary.ocr["api_key"]),
+                ("IFLYTEK_OCR_URL", "base_url", summary.ocr["url"]),
+            ):
+                if env_key in env_values and profile.get(field_name) != value:
+                    profile[field_name] = value
+                    changed = True
+            for env_key, field_name, value in (
+                ("IFLYTEK_OCR_APPID", "app_id", summary.ocr["app_id"]),
+                ("IFLYTEK_OCR_API_SECRET", "api_secret", summary.ocr["api_secret"]),
+                ("IFLYTEK_OCR_SERVICE_ID", "service_id", summary.ocr["service_id"]),
+                ("IFLYTEK_OCR_CATEGORY", "category", summary.ocr["category"]),
+            ):
+                if env_key in env_values and extra_headers.get(field_name) != value:
+                    extra_headers[field_name] = value
+                    changed = True
+
         return changed
 
     def get_active_profile(self, catalog: dict[str, Any], service_name: str) -> dict[str, Any] | None:
@@ -1187,7 +1397,8 @@ class ModelCatalogService:
         services.setdefault("llm", _service_shell())
         services.setdefault("embedding", _service_shell())
         services.setdefault("search", _search_shell())
-        for service_name in ("llm", "embedding", "search"):
+        services.setdefault("ocr", _ocr_shell())
+        for service_name in ("llm", "embedding", "search", "ocr"):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
             for profile in profiles:
@@ -1199,6 +1410,20 @@ class ModelCatalogService:
                 if service_name == "search":
                     profile.setdefault("provider", "brave")
                     profile.setdefault("proxy", "")
+                    profile["models"] = []
+                elif service_name == "ocr":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("strategy", "auto")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_OCR_URL)
+                    profile.setdefault("timeout", "30")
+                    profile.setdefault("max_pages", "20")
+                    profile.setdefault("dpi", "180")
+                    profile.setdefault("min_text_chars", "80")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("service_id", DEFAULT_IFLYTEK_OCR_SERVICE_ID)
+                    extra_headers.setdefault("category", DEFAULT_IFLYTEK_OCR_CATEGORY)
                     profile["models"] = []
                 else:
                     profile.setdefault("binding", "openai")

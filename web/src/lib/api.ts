@@ -7,6 +7,28 @@ import type {
   GuideSessionSummary,
   GuidePages,
   GuideSessionDetail,
+  GuideV2Session,
+  GuideV2LearnerMemory,
+  GuideV2SessionSummary,
+  GuideV2Task,
+  GuideV2Artifact,
+  GuideV2CourseTemplate,
+  GuideV2CoachBriefing,
+  GuideV2CoursePackage,
+  GuideV2Diagnostic,
+  GuideV2DiagnosticAnswer,
+  GuideV2DiagnosticSubmitResult,
+  GuideV2Evaluation,
+  GuideV2LearningTimeline,
+  GuideV2MistakeReview,
+  GuideV2LearningReport,
+  GuideV2ProfileDialogue,
+  GuideV2ProfileDialogueResult,
+  GuideV2QuizSubmitResult,
+  GuideV2ResourceRecommendation,
+  GuideV2ResourceType,
+  GuideV2StudyPlan,
+  GuideV2TaskCompletionResult,
   KnowledgeBase,
   KnowledgeBaseDetail,
   KnowledgeConfig,
@@ -266,7 +288,7 @@ export function reopenSetupTour() {
   return fetchJson<SetupTourReopenResponse>("/api/v1/settings/tour/reopen", { method: "POST" });
 }
 
-export type SettingsServiceId = "llm" | "embedding" | "search";
+export type SettingsServiceId = "llm" | "embedding" | "search" | "ocr";
 
 export function startSettingsServiceTest(input: {
   service: SettingsServiceId;
@@ -984,6 +1006,298 @@ export function getGuidePages(sessionId: string) {
   return fetchJson<GuidePages>(`/api/v1/guide/session/${encodeURIComponent(sessionId)}/pages`);
 }
 
+export type CreateGuideV2SessionInput = {
+  goal: string;
+  level?: string;
+  timeBudgetMinutes?: number | null;
+  horizon?: string;
+  preferences?: string[];
+  weakPoints?: string[];
+  notebookContext?: string;
+  courseTemplateId?: string;
+  notebookReferences?: NotebookReference[];
+  useMemory?: boolean;
+};
+
+export function getGuideV2Health() {
+  return fetchJson<GuideHealth>("/api/v1/guide/v2/health");
+}
+
+export async function listGuideV2Sessions() {
+  const data = await fetchJson<{ sessions: GuideV2SessionSummary[] }>("/api/v1/guide/v2/sessions");
+  return data.sessions ?? [];
+}
+
+export async function listGuideV2Templates() {
+  const data = await fetchJson<{ templates: GuideV2CourseTemplate[] }>("/api/v1/guide/v2/templates");
+  return data.templates ?? [];
+}
+
+export function createGuideV2Session(input: CreateGuideV2SessionInput) {
+  return fetchJson<{ success: boolean; session: GuideV2Session }>(
+    "/api/v1/guide/v2/sessions",
+    jsonBody({
+      goal: input.goal,
+      level: input.level || "",
+      time_budget_minutes: input.timeBudgetMinutes ?? null,
+      horizon: input.horizon || "",
+      preferences: input.preferences ?? [],
+      weak_points: input.weakPoints ?? [],
+      notebook_context: input.notebookContext || "",
+      course_template_id: input.courseTemplateId || "",
+      notebook_references: input.notebookReferences ?? [],
+      use_memory: input.useMemory ?? true,
+    }),
+  );
+}
+
+export function getGuideV2LearnerMemory() {
+  return fetchJson<GuideV2LearnerMemory>("/api/v1/guide/v2/learner-memory");
+}
+
+export function getGuideV2Session(sessionId: string) {
+  return fetchJson<GuideV2Session>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export function getGuideV2Evaluation(sessionId: string) {
+  return fetchJson<GuideV2Evaluation>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/evaluation`);
+}
+
+export function getGuideV2StudyPlan(sessionId: string) {
+  return fetchJson<GuideV2StudyPlan>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/study-plan`);
+}
+
+export function getGuideV2LearningTimeline(sessionId: string) {
+  return fetchJson<GuideV2LearningTimeline>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/learning-timeline`);
+}
+
+export function getGuideV2CoachBriefing(sessionId: string) {
+  return fetchJson<GuideV2CoachBriefing>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/coach-briefing`);
+}
+
+export function getGuideV2MistakeReview(sessionId: string) {
+  return fetchJson<GuideV2MistakeReview>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/mistake-review`);
+}
+
+export function getGuideV2Diagnostic(sessionId: string) {
+  return fetchJson<GuideV2Diagnostic>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/diagnostic`);
+}
+
+export function submitGuideV2Diagnostic(input: {
+  sessionId: string;
+  answers: GuideV2DiagnosticAnswer[];
+}) {
+  return fetchJson<GuideV2DiagnosticSubmitResult>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/diagnostic`,
+    jsonBody({ answers: input.answers }),
+  );
+}
+
+export function getGuideV2ProfileDialogue(sessionId: string) {
+  return fetchJson<GuideV2ProfileDialogue>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/profile-dialogue`);
+}
+
+export function submitGuideV2ProfileDialogue(input: {
+  sessionId: string;
+  message: string;
+}) {
+  return fetchJson<GuideV2ProfileDialogueResult>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/profile-dialogue`,
+    jsonBody({ message: input.message }),
+  );
+}
+
+export function getGuideV2LearningReport(sessionId: string) {
+  return fetchJson<GuideV2LearningReport>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/report`);
+}
+
+export function getGuideV2CoursePackage(sessionId: string) {
+  return fetchJson<GuideV2CoursePackage>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/course-package`);
+}
+
+export function getGuideV2ResourceRecommendations(sessionId: string) {
+  return fetchJson<{
+    success: boolean;
+    session_id: string;
+    generated_at?: number;
+    summary?: string;
+    effect_assessment?: GuideV2LearningReport["effect_assessment"];
+    recommendations: GuideV2ResourceRecommendation[];
+  }>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/resource-recommendations`);
+}
+
+export function completeGuideV2Task(input: {
+  sessionId: string;
+  taskId: string;
+  score?: number | null;
+  reflection?: string;
+  mistakeTypes?: string[];
+}) {
+  return fetchJson<GuideV2TaskCompletionResult>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/complete`,
+    jsonBody({
+      score: input.score ?? null,
+      reflection: input.reflection || "",
+      mistake_types: input.mistakeTypes ?? [],
+    }),
+  );
+}
+
+export function generateGuideV2TaskResource(input: {
+  sessionId: string;
+  taskId: string;
+  resourceType: GuideV2ResourceType | string;
+  prompt?: string;
+  quality?: "low" | "medium" | "high" | string;
+}) {
+  return fetchJson<{
+    success: boolean;
+    artifact: GuideV2Artifact;
+    task: GuideV2Task;
+    session: GuideV2Session;
+  }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/resources`,
+    jsonBody({
+      resource_type: input.resourceType,
+      prompt: input.prompt || "",
+      quality: input.quality || "low",
+    }),
+  );
+}
+
+export function startGuideV2TaskResourceJob(input: {
+  sessionId: string;
+  taskId: string;
+  resourceType: GuideV2ResourceType | string;
+  prompt?: string;
+  quality?: "low" | "medium" | "high" | string;
+}) {
+  return fetchJson<{
+    task_id: string;
+    session_id: string;
+    learning_task_id: string;
+    resource_type: string;
+  }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/resources/jobs`,
+    jsonBody({
+      resource_type: input.resourceType,
+      prompt: input.prompt || "",
+      quality: input.quality || "low",
+    }),
+  );
+}
+
+export function openGuideV2ResourceJobEvents(jobId: string) {
+  return new EventSource(apiUrl(`/api/v1/guide/v2/resource-jobs/${encodeURIComponent(jobId)}/events`));
+}
+
+export function saveGuideV2Artifact(input: {
+  sessionId: string;
+  taskId: string;
+  artifactId: string;
+  notebookIds?: string[];
+  title?: string;
+  summary?: string;
+  saveQuestions?: boolean;
+}) {
+  return fetchJson<{
+    success: boolean;
+    artifact_id: string;
+    notebook?: {
+      record?: NotebookRecord | null;
+      added_to_notebooks?: string[];
+    };
+    question_notebook?: {
+      saved?: boolean;
+      count?: number;
+      session_id?: string;
+    };
+  }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/artifacts/${encodeURIComponent(input.artifactId)}/save`,
+    jsonBody({
+      notebook_ids: input.notebookIds ?? [],
+      title: input.title || "",
+      summary: input.summary || "",
+      save_questions: input.saveQuestions ?? true,
+    }),
+  );
+}
+
+export function submitGuideV2QuizResults(input: {
+  sessionId: string;
+  taskId: string;
+  artifactId: string;
+  answers: QuizResultItem[];
+  saveQuestions?: boolean;
+}) {
+  return fetchJson<GuideV2QuizSubmitResult>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/artifacts/${encodeURIComponent(input.artifactId)}/quiz-results`,
+    jsonBody({
+      answers: input.answers,
+      save_questions: input.saveQuestions ?? true,
+    }),
+  );
+}
+
+export function saveGuideV2Report(input: {
+  sessionId: string;
+  notebookIds?: string[];
+  title?: string;
+  summary?: string;
+}) {
+  return fetchJson<{
+    success: boolean;
+    session_id: string;
+    notebook?: {
+      record?: NotebookRecord | null;
+      added_to_notebooks?: string[];
+    };
+  }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/report/save`,
+    jsonBody({
+      notebook_ids: input.notebookIds ?? [],
+      title: input.title || "",
+      summary: input.summary || "",
+    }),
+  );
+}
+
+export function saveGuideV2CoursePackage(input: {
+  sessionId: string;
+  notebookIds?: string[];
+  title?: string;
+  summary?: string;
+}) {
+  return fetchJson<{
+    success: boolean;
+    session_id: string;
+    notebook?: {
+      record?: NotebookRecord | null;
+      added_to_notebooks?: string[];
+    };
+  }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/course-package/save`,
+    jsonBody({
+      notebook_ids: input.notebookIds ?? [],
+      title: input.title || "",
+      summary: input.summary || "",
+    }),
+  );
+}
+
+export function refreshGuideV2Recommendations(sessionId: string) {
+  return fetchJson<{ success: boolean; recommendations: string[] }>(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}/recommendations/refresh`,
+    { method: "POST" },
+  );
+}
+
+export function deleteGuideV2Session(sessionId: string) {
+  return fetchJson<Record<string, unknown>>(`/api/v1/guide/v2/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function listCoWriterHistory() {
   const data = await fetchJson<{ history: Array<Record<string, unknown>>; total: number }>("/api/v1/co_writer/history");
   return data.history ?? [];
@@ -1116,7 +1430,7 @@ export function autoMarkText(text: string) {
   return fetchJson<CoWriterResult>("/api/v1/co_writer/automark", jsonBody({ text }));
 }
 
-export async function testService(service: "llm" | "embeddings" | "search") {
+export async function testService(service: "llm" | "embeddings" | "search" | "ocr") {
   return fetchJson<SystemTestResponse>(`/api/v1/system/test/${service}`, { method: "POST" });
 }
 

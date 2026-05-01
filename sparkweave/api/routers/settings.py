@@ -146,7 +146,15 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
             "base_url": "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search",
         },
     ]
-    return {"llm": llm, "embedding": embedding, "search": search}
+    ocr = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek OCR for LLM",
+            "base_url": "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+        },
+        {"value": "disabled", "label": "Disabled", "base_url": ""},
+    ]
+    return {"llm": llm, "embedding": embedding, "search": search, "ocr": ocr}
 
 
 @router.get("")

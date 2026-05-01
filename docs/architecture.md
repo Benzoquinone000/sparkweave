@@ -39,6 +39,8 @@ Entry Points: CLI | WebSocket /api/v1/ws | Python facade
 
 `ChatOrchestrator` 仍存在于 `sparkweave/runtime/orchestrator.py`，用于兼容 capability API 和部分直接流式执行场景。主 Web/CLI turn 链路走 `SparkWeaveApp -> RuntimeRoutingTurnManager -> LangGraphTurnRuntimeManager`。
 
+SparkBot/Agents 是一条并行的长期实例链路：`/api/v1/sparkbot` 会启动 `SparkBotInstance`、渠道监听、heartbeat、cron 和专用 Agent loop，不进入 `UnifiedContext` turn runtime。完整说明见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
+
 ## 运行时层
 
 运行时负责把请求转成 `UnifiedContext`、执行图、持久化事件和刷新记忆。

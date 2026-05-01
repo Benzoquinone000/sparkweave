@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="850" viewBox="0 0 1260 850" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave Guided Learning Loop</title>
+  <desc id="desc">A diagram showing Guide V2 creation, learner memory, course templates, structured sessions, tasks, resource generation, evidence, adaptive path updates, reports, and Notebook or question notebook persistence.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .entry { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .plan { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .session { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .loop { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .resource { fill: #f0fdfa; stroke: #0f766e; stroke-width: 1.2; }
+      .store { fill: #ffffff; stroke: #64748b; stroke-width: 1.2; }
+      .out { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 25px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1260" height="850"/>
+  <text class="title" x="42" y="46">导学空间 Guide V2 学习闭环</text>
+  <text class="t" x="42" y="72">Guide V2 把目标变成结构化路线；每次资源、练习和反思都会回写证据，再驱动路线调整。</text>
+
+  <rect class="entry" x="45" y="112" width="235" height="132" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="142">GuidePage</text>
+  <text class="mono" x="67" y="168">goal / level / horizon</text>
+  <text class="mono" x="67" y="190">preferences / weak_points</text>
+  <text class="mono" x="67" y="212">notebook_references</text>
+  <text class="small" x="67" y="232">学习路径驾驶舱</text>
+
+  <rect class="plan" x="340" y="92" width="245" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="362" y="122">Create Session</text>
+  <text class="mono" x="362" y="150">GuideV2CreateInput</text>
+  <text class="mono" x="362" y="172">NotebookAnalysisAgent</text>
+  <text class="mono" x="362" y="194">course template or LLM plan</text>
+  <text class="small" x="362" y="218">fallback plan when LLM fails</text>
+  <text class="small" x="362" y="240">normalize nodes/tasks/path</text>
+
+  <rect class="store" x="665" y="92" width="250" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="687" y="122">Guide V2 Storage</text>
+  <text class="mono" x="687" y="150">data/user/workspace/guide/v2</text>
+  <text class="mono" x="687" y="172">session_&lt;id&gt;.json</text>
+  <text class="mono" x="687" y="194">learner_memory.json</text>
+  <text class="mono" x="687" y="216">templates/*.json</text>
+  <text class="small" x="687" y="240">每次保存后刷新 learner memory</text>
+
+  <rect class="session" x="985" y="92" width="225" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1007" y="122">Structured Session</text>
+  <text class="mono" x="1007" y="150">profile</text>
+  <text class="mono" x="1007" y="172">course_map</text>
+  <text class="mono" x="1007" y="194">learning_path</text>
+  <text class="mono" x="1007" y="216">tasks / mastery</text>
+  <text class="mono" x="1007" y="238">evidence / plan_events</text>
+
+  <path class="line" d="M280 178 L340 178"/>
+  <path class="line" d="M585 178 L665 178"/>
+  <path class="line" d="M915 178 L985 178"/>
+
+  <rect class="loop" x="70" y="358" width="250" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="92" y="388">Learning Loop</text>
+  <text class="mono" x="92" y="416">current_task</text>
+  <text class="mono" x="92" y="438">score + reflection</text>
+  <text class="mono" x="92" y="460">mistake_types</text>
+  <text class="small" x="92" y="484">complete_task()</text>
+  <text class="small" x="92" y="506">submit_quiz_attempt()</text>
+
+  <rect class="resource" x="390" y="342" width="250" height="205" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="412" y="372">Resource Agents</text>
+  <text class="mono" x="412" y="400">visual -> visualize</text>
+  <text class="mono" x="412" y="422">video -> math_animator</text>
+  <text class="mono" x="412" y="444">quiz -> deep_question</text>
+  <text class="mono" x="412" y="466">research -> deep_research</text>
+  <text class="small" x="412" y="492">REST immediate or SSE job</text>
+  <text class="small" x="412" y="514">artifact_refs attached to task</text>
+
+  <rect class="loop" x="710" y="358" width="250" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="732" y="388">Evidence &amp; Adaptation</text>
+  <text class="mono" x="732" y="416">LearningEvidence</text>
+  <text class="mono" x="732" y="438">MasteryState</text>
+  <text class="mono" x="732" y="460">PlanAdjustmentEvent</text>
+  <text class="small" x="732" y="484">&lt;0.65 insert remediation</text>
+  <text class="small" x="732" y="506">&gt;=0.92 skip redundant</text>
+
+  <rect class="out" x="1015" y="358" width="200" height="170" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1037" y="388">Learner Outputs</text>
+  <text class="mono" x="1037" y="416">study plan</text>
+  <text class="mono" x="1037" y="438">coach briefing</text>
+  <text class="mono" x="1037" y="460">mistake review</text>
+  <text class="mono" x="1037" y="482">learning report</text>
+  <text class="mono" x="1037" y="504">course package</text>
+
+  <path class="line" d="M320 443 L390 443"/>
+  <path class="line" d="M640 443 L710 443"/>
+  <path class="line" d="M960 443 L1015 443"/>
+  <path class="soft" d="M1098 262 C1035 308 944 338 860 358"/>
+  <path class="soft" d="M835 528 C760 610 365 612 200 528"/>
+
+  <rect class="entry" x="70" y="660" width="250" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="92" y="690">Diagnostics</text>
+  <text class="mono" x="92" y="718">前测问卷</text>
+  <text class="mono" x="92" y="740">画像对话</text>
+  <text class="small" x="92" y="762">更新 profile，插入 focus/remediation 任务</text>
+
+  <rect class="store" x="390" y="660" width="250" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="412" y="690">Cross-session Memory</text>
+  <text class="mono" x="412" y="718">learner_memory.json</text>
+  <text class="small" x="412" y="740">偏好、薄弱点、错因、资源使用</text>
+  <text class="small" x="412" y="762">新路线可插入 memory_warmup</text>
+
+  <rect class="out" x="710" y="660" width="250" height="120" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="732" y="690">Save Results</text>
+  <text class="mono" x="732" y="718">Notebook guided_learning</text>
+  <text class="mono" x="732" y="740">Question notebook entries</text>
+  <text class="small" x="732" y="762">artifact/report/package/quiz results</text>
+
+  <path class="soft" d="M195 528 L195 660"/>
+  <path class="soft" d="M710 720 L640 720"/>
+  <path class="soft" d="M640 720 L515 720"/>
+  <path class="soft" d="M960 720 L1015 528"/>
+  <path class="soft" d="M515 660 C470 585 555 535 710 485"/>
+</svg>

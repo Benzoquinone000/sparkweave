@@ -11,16 +11,81 @@ import json
 import logging
 import os
 from pathlib import Path
+import struct
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
+import zlib
 
 logger = logging.getLogger(__name__)
 
-XFYUN_OCR_URL = "https://api.xf-yun.com/v1/private/sf8e6aca1"
-XFYUN_OCR_SERVICE = "sf8e6aca1"
+XFYUN_OCR_URL = "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+XFYUN_OCR_SERVICE = "se75ocrbm"
 DEFAULT_MAX_PAGES = 20
 DEFAULT_DPI = 180
+
+
+def _make_smoke_test_png() -> bytes:
+    width = 340
+    height = 96
+    pixels = bytearray([255] * width * height * 3)
+
+    def fill_rect(x: int, y: int, w: int, h: int, shade: int = 0) -> None:
+        for row in range(max(y, 0), min(y + h, height)):
+            start = (row * width + max(x, 0)) * 3
+            end = (row * width + min(x + w, width)) * 3
+            pixels[start:end] = bytes([shade]) * (end - start)
+
+    glyphs = {
+        "O": ("01110", "10001", "10001", "10001", "10001", "10001", "01110"),
+        "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
+        "R": ("11110", "10001", "10001", "11110", "10100", "10010", "10001"),
+        "1": ("00100", "01100", "00100", "00100", "00100", "00100", "01110"),
+        "2": ("01110", "10001", "00001", "00010", "00100", "01000", "11111"),
+        "3": ("11110", "00001", "00001", "01110", "00001", "00001", "11110"),
+    }
+
+    fill_rect(0, 0, width, 4)
+    fill_rect(0, height - 4, width, 4)
+    fill_rect(0, 0, 4, height)
+    fill_rect(width - 4, 0, 4, height)
+
+    x = 24
+    scale = 8
+    for char in "OCR 123":
+        if char == " ":
+            x += scale * 3
+            continue
+        for row_index, row in enumerate(glyphs[char]):
+            for col_index, bit in enumerate(row):
+                if bit == "1":
+                    fill_rect(x + col_index * scale, 20 + row_index * scale, scale, scale)
+        x += scale * 7
+
+    raw = bytearray()
+    stride = width * 3
+    for row in range(height):
+        raw.append(0)
+        raw.extend(pixels[row * stride : (row + 1) * stride])
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(bytes(raw), level=9))
+        + chunk(b"IEND", b"")
+    )
+
+
+OCR_SMOKE_TEST_PNG = _make_smoke_test_png()
 
 
 class OcrUnavailable(RuntimeError):
@@ -103,6 +168,10 @@ def recognize_image_with_iflytek(image: bytes, *, encoding: str = "png", config:
     try:
         with urlopen(request, timeout=resolved.timeout) as response:  # noqa: S310 - endpoint is user-configured.
             response_text = response.read().decode("utf-8", errors="replace")
+    except HTTPError as exc:  # pragma: no cover - network-specific branch
+        body = exc.read().decode("utf-8", errors="replace").strip()
+        detail = body[:500] if body else str(exc)
+        raise OcrUnavailable(f"iFlytek OCR request failed: HTTP {exc.code}: {detail}") from exc
     except Exception as exc:  # pragma: no cover - network-specific branch
         raise OcrUnavailable(f"iFlytek OCR request failed: {exc}") from exc
 
@@ -114,6 +183,8 @@ def recognize_image_with_iflytek(image: bytes, *, encoding: str = "png", config:
     header = data.get("header") if isinstance(data, dict) else {}
     if isinstance(header, dict) and int(header.get("code", -1)) != 0:
         raise OcrUnavailable(f"iFlytek OCR error: {header.get('message') or header.get('code')}")
+    if isinstance(data, dict) and "code" in data and int(data.get("code", -1)) != 0:
+        raise OcrUnavailable(f"iFlytek OCR error: {data.get('message') or data.get('code')}")
 
     return extract_iflytek_text(data)
 
@@ -184,6 +255,40 @@ def ocr_pdf_with_iflytek(pdf_path: Path, *, max_pages: int | None = None, dpi: i
 
 def _build_iflytek_payload(config: XfyunOcrConfig, image: bytes, *, encoding: str) -> dict[str, Any]:
     image_b64 = base64.b64encode(image).decode("ascii")
+    if config.service_id == XFYUN_OCR_SERVICE:
+        return {
+            "header": {
+                "app_id": config.app_id,
+                "status": 0,
+            },
+            "parameter": {
+                "ocr": {
+                    "result_option": "normal",
+                    "result_format": "json",
+                    "output_type": "one_shot",
+                    "exif_option": "0",
+                    "json_element_option": "",
+                    "markdown_element_option": "watermark=0,page_header=0,page_footer=0,page_number=0,graph=0",
+                    "sed_element_option": "watermark=0,page_header=0,page_footer=0,page_number=0,graph=0",
+                    "alpha_option": "0",
+                    "rotation_min_angle": 5,
+                    "result": {
+                        "encoding": "utf8",
+                        "compress": "raw",
+                        "format": "plain",
+                    },
+                }
+            },
+            "payload": {
+                "image": {
+                    "encoding": encoding,
+                    "image": image_b64,
+                    "status": 0,
+                    "seq": 0,
+                }
+            },
+        }
+
     if config.service_id == "hh_ocr_recognize_doc":
         return {
             "header": {"app_id": config.app_id, "status": 3},
@@ -264,6 +369,12 @@ def _extract_ocr_text(value: Any) -> str:
     if isinstance(whole_text, str) and whole_text.strip():
         return whole_text
 
+    text = value.get("text")
+    if isinstance(text, str) and text.strip():
+        return text
+    if isinstance(text, list):
+        return "\n".join(part for part in (_extract_ocr_text(item).strip() for item in text) if part)
+
     lines = value.get("lines")
     if isinstance(lines, list):
         parts: list[str] = []
@@ -283,6 +394,13 @@ def _extract_ocr_text(value: Any) -> str:
     pages = value.get("pages")
     if isinstance(pages, list):
         return "\n\n".join(_extract_ocr_text(page) for page in pages)
+
+    for key in ("document", "image", "content", "regions", "paragraphs", "blocks", "elements"):
+        nested = value.get(key)
+        if nested:
+            nested_text = _extract_ocr_text(nested).strip()
+            if nested_text:
+                return nested_text
 
     return ""
 
@@ -310,6 +428,7 @@ def _env(name: str, default: str = "") -> str:
 
 __all__ = [
     "OcrUnavailable",
+    "OCR_SMOKE_TEST_PNG",
     "XfyunOcrConfig",
     "extract_iflytek_text",
     "is_iflytek_ocr_configured",

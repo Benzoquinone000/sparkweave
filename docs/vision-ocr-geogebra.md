@@ -284,8 +284,8 @@ XfyunOcrConfig(
     app_id="...",
     api_key="...",
     api_secret="...",
-    url="https://api.xf-yun.com/v1/private/sf8e6aca1",
-    service_id="sf8e6aca1",
+    url="https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+    service_id="se75ocrbm",
     category="ch_en_public_cloud",
     timeout=30.0,
 )
@@ -300,7 +300,7 @@ XfyunOcrConfig(
 | `IFLYTEK_OCR_API_KEY` / `XFYUN_OCR_API_KEY` | OCR APIKey |
 | `IFLYTEK_OCR_API_SECRET` / `XFYUN_OCR_API_SECRET` | OCR APISecret |
 | `IFLYTEK_OCR_URL` | OCR endpoint |
-| `IFLYTEK_OCR_SERVICE_ID` | 默认 `sf8e6aca1` |
+| `IFLYTEK_OCR_SERVICE_ID` | 默认 `se75ocrbm` |
 | `IFLYTEK_OCR_CATEGORY` | 默认 `ch_en_public_cloud` |
 | `SPARKWEAVE_OCR_TIMEOUT` | 请求超时秒数，默认 30 |
 | `SPARKWEAVE_OCR_MAX_PAGES` | PDF OCR 最大页数，默认 20 |

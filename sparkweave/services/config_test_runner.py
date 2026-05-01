@@ -83,7 +83,7 @@ class TestRun:
 
 
 class ConfigTestRunner:
-    """Run LLM, embedding, and search smoke tests in background threads."""
+    """Run LLM, embedding, search, and OCR smoke tests in background threads."""
 
     _instance: "ConfigTestRunner | None" = None
 
@@ -141,6 +141,8 @@ class ConfigTestRunner:
                     asyncio.run(self._test_embedding(run, model or {}, catalog))
                 elif service == "search":
                     asyncio.run(self._test_search(run, catalog))
+                elif service == "ocr":
+                    asyncio.run(self._test_ocr(run, catalog))
                 else:
                     raise ValueError(f"Unsupported service: {service}")
             if not run.cancelled and run.status == "running":
@@ -271,6 +273,29 @@ class ConfigTestRunner:
         )
         if not (result.get("answer") or result.get("search_results")):
             raise ValueError("Search provider returned no answer and no search results.")
+
+    async def _test_ocr(self, run: TestRun, catalog: dict[str, Any]) -> None:
+        from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, XfyunOcrConfig, recognize_image_with_iflytek
+
+        resolved = XfyunOcrConfig.from_env()
+        if resolved is None:
+            raise ValueError("iFlytek OCR credentials are not configured")
+
+        run.emit("info", "Resolved OCR provider `iflytek`.")
+        run.emit("info", f"Request target: {resolved.url}")
+        text = await asyncio.to_thread(
+            recognize_image_with_iflytek,
+            OCR_SMOKE_TEST_PNG,
+            encoding="png",
+            config=resolved,
+        )
+        run.emit(
+            "response",
+            "OCR response received.",
+            provider="iflytek",
+            text_preview=text.strip()[:160],
+            detected_chars=len(text.strip()),
+        )
 
 
 def get_config_test_runner() -> ConfigTestRunner:

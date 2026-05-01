@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave Notebook, Memory, and Context References</title>
+  <desc id="desc">A diagram showing Notebook JSON storage, two-file memory storage, frontend and CLI references, context enrichment, NotebookAnalysisAgent, UnifiedContext, capability prompts, and post-turn memory refresh.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .entry { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.2; }
+      .api { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.2; }
+      .store { fill: #ffffff; stroke: #64748b; stroke-width: 1.2; }
+      .context { fill: #fef3c7; stroke: #d97706; stroke-width: 1.2; }
+      .agent { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.2; }
+      .out { fill: #ffe4e6; stroke: #e11d48; stroke-width: 1.2; }
+      .note { fill: #f0fdfa; stroke: #0f766e; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .title { font-family: "Segoe UI", Arial, sans-serif; font-size: 25px; font-weight: 700; fill: #0f172a; }
+      .h { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #475569; }
+      .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 11px; fill: #1e293b; }
+      .line { stroke: #334155; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1240" height="820"/>
+  <text class="title" x="42" y="46">Notebook、Memory 与上下文引用链路</text>
+  <text class="t" x="42" y="72">Notebook 保存显式产出，Memory 保存长期画像；每轮 turn 会把可用素材压缩进 UnifiedContext。</text>
+
+  <rect class="entry" x="45" y="110" width="220" height="112" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="140">Frontend Pages</text>
+  <text class="mono" x="67" y="166">/notebook</text>
+  <text class="mono" x="67" y="188">/memory</text>
+  <text class="small" x="67" y="210">Chat 引用面板 / 保存按钮</text>
+
+  <rect class="entry" x="45" y="282" width="220" height="112" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="67" y="312">CLI / SDK</text>
+  <text class="mono" x="67" y="338">sparkweave run</text>
+  <text class="mono" x="67" y="360">--notebook-ref nb:rec</text>
+  <text class="small" x="67" y="382">SparkWeaveApp facade</text>
+
+  <rect class="api" x="330" y="92" width="250" height="145" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="352" y="122">Notebook API</text>
+  <text class="mono" x="352" y="150">/api/v1/notebook/list</text>
+  <text class="mono" x="352" y="172">/create</text>
+  <text class="mono" x="352" y="194">/add_record</text>
+  <text class="mono" x="352" y="216">/add_record_with_summary</text>
+
+  <rect class="api" x="330" y="282" width="250" height="128" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="352" y="312">Memory API</text>
+  <text class="mono" x="352" y="340">GET /api/v1/memory</text>
+  <text class="mono" x="352" y="362">PUT /api/v1/memory</text>
+  <text class="mono" x="352" y="384">POST /refresh /clear</text>
+
+  <rect class="store" x="650" y="92" width="250" height="145" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="672" y="122">NotebookManager</text>
+  <text class="mono" x="672" y="150">data/user/workspace/notebook</text>
+  <text class="mono" x="672" y="172">notebooks_index.json</text>
+  <text class="mono" x="672" y="194">&lt;notebook_id&gt;.json</text>
+  <text class="small" x="672" y="216">records: solve/question/chat/...</text>
+
+  <rect class="store" x="650" y="282" width="250" height="128" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="672" y="312">MemoryService</text>
+  <text class="mono" x="672" y="340">data/memory/SUMMARY.md</text>
+  <text class="mono" x="672" y="362">data/memory/PROFILE.md</text>
+  <text class="small" x="672" y="386">legacy memory.md -> .bak</text>
+
+  <path class="line" d="M265 166 L330 166"/>
+  <path class="line" d="M265 338 L330 338"/>
+  <path class="line" d="M580 166 L650 166"/>
+  <path class="line" d="M580 346 L650 346"/>
+
+  <rect class="context" x="105" y="505" width="250" height="168" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="127" y="535">Turn Payload</text>
+  <text class="mono" x="127" y="563">content</text>
+  <text class="mono" x="127" y="585">notebook_references</text>
+  <text class="mono" x="127" y="607">history_references</text>
+  <text class="mono" x="127" y="629">config.followup...</text>
+  <text class="small" x="127" y="653">WebSocket、CLI、SDK 同一契约</text>
+
+  <rect class="context" x="435" y="505" width="260" height="168" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="457" y="535">Context Enrichment</text>
+  <text class="mono" x="457" y="563">ContextBuilder history</text>
+  <text class="mono" x="457" y="585">build_memory_context()</text>
+  <text class="mono" x="457" y="607">get_records_by_references()</text>
+  <text class="mono" x="457" y="629">history pseudo-records</text>
+  <text class="small" x="457" y="653">写 user message 时保留原始输入</text>
+
+  <rect class="agent" x="775" y="505" width="250" height="168" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="797" y="535">NotebookAnalysisAgent</text>
+  <text class="mono" x="797" y="563">notebook_thinking</text>
+  <text class="mono" x="797" y="585">notebook_acting</text>
+  <text class="mono" x="797" y="607">notebook_observing</text>
+  <text class="small" x="797" y="631">最多选择 5 条记录</text>
+  <text class="small" x="797" y="653">输出 compact context</text>
+
+  <rect class="out" x="965" y="92" width="220" height="145" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="987" y="122">Question Notebook</text>
+  <text class="mono" x="987" y="150">/question-notebook</text>
+  <text class="mono" x="987" y="172">SQLite entries</text>
+  <text class="mono" x="987" y="194">integer category ids</text>
+  <text class="small" x="987" y="216">不要当作 Notebook UUID</text>
+
+  <rect class="out" x="1085" y="505" width="115" height="168" rx="8" filter="url(#shadow)"/>
+  <text class="h" x="1102" y="535">Graph</text>
+  <text class="small" x="1102" y="563">system prompt</text>
+  <text class="small" x="1102" y="585">memory</text>
+  <text class="small" x="1102" y="607">notebook</text>
+  <text class="small" x="1102" y="629">history</text>
+  <text class="small" x="1102" y="653">final answer</text>
+
+  <path class="line" d="M355 589 L435 589"/>
+  <path class="line" d="M695 589 L775 589"/>
+  <path class="line" d="M1025 589 L1085 589"/>
+  <path class="soft" d="M775 237 C775 330 650 412 600 505"/>
+  <path class="soft" d="M775 410 C760 455 720 488 680 525"/>
+  <path class="soft" d="M1085 237 C1035 300 980 360 900 505"/>
+
+  <rect class="note" x="410" y="720" width="420" height="66" rx="8"/>
+  <text class="h" x="432" y="747">Post-turn Memory Refresh</text>
+  <text class="t" x="432" y="771">assistant message 汇总后，runtime 以 best-effort 调用 refresh_from_turn() 重写 SUMMARY / PROFILE。</text>
+
+  <path class="soft" d="M1143 673 C1110 732 890 753 830 753"/>
+</svg>

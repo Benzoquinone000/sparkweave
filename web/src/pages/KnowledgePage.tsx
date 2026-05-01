@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ChevronLeft,
   Database,
   FileUp,
   FolderSync,
@@ -54,6 +55,8 @@ type KnowledgeWsMessage = {
   message?: string;
 };
 
+type KnowledgeView = "browse" | "create";
+
 export function KnowledgePage() {
   const query = useKnowledgeBases();
   const providers = useRagProviders();
@@ -69,6 +72,7 @@ export function KnowledgePage() {
     [backendDefaultName, bases],
   );
   const [selectedKb, setSelectedKb] = useState("");
+  const [view, setView] = useState<KnowledgeView>("browse");
   const [createName, setCreateName] = useState("");
   const [ragProvider, setRagProvider] = useState("");
   const [createFiles, setCreateFiles] = useState<File[]>([]);
@@ -94,6 +98,20 @@ export function KnowledgePage() {
   const progressPercent = clampPercent(liveProgress?.percent);
   const progressStage = formatProgressStage(liveProgress?.stage || liveProgress?.status || "idle");
   const progressMessage = formatProgressMessage(liveProgress, activeKb, Boolean(taskId || taskLogs.length));
+  const activeStatistics = isRecord(kbDetail.data?.statistics) ? kbDetail.data.statistics : {};
+  const activeMetadata = isRecord(kbDetail.data?.metadata) ? kbDetail.data.metadata : {};
+  const activeDocumentCount =
+    readNumber(kbDetail.data, "document_count") ??
+    readNumber(activeStatistics, "document_count") ??
+    readNumber(activeStatistics, "documents") ??
+    (Array.isArray(kbDetail.data?.documents) ? kbDetail.data.documents.length : undefined);
+  const activeFileCount =
+    readNumber(kbDetail.data, "file_count") ??
+    readNumber(activeStatistics, "file_count") ??
+    readNumber(activeStatistics, "files") ??
+    (Array.isArray(kbDetail.data?.files) ? kbDetail.data.files.length : undefined);
+  const activePath = readString(kbDetail.data, "path") || readString(activeMetadata, "path") || activeKb || "-";
+  const activeStatus = kbDetail.data?.status || (kbDetail.isLoading ? "loading" : activeKb ? "ready" : "idle");
 
   const pushTaskLog = useCallback((line: string) => {
     setTaskLogs((current) => [...current.filter((item) => item !== line), line].slice(-80));
@@ -253,6 +271,7 @@ export function KnowledgePage() {
     });
     beginTask(result.task_id ?? null, result.name || trimmedName);
     setSelectedKb(result.name || trimmedName);
+    setView("browse");
     setCreateName("");
     setCreateFiles([]);
   };
@@ -303,8 +322,270 @@ export function KnowledgePage() {
           error={Boolean(query.error)}
         />
 
+        <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-ink">我的资料库</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">选择一个资料库，后续问答和导学会优先引用它。</p>
+              </div>
+              <div className="flex gap-1">
+                <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={() => void query.refetch()}>
+                  {query.isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                </Button>
+                <Button tone={view === "create" ? "primary" : "secondary"} className="min-h-8 px-2 text-xs" onClick={() => setView("create")}>
+                  <UploadCloud size={14} />
+                  新建
+                </Button>
+              </div>
+            </div>
+            <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
+              {bases.map((kb) => {
+                const active = kb.name === activeKb;
+                return (
+                  <button
+                    key={kb.name}
+                    type="button"
+                    onClick={() => {
+                      setSelectedKb(kb.name);
+                      setView("browse");
+                    }}
+                    className={`w-full rounded-lg border p-3 text-left transition ${
+                      active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                    }`}
+                    data-testid={`knowledge-kb-select-${kb.name}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">{kb.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatProgressStage(kb.status || "ready")}</p>
+                      </div>
+                      <Badge tone={kb.is_default ? "brand" : active ? "success" : "neutral"}>
+                        {kb.is_default ? "默认" : active ? "当前" : "选择"}
+                      </Badge>
+                    </div>
+                  </button>
+                );
+              })}
+              {!bases.length ? (
+                <div className="rounded-lg border border-dashed border-line bg-canvas p-4">
+                  <EmptyState
+                    icon={<FileUp size={24} />}
+                    title="还没有资料库"
+                    description="先创建一个资料库并上传课程资料。"
+                  />
+                  <Button tone="primary" className="mt-3 w-full" onClick={() => setView("create")}>
+                    <UploadCloud size={16} />
+                    新建资料库
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="space-y-4">
+            {view === "create" ? (
+              <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-teal">New Library</p>
+                    <h2 className="mt-2 text-xl font-semibold text-ink">新建资料库</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                      这是一个全局动作，不依赖当前选中的资料库。创建完成后会自动切换到新资料库。
+                    </p>
+                  </div>
+                  <Button tone="secondary" className="min-h-9 px-3 text-xs" onClick={() => setView("browse")}>
+                    <ChevronLeft size={15} />
+                    返回资料库
+                  </Button>
+                </div>
+                <form className="mt-5 grid gap-4" onSubmit={createKb}>
+                  <FieldShell label="资料库名称">
+                    <TextInput
+                      value={createName}
+                      onChange={(event) => setCreateName(event.target.value)}
+                      placeholder="例如 calculus_notes"
+                      data-testid="knowledge-create-name"
+                    />
+                  </FieldShell>
+                  <FieldShell label="检索引擎">
+                    <SelectInput value={activeProvider} onChange={(event) => setRagProvider(event.target.value)}>
+                      {providerOptions.length ? (
+                        providerOptions.map((provider) => (
+                          <option key={provider.name} value={provider.name}>
+                            {provider.label || provider.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">使用默认</option>
+                      )}
+                    </SelectInput>
+                  </FieldShell>
+                  <FieldShell label="初始资料" hint="支持 PDF、Markdown、文本、代码等资料">
+                    <TextInput
+                      type="file"
+                      multiple
+                      onChange={(event) => setCreateFiles(Array.from(event.target.files ?? []))}
+                      data-testid="knowledge-create-files"
+                    />
+                  </FieldShell>
+                  {createFiles.length ? <FileList files={createFiles} /> : null}
+                  <Button
+                    tone="primary"
+                    type="submit"
+                    className="min-h-11"
+                    disabled={!createName.trim() || !createFiles.length || mutations.create.isPending}
+                    data-testid="knowledge-create-submit"
+                  >
+                    {mutations.create.isPending ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                    创建并索引
+                  </Button>
+                </form>
+              </section>
+            ) : null}
+
+            {view === "browse" ? (
+              <>
+            <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <Badge tone={activeKb ? "brand" : "neutral"}>{activeKb || "未选择资料库"}</Badge>
+                  <h2 className="mt-3 text-xl font-semibold text-ink">{activeKb || "先创建或选择资料库"}</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                    {activeKb
+                      ? "这里展示当前资料库的核心状态。复杂配置先收起来，日常只需要上传资料、等待索引完成。"
+                      : "上传 PDF、Markdown、文本或代码文件后，系统会自动建立索引。"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    tone="secondary"
+                    className="min-h-9 text-xs"
+                    disabled={!activeKb || defaultBase?.name === activeKb || mutations.setDefault.isPending}
+                    onClick={() => activeKb && void mutations.setDefault.mutateAsync(activeKb)}
+                  >
+                    <Star size={14} />
+                    设为默认
+                  </Button>
+                  <Button
+                    tone="danger"
+                    className="min-h-9 text-xs"
+                    disabled={!activeKb || mutations.remove.isPending}
+                    onClick={() => {
+                      if (activeKb && window.confirm(`删除知识库 ${activeKb}？`)) void mutations.remove.mutateAsync(activeKb);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    删除
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <ConfigFact label="状态" value={formatProgressStage(activeStatus)} tone={activeStatus === "error" ? "warning" : "success"} />
+                <ConfigFact label="文件" value={formatOptionalCount(activeFileCount)} />
+                <ConfigFact label="文档" value={formatOptionalCount(activeDocumentCount)} />
+                <ConfigFact label="检索" value={String(activeConfig?.rag_provider || kbDetail.data?.rag_provider || "llamaindex")} />
+              </div>
+
+              <div className="mt-5 rounded-lg border border-line bg-canvas p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">索引状态</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{progressMessage}</p>
+                  </div>
+                  <Badge tone={progressPercent >= 100 ? "success" : taskId ? "brand" : "neutral"}>{progressStage}</Badge>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                  <motion.div
+                    className="h-full rounded-full bg-brand-teal"
+                    initial={false}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{formatWsStatus(wsStatus)}</span>
+                  <span>{progressPercent}%</span>
+                </div>
+              </div>
+
+              {activeKb ? (
+                <p className="mt-4 truncate text-xs text-slate-500">路径：{activePath}</p>
+              ) : null}
+            </section>
+
+            <div className="grid gap-4">
+              <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <UploadCloud size={18} className="text-brand-teal" />
+                  <h2 className="text-base font-semibold text-ink">追加资料</h2>
+                </div>
+                <form className="mt-4 grid gap-3" onSubmit={uploadToKb}>
+                  <FieldShell label="目标资料库">
+                    <SelectInput value={activeKb} onChange={(event) => setSelectedKb(event.target.value)} data-testid="knowledge-upload-target">
+                      {bases.map((kb) => (
+                        <option key={kb.name} value={kb.name}>
+                          {kb.name}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </FieldShell>
+                  <FieldShell label="上传文件">
+                    <TextInput
+                      type="file"
+                      multiple
+                      onChange={(event) => setUploadFiles(Array.from(event.target.files ?? []))}
+                      data-testid="knowledge-upload-files"
+                    />
+                  </FieldShell>
+                  {uploadFiles.length ? <FileList files={uploadFiles} /> : null}
+                  <Button tone="primary" type="submit" disabled={!activeKb || !uploadFiles.length || mutations.upload.isPending} data-testid="knowledge-upload-submit">
+                    {mutations.upload.isPending ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                    上传并索引
+                  </Button>
+                </form>
+              </section>
+            </div>
+
+            <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">检索设置</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">默认用混合检索即可；只有效果不理想时再调整。</p>
+                </div>
+                <Badge tone={activeKb ? "brand" : "neutral"}>{activeKb || "未选择"}</Badge>
+              </div>
+              {activeKb ? (
+                <form key={configFormKey} className="mt-4 grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]" onSubmit={saveKbConfig}>
+                  <FieldShell label="模式">
+                    <SelectInput name="search_mode" defaultValue={String(activeConfig?.search_mode || "hybrid")}>
+                      <option value="hybrid">混合检索</option>
+                      <option value="semantic">向量检索</option>
+                      <option value="keyword">关键词检索</option>
+                    </SelectInput>
+                  </FieldShell>
+                  <FieldShell label="说明">
+                    <TextInput name="description" defaultValue={String(activeConfig?.description || "")} placeholder="例如：高数极限与连续专题资料" />
+                  </FieldShell>
+                  <div className="flex items-end">
+                    <Button tone="secondary" type="submit" disabled={mutations.updateConfig.isPending || !activeKb}>
+                      {mutations.updateConfig.isPending ? <Loader2 size={16} className="animate-spin" /> : <SlidersHorizontal size={16} />}
+                      保存
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="mt-4 rounded-lg bg-canvas p-3 text-sm text-slate-500">选择资料库后可调整检索方式。</p>
+              )}
+            </section>
+              </>
+            ) : null}
+          </div>
+        </div>
+
         <KnowledgeRuntimePanel
-          className="order-7"
+          className="hidden"
           health={health.data}
           loading={health.isLoading}
           defaultKbName={defaultBase?.name || backendDefaultName || "未设置"}
@@ -316,14 +597,14 @@ export function KnowledgePage() {
         />
 
         <KnowledgeDetailPanel
-          className="order-8"
+          className="hidden"
           activeKb={activeKb}
           detail={kbDetail.data}
           loading={kbDetail.isLoading}
           onRefresh={() => void kbDetail.refetch()}
         />
 
-        <details className="order-4 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-policy-details">
+        <details className="hidden order-4 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-policy-details">
           <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="knowledge-policy-toggle">
             <div>
               <h2 className="text-base font-semibold text-ink">资料策略</h2>
@@ -395,7 +676,7 @@ export function KnowledgePage() {
           </div>
         </details>
 
-        <details className="order-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-folder-details">
+        <details className="hidden order-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-folder-details">
           <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="knowledge-folder-toggle">
             <div>
               <h2 className="text-base font-semibold text-ink">文件夹同步</h2>
@@ -481,7 +762,7 @@ export function KnowledgePage() {
           </div>
         </details>
 
-        <section className="order-3 rounded-lg border border-line bg-white p-3">
+        <section className="hidden order-3 rounded-lg border border-line bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-ink">资料库</h2>
@@ -561,7 +842,7 @@ export function KnowledgePage() {
           ) : null}
         </section>
 
-        <div className="order-2 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="hidden order-2 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-lg border border-line bg-white p-3">
             <h2 className="text-base font-semibold text-ink">创建知识库</h2>
             <form className="mt-4 grid gap-3" onSubmit={createKb}>
@@ -646,7 +927,7 @@ export function KnowledgePage() {
         </div>
 
         <details
-          className="order-6 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden"
+          className="hidden order-6 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden"
           open={Boolean(taskId || taskLogs.length)}
           data-testid="knowledge-progress-details"
         >

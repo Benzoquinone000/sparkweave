@@ -104,3 +104,48 @@ async def test_recommend_learning_videos_returns_platform_search_fallbacks(monke
     assert result["videos"][0]["url"].startswith("https://search.bilibili.com/")
     assert result["videos"][1]["url"].startswith("https://www.youtube.com/results")
     assert "搜索入口" in result["response"]
+
+
+@pytest.mark.asyncio
+async def test_recommend_learning_videos_uses_structured_duration_and_thumbnail(monkeypatch) -> None:
+    seen_queries: list[str] = []
+
+    async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
+        seen_queries.append(str(kwargs["query"]))
+        return {
+            "search_results": [
+                {
+                    "title": "梯度下降完整公开课 45分钟",
+                    "url": "https://www.youtube.com/watch?v=LONG1234567",
+                    "snippet": "完整课程，适合系统学习。",
+                    "source": "YouTube",
+                    "duration_seconds": 2700,
+                    "thumbnail": "https://example.com/long.jpg",
+                    "channel": "ML Course",
+                },
+                {
+                    "title": "梯度下降直观短讲解",
+                    "url": "https://www.youtube.com/watch?v=SHORT12345",
+                    "snippet": "Beginner visual explanation.",
+                    "source": "YouTube",
+                    "duration": "08:30",
+                    "thumbnail": "https://example.com/short.jpg",
+                    "channel": "Quick ML",
+                },
+            ],
+        }
+
+    monkeypatch.setattr(video_search, "web_search", _fake_web_search)
+
+    result = await video_search.recommend_learning_videos(
+        topic="梯度下降",
+        learner_hints={"time_budget_minutes": 10, "weak_points": ["公式意义不清"]},
+        max_results=2,
+    )
+
+    assert "短讲解" in seen_queries[0]
+    assert result["videos"][0]["title"] == "梯度下降直观短讲解"
+    assert result["videos"][0]["duration_seconds"] == 510
+    assert result["videos"][0]["thumbnail"] == "https://example.com/short.jpg"
+    assert result["videos"][0]["channel"] == "Quick ML"
+    assert "10 分钟" in result["videos"][0]["why_recommended"]

@@ -115,14 +115,17 @@ async def recommend_learning_videos(
 def _build_queries(*, topic: str, hints: dict[str, Any], prompt: str, language: str) -> list[str]:
     focus_terms = [topic, prompt, *_as_strings(hints.get("weak_points"))]
     focus = " ".join(item for item in focus_terms if item).strip() or "学习方法"
+    time_budget = _coerce_minutes(hints.get("time_budget_minutes"))
+    length_hint = "短讲解" if time_budget and time_budget <= 15 else "教程"
     if language.lower().startswith("zh"):
         return [
-            f"{focus} 入门 直观 视频 教程",
+            f"{focus} 入门 直观 视频 {length_hint}",
             f"{focus} site:bilibili.com/video",
             f"{focus} site:youtube.com/watch",
         ]
+    english_length_hint = "short" if time_budget and time_budget <= 15 else "tutorial"
     return [
-        f"{focus} beginner intuition video tutorial",
+        f"{focus} beginner intuition {english_length_hint} video",
         f"{focus} site:youtube.com/watch",
         f"{focus} site:bilibili.com/video",
     ]
@@ -146,6 +149,10 @@ def _iter_search_items(result: Any) -> list[dict[str, str]]:
                     "snippet": _clean_text(raw.get("snippet") or raw.get("content")),
                     "source": _clean_text(raw.get("source") or raw.get("website") or raw.get("platform")),
                     "date": _clean_text(raw.get("date") or raw.get("published_at") or raw.get("published")),
+                    "thumbnail": _clean_text(raw.get("thumbnail") or raw.get("image") or raw.get("thumbnail_url")),
+                    "channel": _clean_text(raw.get("channel") or raw.get("author") or raw.get("creator")),
+                    "duration": _clean_text(raw.get("duration") or raw.get("length")),
+                    "duration_seconds": _clean_text(raw.get("duration_seconds") or raw.get("duration_sec")),
                 }
             )
     return items
@@ -165,11 +172,11 @@ def _candidate_from_item(item: dict[str, str]) -> VideoCandidate | None:
         url=canonical_url,
         platform=platform,
         summary=snippet,
-        thumbnail=thumbnail,
+        thumbnail=item.get("thumbnail") or thumbnail,
         embed_url=embed_url,
-        channel=item.get("source", ""),
+        channel=item.get("channel") or item.get("source", ""),
         published_at=item.get("date", ""),
-        duration_seconds=_duration_from_text(f"{title} {snippet}"),
+        duration_seconds=_duration_from_item(item, f"{title} {snippet}"),
     )
 
 
@@ -293,6 +300,7 @@ def _unwrap_redirect_url(raw_url: str) -> str:
 
 def _score_candidate(candidate: VideoCandidate, *, topic: str, hints: dict[str, Any], language: str) -> float:
     haystack = f"{candidate.title} {candidate.summary}".lower()
+    time_budget = _coerce_minutes(hints.get("time_budget_minutes"))
     score = 0.45
     for term in _important_terms(topic, hints):
         if term and term.lower() in haystack:
@@ -306,10 +314,16 @@ def _score_candidate(candidate: VideoCandidate, *, topic: str, hints: dict[str, 
     if candidate.embed_url:
         score += 0.04
     if candidate.duration_seconds is not None:
+        minutes = max(1, candidate.duration_seconds / 60)
         if 240 <= candidate.duration_seconds <= 1200:
             score += 0.1
         elif candidate.duration_seconds > 2400:
             score -= 0.12
+        if time_budget:
+            if minutes <= max(5, time_budget * 1.2):
+                score += 0.07
+            elif minutes > max(12, time_budget * 2):
+                score -= 0.1
     if re.search(r"直播|合集|完整版|广告|reaction|shorts|预告", haystack):
         score -= 0.12
     return max(0.0, min(score, 1.0))
@@ -318,6 +332,7 @@ def _score_candidate(candidate: VideoCandidate, *, topic: str, hints: dict[str, 
 def _recommendation_reason(candidate: VideoCandidate, *, topic: str, hints: dict[str, Any]) -> str:
     weak_points = _as_strings(hints.get("weak_points"))[:2]
     preferences = _as_strings(hints.get("preferences"))[:2]
+    time_budget = _coerce_minutes(hints.get("time_budget_minutes"))
     reason = f"围绕「{topic}」筛选，适合先建立直观理解。"
     if weak_points:
         reason += f" 也贴合当前卡点：{'、'.join(weak_points)}。"
@@ -325,6 +340,8 @@ def _recommendation_reason(candidate: VideoCandidate, *, topic: str, hints: dict
         reason += f" 已参考学习偏好：{'、'.join(preferences)}。"
     if candidate.duration_seconds:
         reason += f" 时长约 {max(1, round(candidate.duration_seconds / 60))} 分钟，适合碎片学习。"
+    if time_budget and candidate.duration_seconds and candidate.duration_seconds / 60 <= max(5, time_budget * 1.2):
+        reason += f" 符合你当前约 {time_budget} 分钟的学习窗口。"
     return reason
 
 
@@ -374,6 +391,31 @@ def _duration_from_text(text: str) -> int | None:
     if match:
         return int(match.group(1)) * 60
     return None
+
+
+def _duration_from_item(item: dict[str, str], fallback_text: str) -> int | None:
+    seconds_text = item.get("duration_seconds", "")
+    if seconds_text:
+        try:
+            seconds = int(float(seconds_text))
+        except ValueError:
+            seconds = 0
+        if seconds > 0:
+            return seconds
+    duration_text = item.get("duration", "")
+    return _duration_from_text(duration_text) or _duration_from_text(fallback_text)
+
+
+def _coerce_minutes(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and value > 0:
+        return int(value)
+    match = re.search(r"\d+", str(value))
+    if not match:
+        return None
+    minutes = int(match.group(0))
+    return minutes if minutes > 0 else None
 
 
 def _clean_text(value: Any) -> str:

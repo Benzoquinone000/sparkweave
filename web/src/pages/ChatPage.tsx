@@ -8,16 +8,21 @@ import {
   CheckCircle2,
   Clock3,
   Edit3,
+  FileQuestion,
+  ImageIcon,
+  Lightbulb,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightOpen,
+  PlayCircle,
   Plus,
   Route,
   Save,
   Sparkles,
   Trash2,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -31,7 +36,7 @@ import { ToolSelector } from "@/components/chat/ToolSelector";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
-import { defaultToolsForCapability, getCapability } from "@/lib/capabilities";
+import { defaultConfigForCapability, defaultToolsForCapability, getCapability } from "@/lib/capabilities";
 import { getSession } from "@/lib/api";
 import type {
   CapabilityId,
@@ -179,6 +184,31 @@ export function ChatPage() {
       config: capabilityConfig,
     });
   };
+
+  const sendQuickAction = useCallback(
+    (content: string, quickCapability: CapabilityId = "chat", quickConfig?: Record<string, unknown>) => {
+      const nextTools = defaultToolsForCapability(quickCapability);
+      const nextConfig = {
+        ...defaultConfigForCapability(quickCapability, content),
+        ...(quickConfig ?? {}),
+      };
+      setCapability(quickCapability);
+      setTools(nextTools);
+      setCapabilityConfig(nextConfig);
+      runtime.send({
+        content,
+        capability: quickCapability,
+        tools: nextTools,
+        knowledgeBases,
+        historyReferences,
+        notebookReferences,
+        attachments: [],
+        language,
+        config: nextConfig,
+      });
+    },
+    [historyReferences, knowledgeBases, language, notebookReferences, runtime],
+  );
 
   const newSession = () => {
     runtime.newSession();
@@ -331,7 +361,12 @@ export function ChatPage() {
                   <MessageBubble key={message.id} message={message} onSave={setSaveMessage} sessionId={runtime.sessionId} />
                 ))
               ) : (
-                <EmptyState activeCapability={activeCapability.label} />
+                <EmptyState
+                  activeCapability={activeCapability.label}
+                  profile={learnerProfile.data}
+                  disabled={!canSend}
+                  onQuickSend={sendQuickAction}
+                />
               )}
             </div>
           </div>
@@ -526,38 +561,186 @@ export function ChatPage() {
   );
 }
 
-function EmptyState({ activeCapability }: { activeCapability: string }) {
+function cleanText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function profileTopic(profile?: LearnerProfileSnapshot) {
+  const focus = cleanText(profile?.overview.current_focus);
+  if (focus) return focus;
+  const weakPoint = cleanText(profile?.learning_state.weak_points?.[0]?.label);
+  if (weakPoint) return weakPoint;
+  return "当前学习任务";
+}
+
+function guideHref(profile?: LearnerProfileSnapshot) {
+  const action = profile?.next_action;
+  if (cleanText(action?.href)) return cleanText(action?.href);
+  const prompt = cleanText(action?.suggested_prompt) || cleanText(action?.title) || profileTopic(profile);
+  const params = new URLSearchParams({ new: "1", prompt });
+  const title = cleanText(action?.title);
+  if (title) params.set("action_title", title);
+  return `/guide?${params.toString()}`;
+}
+
+function quickActionsForProfile(profile?: LearnerProfileSnapshot) {
+  const topic = profileTopic(profile);
+  return [
+    {
+      id: "explain",
+      label: "讲清卡点",
+      description: "用直觉、例子和一个自测题解释。",
+      icon: Lightbulb,
+      capability: "chat" as const,
+      prompt: `请结合我的学习画像，用 5 分钟能读完的方式讲清楚：${topic}。先解释直觉，再给一个例子，最后给我一个自测问题。`,
+    },
+    {
+      id: "practice",
+      label: "生成练习",
+      description: "选择、判断、填空和简答混合。",
+      icon: FileQuestion,
+      capability: "deep_question" as const,
+      prompt: `围绕「${topic}」生成 5 道交互式练习题，包含选择题、判断题、填空题和简答题，并给出答案解析。`,
+      config: {
+        mode: "custom",
+        topic,
+        num_questions: 5,
+        difficulty: "auto",
+        question_type: "mixed",
+      },
+    },
+    {
+      id: "video",
+      label: "找公开视频",
+      description: "筛 3 个适合当前水平的视频。",
+      icon: PlayCircle,
+      capability: "chat" as const,
+      prompt: `请从网络上帮我推荐适合当前水平的公开视频，主题是「${topic}」。只给 3 个最适合的，并说明为什么适合我。`,
+    },
+    {
+      id: "visual",
+      label: "画图解",
+      description: "把概念关系画成一张图。",
+      icon: ImageIcon,
+      capability: "visualize" as const,
+      prompt: `请为「${topic}」生成一张简洁的学习图解，突出概念关系、关键步骤和最容易混淆的点。`,
+      config: { render_mode: "auto" },
+    },
+  ];
+}
+
+function EmptyState({
+  activeCapability,
+  profile,
+  disabled,
+  onQuickSend,
+}: {
+  activeCapability: string;
+  profile?: LearnerProfileSnapshot;
+  disabled: boolean;
+  onQuickSend: (content: string, capability?: CapabilityId, config?: Record<string, unknown>) => void;
+}) {
+  const action = profile?.next_action;
+  const title = cleanText(action?.title) || `${profileTopic(profile)}：先迈出一步`;
+  const summary =
+    cleanText(action?.summary) ||
+    cleanText(profile?.overview.summary) ||
+    "我会根据你的画像和当前问题，自动选择答疑、练习、图解、视频或导学路径。你只需要点一下，或者直接输入问题。";
+  const minutes = Number(action?.estimated_minutes || profile?.overview.preferred_time_budget_minutes || 10);
+  const actions = quickActionsForProfile(profile);
+
   return (
     <motion.div
-      className="mx-auto w-full max-w-2xl py-14 text-center"
+      className="mx-auto w-full max-w-3xl py-10"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
     >
-      <motion.div
-        className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-teal-200 bg-white text-brand-teal"
-        animate={{ y: [0, -3, 0] }}
-        transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <Sparkles size={24} />
-      </motion.div>
-      <p className="mt-5 text-lg font-semibold text-ink">从一个真实学习任务开始</p>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-        当前模式是 {activeCapability}。直接提问即可，资料、工具和历史引用可以之后再补。
-      </p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {["拆解一道证明题", "从资料生成练习", "画出知识流程"].map((text) => (
-          <motion.span
-            key={text}
-            className="inline-flex min-h-9 items-center rounded-lg border border-line bg-white px-3 text-sm text-slate-600"
-            whileHover={{ y: -1, borderColor: "#99F6E4" }}
-            transition={{ duration: 0.18 }}
+      <div className="rounded-lg border border-line bg-white p-4 text-left shadow-sm sm:p-5">
+        <div className="flex items-start gap-3">
+          <motion.div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 text-brand-teal"
+            animate={{ y: [0, -2, 0] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
           >
-            {text}
-          </motion.span>
-        ))}
+            <Sparkles size={22} />
+          </motion.div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-teal">今天先做这一步</p>
+            <h2 className="mt-1 text-lg font-semibold leading-7 text-ink">{title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+              <span className="rounded-md border border-line bg-canvas px-2 py-1">{Math.max(3, minutes)} 分钟</span>
+              <span className="rounded-md border border-line bg-canvas px-2 py-1">默认：{activeCapability}</span>
+              {profile?.confidence ? (
+                <span className="rounded-md border border-line bg-canvas px-2 py-1">
+                  画像可信度 {Math.round(profile.confidence * 100)}%
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <motion.a
+            href={guideHref(profile)}
+            className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-teal px-4 text-sm font-semibold text-white hover:bg-teal-700"
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <Route size={16} />
+            进入导学
+          </motion.a>
+          <motion.button
+            type="button"
+            disabled={disabled}
+            className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 text-sm font-semibold text-brand-red hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => onQuickSend(cleanText(action?.suggested_prompt) || `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`)}
+            whileHover={disabled ? undefined : { y: -1 }}
+            whileTap={disabled ? undefined : { scale: 0.99 }}
+          >
+            <BookOpenCheck size={16} />
+            直接开始
+          </motion.button>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          {actions.map((item) => (
+            <QuickActionButton key={item.id} action={item} disabled={disabled} onQuickSend={onQuickSend} />
+          ))}
+        </div>
       </div>
     </motion.div>
+  );
+}
+
+function QuickActionButton({
+  action,
+  disabled,
+  onQuickSend,
+}: {
+  action: ReturnType<typeof quickActionsForProfile>[number];
+  disabled: boolean;
+  onQuickSend: (content: string, capability?: CapabilityId, config?: Record<string, unknown>) => void;
+}) {
+  const Icon = action.icon as LucideIcon;
+  return (
+    <motion.button
+      type="button"
+      disabled={disabled}
+      className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left hover:border-teal-200 hover:bg-teal-50/40 disabled:cursor-not-allowed disabled:opacity-50"
+      onClick={() => onQuickSend(action.prompt, action.capability, action.config)}
+      whileHover={disabled ? undefined : { y: -1 }}
+      whileTap={disabled ? undefined : { scale: 0.99 }}
+    >
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-canvas text-brand-blue">
+        <Icon size={16} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{action.label}</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">{action.description}</span>
+      </span>
+    </motion.button>
   );
 }
 

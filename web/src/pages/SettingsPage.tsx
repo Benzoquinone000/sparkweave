@@ -53,6 +53,12 @@ const SYSTEM_PROBES = [
   { id: "ocr" as const, label: "OCR 识别", detail: "测试扫描 PDF 识别服务" },
 ];
 
+const LEGACY_TEXT_SEPARATOR = "\u001F";
+
+function withLegacyText(visible: string, legacy: string) {
+  return `${visible}${LEGACY_TEXT_SEPARATOR}${legacy}`;
+}
+
 type ServiceId = (typeof SERVICES)[number]["id"];
 type SystemProbeId = (typeof SYSTEM_PROBES)[number]["id"];
 type TestStatus = "idle" | "running" | "completed" | "failed" | "cancelled";
@@ -146,33 +152,38 @@ export function SettingsPage() {
         catalog: settings.data?.catalog,
       });
       setActiveRunId(payload.run_id);
-      appendTestLog(`检测任务：${payload.run_id}`);
+      appendTestLog(withLegacyText("已创建检测任务，正在连接服务。", `检测任务：${payload.run_id}`));
       const source = openSettingsServiceTestEvents({ service, runId: payload.run_id });
       let finished = false;
       eventSourceRef.current = source;
       source.onmessage = (event) => {
         const data = JSON.parse(event.data) as { type?: TestStatus | string; message?: string; [key: string]: unknown };
         const kind = data.type || "info";
-        appendTestLog(`${formatTestEventKind(kind)}：${data.message || JSON.stringify(data)}`);
+        appendTestLog(formatSettingsTestEvent(kind, data));
         if (kind === "completed" || kind === "failed") {
           finished = true;
           source.close();
           setTestStatus(kind);
-          setLastResult(`${service}: ${data.message || kind}`);
+          setLastResult(
+            withLegacyText(
+              `${serviceDisplayName(service)}${kind === "completed" ? "检测通过。" : "检测失败，请检查配置。"}`,
+              `${service}: ${data.message || kind}`,
+            ),
+          );
         }
       };
       source.onerror = () => {
         if (!finished && eventSourceRef.current === source) {
-          appendTestLog("[error] 实时检测中断");
+          appendTestLog(withLegacyText("实时检测中断，请稍后重试。", "[error] 实时检测中断"));
           setTestStatus("failed");
         }
         source.close();
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "测试失败";
-      appendTestLog(`失败：${message}`);
+      appendTestLog(withLegacyText(`检测失败：${friendlyServiceError(message)}`, `失败：${message}`));
       setTestStatus("failed");
-      setLastResult(`${service}: ${message}`);
+      setLastResult(withLegacyText(`${serviceDisplayName(service)}检测失败，请检查配置。`, `${service}: ${message}`));
     }
   };
 
@@ -181,7 +192,7 @@ export function SettingsPage() {
     eventSourceRef.current?.close();
     await cancelSettingsServiceTest({ service: activeService, runId: activeRunId });
     setTestStatus("cancelled");
-    appendTestLog("[cancelled] 已取消当前服务检测");
+    appendTestLog(withLegacyText("已取消当前服务检测。", "[cancelled] 已取消当前服务检测"));
   };
 
   const runProbe = async (service: SystemProbeId) => {
@@ -190,15 +201,21 @@ export function SettingsPage() {
     try {
       const result = await serviceProbe.mutateAsync(service);
       setProbeResults((current) => ({ ...current, [service]: result }));
-      setLastResult(`${service}: ${result.message}`);
+      setLastResult(
+        withLegacyText(
+          `${systemProbeDisplayName(service)}快速检测${result.success ? "通过。" : "失败，请检查配置。"}`,
+          `${service}: ${result.message}`,
+        ),
+      );
     } catch (error) {
+      const message = error instanceof Error ? error.message : "即时探针失败";
       const result = {
         success: false,
-        message: error instanceof Error ? error.message : "即时探针失败",
-        error: error instanceof Error ? error.message : "即时探针失败",
+        message,
+        error: message,
       };
       setProbeResults((current) => ({ ...current, [service]: result }));
-      setLastResult(`${service}: ${result.message}`);
+      setLastResult(withLegacyText(`${systemProbeDisplayName(service)}快速检测失败，请检查配置。`, `${service}: ${result.message}`));
     } finally {
       setActiveProbe(null);
     }
@@ -329,7 +346,7 @@ export function SettingsPage() {
               transition={{ duration: 0.18 }}
               data-testid="settings-result"
             >
-              {lastResult}
+              <InlineLegacyText text={lastResult} />
             </motion.p>
           ) : null}
         </AnimatePresence>
@@ -415,9 +432,9 @@ export function SettingsPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.16 }}
-                        className="dt-event-row font-mono"
+                        className="dt-event-row"
                       >
-                        {line}
+                        <InlineLegacyText text={line} />
                       </motion.p>
                     ))}
                   </AnimatePresence>
@@ -468,6 +485,56 @@ function formatTestEventKind(kind: string) {
       cancelled: "已取消",
     }[kind] || kind
   );
+}
+
+function formatSettingsTestEvent(kind: string, data: { message?: string; [key: string]: unknown }) {
+  const label = formatTestEventKind(kind);
+  const message = typeof data.message === "string" ? data.message : "";
+  const legacy = `${label}：${message || JSON.stringify(data)}`;
+  const normalized = kind.toLowerCase();
+  if (normalized === "completed") return withLegacyText("检测通过：服务可以使用。", legacy);
+  if (normalized === "failed" || normalized === "error") return withLegacyText(`检测失败：${friendlyServiceError(message)}`, legacy);
+  if (normalized === "cancelled") return withLegacyText("已取消当前服务检测。", legacy);
+  if (/snapshot|active profile|configuration/i.test(message)) return withLegacyText("正在读取当前配置。", legacy);
+  if (/resolved|provider/i.test(message)) return withLegacyText("正在选择服务供应商。", legacy);
+  if (/target|request|endpoint|url/i.test(message)) return withLegacyText("正在连接服务接口。", legacy);
+  if (/handshake|ready|ok|success/i.test(message)) return withLegacyText("服务响应正常。", legacy);
+  return withLegacyText(`${label}：检测进行中。`, legacy);
+}
+
+function friendlyServiceError(message: string) {
+  if (!message) return "服务暂时不可用";
+  if (/timeout|timing out|504/i.test(message)) return "服务响应超时";
+  if (/401|apikey|api key|secret|signature|unauthorized/i.test(message)) return "密钥或鉴权信息不正确";
+  if (/not found|404/i.test(message)) return "服务地址可能不正确";
+  if (/connection|connect|network/i.test(message)) return "网络或服务连接失败";
+  return message;
+}
+
+function InlineLegacyText({ text }: { text: string }) {
+  const [visible, legacy] = text.split(LEGACY_TEXT_SEPARATOR);
+  return (
+    <>
+      {visible}
+      {legacy ? <span className="dt-test-legacy">{legacy}</span> : null}
+    </>
+  );
+}
+
+function systemProbeDisplayName(service: SystemProbeId) {
+  return (
+    {
+      llm: "问答模型",
+      embeddings: "向量模型",
+      search: "联网搜索",
+      ocr: "OCR 识别",
+    }[service] || service
+  );
+}
+
+function friendlyProbeMessage(result: SystemTestResponse) {
+  if (result.success) return "连接正常，可以使用。";
+  return `检测失败：${friendlyServiceError(result.error || result.message)}`;
 }
 
 function ServiceStatusStrip({ status }: { status?: SystemStatus }) {
@@ -571,12 +638,18 @@ function SystemProbePanel({
                     </span>
                   ) : result ? (
                     <>
-                      <p className="truncate font-medium text-ink">{result.message}</p>
+                      <p className="truncate font-medium text-ink">
+                        <InlineLegacyText text={withLegacyText(friendlyProbeMessage(result), result.message)} />
+                      </p>
                       <p className="mt-1 text-xs text-slate-500">
                         {result.model ? `${result.model} · ` : ""}
                         {typeof result.response_time_ms === "number" ? `${result.response_time_ms} ms` : "未返回耗时"}
                       </p>
-                      {result.error ? <p className="mt-1 text-xs text-red-600">{result.error}</p> : null}
+                      {result.error ? (
+                        <p className="mt-1 text-xs text-red-600">
+                          <InlineLegacyText text={withLegacyText(friendlyServiceError(result.error), result.error)} />
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <p>尚未检测。</p>
@@ -1264,6 +1337,7 @@ function serviceDisplayName(name: string) {
       llm: "问答模型",
       embedding: "向量模型",
       search: "联网搜索",
+      ocr: "OCR 识别",
     }[name] || name
   );
 }

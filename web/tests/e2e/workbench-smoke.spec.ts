@@ -1228,13 +1228,13 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
   await page.getByTestId("settings-diagnostics-toggle").click();
   await page.getByTestId("settings-probe-llm").click();
   await expect.poll(() => settings.systemProbeTarget).toBe("llm");
-  await expect(page.getByTestId("settings-probe-result-llm")).toContainText("LLM connection successful");
-  await expect(page.getByText("llm: LLM connection successful")).toBeVisible();
+  await expect(page.getByTestId("settings-probe-result-llm")).toContainText("连接正常，可以使用");
+  await expect(page.getByText("问答模型快速检测通过。")).toBeVisible();
 
   await page.getByTestId("settings-test-llm").click();
   await expect.poll(() => settings.serviceStartPayload?.service).toBe("llm");
-  await expect(page.getByTestId("settings-test-logs")).toContainText("LLM handshake ok");
-  await expect(page.getByText("llm: LLM ready")).toBeVisible();
+  await expect(page.getByTestId("settings-test-logs")).toContainText("服务响应正常");
+  await expect(page.getByText("问答模型检测通过。")).toBeVisible();
 
   await page.getByTestId("settings-test-search").click();
   await expect.poll(() => settings.serviceStartPayload?.service).toBe("search");

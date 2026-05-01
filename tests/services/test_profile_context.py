@@ -66,6 +66,8 @@ async def test_profile_context_injector_builds_compact_prompt_block() -> None:
     assert payload["source"] == "learner_profile"
     assert payload["hints"]["current_focus"] == "梯度下降"
     assert payload["hints"]["preferred_resource"] == "curated_public_video"
+    assert payload["hints"]["progress_style"]["label"] == "概念澄清型"
+    assert "图解" in payload["hints"]["progress_style"]["strategy"]
     assert "精选公开视频" in payload["hints"]["next_action"]["suggested_prompt"]
     assert payload["hints"]["weak_points"] == ["概念边界不清", "公式含义不稳"]
     assert payload["hints"]["mastery_needs_attention"] == ["梯度方向"]
@@ -74,6 +76,7 @@ async def test_profile_context_injector_builds_compact_prompt_block() -> None:
     assert "梯度下降" in payload["text"]
     assert "next_action_prompt" in payload["text"]
     assert "curated_public_video" in payload["text"]
+    assert "progress_style" in payload["text"]
     assert service.calls == [{"auto_refresh": True}]
 
 

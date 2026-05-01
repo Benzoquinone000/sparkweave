@@ -102,6 +102,7 @@ class ProfileContextInjector:
                 "confidence": next_action.get("confidence"),
             },
         }
+        hints["progress_style"] = _progress_style_from_profile(profile, hints)
         return hints
 
     @staticmethod
@@ -124,6 +125,10 @@ class ProfileContextInjector:
         _append_list(lines, "strengths", hints.get("strengths"))
         _append_list(lines, "weak_points", hints.get("weak_points"))
         _append_list(lines, "mastery_needs_attention", hints.get("mastery_needs_attention"))
+        style = _dict(hints.get("progress_style"))
+        if style.get("label"):
+            lines.append(f"- progress_style: {style.get('label')}")
+            _append_line(lines, "progress_strategy", style.get("strategy"))
 
         action = _dict(hints.get("next_action"))
         action_title = _clean_text(action.get("title"))
@@ -223,6 +228,50 @@ def _preferred_resource_from_preferences(value: Any) -> str:
     return ""
 
 
+def _progress_style_from_profile(profile: dict[str, Any], hints: dict[str, Any]) -> dict[str, str]:
+    preferences = {item.lower() for item in _list_values(_dict(profile.get("stable_profile")).get("preferences"), 10)}
+    weak_points = _list_values(hints.get("weak_points"), 8)
+    mastery_attention = _list_values(hints.get("mastery_needs_attention"), 8)
+    preferred_resource = str(hints.get("preferred_resource") or "").strip()
+    confidence = _as_float(profile.get("confidence"))
+    overview = _dict(profile.get("overview"))
+    accuracy = _as_float(overview.get("assessment_accuracy"))
+
+    prefers_practice = (
+        preferred_resource == "interactive_practice"
+        or any("practice" in item or "quiz" in item or "练习" in item or "题" in item for item in preferences)
+    )
+    prefers_visual = (
+        preferred_resource == "visual_explanation"
+        or any("visual" in item or "图解" in item or "示意" in item or "关系图" in item for item in preferences)
+    )
+    prefers_video = (
+        preferred_resource in {"short_video", "curated_public_video"}
+        or any("video" in item or "视频" in item or "公开课" in item for item in preferences)
+    )
+
+    label = "渐进压实型"
+    strategy = "先给轻量解释，再通过短任务和反馈逐步压实，不要一次性塞太多材料。"
+    if prefers_practice and (accuracy >= 0.55 or not weak_points):
+        label = "练习驱动型"
+        strategy = "优先给可提交的小练习或任务，做完后根据错因补讲关键概念。"
+    elif prefers_visual and weak_points:
+        label = "概念澄清型"
+        strategy = "先用图解、关系图或最小例子澄清概念边界，再进入练习验证。"
+    elif prefers_video and confidence >= 0.55 and len(weak_points) <= 1:
+        label = "快速串联型"
+        strategy = "优先用短视频或分步讲解串起流程，再安排少量题目确认理解。"
+    elif len(weak_points) + len(mastery_attention) >= 3:
+        label = "补基校准型"
+        strategy = "先缩小任务范围，只处理最关键卡点，完成后再重新评估下一步。"
+
+    return {
+        "label": label,
+        "strategy": strategy,
+        "preferred_resource": preferred_resource,
+    }
+
+
 def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
     return [item for item in value or [] if isinstance(item, dict)] if isinstance(value, list) else []
 
@@ -251,6 +300,13 @@ def _clip_text(value: str, limit: int) -> str:
 def _as_int(value: Any, default: int = 0) -> int:
     try:
         return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
     except (TypeError, ValueError):
         return default
 

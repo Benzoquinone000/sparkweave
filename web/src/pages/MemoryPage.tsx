@@ -534,43 +534,56 @@ function LearningStyleCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-brand-teal">你的学习推进方式</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-ink">{progressStyle.label}</h2>
-            <Tag>{progressStyle.confidenceText}</Tag>
-          </div>
+          <h2 className="mt-2 text-lg font-semibold text-ink">系统会按“{progressStyle.label}”带你走</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{progressStyle.summary}</p>
         </div>
-        <a
-          href={actionHref}
-          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-brand-teal hover:bg-white"
-        >
-          {actionLabel}
-          <ArrowRight size={14} />
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <Tag>{progressStyle.confidenceText}</Tag>
+          <a
+            href={actionHref}
+            className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-brand-teal hover:bg-white"
+          >
+            {actionLabel}
+            <ArrowRight size={14} />
+          </a>
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.72fr)]">
-        <div className="grid gap-2 md:grid-cols-3">
-          {progressStyle.signals.slice(0, 3).map((signal) => (
-            <div key={signal.label} className="rounded-lg border border-line bg-canvas p-3">
+      <div className="mt-4 grid gap-2 md:grid-cols-3">
+        {progressStyle.signals.slice(0, 3).map((signal, index) => (
+          <motion.div
+            key={signal.label}
+            className="rounded-lg border border-line bg-canvas p-3"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.04, duration: 0.18 }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-brand-teal">
+                {index + 1}
+              </span>
               <Badge tone={signal.tone}>{signal.label}</Badge>
-              <p className="mt-2 text-xs leading-5 text-slate-600">{signal.detail}</p>
             </div>
-          ))}
-        </div>
-        <div className={`rounded-lg border p-3 ${shift ? directionTone[shift.direction] : "border-line bg-canvas text-slate-600"}`}>
+            <p className="mt-2 text-xs leading-5 text-slate-600">{signal.detail}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className={`mt-3 rounded-lg border p-3 ${shift ? directionTone[shift.direction] : "border-line bg-canvas text-slate-600"}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <CheckCircle2 size={15} />
           <p className="text-xs font-semibold">{shift?.label || "最近仍在观察"}</p>
-          <p className="mt-2 text-xs leading-5">{shift?.summary || "继续完成一次任务或练习后，系统会更清楚你适合怎样推进。"}</p>
-          {shift?.cues.length ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {shift.cues.slice(0, 3).map((cue) => (
-                <span key={cue} className="rounded-md border border-white/70 bg-white/80 px-2 py-1 text-[11px] text-slate-600">
-                  {cue}
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
+        <p className="mt-2 text-xs leading-5">{shift?.summary || "继续完成一次任务或练习后，系统会更清楚你适合怎样推进。"}</p>
+        {shift?.cues.length ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {shift.cues.slice(0, 3).map((cue) => (
+              <span key={cue} className="rounded-md border border-white/70 bg-white/80 px-2 py-1 text-[11px] text-slate-600">
+                {cue}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {progressStyle.suggestions.length ? (

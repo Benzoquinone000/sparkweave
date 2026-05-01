@@ -111,6 +111,7 @@ cd ..
 - 画像 P7 题目事件按知识点沉淀 mastery 与 weak point：`docs/learner-profile-p7-concept-mastery.md`
 - 画像 P8 一步行动建议、画像到导学的行动闭环：`docs/learner-profile-p8-next-action.md`
 - 画像 P9 模型上下文注入、LangGraph 回合画像摘要：`docs/learner-profile-p9-context-injection.md`
+- 画像 P20 推进方式压缩、学习协议式前端表达：`docs/learner-profile-p20-compact-style-card.md`
 - 新环境变量：`docs/configuration.md`
 - 新 Provider、设置页、模型 catalog 行为：`docs/settings-and-providers.md`
 - 新系统状态、连接测试、诊断提示或 Embedding adapter 行为：`docs/system-diagnostics.md`

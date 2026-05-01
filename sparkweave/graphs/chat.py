@@ -1210,6 +1210,17 @@ class ChatGraph:
             if values:
                 hints[key] = values
 
+        progress_style = raw_hints.get("progress_style")
+        if isinstance(progress_style, dict):
+            style = {
+                "label": ChatGraph._hint_text(progress_style.get("label")),
+                "strategy": ChatGraph._hint_text(progress_style.get("strategy"), limit=260),
+                "preferred_resource": ChatGraph._hint_text(progress_style.get("preferred_resource")),
+            }
+            style = {key: value for key, value in style.items() if value}
+            if style:
+                hints["progress_style"] = style
+
         next_action = raw_hints.get("next_action")
         if isinstance(next_action, dict):
             action = {
@@ -1259,6 +1270,9 @@ class ChatGraph:
         preferred_resource = hints.get("preferred_resource")
         if preferred_resource:
             parts.append(f"preferred resource: {preferred_resource}")
+        progress_style = hints.get("progress_style")
+        if isinstance(progress_style, dict) and progress_style.get("label"):
+            parts.append(f"progress style: {progress_style['label']}")
         time_budget = hints.get("time_budget_minutes")
         if time_budget:
             parts.append(f"fit within about {time_budget} minutes")

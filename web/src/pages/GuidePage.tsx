@@ -3026,6 +3026,7 @@ function CoursePackagePanel({
   const demoBlueprint = coursePackage?.demo_blueprint ?? null;
   const fallbackKit = coursePackage?.demo_fallback_kit ?? null;
   const seedPack = coursePackage?.demo_seed_pack ?? null;
+  const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
       <div className="flex items-center justify-between gap-2">
@@ -3042,7 +3043,8 @@ function CoursePackagePanel({
         <p className="text-sm font-semibold text-ink">{project.title || "学习成果项目"}</p>
         <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{project.scenario || "完成更多学习任务后会生成更贴合你的项目说明。"}</p>
       </div>
-      <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} />
+      <CourseLearningStyleCard learningStyle={learningStyle} />
+      <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} learningStyle={learningStyle} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-ink">产出依据</p>
@@ -3101,14 +3103,42 @@ function CoursePackagePanel({
   );
 }
 
+function CourseLearningStyleCard({ learningStyle }: { learningStyle: GuideV2CoursePackage["learning_style"] | null }) {
+  if (!learningStyle?.label && !learningStyle?.summary) return null;
+  const signals = learningStyle.signals ?? [];
+  return (
+    <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-course-learning-style">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="brand">画像驱动产出</Badge>
+        {learningStyle.label ? <Badge tone="neutral">{learningStyle.label}</Badge> : null}
+      </div>
+      <p className="mt-2 text-sm leading-6 text-teal-950">
+        {learningStyle.summary || "课程产出包会把画像、资源、练习和报告串成可展示的学习闭环。"}
+      </p>
+      {learningStyle.trend ? <p className="mt-1 text-xs leading-5 text-teal-800">{learningStyle.trend}</p> : null}
+      {signals.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {signals.slice(0, 3).map((signal) => (
+            <span key={`${signal.label}-${signal.value}`} className="rounded-md border border-teal-100 bg-white px-2 py-1 text-xs text-slate-600">
+              {signal.label || "信号"}：{signal.value || "-"}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CourseDemoRecordingChecklistCard({
   blueprint,
   kit,
   seed,
+  learningStyle,
 }: {
   blueprint: GuideV2CoursePackage["demo_blueprint"] | null;
   kit: GuideV2CoursePackage["demo_fallback_kit"] | null;
   seed: GuideV2CoursePackage["demo_seed_pack"] | null;
+  learningStyle: GuideV2CoursePackage["learning_style"] | null;
 }) {
   const storyline = blueprint?.storyline ?? [];
   const taskChain = seed?.task_chain ?? [];
@@ -3150,6 +3180,7 @@ function CourseDemoRecordingChecklistCard({
       <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Badge tone="brand">{title}</Badge>
+        {learningStyle?.label ? <Badge tone="success">{learningStyle.label}</Badge> : null}
         {persona.name ? <Badge tone="neutral">{persona.name}</Badge> : null}
         {(persona.weak_points ?? []).slice(0, 1).map((item) => (
           <Badge key={item} tone="warning">{item}</Badge>

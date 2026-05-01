@@ -1345,6 +1345,18 @@ export interface GuideV2LearningReport {
   markdown?: string;
 }
 
+export interface GuideV2LearningStyle {
+  label?: string;
+  summary?: string;
+  trend?: string;
+  demo_talking_point?: string;
+  path_effect?: string;
+  signals?: Array<{
+    label?: string;
+    value?: string;
+  }>;
+}
+
 export interface GuideV2CoursePackage {
   success?: boolean;
   session_id: string;
@@ -1383,6 +1395,7 @@ export interface GuideV2CoursePackage {
     action?: string;
     mastery_score?: number;
   }>;
+  learning_style?: GuideV2LearningStyle;
   demo_outline?: string[];
   demo_blueprint?: {
     title?: string;
@@ -1390,6 +1403,7 @@ export interface GuideV2CoursePackage {
     summary?: string;
     readiness_label?: string;
     readiness_score?: number;
+    learning_style?: GuideV2LearningStyle;
     storyline?: Array<{
       minute?: string;
       title?: string;

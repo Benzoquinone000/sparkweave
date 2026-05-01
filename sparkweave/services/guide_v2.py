@@ -1949,11 +1949,17 @@ class GuideV2Manager:
         report = self.build_learning_report(session_id)
         node_cards = list(report.get("node_cards") or []) if report.get("success") else []
         portfolio = self._course_portfolio(session)
+        learning_style = self._course_learning_style(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+        )
         demo_blueprint = self._course_demo_blueprint(
             session=session,
             evaluation=evaluation,
             report=report if report.get("success") else {},
             portfolio=portfolio,
+            learning_style=learning_style,
         )
         demo_fallback_kit = self._course_demo_fallback_kit(
             session=session,
@@ -1977,6 +1983,7 @@ class GuideV2Manager:
             "rubric": self._course_rubric(session, evaluation),
             "portfolio": portfolio,
             "review_plan": self._course_review_plan(node_cards),
+            "learning_style": learning_style,
             "demo_outline": self._course_demo_outline(session, evaluation),
             "demo_blueprint": demo_blueprint,
             "demo_fallback_kit": demo_fallback_kit,
@@ -5621,6 +5628,65 @@ class GuideV2Manager:
             return "已形成部分学习证据，课程产出包将把剩余学习任务和项目交付绑定起来，帮助继续推进闭环。"
         return "课程产出包已预生成。建议先完成导学任务和练习，再用真实学习证据更新最终项目要求。"
 
+    @staticmethod
+    def _course_learning_style(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+    ) -> dict[str, Any]:
+        preferences = [str(item) for item in (session.profile.preferences or []) if str(item).strip()]
+        weak_points = [str(item) for item in (session.profile.weak_points or []) if str(item).strip()]
+        behavior = dict(report.get("behavior_summary") or {})
+        score = int(evaluation.get("overall_score") or 0)
+        progress = int(evaluation.get("progress") or 0)
+        completed = int(evaluation.get("completed_tasks") or 0)
+        quiz_attempts = int(behavior.get("quiz_attempt_count") or 0)
+        resource_count = int(behavior.get("resource_count") or 0)
+        profile_updates = int(behavior.get("profile_update_count") or 0)
+
+        joined_preferences = " ".join(preferences).lower()
+        prefers_practice = bool(re.search(r"练习|题|practice|quiz", joined_preferences))
+        prefers_visual = bool(re.search(r"图解|图|visual|diagram", joined_preferences))
+        prefers_video = bool(re.search(r"视频|video|动画|manim", joined_preferences))
+
+        label = "渐进压实型"
+        summary = "学习路线会先保住核心理解，再通过资源、练习和反思逐步压实。"
+        if prefers_practice and quiz_attempts > 0:
+            label = "练习驱动型"
+            summary = "课程产出包会把练习证据和错因复盘放在更突出的位置，用可评分任务证明掌握过程。"
+        elif prefers_visual and weak_points:
+            label = "概念澄清型"
+            summary = "课程产出包会优先展示图解、知识地图和关键概念边界，让评委看到系统如何降低理解门槛。"
+        elif prefers_video and score >= 60:
+            label = "快速串联型"
+            summary = "课程产出包会用短视频、分步讲解或录屏脚本串起主线，再回到练习和报告确认效果。"
+        elif profile_updates >= 2 or score < 55:
+            label = "反复校准型"
+            summary = "课程产出包会强调画像修正、反馈证据和学习处方，说明系统如何边学边调整。"
+
+        if progress >= 70 and score >= 70:
+            trend = "最近证据已经比较稳定，可以在演示中稍微加快节奏。"
+        elif completed or resource_count or quiz_attempts:
+            trend = "已经形成部分学习证据，适合展示从任务到资源再到反馈的闭环。"
+        else:
+            trend = "证据仍在起步阶段，演示时应优先跑通一次画像、资源和练习提交。"
+
+        signals = [
+            {"label": "偏好", "value": "、".join(preferences[:2]) if preferences else "继续观察"},
+            {"label": "卡点", "value": "、".join(weak_points[:2]) if weak_points else "暂无明显堆积"},
+            {"label": "证据", "value": f"{completed} 个任务 / {resource_count} 个资源 / {quiz_attempts} 次练习"},
+        ]
+
+        return {
+            "label": label,
+            "summary": summary,
+            "trend": trend,
+            "signals": signals,
+            "demo_talking_point": f"这条课程 Demo 会按「{label}」组织产物，说明画像不是静态标签，而是在影响资源顺序、练习安排和学习报告。",
+            "path_effect": "画像先影响当前任务，再影响资源类型和练习反馈，最后进入课程产出包。",
+        }
+
     def _capstone_project(self, session: GuideSessionV2, evaluation: dict[str, Any]) -> dict[str, Any]:
         nodes = session.course_map.nodes
         topic = session.course_map.title or self._short_title(session.goal)
@@ -5762,11 +5828,13 @@ class GuideV2Manager:
         evaluation: dict[str, Any],
         report: dict[str, Any],
         portfolio: list[dict[str, Any]],
+        learning_style: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a concrete recording plan for the competition demo."""
 
         current = GuideV2Manager._current_task(session)
         readiness = dict(report.get("demo_readiness") or {})
+        learning_style = dict(learning_style or {})
         action_brief = dict(report.get("action_brief") or {})
         primary_action = dict(action_brief.get("primary_action") or {})
         resource_counts = dict(evaluation.get("resource_counts") or {})
@@ -5788,7 +5856,8 @@ class GuideV2Manager:
                 "minute": "0:00-0:40",
                 "title": "学习目标与画像入口",
                 "show": "打开导学首页，说明目标、水平、偏好和薄弱点如何进入画像。",
-                "talking_point": "系统先理解学生，再安排路径，避免一开始就让用户面对复杂工具。",
+                "talking_point": learning_style.get("demo_talking_point")
+                or "系统先理解学生，再安排路径，避免一开始就让用户面对复杂工具。",
                 "requirement": "对话式学习画像自主构建",
             },
             {
@@ -5851,6 +5920,7 @@ class GuideV2Manager:
             or "按画像、路线、资源、练习、报告、产出包的顺序录制，能完整覆盖赛题主线。",
             "readiness_label": readiness.get("label") or evaluation.get("readiness", "not_started"),
             "readiness_score": readiness.get("score", 0),
+            "learning_style": learning_style,
             "storyline": storyline,
             "fallbacks": fallbacks[:4],
             "judge_mapping": judge_mapping,
@@ -6028,6 +6098,8 @@ class GuideV2Manager:
         project = dict(package.get("capstone_project") or {})
         report = dict(package.get("learning_report") or {})
         metadata = dict(package.get("course_metadata") or {})
+        learning_style = dict(package.get("learning_style") or {})
+        learning_style_signals = [item for item in learning_style.get("signals") or [] if isinstance(item, dict)]
         demo_blueprint = dict(package.get("demo_blueprint") or {})
         demo_storyline = [item for item in demo_blueprint.get("storyline") or [] if isinstance(item, dict)]
         demo_fallbacks = [str(item) for item in demo_blueprint.get("fallbacks") or []]
@@ -6076,6 +6148,15 @@ class GuideV2Manager:
             lines.append(f"- {item}")
         if not metadata.get("learning_outcomes"):
             lines.append("- 完成课程核心任务并形成可展示作品。")
+        if learning_style:
+            lines.extend(["", "## 学习画像与推进方式", ""])
+            lines.append(f"- 推进风格：{learning_style.get('label') or '-'}")
+            lines.append(f"- 说明：{learning_style.get('summary') or '-'}")
+            lines.append(f"- 趋势：{learning_style.get('trend') or '-'}")
+            if learning_style.get("path_effect"):
+                lines.append(f"- 路线影响：{learning_style.get('path_effect')}")
+            for item in learning_style_signals[:3]:
+                lines.append(f"- {item.get('label') or '信号'}：{item.get('value') or '-'}")
         if recent_timeline_events:
             lines.extend(["", "## 最近学习轨迹", ""])
             for event in recent_timeline_events[:5]:

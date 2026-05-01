@@ -803,6 +803,9 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["review_plan"]
     assert package["demo_outline"]
     assert package["demo_blueprint"]["duration_minutes"] == 7
+    assert package["learning_style"]["label"]
+    assert package["learning_style"]["signals"]
+    assert package["demo_blueprint"]["learning_style"]["label"] == package["learning_style"]["label"]
     assert package["demo_blueprint"]["storyline"]
     assert package["demo_blueprint"]["judge_mapping"]
     assert package["demo_fallback_kit"]["persona"]["goal"]
@@ -819,6 +822,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["learning_report"]["behavior_tags"]
     assert "mistake_summary" in package["learning_report"]
     assert "课程产出包" in package["markdown"]
+    assert "学习画像与推进方式" in package["markdown"]
     assert "最近学习轨迹" in package["markdown"]
     assert "7 分钟演示路线" in package["markdown"]
     assert "录屏兜底包" in package["markdown"]

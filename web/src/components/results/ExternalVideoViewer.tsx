@@ -18,6 +18,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   const videos = result.videos ?? [];
   const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos[0];
   const embedUrl = safeEmbedUrl(featured?.embed_url);
+  const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-3" data-testid="external-video-viewer">
@@ -27,6 +28,24 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       </div>
 
       {result.response ? <p className="mt-3 text-sm leading-6 text-slate-600">{result.response}</p> : null}
+      {featured ? (
+        <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3" data-testid="external-video-watch-plan">
+          <p className="text-xs font-semibold text-brand-teal">建议用法</p>
+          <p className="mt-1 text-sm leading-6 text-slate-700">
+            先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。
+          </p>
+        </div>
+      ) : null}
+      {chain.length ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500" data-testid="external-video-chain">
+          <span className="font-medium text-slate-600">筛选链路</span>
+          {chain.map((item, index) => (
+            <span key={`${item.label || item.detail}-${index}`} className="rounded-md border border-line bg-white px-2 py-1">
+              {item.label || item.detail}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {embedUrl ? (
         <div className="mt-4 overflow-hidden rounded-lg border border-line bg-black">

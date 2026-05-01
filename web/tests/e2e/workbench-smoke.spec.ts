@@ -2836,6 +2836,55 @@ test("chat keeps raw message trace while task snapshot shows completion", async 
   await expect(snapshot).not.toContainText("· thinking");
 });
 
+test("chat renders external video results as learner-facing cards", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "external video smoke runs once");
+  await mockReferenceApis(page);
+  await installMockWebSocket(page, {
+    events: [
+      {
+        type: "result",
+        stage: "final",
+        content: "",
+        metadata: {
+          success: true,
+          render_type: "external_video",
+          response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+          videos: [
+            {
+              title: "梯度下降直观讲解",
+              url: "https://www.bilibili.com/video/BV1gradient01",
+              platform: "Bilibili",
+              why_recommended: "贴合当前卡点：概念边界不清。已参考学习偏好：公开视频。",
+              duration_seconds: 540,
+            },
+            {
+              title: "Gradient Descent Explained",
+              url: "https://www.youtube.com/watch?v=abc123",
+              platform: "YouTube",
+              duration_seconds: 720,
+            },
+          ],
+          agent_chain: [
+            { label: "画像智能体", detail: "读取学习偏好。" },
+            { label: "视频检索智能体", detail: "检索公开视频。" },
+            { label: "筛选智能体", detail: "排序候选。" },
+          ],
+        },
+      },
+    ],
+  });
+
+  await page.goto("/chat");
+  await page.locator("textarea").first().fill("找梯度下降公开视频");
+  await page.getByRole("button", { name: /发送/ }).click();
+
+  await expect(page.getByTestId("external-video-viewer")).toBeVisible();
+  await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
+  await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
+  await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开观看" }).first()).toBeVisible();
+});
+
 test("chat records deep question quiz answers", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "quiz result recording smoke runs once");
   const reference = await mockReferenceApis(page);

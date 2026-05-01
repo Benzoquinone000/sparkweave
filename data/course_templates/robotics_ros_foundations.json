@@ -1,0 +1,237 @@
+{
+  "id": "robotics_ros_foundations",
+  "title": "完整课程：智能机器人与 ROS 基础",
+  "course_id": "ROBOT101",
+  "course_name": "智能机器人与 ROS 基础",
+  "description": "面向高校工科初学者的 8 周实践课程，围绕机器人系统组成、ROS 通信、TF 坐标变换、运动控制、传感器融合和课程小项目构建完整学习路径。",
+  "target_learners": "具备基础 C++ 或 Python 编程经验，希望完成机器人软件入门项目的本科生。",
+  "level": "beginner",
+  "suggested_weeks": 8,
+  "credits": 2,
+  "estimated_minutes": 520,
+  "tags": ["robotics", "ros", "cpp", "project-based", "multimodal"],
+  "default_goal": "我想系统学习智能机器人与 ROS 基础，并完成一个可演示的移动机器人小项目。",
+  "default_preferences": ["visual", "practice", "external_video"],
+  "default_time_budget_minutes": 45,
+  "learning_outcomes": [
+    "能解释机器人感知、决策、控制和执行的系统分工。",
+    "能使用 ROS 话题、服务和参数完成基础节点通信。",
+    "能读懂 TF 坐标关系，并排查常见坐标系错误。",
+    "能实现一个简化的速度控制或传感器反馈小任务。",
+    "能整理项目报告，说明系统架构、调试过程和改进方向。"
+  ],
+  "assessment": [
+    { "name": "阶段练习", "weight": 30, "description": "每周完成一个可检查的小任务。" },
+    { "name": "调试记录", "weight": 20, "description": "保存关键错误、排查路径和修复依据。" },
+    { "name": "课程项目", "weight": 40, "description": "完成一个移动机器人通信与控制演示。" },
+    { "name": "学习反思", "weight": 10, "description": "提交路线复盘和下一步计划。" }
+  ],
+  "project_milestones": [
+    { "week": 1, "topic": "机器人系统全景", "deliverable": "系统组成图和学习目标卡" },
+    { "week": 2, "topic": "ROS 工作空间与节点", "deliverable": "能启动一个自定义节点" },
+    { "week": 3, "topic": "话题通信与消息设计", "deliverable": "发布/订阅一组机器人状态消息" },
+    { "week": 4, "topic": "服务、参数与配置", "deliverable": "用服务触发机器人动作参数切换" },
+    { "week": 5, "topic": "TF 坐标变换", "deliverable": "画出 base_link、odom、map 的关系并排查错误" },
+    { "week": 6, "topic": "速度控制与闭环反馈", "deliverable": "实现简化 cmd_vel 控制任务" },
+    { "week": 7, "topic": "传感器数据与融合直觉", "deliverable": "解释激光/里程计数据在导航中的作用" },
+    { "week": 8, "topic": "课程小项目与展示", "deliverable": "完成移动机器人通信与控制演示报告" }
+  ],
+  "nodes": [
+    {
+      "node_id": "RB1",
+      "title": "机器人系统全景",
+      "description": "理解机器人由感知、决策、控制和执行组成，并明确课程项目目标。",
+      "difficulty": "easy",
+      "estimated_minutes": 35,
+      "tags": ["overview"],
+      "mastery_target": "能用一张图解释机器人软件栈和硬件执行链路。",
+      "resource_strategy": ["concept map", "external_video"]
+    },
+    {
+      "node_id": "RB2",
+      "title": "ROS 工作空间与节点",
+      "description": "掌握工作空间、package、node、launch 的基本关系。",
+      "prerequisites": ["RB1"],
+      "difficulty": "easy",
+      "estimated_minutes": 45,
+      "tags": ["ros", "workspace"],
+      "mastery_target": "能创建并启动一个最小 ROS 节点。",
+      "resource_strategy": ["step-by-step", "practice"]
+    },
+    {
+      "node_id": "RB3",
+      "title": "话题通信与消息设计",
+      "description": "理解 publish/subscribe 通信模式、消息类型和频率。",
+      "prerequisites": ["RB2"],
+      "difficulty": "medium",
+      "estimated_minutes": 60,
+      "tags": ["topic", "message"],
+      "mastery_target": "能实现一个状态发布者和一个监听者，并解释消息流向。",
+      "resource_strategy": ["code walkthrough", "quiz"]
+    },
+    {
+      "node_id": "RB4",
+      "title": "服务、参数与配置",
+      "description": "理解请求响应式服务、动态参数和配置管理的适用场景。",
+      "prerequisites": ["RB3"],
+      "difficulty": "medium",
+      "estimated_minutes": 55,
+      "tags": ["service", "parameter"],
+      "mastery_target": "能判断话题、服务、参数分别适合解决什么问题。",
+      "resource_strategy": ["comparison table", "practice"]
+    },
+    {
+      "node_id": "RB5",
+      "title": "TF 坐标变换",
+      "description": "掌握常见坐标系、父子关系和时间戳错误排查。",
+      "prerequisites": ["RB4"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["tf", "coordinate"],
+      "mastery_target": "能画出坐标树，并解释 base_link、odom、map 的区别。",
+      "resource_strategy": ["visual", "debug drill"]
+    },
+    {
+      "node_id": "RB6",
+      "title": "速度控制与闭环反馈",
+      "description": "理解 cmd_vel、控制频率、反馈误差和简单闭环控制。",
+      "prerequisites": ["RB5"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["control", "cmd_vel"],
+      "mastery_target": "能实现一个简化速度控制任务，并解释反馈为何能减少误差。",
+      "resource_strategy": ["animation", "practice"]
+    },
+    {
+      "node_id": "RB7",
+      "title": "传感器数据与融合直觉",
+      "description": "理解激光雷达、里程计、IMU 在定位和导航中的角色。",
+      "prerequisites": ["RB6"],
+      "difficulty": "medium",
+      "estimated_minutes": 60,
+      "tags": ["sensor", "fusion"],
+      "mastery_target": "能说明多传感器为何需要时间同步和坐标统一。",
+      "resource_strategy": ["case study", "external_video"]
+    },
+    {
+      "node_id": "RB8",
+      "title": "课程小项目与展示",
+      "description": "整合通信、坐标和控制，形成一个可演示的小项目报告。",
+      "prerequisites": ["RB7"],
+      "difficulty": "hard",
+      "estimated_minutes": 120,
+      "tags": ["project", "report"],
+      "mastery_target": "能提交一份包含架构图、节点通信、调试记录和演示结果的项目报告。",
+      "resource_strategy": ["project checklist", "rubric"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "R1",
+      "node_id": "RB1",
+      "type": "visualize",
+      "title": "画出机器人系统全景图",
+      "instruction": "用一张图说明感知、决策、控制、执行之间的数据流，并标出本课程最终项目目标。",
+      "estimated_minutes": 12,
+      "success_criteria": ["包含四个系统层次", "能说出每层一个例子"]
+    },
+    {
+      "task_id": "R2",
+      "node_id": "RB2",
+      "type": "practice",
+      "title": "启动一个最小 ROS 节点",
+      "instruction": "写出创建 package、编写节点、启动节点和查看日志的步骤。",
+      "estimated_minutes": 15,
+      "success_criteria": ["步骤顺序正确", "能解释 node 与 package 的关系"]
+    },
+    {
+      "task_id": "R3",
+      "node_id": "RB3",
+      "type": "practice",
+      "title": "实现话题发布与订阅",
+      "instruction": "围绕机器人状态消息设计一个 publisher 和 subscriber，并解释消息如何流动。",
+      "estimated_minutes": 18,
+      "success_criteria": ["包含消息类型", "解释发布频率和订阅回调"]
+    },
+    {
+      "task_id": "R4",
+      "node_id": "RB4",
+      "type": "quiz",
+      "title": "判断话题、服务和参数的适用场景",
+      "instruction": "完成一组选择/判断题，区分连续数据流、一次请求和运行配置。",
+      "estimated_minutes": 12,
+      "success_criteria": ["能说明选择依据", "至少举出两个机器人场景"]
+    },
+    {
+      "task_id": "R5",
+      "node_id": "RB5",
+      "type": "visualize",
+      "title": "画出 TF 坐标树",
+      "instruction": "画出 map、odom、base_link、sensor_frame 的父子关系，并说明一个常见错误。",
+      "estimated_minutes": 18,
+      "success_criteria": ["坐标父子关系清晰", "说明时间戳或 frame_id 错误"]
+    },
+    {
+      "task_id": "R6",
+      "node_id": "RB6",
+      "type": "practice",
+      "title": "解释 cmd_vel 控制闭环",
+      "instruction": "用伪代码说明如何根据目标速度、当前速度和误差更新控制指令。",
+      "estimated_minutes": 20,
+      "success_criteria": ["包含误差计算", "解释反馈如何影响下一次控制"]
+    },
+    {
+      "task_id": "R7",
+      "node_id": "RB7",
+      "type": "explain",
+      "title": "解释传感器融合为什么需要统一坐标",
+      "instruction": "用激光雷达和里程计的例子说明时间同步、坐标统一和噪声处理的意义。",
+      "estimated_minutes": 15,
+      "success_criteria": ["说明两个传感器角色", "指出不同坐标系直接混用的风险"]
+    },
+    {
+      "task_id": "R8",
+      "node_id": "RB8",
+      "type": "project",
+      "title": "完成机器人课程项目提纲",
+      "instruction": "写出项目目标、节点架构、通信接口、调试证据、演示结果和改进计划。",
+      "estimated_minutes": 25,
+      "success_criteria": ["报告结构完整", "包含调试记录和演示指标"]
+    }
+  ],
+  "learning_path": {
+    "title": "智能机器人 8 阶段项目式路线",
+    "rationale": "先建立系统全景，再逐步掌握 ROS 通信、坐标、控制和传感器数据，最后收束到课程项目。",
+    "node_sequence": ["RB1", "RB2", "RB3", "RB4", "RB5", "RB6", "RB7", "RB8"],
+    "today_focus": "先完成机器人系统全景图，再进入 ROS 节点与话题通信。",
+    "next_recommendation": "完成当前任务后生成一张 ROS 节点通信图，并做一组话题/服务/参数判断题。"
+  },
+  "recommendations": [
+    "先用图解建立机器人系统全景，再看公开视频补一个真实系统案例。",
+    "话题、服务、参数三者容易混淆，建议用交互练习做一次辨析。",
+    "TF 和控制部分适合用图解或短动画讲清数据流与误差反馈。",
+    "每个阶段都保留一条调试证据，最终项目报告会更扎实。"
+  ],
+  "demo_seed": {
+    "title": "ROS 机器人稳定演示样例",
+    "scenario": "从系统全景图开始，生成 ROS 通信图，再用 TF 坐标树和 cmd_vel 控制闭环展示多模态资源生成。",
+    "persona": {
+      "goal": "理解 ROS 机器人基础，并能完成一个移动机器人通信与控制演示。",
+      "weak_points": ["话题、服务和参数边界不清", "TF 坐标关系容易混淆"],
+      "preferences": ["visual", "practice", "external_video"],
+      "time_budget_minutes": 45
+    },
+    "task_chain": ["R1", "R3", "R5", "R6"],
+    "resource_prompts": {
+      "R1": "生成一张机器人系统全景图，展示感知、决策、控制、执行的数据流。",
+      "R3": "生成一张 ROS publisher/subscriber 通信图，并配一组判断题区分消息流。",
+      "R5": "生成一张 TF 坐标树图解，解释 map、odom、base_link 和传感器坐标。",
+      "R6": "生成一段简短动画脚本，说明 cmd_vel 控制闭环如何根据误差更新。"
+    },
+    "sample_reflection": {
+      "score": 0.72,
+      "reflection": "我能看懂 ROS 通信主线，但 TF 坐标父子关系还需要用图再练一次。",
+      "mistake_types": ["concept_boundary", "coordinate_frame"]
+    }
+  }
+}

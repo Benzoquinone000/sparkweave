@@ -249,6 +249,16 @@ class GuideV2Manager:
             for node in course_map.nodes
         }
         recommendations = self._build_recommendations(profile, course_map, tasks)
+        raw_recommendations = plan_payload.get("recommendations")
+        template_recommendations = [
+            str(item).strip()
+            for item in raw_recommendations
+            if str(item).strip()
+        ] if isinstance(raw_recommendations, list) else []
+        for item in template_recommendations:
+            if item not in recommendations:
+                recommendations.append(item)
+        recommendations = recommendations[:4]
         now = time.time()
         session = GuideSessionV2(
             session_id=session_id,
@@ -424,6 +434,11 @@ class GuideV2Manager:
             "project_milestones": payload.get("project_milestones", [])
             if isinstance(payload.get("project_milestones"), list)
             else [],
+            "nodes": payload.get("nodes", []) if isinstance(payload.get("nodes"), list) else [],
+            "tasks": payload.get("tasks", []) if isinstance(payload.get("tasks"), list) else [],
+            "learning_path": payload.get("learning_path", {}) if isinstance(payload.get("learning_path"), dict) else {},
+            "recommendations": payload.get("recommendations", []) if isinstance(payload.get("recommendations"), list) else [],
+            "demo_seed": payload.get("demo_seed", {}) if isinstance(payload.get("demo_seed"), dict) else {},
         }
 
     @staticmethod
@@ -3217,7 +3232,15 @@ class GuideV2Manager:
     def _build_template_plan(self, template_id: str, profile: LearnerProfile) -> dict[str, Any]:
         template = (template_id or "").strip().lower()
         if template not in {"ml_foundations", "machine_learning_foundations"}:
-            return {}
+            external = next(
+                (
+                    item
+                    for item in self.list_course_templates()
+                    if str(item.get("id") or "").strip().lower() == template
+                ),
+                None,
+            )
+            return self._build_external_template_plan(external, profile) if external else {}
         topic = "机器学习基础"
         return {
             "course_map": {
@@ -3258,6 +3281,106 @@ class GuideV2Manager:
                 "建议在 ML4 生成短视频讲解梯度下降，在 ML6 生成混合题检验指标计算。",
             ],
         }
+
+    def _build_external_template_plan(self, template: dict[str, Any] | None, profile: LearnerProfile) -> dict[str, Any]:
+        if not template:
+            return {}
+        template_id = str(template.get("id") or "").strip()
+        if not template_id:
+            return {}
+        course_name = str(template.get("course_name") or template.get("title") or profile.goal).strip()
+        nodes = template.get("nodes") if isinstance(template.get("nodes"), list) else []
+        if not nodes:
+            nodes = self._nodes_from_external_template(template)
+        tasks = template.get("tasks") if isinstance(template.get("tasks"), list) else []
+        if not tasks:
+            tasks = self._tasks_from_external_nodes(nodes)
+        node_ids = [str(item.get("node_id") or f"C{index}") for index, item in enumerate(nodes, start=1) if isinstance(item, dict)]
+        learning_path = template.get("learning_path") if isinstance(template.get("learning_path"), dict) else {}
+        metadata = {
+            "template_id": template_id,
+            "course_id": template.get("course_id") or "",
+            "course_name": course_name,
+            "description": template.get("description") or "",
+            "target_learners": template.get("target_learners") or "",
+            "level": template.get("level") or profile.level,
+            "suggested_weeks": template.get("suggested_weeks") or 0,
+            "credits": template.get("credits") or 0,
+            "estimated_minutes": template.get("estimated_minutes") or 0,
+            "tags": template.get("tags") if isinstance(template.get("tags"), list) else [],
+            "learning_outcomes": template.get("learning_outcomes") if isinstance(template.get("learning_outcomes"), list) else [],
+            "assessment": template.get("assessment") if isinstance(template.get("assessment"), list) else [],
+            "project_milestones": template.get("project_milestones") if isinstance(template.get("project_milestones"), list) else [],
+            "demo_seed": template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {},
+        }
+        recommendations = template.get("recommendations") if isinstance(template.get("recommendations"), list) else []
+        return {
+            "course_map": {
+                "title": f"{course_name}导学路线",
+                "generated_by": f"template:{template_id}",
+                "metadata": metadata,
+                "nodes": nodes,
+            },
+            "learning_path": {
+                "title": str(learning_path.get("title") or f"{course_name}学习路线").strip(),
+                "rationale": str(
+                    learning_path.get("rationale")
+                    or "按课程先修关系递进推进，并在每个阶段留下可评估证据。"
+                ).strip(),
+                "node_sequence": learning_path.get("node_sequence") if isinstance(learning_path.get("node_sequence"), list) else node_ids,
+                "today_focus": str(learning_path.get("today_focus") or "先完成第一个任务，建立课程全局框架。").strip(),
+                "next_recommendation": str(
+                    learning_path.get("next_recommendation")
+                    or "完成当前任务后提交掌握分和一句反思，系统会据此调整下一步。"
+                ).strip(),
+            },
+            "tasks": tasks,
+            "recommendations": [str(item).strip() for item in recommendations if str(item).strip()],
+        }
+
+    def _nodes_from_external_template(self, template: dict[str, Any]) -> list[dict[str, Any]]:
+        milestones = template.get("project_milestones") if isinstance(template.get("project_milestones"), list) else []
+        outcomes = template.get("learning_outcomes") if isinstance(template.get("learning_outcomes"), list) else []
+        source = milestones or [{"topic": item, "deliverable": ""} for item in outcomes]
+        nodes: list[dict[str, Any]] = []
+        for index, item in enumerate(source[:8], start=1):
+            payload = item if isinstance(item, dict) else {"topic": str(item)}
+            title = str(payload.get("topic") or payload.get("title") or payload.get("name") or f"课程模块 {index}").strip()
+            deliverable = str(payload.get("deliverable") or payload.get("description") or "").strip()
+            nodes.append(
+                {
+                    "node_id": f"C{index}",
+                    "title": title,
+                    "description": deliverable or f"围绕「{title}」完成一个可展示的小任务。",
+                    "prerequisites": [f"C{index - 1}"] if index > 1 else [],
+                    "difficulty": "easy" if index <= 2 else "medium" if index <= 6 else "hard",
+                    "estimated_minutes": 45,
+                    "tags": ["course"],
+                    "mastery_target": deliverable or f"能解释「{title}」的关键概念并完成一个代表性练习。",
+                    "resource_strategy": ["visual", "quiz"] if index <= 4 else ["case", "project"],
+                }
+            )
+        return nodes
+
+    def _tasks_from_external_nodes(self, nodes: list[Any]) -> list[dict[str, Any]]:
+        tasks: list[dict[str, Any]] = []
+        for index, item in enumerate(nodes[:8], start=1):
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or f"课程模块 {index}").strip()
+            node_id = str(item.get("node_id") or f"C{index}").strip()
+            tasks.append(
+                {
+                    "task_id": f"T{index}",
+                    "node_id": node_id,
+                    "type": "project" if index == len(nodes[:8]) else "practice",
+                    "title": f"完成任务：{title}",
+                    "instruction": str(item.get("mastery_target") or item.get("description") or f"用自己的话解释「{title}」，并完成一个小练习。").strip(),
+                    "estimated_minutes": 15,
+                    "success_criteria": ["能说清关键概念", "留下可检查的学习证据"],
+                }
+            )
+        return tasks
     async def _build_plan_with_llm(
         self,
         profile: LearnerProfile,

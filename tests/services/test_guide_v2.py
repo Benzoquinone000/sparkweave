@@ -338,6 +338,37 @@ def test_guide_v2_loads_json_course_templates(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_guide_v2_builds_repository_course_template_without_llm(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm should not be called for repository templates")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+
+    templates = manager.list_course_templates()
+    robotics = next(item for item in templates if item["id"] == "robotics_ros_foundations")
+    assert robotics["course_id"] == "ROBOT101"
+    assert robotics["demo_seed"]["task_chain"] == ["R1", "R3", "R5", "R6"]
+
+    created = await manager.create_session(
+        GuideV2CreateInput(
+            goal="我想系统学习智能机器人与 ROS 基础",
+            time_budget_minutes=45,
+            course_template_id="robotics_ros_foundations",
+        )
+    )
+
+    assert created["success"] is True
+    session = created["session"]
+    assert session["course_map"]["generated_by"] == "template:robotics_ros_foundations"
+    assert session["course_map"]["metadata"]["course_id"] == "ROBOT101"
+    assert session["course_map"]["metadata"]["demo_seed"]["title"] == "ROS 机器人稳定演示样例"
+    assert session["learning_path"]["node_sequence"][:3] == ["RB1", "RB2", "RB3"]
+    assert session["current_task"]["task_id"] == "R1"
+    assert session["current_task"]["title"] == "画出机器人系统全景图"
+    assert any("机器人系统全景" in item for item in session["recommendations"])
+
+
+@pytest.mark.asyncio
 async def test_guide_v2_builds_study_plan_blocks_and_checkpoints(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
         raise RuntimeError("llm unavailable")

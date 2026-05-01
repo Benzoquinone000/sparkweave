@@ -177,7 +177,7 @@ export function NotebookPage() {
     }
     setManualTitle("");
     setManualOutput("");
-    setView("browse");
+    if (!useStreamSummary) setView("browse");
   };
 
   const createCategory = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -203,7 +203,7 @@ export function NotebookPage() {
         explanation: entry.explanation || current.explanation,
         difficulty: entry.difficulty || current.difficulty,
       }));
-      setQuickQuestionStatus(`已找到题目：${entry.question_id || entry.id}`);
+      setQuickQuestionStatus(`已找到：${entry.question || "这道题"}`);
     } catch (error) {
       setQuickQuestionStatus(error instanceof Error ? `未找到：${error.message}` : "未找到这道题。");
     }
@@ -223,7 +223,7 @@ export function NotebookPage() {
       difficulty: quickQuestion.difficulty.trim(),
     });
     setSelectedQuestionId(entry.id);
-    setQuickQuestionStatus(`已写入题目：${entry.question_id || entry.id}`);
+    setQuickQuestionStatus(`已写入：${entry.question || quickQuestion.question.trim()}`);
   };
 
   return (
@@ -1162,7 +1162,7 @@ function QuickQuestionPanel({
         <div>
           <h3 className="font-semibold text-ink">题目快录</h3>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            用 session_id 和 question_id 查找或补录单题，方便把外部结果沉淀进题目本。
+            如果你从聊天或题目生成结果里复制了记录编号，可以在这里找回或补录单题。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1188,17 +1188,17 @@ function QuickQuestionPanel({
         </div>
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-3">
-        <FieldShell label="Session ID">
+        <FieldShell label="答题记录">
           <TextInput value={value.sessionId} onChange={(event) => patch({ sessionId: event.target.value })} data-testid="question-upsert-session" />
         </FieldShell>
-        <FieldShell label="Question ID">
+        <FieldShell label="题目编号">
           <TextInput value={value.questionId} onChange={(event) => patch({ questionId: event.target.value })} data-testid="question-upsert-id" />
         </FieldShell>
         <FieldShell label="难度">
           <SelectInput value={value.difficulty} onChange={(event) => patch({ difficulty: event.target.value })} data-testid="question-upsert-difficulty">
-            <option value="easy">easy</option>
-            <option value="medium">medium</option>
-            <option value="hard">hard</option>
+            <option value="easy">简单</option>
+            <option value="medium">中等</option>
+            <option value="hard">困难</option>
           </SelectInput>
         </FieldShell>
       </div>
@@ -1218,6 +1218,14 @@ function QuickQuestionPanel({
       {status ? <p className="mt-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600">{status}</p> : null}
     </form>
   );
+}
+
+function questionDifficultyLabel(value: string | undefined) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "easy") return "简单";
+  if (normalized === "medium") return "中等";
+  if (normalized === "hard") return "困难";
+  return value || "未设置";
 }
 
 function QuestionCard({
@@ -1244,7 +1252,7 @@ function QuestionCard({
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={entry.bookmarked ? "brand" : "neutral"}>{entry.bookmarked ? "已收藏" : "题目"}</Badge>
           <Badge tone={entry.is_correct ? "success" : "warning"}>{entry.is_correct ? "正确" : "待复盘"}</Badge>
-          {entry.difficulty ? <Badge tone="neutral">{entry.difficulty}</Badge> : null}
+          {entry.difficulty ? <Badge tone="neutral">{questionDifficultyLabel(entry.difficulty)}</Badge> : null}
         </div>
         <h3 className="mt-3 line-clamp-2 font-semibold text-ink">{entry.question}</h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{entry.explanation || entry.correct_answer || "暂无解析"}</p>

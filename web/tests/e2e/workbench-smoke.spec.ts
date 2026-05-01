@@ -1308,9 +1308,10 @@ test("notebook workbench writes records and question categories", async ({ page 
       metadata: { source: "web_manual", ui_language: "zh" },
     }),
   );
-  await expect(page.getByTestId("notebook-manual-title")).toHaveValue("");
-  await expect(page.getByTestId("notebook-manual-output")).toHaveValue("");
+  await expect(page.getByTestId("notebook-manual-title")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Competition Review" })).toBeVisible();
 
+  await page.getByTestId("notebook-manual-toggle").click();
   await page.getByTestId("notebook-manual-title").fill("Summary proof note");
   await page.getByTestId("notebook-manual-output").fill("Long solution text that should be summarized by the notebook agent.");
   await page.getByTestId("notebook-manual-summary-submit").click();
@@ -1352,14 +1353,21 @@ test("notebook workbench writes records and question categories", async ({ page 
   await page.getByTestId("notebook-record-delete-rec-existing").click();
   await expect.poll(() => notebook.deletedRecordTarget).toEqual({ notebookId: "nb-existing", recordId: "rec-existing" });
 
+  await page.getByRole("button", { name: "题目本" }).first().click();
   await page.getByTestId("question-entry-bookmark-7").click();
   await expect.poll(() => notebook.entryUpdatePayload).toEqual({ bookmarked: true });
+  await expect(page.getByTestId("question-entry-7")).toContainText("中等");
 
   await page.getByTestId("question-category-create-name").fill("Derivative traps");
   await page.getByTestId("question-category-create-submit").click();
   await expect.poll(() => notebook.categoryCreatePayload).toEqual({ name: "Derivative traps" });
 
-  await page.getByTestId("question-quick-toggle").click();
+  await expect(page.getByText("如果你从聊天或题目生成结果里复制了记录编号")).toBeVisible();
+  await expect(page.getByLabel("答题记录")).toBeVisible();
+  await expect(page.getByLabel("题目编号")).toBeVisible();
+  await expect(page.getByTestId("question-upsert-difficulty")).toContainText("中等");
+  await expect(page.getByText("session_id")).toHaveCount(0);
+  await expect(page.getByText("question_id")).toHaveCount(0);
   await page.getByTestId("question-upsert-session").fill("manual-session");
   await page.getByTestId("question-upsert-id").fill("q-manual");
   await page.getByTestId("question-upsert-question").fill("Why does factoring help before L'Hopital?");
@@ -1374,10 +1382,10 @@ test("notebook workbench writes records and question categories", async ({ page 
       correct_answer: "It can remove a removable zero factor.",
     }),
   );
-  await expect(page.getByText("已写入题目 q-manual")).toBeVisible();
+  await expect(page.getByText("已写入：Why does factoring help before L'Hopital?")).toBeVisible();
   await page.getByTestId("question-lookup-submit").click();
   await expect.poll(() => notebook.questionLookupTarget).toEqual({ sessionId: "manual-session", questionId: "q-manual" });
-  await expect(page.getByText("已找到题目 q-manual")).toBeVisible();
+  await expect(page.getByText("已找到：Why does factoring help before L'Hopital?")).toBeVisible();
 
   await page.getByTestId("question-category-rename-1").click();
   await page.getByTestId("question-category-rename-input-1").fill("Limits Review");
@@ -1394,6 +1402,7 @@ test("notebook workbench writes records and question categories", async ({ page 
   await page.getByTestId("question-entry-delete-7").click();
   await expect.poll(() => notebook.entryDeleteId).toBe(7);
 
+  await page.goto("/notebook?notebook=nb-existing");
   await page.getByTestId("notebook-delete").click();
   await expect.poll(() => notebook.deletedNotebookId).toBe("nb-existing");
 });

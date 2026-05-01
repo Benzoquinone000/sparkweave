@@ -6,7 +6,6 @@ import {
   Brain,
   DatabaseZap,
   FileQuestion,
-  FlaskConical,
   GraduationCap,
   Image,
   Menu,
@@ -62,7 +61,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "更多",
     items: [
       { to: "/agents", label: "助教", shortLabel: "助教", icon: Bot },
-      { to: "/playground", label: "能力试用", shortLabel: "试用", icon: FlaskConical },
       { to: "/settings", label: "设置", shortLabel: "设置", icon: Settings },
     ],
   },

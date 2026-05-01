@@ -53,7 +53,7 @@ npm run build
 | `/knowledge` | `KnowledgePage` | 知识库管理 |
 | `/notebook` | `NotebookPage` | Notebook 与题目本 |
 | `/memory` | `MemoryPage` | 学习摘要和用户画像 |
-| `/playground` | `PlaygroundPage` | 工具、能力、插件调试 |
+| `/playground` | `PlaygroundPage` | 工具、能力、插件调试；保留直达路由，不放入默认导航 |
 | `/guide` | `GuidePage` | 导学空间 |
 | `/co-writer` | `CoWriterPage` | 协作写作 |
 | `/agents` | `AgentsPage` | SparkBot 管理 |

@@ -2000,6 +2000,15 @@ class GuideV2Manager:
             evaluation=evaluation,
             report=report if report.get("success") else {},
         )
+        presentation_outline = self._course_presentation_outline(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            learning_style=learning_style,
+            demo_blueprint=demo_blueprint,
+            demo_seed_pack=demo_seed_pack,
+        )
         competition_submission = self._course_competition_submission(
             session=session,
             evaluation=evaluation,
@@ -2025,6 +2034,7 @@ class GuideV2Manager:
             "demo_blueprint": demo_blueprint,
             "demo_fallback_kit": demo_fallback_kit,
             "demo_seed_pack": demo_seed_pack,
+            "presentation_outline": presentation_outline,
             "competition_submission": competition_submission,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
@@ -6298,6 +6308,105 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_presentation_outline(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        learning_style: dict[str, Any],
+        demo_blueprint: dict[str, Any],
+        demo_seed_pack: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build a compact PPT outline for the competition defense deck."""
+
+        metadata = dict(session.course_map.metadata or {})
+        course_name = str(metadata.get("course_name") or session.course_map.title or session.goal).strip()
+        profile = session.profile
+        action_brief = dict(report.get("action_brief") or {})
+        effect = dict(report.get("effect_assessment") or {})
+        demo_readiness = dict(report.get("demo_readiness") or {})
+        portfolio_types = sorted({str(item.get("type") or "resource") for item in portfolio if isinstance(item, dict)})
+        if not portfolio_types:
+            portfolio_types = [
+                str(item.get("type") or "resource")
+                for item in demo_seed_pack.get("resource_prompts") or []
+                if isinstance(item, dict)
+            ]
+        resource_line = "、".join(portfolio_types[:4]) if portfolio_types else "图解、练习、短视频或精选公开视频"
+        current_task_id = getattr(session.learning_path, "current_task_id", "")
+        first_task = next((task for task in session.tasks if task.task_id == current_task_id), None)
+        if first_task is None:
+            first_task = session.tasks[0] if session.tasks else None
+        task_title = first_task.title if first_task else session.goal
+        style_label = learning_style.get("label") or "画像驱动"
+        style_summary = learning_style.get("summary") or "系统根据目标、薄弱点和偏好组织学习推进方式。"
+        score = int(evaluation.get("overall_score") or 0)
+        progress = int(evaluation.get("progress") or 0)
+
+        slides = [
+            {
+                "slide_no": 1,
+                "title": "项目价值：从资源堆叠到学习闭环",
+                "purpose": "用一句话说明 SparkWeave 解决什么问题。",
+                "evidence": f"围绕「{course_name}」展示画像、路径、资源、练习、反馈和报告闭环。",
+                "speaker_note": "强调系统不是简单问答，而是把个性化学习流程串起来。",
+            },
+            {
+                "slide_no": 2,
+                "title": "对话式学习画像",
+                "purpose": "说明系统如何理解学习者。",
+                "evidence": f"{style_label}：{style_summary}",
+                "speaker_note": f"展示目标、薄弱点（{', '.join(profile.weak_points[:3]) or '暂无'}）和偏好（{', '.join(profile.preferences[:3]) or '暂无'}）。",
+            },
+            {
+                "slide_no": 3,
+                "title": "个性化路径与当前任务",
+                "purpose": "说明导学不是平铺工具，而是递进推进。",
+                "evidence": f"当前任务：{task_title}；进度：{progress}%。",
+                "speaker_note": "录屏时先点当前任务，再展示系统为什么建议这一步。",
+            },
+            {
+                "slide_no": 4,
+                "title": "多智能体协同生成资源",
+                "purpose": "对应赛题的多智能体资源生成要求。",
+                "evidence": f"资源链路覆盖：{resource_line}。",
+                "speaker_note": "讲清画像智能体、资源智能体、出题智能体和评估智能体如何接力。",
+            },
+            {
+                "slide_no": 5,
+                "title": "交互练习与学习效果评估",
+                "purpose": "展示可提交、可反馈、可回写画像的学习闭环。",
+                "evidence": f"综合掌握分 {score}；{effect.get('summary') or action_brief.get('summary') or '系统会根据反馈生成下一步学习处方。'}",
+                "speaker_note": "把一次练习提交后的对错反馈、反思和下一步处方串起来讲。",
+            },
+            {
+                "slide_no": 6,
+                "title": "7 分钟演示路线",
+                "purpose": "让答辩和录屏有稳定叙事。",
+                "evidence": demo_blueprint.get("summary")
+                or demo_readiness.get("summary")
+                or "按画像、路线、资源、练习、报告、产出包顺序展示。",
+                "speaker_note": "按产出包里的录屏检查顺序走，现场波动时使用兜底素材。",
+            },
+            {
+                "slide_no": 7,
+                "title": "提交物与创新总结",
+                "purpose": "收束到比赛提交要求和创新价值。",
+                "evidence": "提交源码、部署配置、演示视频、完整课程样例、文档和 AI Coding 说明。",
+                "speaker_note": "最后强调实用性：用户只需要跟着当前任务学，系统在背后完成画像、资源和评估闭环。",
+            },
+        ]
+        return {
+            "title": "演示 PPT 骨架",
+            "summary": "按赛题评分点生成 7 页答辩大纲，可直接作为演示 PPT 的内容骨架。",
+            "course_name": course_name,
+            "slide_count": len(slides),
+            "slides": slides,
+            "next_action": "把每页 evidence 转成截图或动图，再压缩成 7 分钟讲述节奏。",
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -6456,6 +6565,8 @@ class GuideV2Manager:
         seed_chain = [item for item in seed_pack.get("task_chain") or [] if isinstance(item, dict)]
         seed_prompts = [item for item in seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
         rehearsal_notes = [str(item) for item in seed_pack.get("rehearsal_notes") or []]
+        presentation_outline = dict(package.get("presentation_outline") or {})
+        presentation_slides = [item for item in presentation_outline.get("slides") or [] if isinstance(item, dict)]
         competition_submission = dict(package.get("competition_submission") or {})
         submission_checklist = [
             item for item in competition_submission.get("checklist") or [] if isinstance(item, dict)
@@ -6628,6 +6739,18 @@ class GuideV2Manager:
                 lines.extend(["", "### 排练备注", ""])
                 for item in rehearsal_notes[:4]:
                     lines.append(f"- {item}")
+        if presentation_outline:
+            lines.extend(["", "## 演示 PPT 骨架", ""])
+            lines.append(f"- 课程：{presentation_outline.get('course_name') or metadata.get('course_name') or '-'}")
+            lines.append(f"- 页数：{presentation_outline.get('slide_count') or len(presentation_slides)}")
+            lines.append(f"- 下一步：{presentation_outline.get('next_action') or '-'}")
+            if presentation_slides:
+                lines.extend(["", "### 建议页序", ""])
+                for item in presentation_slides[:7]:
+                    lines.append(
+                        f"- P{item.get('slide_no') or '-'} {item.get('title') or '-'}："
+                        f"{item.get('evidence') or '-'}；讲述：{item.get('speaker_note') or '-'}"
+                    )
         if competition_submission:
             lines.extend(["", "## 比赛提交清单", ""])
             lines.append(f"- 课程：{competition_submission.get('course_name') or metadata.get('course_name') or '-'}")

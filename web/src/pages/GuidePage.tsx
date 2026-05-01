@@ -3163,6 +3163,7 @@ function CoursePackagePanel({
   const demoBlueprint = coursePackage?.demo_blueprint ?? null;
   const fallbackKit = coursePackage?.demo_fallback_kit ?? null;
   const seedPack = coursePackage?.demo_seed_pack ?? null;
+  const presentationOutline = coursePackage?.presentation_outline ?? null;
   const competitionSubmission = coursePackage?.competition_submission ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
@@ -3188,6 +3189,7 @@ function CoursePackagePanel({
       </div>
       <CourseLearningStyleCard learningStyle={learningStyle} />
       <CourseDemoRecordingChecklistCard blueprint={demoBlueprint} kit={fallbackKit} seed={seedPack} learningStyle={learningStyle} />
+      <CoursePresentationOutlineCard outline={presentationOutline} />
       <CourseCompetitionSubmissionCard submission={competitionSubmission} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
@@ -3284,6 +3286,48 @@ function CourseCompetitionSubmissionCard({
       {submission.next_action ? (
         <p className="mt-3 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
           下一步：{guideDisplayText(submission.next_action)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CoursePresentationOutlineCard({
+  outline,
+}: {
+  outline: GuideV2CoursePackage["presentation_outline"] | null;
+}) {
+  const slides = outline?.slides ?? [];
+  if (!outline || !slides.length) return null;
+  return (
+    <div className="mt-4 rounded-lg border border-teal-100 bg-white p-3" data-testid="guide-presentation-outline-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(outline.title, "演示 PPT 骨架")}</Badge>
+            {outline.course_name ? <Badge tone="neutral">{guideDisplayText(outline.course_name)}</Badge> : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {guideDisplayText(outline.summary, "按赛题评分点生成可直接整理成 PPT 的讲述骨架。")}
+          </p>
+        </div>
+        <Badge tone="success">{Number(outline.slide_count ?? slides.length)} 页</Badge>
+      </div>
+      <div className="mt-3 space-y-2">
+        {slides.slice(0, 3).map((slide) => (
+          <div key={`${slide.slide_no}-${slide.title}`} className="rounded-lg border border-line bg-canvas p-2">
+            <p className="text-xs font-semibold text-ink">
+              P{slide.slide_no ?? "-"} · {guideDisplayText(slide.title, "演示页")}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+              {guideDisplayText(slide.evidence || slide.purpose, "补一张系统截图或学习产物。")}
+            </p>
+          </div>
+        ))}
+      </div>
+      {outline.next_action ? (
+        <p className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+          下一步：{guideDisplayText(outline.next_action)}
         </p>
       ) : null}
     </div>

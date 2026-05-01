@@ -620,6 +620,8 @@ data/user/workspace/guide/v2/learner_memory.json
 
 课程产出包页面会把 `demo_blueprint`、`demo_fallback_kit` 和 `demo_seed_pack` 合并成一个“录屏检查”卡片。它只保留就绪状态、前三个演示片段、固定学习者和一条兜底动作，避免把排练材料、兜底素材和任务链分散成多张卡片。
 
+课程产出包会生成 `presentation_outline`。它不是复杂的 PPT 编辑器，而是 7 页答辩骨架：项目价值、学习画像、路径任务、多智能体资源、交互练习与评估、7 分钟演示路线、提交物总结。前端只预览前三页，完整讲述提示进入 Markdown，方便赛前快速整理 PPT。
+
 课程产出包还会生成 `competition_submission`。它把赛题要求拆成演示 PPT、可运行源码与部署配置、7 分钟演示视频、完整课程样例、多智能体资源、学习效果评估闭环、配套文档与 AI Coding 说明七项提交物。前端只显示前四项状态和下一步补齐建议，完整清单写入 Markdown，方便赛前检查但不打扰普通学习流程。
 
 React Query 缓存失效在 `useGuideV2Mutations()` 中集中处理。完成任务、生成资源、保存 artifact、提交 quiz、前测、画像对话、刷新推荐都会失效 session、evaluation、study plan、timeline、coach briefing、mistake review、report、course package、resource recommendations 和 learner memory。

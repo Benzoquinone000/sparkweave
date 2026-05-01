@@ -919,6 +919,8 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["demo_seed_pack"]["task_chain"]
     assert package["demo_seed_pack"]["resource_prompts"]
     assert package["demo_seed_pack"]["report_anchor"]["score"] >= 0
+    assert package["presentation_outline"]["slide_count"] == 7
+    assert package["presentation_outline"]["slides"][0]["title"].startswith("项目价值")
     assert package["competition_submission"]["checklist"]
     assert any(item["item"] == "演示 PPT" for item in package["competition_submission"]["checklist"])
     assert package["competition_submission"]["ready_count"] >= 1
@@ -934,6 +936,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟演示路线" in package["markdown"]
     assert "录屏兜底包" in package["markdown"]
     assert "稳定 Demo 样例" in package["markdown"]
+    assert "演示 PPT 骨架" in package["markdown"]
     assert "比赛提交清单" in package["markdown"]
 
 

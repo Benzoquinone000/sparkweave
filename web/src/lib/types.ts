@@ -1446,6 +1446,20 @@ export interface GuideV2CoursePackage {
     fallback_script?: string[];
   };
   demo_seed_pack?: GuideV2DemoSeedPack;
+  presentation_outline?: {
+    title?: string;
+    summary?: string;
+    course_name?: string;
+    slide_count?: number;
+    next_action?: string;
+    slides?: Array<{
+      slide_no?: number;
+      title?: string;
+      purpose?: string;
+      evidence?: string;
+      speaker_note?: string;
+    }>;
+  };
   competition_submission?: {
     title?: string;
     summary?: string;

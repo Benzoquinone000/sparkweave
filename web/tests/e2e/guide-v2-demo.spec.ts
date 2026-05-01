@@ -62,6 +62,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
   await expect(page.getByTestId("guide-demo-recording-checklist")).not.toContainText("7-minute demo route");
+  await expect(page.getByTestId("guide-presentation-outline-card")).toBeVisible();
+  await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("演示 PPT 骨架");
+  await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("项目价值");
   await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
@@ -616,6 +619,36 @@ async function mockGuideV2StableDemoApis(page: Page) {
           checklist: ["Open guide route before recording."],
         },
         demo_seed_pack: demoSeed,
+        presentation_outline: {
+          title: "演示 PPT 骨架",
+          summary: "按赛题评分点生成 7 页答辩大纲。",
+          course_name: "Machine Learning Foundations",
+          slide_count: 7,
+          next_action: "把每页 evidence 转成截图或动图。",
+          slides: [
+            {
+              slide_no: 1,
+              title: "项目价值：从资源堆叠到学习闭环",
+              purpose: "说明项目价值。",
+              evidence: "展示画像、路径、资源、练习、反馈和报告闭环。",
+              speaker_note: "强调用户只需要跟着当前任务学。",
+            },
+            {
+              slide_no: 2,
+              title: "对话式学习画像",
+              purpose: "说明系统如何理解学习者。",
+              evidence: "根据薄弱点和偏好生成下一步。",
+              speaker_note: "展示画像证据。",
+            },
+            {
+              slide_no: 3,
+              title: "多智能体协同资源",
+              purpose: "说明智能体接力。",
+              evidence: "画像、图解、出题和评估智能体协同。",
+              speaker_note: "展示资源卡片。",
+            },
+          ],
+        },
         competition_submission: {
           title: "比赛提交清单",
           summary: "按赛题提交物检查当前课程产出。",

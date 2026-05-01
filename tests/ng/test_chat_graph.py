@@ -238,6 +238,14 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
 
 
+def test_chat_graph_distinguishes_video_search_from_video_generation():
+    assert ChatGraph._looks_like_external_video_request("帮我找一个视频讲解梯度下降")
+    assert ChatGraph._looks_like_external_video_request("推荐B站公开课，适合零基础")
+    assert ChatGraph._looks_like_external_video_request("有没有网课视频可以补一下公式含义")
+    assert not ChatGraph._looks_like_external_video_request("请生成一个视频讲解梯度下降")
+    assert not ChatGraph._looks_like_external_video_request("用 Manim 制作视频演示极限")
+
+
 @pytest.mark.asyncio
 async def test_chat_graph_coordinator_delegates_questions_with_profile_guidance():
     captured = {}

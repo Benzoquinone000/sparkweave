@@ -75,13 +75,20 @@ VIDEO_SEARCH_TERMS = (
     "\u627e\u89c6\u9891",
     "\u63a8\u8350\u89c6\u9891",
     "\u89c6\u9891\u63a8\u8350",
+    "\u89c6\u9891\u8bb2\u89e3",
+    "\u5b66\u4e60\u89c6\u9891",
+    "\u8bfe\u7a0b\u89c6\u9891",
     "\u89c6\u9891\u8d44\u6e90",
     "\u7cbe\u9009\u89c6\u9891",
     "\u516c\u5f00\u89c6\u9891",
+    "\u516c\u5f00\u8bfe\u89c6\u9891",
     "\u516c\u5f00\u8bfe",
     "\u7f51\u8bfe",
+    "\u7f51\u8bfe\u89c6\u9891",
     "\u8bb2\u89e3\u89c6\u9891",
     "\u6559\u5b66\u89c6\u9891",
+    "b\u7ad9",
+    "\u54d4\u54e9\u54d4\u54e9",
     "bilibili",
     "youtube",
     "external video",
@@ -808,10 +815,18 @@ class ChatGraph:
 
     @staticmethod
     def _looks_like_external_video_request(text: str) -> bool:
-        if not ChatGraph._contains_any(text, VIDEO_SEARCH_TERMS):
+        video_search_pattern = re.search(
+            r"(找|推荐|检索|搜|公开|资源|链接|b站|哔哩哔哩|youtube).{0,12}(视频|网课|公开课)"
+            r"|(?:视频|网课|公开课).{0,12}(找|推荐|检索|搜|资源|链接|公开)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if not ChatGraph._contains_any(text, VIDEO_SEARCH_TERMS) and not video_search_pattern:
             return False
         generate_markers = (
             "\u751f\u6210\u89c6\u9891",
+            "\u751f\u6210\u4e00\u4e2a\u89c6\u9891",
+            "\u751f\u6210\u4e2a\u89c6\u9891",
             "\u5236\u4f5c\u89c6\u9891",
             "\u505a\u4e00\u4e2a\u89c6\u9891",
             "\u505a\u4e2a\u89c6\u9891",
@@ -838,7 +853,10 @@ class ChatGraph:
             "link",
             "resource",
         )
-        if ChatGraph._contains_any(text, generate_markers) and not ChatGraph._contains_any(text, find_markers):
+        generate_pattern = re.search(r"(生成|制作|做).{0,8}(视频|短视频|动画)", text, flags=re.IGNORECASE)
+        if (ChatGraph._contains_any(text, generate_markers) or generate_pattern) and not (
+            ChatGraph._contains_any(text, find_markers) or video_search_pattern
+        ):
             return False
         return True
 

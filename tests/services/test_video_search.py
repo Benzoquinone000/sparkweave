@@ -81,6 +81,54 @@ async def test_recommend_learning_videos_accepts_provider_link_aliases_and_redir
 
 
 @pytest.mark.asyncio
+async def test_recommend_learning_videos_accepts_generic_provider_result_shapes(monkeypatch) -> None:
+    async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
+        return {
+            "results": [
+                {
+                    "name": "Derivative intuition short visual guide",
+                    "href": "https://youtu.be/abcDEF12345?si=demo",
+                    "description": "Beginner intuition and tangent slope examples.",
+                    "metadata": {
+                        "imageUrl": "https://example.com/thumb.jpg",
+                        "channel": "Calculus Lab",
+                        "duration": "12:04",
+                    },
+                },
+            ],
+            "organic": [
+                {
+                    "title": "Derivative public live lecture",
+                    "link": "https://www.youtube.com/live/LiveID12345?feature=share",
+                    "body": "A longer public lecture about instantaneous rate.",
+                    "duration": "1小时 5分钟",
+                },
+            ],
+            "data": [
+                {
+                    "title": "Bilibili old av id video",
+                    "content": "公开视频 av170001 讲解切线斜率。",
+                    "source": "Bilibili",
+                    "length": "8分30秒",
+                },
+            ],
+        }
+
+    monkeypatch.setattr(video_search, "web_search", _fake_web_search)
+
+    result = await video_search.recommend_learning_videos(topic="导数直观理解", max_results=3)
+
+    by_url = {item["url"]: item for item in result["videos"]}
+    assert "https://www.youtube.com/watch?v=abcDEF12345" in by_url
+    assert "https://www.youtube.com/watch?v=LiveID12345" in by_url
+    assert "https://www.bilibili.com/video/av170001" in by_url
+    assert by_url["https://www.youtube.com/watch?v=abcDEF12345"]["thumbnail"] == "https://example.com/thumb.jpg"
+    assert by_url["https://www.youtube.com/watch?v=abcDEF12345"]["channel"] == "Calculus Lab"
+    assert by_url["https://www.youtube.com/watch?v=abcDEF12345"]["duration_seconds"] == 724
+    assert by_url["https://www.bilibili.com/video/av170001"]["embed_url"].startswith("https://player.bilibili.com/player.html?aid=170001")
+
+
+@pytest.mark.asyncio
 async def test_recommend_learning_videos_returns_platform_search_fallbacks(monkeypatch) -> None:
     async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
         return {

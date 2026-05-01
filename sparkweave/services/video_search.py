@@ -135,7 +135,7 @@ def _iter_search_items(result: Any) -> list[dict[str, str]]:
     if not isinstance(result, dict):
         return []
     items: list[dict[str, str]] = []
-    for key in ("search_results", "citations"):
+    for key in ("search_results", "citations", "results", "organic", "items", "data", "videos"):
         value = result.get(key)
         if not isinstance(value, list):
             continue
@@ -144,15 +144,15 @@ def _iter_search_items(result: Any) -> list[dict[str, str]]:
                 continue
             items.append(
                 {
-                    "title": _clean_text(raw.get("title")),
-                    "url": _clean_text(raw.get("url") or raw.get("link") or raw.get("href")),
-                    "snippet": _clean_text(raw.get("snippet") or raw.get("content")),
-                    "source": _clean_text(raw.get("source") or raw.get("website") or raw.get("platform")),
-                    "date": _clean_text(raw.get("date") or raw.get("published_at") or raw.get("published")),
-                    "thumbnail": _clean_text(raw.get("thumbnail") or raw.get("image") or raw.get("thumbnail_url")),
-                    "channel": _clean_text(raw.get("channel") or raw.get("author") or raw.get("creator")),
-                    "duration": _clean_text(raw.get("duration") or raw.get("length")),
-                    "duration_seconds": _clean_text(raw.get("duration_seconds") or raw.get("duration_sec")),
+                    "title": _item_text(raw, "title", "name", "headline"),
+                    "url": _item_text(raw, "url", "link", "href", "video_url", "videoUrl", "source_url", "sourceUrl"),
+                    "snippet": _item_text(raw, "snippet", "content", "description", "body", "summary", "text"),
+                    "source": _item_text(raw, "source", "website", "platform", "site_name", "siteName"),
+                    "date": _item_text(raw, "date", "published_at", "published", "publishedAt", "published_date", "publishedDate"),
+                    "thumbnail": _item_text(raw, "thumbnail", "image", "thumbnail_url", "thumbnailUrl", "image_url", "imageUrl", "cover", "cover_url"),
+                    "channel": _item_text(raw, "channel", "author", "creator", "uploader", "owner", "publisher"),
+                    "duration": _item_text(raw, "duration", "length", "video_duration", "videoDuration"),
+                    "duration_seconds": _item_text(raw, "duration_seconds", "duration_sec", "durationSeconds", "length_seconds", "lengthSeconds"),
                 }
             )
     return items
@@ -226,6 +226,16 @@ def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
             f"https://player.bilibili.com/player.html?bvid={bvid}&poster=1&danmaku=0",
             "",
         )
+    avid_only = re.fullmatch(r"av(\d+)", url, flags=re.IGNORECASE)
+    if avid_only:
+        aid = avid_only.group(1)
+        canonical = f"https://www.bilibili.com/video/av{aid}"
+        return (
+            "Bilibili",
+            canonical,
+            f"https://player.bilibili.com/player.html?aid={aid}&poster=1&danmaku=0",
+            "",
+        )
     normalized = url if re.match(r"^https?://", url) else f"https:{url}" if url.startswith("//") else f"https://{url}"
     parsed = urlparse(normalized)
     host = parsed.netloc.lower()
@@ -236,8 +246,9 @@ def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
             video_id = parsed.path.strip("/").split("/")[0]
         elif parsed.path.startswith("/watch"):
             video_id = parse_qs(parsed.query).get("v", [""])[0]
-        elif parsed.path.startswith(("/embed/", "/shorts/")):
-            video_id = parsed.path.strip("/").split("/")[1]
+        elif parsed.path.startswith(("/embed/", "/shorts/", "/live/")):
+            parts = parsed.path.strip("/").split("/")
+            video_id = parts[1] if len(parts) > 1 else ""
         video_id = re.sub(r"[^A-Za-z0-9_-]", "", video_id)
         if not video_id:
             return "", "", "", ""
@@ -251,14 +262,24 @@ def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
 
     if "bilibili.com" in host:
         match = re.search(r"(BV[0-9A-Za-z]{8,})", url)
-        if not match:
+        if match:
+            bvid = match.group(1)
+            canonical = f"https://www.bilibili.com/video/{bvid}"
+            return (
+                "Bilibili",
+                canonical,
+                f"https://player.bilibili.com/player.html?bvid={bvid}&poster=1&danmaku=0",
+                "",
+            )
+        aid_match = re.search(r"(?:/video/)?av(\d+)", url, flags=re.IGNORECASE)
+        if not aid_match:
             return "", "", "", ""
-        bvid = match.group(1)
-        canonical = f"https://www.bilibili.com/video/{bvid}"
+        aid = aid_match.group(1)
+        canonical = f"https://www.bilibili.com/video/av{aid}"
         return (
             "Bilibili",
             canonical,
-            f"https://player.bilibili.com/player.html?bvid={bvid}&poster=1&danmaku=0",
+            f"https://player.bilibili.com/player.html?aid={aid}&poster=1&danmaku=0",
             "",
         )
 
@@ -269,7 +290,7 @@ def _find_video_url(text: str) -> str:
     candidates = [text.strip()]
     candidates.extend(re.findall(r"https?://[^\s<>'\")]+", text))
     candidates.extend(re.findall(r"(?:www\.)?(?:youtube\.com|youtu\.be|bilibili\.com)/[^\s<>'\")]+", text, flags=re.IGNORECASE))
-    candidates.extend(re.findall(r"(?:BV[0-9A-Za-z]{8,})", text))
+    candidates.extend(re.findall(r"(?:BV[0-9A-Za-z]{8,}|av\d{4,})", text, flags=re.IGNORECASE))
     for candidate in candidates:
         cleaned = candidate.strip().rstrip(".,，。；;)")
         if not cleaned:
@@ -387,9 +408,16 @@ def _duration_from_text(text: str) -> int | None:
         minutes = int(match.group(2))
         seconds = int(match.group(3))
         return hours * 3600 + minutes * 60 + seconds
-    match = re.search(r"(\d{1,3})\s*(?:分钟|mins?|minutes?)", text, flags=re.IGNORECASE)
+    match = re.search(
+        r"(?:(\d{1,2})\s*(?:小时|小時|h|hr|hrs|hours?)\s*)?(\d{1,3})\s*(?:分钟|分鐘|分|mins?|minutes?|m\b)(?:\s*(\d{1,2})\s*(?:秒|sec|secs|seconds?))?",
+        text,
+        flags=re.IGNORECASE,
+    )
     if match:
-        return int(match.group(1)) * 60
+        hours = int(match.group(1) or 0)
+        minutes = int(match.group(2))
+        seconds = int(match.group(3) or 0)
+        return hours * 3600 + minutes * 60 + seconds
     return None
 
 
@@ -420,6 +448,20 @@ def _coerce_minutes(value: Any) -> int | None:
 
 def _clean_text(value: Any) -> str:
     return html.unescape(str(value or "")).strip()
+
+
+def _item_text(raw: dict[str, Any], *keys: str) -> str:
+    containers: list[dict[str, Any]] = [raw]
+    for nested_key in ("attributes", "metadata", "meta", "video", "image"):
+        nested = raw.get(nested_key)
+        if isinstance(nested, dict):
+            containers.append(nested)
+    for container in containers:
+        for key in keys:
+            value = container.get(key)
+            if value not in (None, ""):
+                return _clean_text(value)
+    return ""
 
 
 def _as_strings(value: Any) -> list[str]:

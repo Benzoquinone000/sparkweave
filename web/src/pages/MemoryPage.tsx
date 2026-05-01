@@ -314,8 +314,9 @@ function ProfilePanel({
   const progressStyle = buildLearningProgressStyle(profile);
   const topWeakPoints = weakPoints.slice(0, 2);
   const topMastery = mastery.slice(0, 3);
+  const preferenceLabels = preferences.map(preferenceLabel);
   const quickTags = [
-    ...preferences.slice(0, 3).map((item) => `偏好：${item}`),
+    ...preferenceLabels.slice(0, 3).map((item) => `偏好：${item}`),
     ...strengths.slice(0, 2).map((item) => `优势：${item}`),
   ];
   const primaryTitle = nextAction?.title?.trim() || profile.overview.current_focus || "先完成一次导学或练习";
@@ -334,7 +335,7 @@ function ProfilePanel({
     progressStyle,
     weakPoints: topWeakPoints,
     mastery: topMastery,
-    preferences,
+    preferences: preferenceLabels,
   });
   const overviewClaimValue = [profile.overview.current_focus, profile.overview.summary].filter(Boolean).join("\n");
   const confirmOverview = async () => {
@@ -1328,6 +1329,17 @@ function resourceTypeLabel(value: string) {
     solve: "解题",
   };
   return map[value] || value;
+}
+
+function preferenceLabel(value: string) {
+  const normalized = String(value || "").trim();
+  const lowered = normalized.toLowerCase();
+  if (lowered === "external_video" || lowered === "public_video") return "公开视频";
+  if (lowered === "short_video") return "短视频";
+  if (lowered === "visual") return "图解";
+  if (lowered === "practice") return "练习";
+  if (lowered === "quiz") return "交互练习";
+  return normalized;
 }
 
 function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {

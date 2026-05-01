@@ -1013,7 +1013,9 @@ class _ProfileBuilder:
 
     def _preferred_resource_hint(self) -> str:
         values = {item.value.lower() for item in self.preferences.values()}
-        if "video" in values or "短视频" in values:
+        if "external_video" in values or "public_video" in values or "公开视频" in values or "公开课" in values:
+            return "精选公开视频"
+        if "video" in values or "short_video" in values or "短视频" in values:
             return "短视频讲解"
         if "practice" in values or "quiz" in values or "练习" in values:
             return "入门练习"

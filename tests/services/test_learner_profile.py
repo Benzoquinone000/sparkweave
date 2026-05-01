@@ -226,6 +226,46 @@ async def test_learner_profile_reads_formal_evidence_ledger(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_learner_profile_prefers_public_video_after_viewing_video_evidence(tmp_path) -> None:
+    evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
+    evidence.append_event(
+        {
+            "source": "chat",
+            "verb": "stated",
+            "object_type": "learning_blocker",
+            "object_id": "concept-boundary",
+            "title": "概念边界不清",
+            "summary": "Learner is stuck on the concept boundary.",
+            "created_at": 1_777_000_000,
+        }
+    )
+    evidence.append_event(
+        {
+            "source": "resource",
+            "verb": "viewed",
+            "object_type": "resource",
+            "object_id": "https://example.com/open-course",
+            "title": "Gradient descent public video",
+            "resource_type": "external_video",
+            "created_at": 1_777_000_100,
+        }
+    )
+    service = LearnerProfileService(
+        memory_service=_Memory(),
+        guide_manager=_Guide(),
+        session_store=_Store(),
+        notebook_manager=_Notebook(),
+        evidence_service=evidence,
+        output_dir=tmp_path,
+    )
+
+    profile = await service.refresh(include_sources=["evidence"])
+
+    assert profile["next_action"]["kind"] == "remediate"
+    assert "精选公开视频" in profile["next_action"]["suggested_prompt"]
+
+
+@pytest.mark.asyncio
 async def test_learner_profile_does_not_treat_generated_resource_as_preference(tmp_path) -> None:
     evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
     evidence.append_event(

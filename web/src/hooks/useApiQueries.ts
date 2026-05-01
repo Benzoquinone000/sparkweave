@@ -1038,9 +1038,15 @@ export function useGuideMutations() {
 
 export function useGuideV2Mutations() {
   const queryClient = useQueryClient();
+  const invalidateLearnerProfile = () => {
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+  };
   const settle = (sessionId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["guide-v2-sessions"] });
     void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
+    invalidateLearnerProfile();
     if (sessionId) {
       void queryClient.invalidateQueries({ queryKey: ["guide-v2-session", sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["guide-v2-evaluation", sessionId] });
@@ -1062,6 +1068,7 @@ export function useGuideV2Mutations() {
       onSettled: () => {
         void queryClient.invalidateQueries({ queryKey: ["guide-v2-sessions"] });
         void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
+        invalidateLearnerProfile();
       },
     }),
     completeTask: useMutation({

@@ -32,6 +32,7 @@ docs/              详细项目文档
 python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
+python scripts/check_course_templates.py
 python scripts/smoke_ng_runtime.py
 ```
 
@@ -165,6 +166,7 @@ cd ..
 | SparkBot / Agents | `tests/api/test_sparkbot_router.py`、`tests/api/test_sparkbot_channel_schema.py`、`tests/ng/test_sparkbot_service.py` |
 | API 路由 | `tests/api` |
 | 前端契约 | `python scripts/check_web_api_contract.py` |
+| 课程模板 | `python scripts/check_course_templates.py` |
 | 前端页面 | `cd web && npm run lint && npm run build` |
 
 ## Git 注意事项

@@ -298,6 +298,14 @@ recommendations
 
 模板用于前端预填目标和偏好，也用于后端生成完整课程路线。新增模板时放在 `data/course_templates/` 或 `data/user/workspace/guide/v2/templates/`。
 
+如果模板提供 `nodes` 和 `tasks`，后端会直接按模板生成确定性路线，不再等待 LLM 规划；如果只提供 `learning_outcomes` 或 `project_milestones`，系统会自动补一组基础节点和任务。提交前建议运行：
+
+```powershell
+python scripts/check_course_templates.py
+```
+
+当前仓库内置 `data/course_templates/robotics_ros_foundations.json`，可作为“智能机器人与 ROS 基础”完整课程样例，用于展示项目式导学、图解、练习、公开视频和课程报告闭环。
+
 ## 学习证据闭环
 
 完成当前任务：

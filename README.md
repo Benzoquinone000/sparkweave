@@ -97,6 +97,7 @@ git status
 python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
+python scripts/check_course_templates.py
 cd web
 npm run lint
 npm run build

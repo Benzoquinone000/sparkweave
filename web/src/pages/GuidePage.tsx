@@ -3168,6 +3168,7 @@ function CoursePackagePanel({
   const recordingScript = coursePackage?.recording_script ?? null;
   const competitionSubmission = coursePackage?.competition_submission ?? null;
   const aiCodingStatement = coursePackage?.ai_coding_statement ?? null;
+  const competitionAlignment = coursePackage?.competition_alignment ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
@@ -3200,6 +3201,7 @@ function CoursePackagePanel({
         script={recordingScript}
       />
       <CoursePresentationOutlineCard outline={presentationOutline} />
+      <CourseCompetitionAlignmentCard alignment={competitionAlignment} />
       <CourseCompetitionSubmissionCard submission={competitionSubmission} aiCoding={aiCodingStatement} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
@@ -3256,6 +3258,51 @@ function CoursePackagePanel({
         保存产出包到 Notebook
       </Button>
     </section>
+  );
+}
+
+function CourseCompetitionAlignmentCard({
+  alignment,
+}: {
+  alignment: GuideV2CoursePackage["competition_alignment"] | null;
+}) {
+  const requirements = alignment?.requirements ?? [];
+  if (!alignment || !requirements.length) return null;
+  const ready = Number(alignment.ready_count ?? 0);
+  const total = Number(alignment.total_count ?? requirements.length);
+  const gap = alignment.primary_gap;
+  return (
+    <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-competition-alignment-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(alignment.title, "赛题五项对齐")}</Badge>
+            {alignment.course_name ? <Badge tone="neutral">{guideDisplayText(alignment.course_name)}</Badge> : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-teal-950">
+            {guideDisplayText(alignment.summary, "把当前学习闭环映射成比赛可展示证据。")}
+          </p>
+        </div>
+        <Badge tone={ready >= total ? "success" : "warning"}>{ready} / {total}</Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {requirements.slice(0, 4).map((item) => (
+          <div key={item.id || item.requirement} className="rounded-lg border border-white/80 bg-white p-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(item.requirement, "赛题要求")}</p>
+              <Badge tone={submissionStatusTone(item.status)}>{submissionStatusLabel(item.status)}</Badge>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+              {guideDisplayText((item.evidence ?? []).filter(Boolean)[0], "等待更多学习证据。")}
+            </p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 rounded-lg border border-teal-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+        {gap ? "先补：" : "录屏动作："}
+        {guideDisplayText((gap?.demo_action || alignment.next_action), "按画像、路线、资源、练习、报告顺序展示。")}
+      </p>
+    </div>
   );
 }
 

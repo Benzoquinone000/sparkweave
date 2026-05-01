@@ -2041,6 +2041,15 @@ class GuideV2Manager:
             report=report if report.get("success") else {},
             demo_preflight=demo_preflight,
         )
+        competition_alignment = self._course_competition_alignment(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            learning_style=learning_style,
+            demo_blueprint=demo_blueprint,
+            demo_seed_pack=demo_seed_pack,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2062,6 +2071,7 @@ class GuideV2Manager:
             "recording_script": recording_script,
             "demo_preflight": demo_preflight,
             "ai_coding_statement": ai_coding_statement,
+            "competition_alignment": competition_alignment,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6663,6 +6673,125 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_competition_alignment(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        learning_style: dict[str, Any],
+        demo_blueprint: dict[str, Any],
+        demo_seed_pack: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Map the current course evidence to the five competition requirements."""
+
+        metadata = dict(session.course_map.metadata or {})
+        course_name = str(metadata.get("course_name") or session.course_map.title or session.goal).strip()
+        profile = session.profile
+        action_brief = dict(report.get("action_brief") or {})
+        effect_assessment = dict(report.get("effect_assessment") or {})
+        feedback_digest = dict(report.get("feedback_digest") or {})
+        behavior_summary = dict(report.get("behavior_summary") or {})
+        resource_counts = dict(evaluation.get("resource_counts") or {})
+        portfolio_types = {str(item.get("type") or "") for item in portfolio if isinstance(item, dict)}
+        seed_prompts = [item for item in demo_seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
+        seed_types = {str(item.get("type") or "") for item in seed_prompts}
+        resource_types = {key for key, value in resource_counts.items() if value} | portfolio_types | seed_types
+        multimodal_ready = bool(resource_types & {"visual", "video", "quiz", "external_video"})
+        has_seed = bool(demo_seed_pack.get("task_chain") or seed_prompts)
+        current_task = GuideV2Manager._current_task(session)
+        completed_tasks = int(evaluation.get("completed_tasks") or 0)
+        total_tasks = int(evaluation.get("total_tasks") or len(session.tasks))
+        evidence_count = int(behavior_summary.get("event_count") or 0)
+
+        def status(ready: bool, seed: bool = False) -> str:
+            if ready:
+                return "ready"
+            return "seed" if seed else "todo"
+
+        def evidence_list(*items: str) -> list[str]:
+            return [item for item in items if item]
+
+        requirements = [
+            {
+                "id": "profile",
+                "requirement": "对话式学习画像自主构建",
+                "status": status(bool(profile.goal and (profile.weak_points or profile.preferences)), bool(profile.goal)),
+                "evidence": evidence_list(
+                    f"学习目标：{profile.goal or session.goal}",
+                    f"薄弱点：{'、'.join(profile.weak_points[:3])}" if profile.weak_points else "",
+                    f"偏好：{'、'.join(profile.preferences[:3])}" if profile.preferences else "",
+                    str(learning_style.get("summary") or ""),
+                ),
+                "demo_action": "打开学习画像或导学首页，说明系统先理解学习者，再安排当前任务。",
+            },
+            {
+                "id": "multi_agent",
+                "requirement": "多智能体协同的资源生成",
+                "status": status(multimodal_ready, has_seed),
+                "evidence": evidence_list(
+                    f"已覆盖资源：{'、'.join(sorted(resource_types))}" if resource_types else "",
+                    f"作品集已有 {len(portfolio)} 个产物。" if portfolio else "",
+                    "录屏检查内置稳定资源提示词。" if seed_prompts else "",
+                ),
+                "demo_action": "展示资源卡里的协作路线：画像、资源生成、题目/动画/检索、评估接力。",
+            },
+            {
+                "id": "path",
+                "requirement": "个性化学习路径规划和资源推送",
+                "status": status(bool(session.tasks and session.learning_path.current_task_id), bool(session.tasks)),
+                "evidence": evidence_list(
+                    f"路线包含 {len(session.course_map.nodes)} 个知识点、{total_tasks} 个任务。",
+                    f"当前任务：{current_task.title if current_task else session.goal}",
+                    f"进度：{evaluation.get('progress', 0)}%。",
+                ),
+                "demo_action": "从导学首页进入当前任务，强调用户只需要跟着下一步走。",
+            },
+            {
+                "id": "tutoring",
+                "requirement": "智能辅导与多模态答疑",
+                "status": status(multimodal_ready, has_seed),
+                "evidence": evidence_list(
+                    "图解、练习、短视频或精选公开视频可围绕当前任务生成。" if multimodal_ready or has_seed else "",
+                    "对话协调智能体会按画像唤醒图解、动画、出题或公开视频检索智能体。",
+                    str(action_brief.get("summary") or ""),
+                ),
+                "demo_action": "选择一个当前任务资源，现场生成或展示图解/练习/短视频，再保存或提交反馈。",
+            },
+            {
+                "id": "evaluation",
+                "requirement": "学习效果评估与动态调整",
+                "status": status(bool(effect_assessment or completed_tasks or feedback_digest.get("count")), bool(session.tasks)),
+                "evidence": evidence_list(
+                    f"综合掌握分：{evaluation.get('overall_score', 0)}。",
+                    f"已完成任务：{completed_tasks}。",
+                    f"学习行为证据：{evidence_count} 条。" if evidence_count else "",
+                    str(effect_assessment.get("summary") or ""),
+                ),
+                "demo_action": "提交练习或反思后打开学习报告，展示学习处方和画像回写。",
+            },
+        ]
+        ready_count = sum(1 for item in requirements if item["status"] == "ready")
+        seed_count = sum(1 for item in requirements if item["status"] == "seed")
+        total_count = len(requirements)
+        first_gap = next((item for item in requirements if item["status"] != "ready"), None)
+        coverage_score = round((ready_count + seed_count * 0.5) / total_count * 100)
+        return {
+            "title": "赛题五项对齐",
+            "summary": f"围绕「{course_name}」把画像、路径、资源、辅导和评估映射成可录屏证据。",
+            "course_name": course_name,
+            "coverage_score": coverage_score,
+            "ready_count": ready_count,
+            "seed_count": seed_count,
+            "total_count": total_count,
+            "primary_gap": first_gap,
+            "requirements": requirements,
+            "next_action": (first_gap or {}).get("demo_action")
+            or demo_blueprint.get("summary")
+            or "按画像、路线、资源、练习、报告顺序录制完整闭环。",
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -6836,6 +6965,10 @@ class GuideV2Manager:
         ai_human_review = [str(item) for item in ai_coding_statement.get("human_review") or []]
         ai_privacy_boundary = [str(item) for item in ai_coding_statement.get("privacy_boundary") or []]
         ai_evidence = [str(item) for item in ai_coding_statement.get("evidence") or []]
+        competition_alignment = dict(package.get("competition_alignment") or {})
+        alignment_requirements = [
+            item for item in competition_alignment.get("requirements") or [] if isinstance(item, dict)
+        ]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -6975,6 +7108,23 @@ class GuideV2Manager:
                     lines.append(
                         f"- [{item.get('status') or '-'}] {item.get('label') or '-'}："
                         f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
+                    )
+        if competition_alignment:
+            lines.extend(["", "## 赛题五项对齐", ""])
+            lines.append(f"- 课程：{competition_alignment.get('course_name') or metadata.get('course_name') or '-'}")
+            lines.append(
+                f"- 覆盖：{competition_alignment.get('ready_count', 0)} / "
+                f"{competition_alignment.get('total_count', 0)}，"
+                f"覆盖分：{competition_alignment.get('coverage_score', 0)}"
+            )
+            lines.append(f"- 下一步：{competition_alignment.get('next_action') or '-'}")
+            if alignment_requirements:
+                lines.extend(["", "### 五项要求证据", ""])
+                for item in alignment_requirements[:5]:
+                    evidence = "；".join(str(value) for value in item.get("evidence") or [] if value)
+                    lines.append(
+                        f"- [{item.get('status') or '-'}] {item.get('requirement') or '-'}："
+                        f"{evidence or '-'}；录屏动作：{item.get('demo_action') or '-'}"
                     )
         if fallback_kit:
             lines.extend(["", "## 录屏兜底包", ""])

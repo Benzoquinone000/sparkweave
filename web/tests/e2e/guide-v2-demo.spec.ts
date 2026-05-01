@@ -69,6 +69,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-presentation-outline-card")).toBeVisible();
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("演示 PPT 骨架");
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("项目价值");
+  await expect(page.getByTestId("guide-competition-alignment-card")).toBeVisible();
+  await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("赛题五项对齐");
+  await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多智能体协同");
   await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
@@ -710,6 +713,32 @@ async function mockGuideV2StableDemoApis(page: Page) {
               status: "ready",
               evidence: "课程模板包含目标、任务和评价方式。",
               action: "随项目一并提交课程数据。",
+            },
+          ],
+        },
+        competition_alignment: {
+          title: "赛题五项对齐",
+          summary: "围绕机器学习课程把画像、路径、资源、辅导和评估映射成可录屏证据。",
+          course_name: "Machine Learning Foundations",
+          coverage_score: 80,
+          ready_count: 4,
+          seed_count: 1,
+          total_count: 5,
+          next_action: "展示资源卡里的协作路线。",
+          requirements: [
+            {
+              id: "profile",
+              requirement: "对话式学习画像自主构建",
+              status: "ready",
+              evidence: ["学习目标和薄弱点已经进入画像。"],
+              demo_action: "打开学习画像和导学入口。",
+            },
+            {
+              id: "multi_agent",
+              requirement: "多智能体协同的资源生成",
+              status: "seed",
+              evidence: ["画像、图解、出题和评估智能体接力。"],
+              demo_action: "展示资源卡里的协作路线。",
             },
           ],
         },

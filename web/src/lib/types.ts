@@ -1521,6 +1521,30 @@ export interface GuideV2CoursePackage {
     evidence?: string[];
     next_action?: string;
   };
+  competition_alignment?: {
+    title?: string;
+    summary?: string;
+    course_name?: string;
+    coverage_score?: number;
+    ready_count?: number;
+    seed_count?: number;
+    total_count?: number;
+    next_action?: string;
+    primary_gap?: {
+      id?: string;
+      requirement?: string;
+      status?: "ready" | "seed" | "todo" | string;
+      evidence?: string[];
+      demo_action?: string;
+    } | null;
+    requirements?: Array<{
+      id?: string;
+      requirement?: string;
+      status?: "ready" | "seed" | "todo" | string;
+      evidence?: string[];
+      demo_action?: string;
+    }>;
+  };
   learning_report?: {
     overall_score?: number;
     readiness?: string;

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { useDashboardActivities, useDashboardActivity, useKnowledgeBases, useSessions, useSystemStatus } from "@/hooks/useApiQueries";
+import { capabilityLabel } from "@/lib/capabilities";
 import type { DashboardActivityDetail } from "@/lib/types";
 
 export function Inspector({ onClose }: { onClose: () => void }) {
@@ -98,7 +99,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-2">
                     <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{activity.title || "未命名任务"}</p>
                     <Badge tone={activity.status === "failed" ? "danger" : activity.status === "running" ? "warning" : "neutral"}>
-                      {activity.type || "chat"}
+                      {activityTypeLabel(activity.type)}
                     </Badge>
                     <ChevronRight size={15} className="text-slate-400" />
                   </div>
@@ -214,8 +215,26 @@ function formatStatusLabel(status: string) {
       completed: "已完成",
       failed: "失败",
       chat: "对话",
+      guide: "导学",
+      knowledge: "资料库",
+      notebook: "笔记",
+      question: "题目",
     }[status] || status
   );
+}
+
+function activityTypeLabel(type: string | undefined) {
+  const value = String(type || "chat");
+  const labels: Record<string, string> = {
+    chat: "即时答疑",
+    guide: "导学",
+    knowledge: "资料库",
+    notebook: "笔记",
+    question: "题目",
+    visual: "图解",
+    video: "视频",
+  };
+  return labels[value] || capabilityLabel(value);
 }
 
 function formatRoleLabel(role: string) {

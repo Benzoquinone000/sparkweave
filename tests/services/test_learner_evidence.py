@@ -3,6 +3,7 @@ from __future__ import annotations
 from sparkweave.services.learner_evidence import (
     LearnerEvidenceService,
     build_chat_statement_events,
+    build_notebook_record_event,
     build_profile_calibration_event,
     build_quiz_answer_events,
 )
@@ -134,3 +135,28 @@ def test_learner_evidence_builds_chat_statement_events() -> None:
     assert "learning_blocker" in object_types
     assert {"visual", "video"}.issubset(resource_types)
     assert all(event["source"] == "chat" for event in events)
+
+
+def test_notebook_record_event_infers_saved_external_video_resource() -> None:
+    event = build_notebook_record_event(
+        record={
+            "id": "rec-video",
+            "type": "chat",
+            "title": "Gradient descent videos",
+            "summary": "Two curated public videos.",
+            "metadata": {
+                "source": "chat",
+                "external_video": {
+                    "render_type": "external_video",
+                    "videos": [{"title": "Gradient descent", "url": "https://example.com/video"}],
+                },
+            },
+        },
+        notebook_ids=["nb1"],
+    )
+
+    assert event["source"] == "chat"
+    assert event["verb"] == "saved"
+    assert event["resource_type"] == "external_video"
+    assert event["metadata"]["record_type"] == "chat"
+    assert event["metadata"]["inferred_resource_type"] == "external_video"

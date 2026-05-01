@@ -433,6 +433,7 @@ def build_notebook_record_event(
     record_type = _clean(record.get("type") or "notebook_record", 80)
     metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
     event_source = _clean(metadata.get("source") or source, 80)
+    resource_type = _infer_notebook_resource_type(record_type, metadata)
     return {
         "id": f"ev_notebook_{_safe_id(record_id)}_{_safe_id('-'.join(notebook_ids))}",
         "source": event_source,
@@ -442,16 +443,42 @@ def build_notebook_record_event(
         "object_id": record_id,
         "title": record.get("title") or "学习笔记",
         "summary": record.get("summary") or record.get("user_query") or "",
-        "resource_type": record_type,
+        "resource_type": resource_type,
         "created_at": record.get("created_at"),
         "confidence": 0.62,
         "metadata": {
             **metadata,
             "notebook_ids": notebook_ids,
             "record_type": record_type,
+            "inferred_resource_type": resource_type,
             "kb_name": record.get("kb_name"),
         },
     }
+
+
+def _infer_notebook_resource_type(record_type: str, metadata: dict[str, Any]) -> str:
+    external_video = metadata.get("external_video")
+    if isinstance(external_video, dict) and (
+        external_video.get("render_type") == "external_video" or isinstance(external_video.get("videos"), list)
+    ):
+        return "external_video"
+    if isinstance(metadata.get("math_animator"), dict):
+        return "video"
+    if isinstance(metadata.get("visualize"), dict):
+        return "visual"
+    quiz = metadata.get("quiz")
+    if isinstance(quiz, dict) and quiz.get("count"):
+        return "quiz"
+    capability = _clean(metadata.get("capability") or "", 80)
+    if capability == "math_animator":
+        return "video"
+    if capability == "visualize":
+        return "visual"
+    if capability == "deep_question" or record_type == "question":
+        return "quiz"
+    if capability == "deep_research" or record_type == "research":
+        return "research"
+    return record_type or "notebook_record"
 
 
 def build_profile_calibration_event(

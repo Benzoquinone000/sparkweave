@@ -68,6 +68,40 @@ test("guide keeps resource alternatives on a separate page", async ({ page }, te
   await expect(page.getByText("系统建议先做这个")).toBeVisible();
 });
 
+test("mobile guide v2 keeps the current task flow simple", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "mobile guide v2 smoke only");
+
+  const consoleDomErrors: string[] = [];
+  page.on("pageerror", (error) => consoleDomErrors.push(error.message));
+  page.on("console", (message) => {
+    const text = message.text();
+    if (text.includes("insertBefore") || text.includes("Failed to execute")) {
+      consoleDomErrors.push(text);
+    }
+  });
+
+  await installMockGuideV2ResourceEventSource(page);
+  const guide = await mockGuideV2StableDemoApis(page);
+
+  await page.goto("/guide");
+  await page.getByTestId("guide-demo-start").click();
+
+  await expect.poll(() => guide.createPayload?.source_action?.source).toBe("demo_seed");
+  await expect(page.getByText("先做这一件事")).toBeVisible();
+  await expect(page.getByText("系统建议先做这个")).toBeVisible();
+  await expect(page.getByTestId("guide-resource-choice-quiz")).toHaveCount(0);
+
+  await page.getByTestId("guide-open-resource-choice").click();
+  await expect(page.getByText("选择一种学习材料")).toBeVisible();
+  await expect(page.getByTestId("guide-resource-choice-visual")).toContainText("推荐");
+  await expect(page.getByTestId("guide-resource-choice-external_video")).toContainText("精选视频");
+
+  await page.getByTestId("guide-resource-choice-external_video").click();
+  await expect.poll(() => guide.resourcePayload?.resource_type).toBe("external_video");
+  await expect(page.getByText("先做这一件事")).toBeVisible();
+  expect(consoleDomErrors).toEqual([]);
+});
+
 async function installMockGuideV2ResourceEventSource(page: Page) {
   await page.addInitScript(() => {
     type Listener = (event: MessageEvent<string>) => void;

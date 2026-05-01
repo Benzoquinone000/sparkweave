@@ -43,6 +43,29 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   expect(consoleDomErrors).toEqual([]);
 });
 
+test("guide keeps resource alternatives on a separate page", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "resource choice smoke runs once");
+
+  await installMockGuideV2ResourceEventSource(page);
+  const guide = await mockGuideV2StableDemoApis(page);
+
+  await page.goto("/guide");
+  await page.getByTestId("guide-demo-start").click();
+
+  await expect(page.getByText("系统建议先做这个")).toBeVisible();
+  await expect(page.getByTestId("guide-open-resource-choice")).toContainText("换一种材料");
+  await expect(page.getByTestId("guide-resource-choice-quiz")).toHaveCount(0);
+
+  await page.getByTestId("guide-open-resource-choice").click();
+  await expect(page.getByText("选择一种学习材料")).toBeVisible();
+  await expect(page.getByTestId("guide-resource-choice-visual")).toContainText("推荐");
+  await expect(page.getByTestId("guide-resource-choice-quiz")).toContainText("练习");
+
+  await page.getByTestId("guide-resource-choice-quiz").click();
+  await expect.poll(() => guide.resourcePayload?.resource_type).toBe("quiz");
+  await expect(page.getByText("系统建议先做这个")).toBeVisible();
+});
+
 async function installMockGuideV2ResourceEventSource(page: Page) {
   await page.addInitScript(() => {
     type Listener = (event: MessageEvent<string>) => void;

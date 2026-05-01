@@ -2025,6 +2025,16 @@ class GuideV2Manager:
             presentation_outline=presentation_outline,
             competition_submission=competition_submission,
         )
+        demo_preflight = self._course_demo_preflight(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            demo_blueprint=demo_blueprint,
+            presentation_outline=presentation_outline,
+            recording_script=recording_script,
+            competition_submission=competition_submission,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2044,6 +2054,7 @@ class GuideV2Manager:
             "presentation_outline": presentation_outline,
             "competition_submission": competition_submission,
             "recording_script": recording_script,
+            "demo_preflight": demo_preflight,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6488,6 +6499,115 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_demo_preflight(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        demo_blueprint: dict[str, Any],
+        presentation_outline: dict[str, Any],
+        recording_script: dict[str, Any],
+        competition_submission: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Summarize whether the current course package is ready for competition recording."""
+
+        profile = session.profile
+        metadata = dict(session.course_map.metadata or {})
+        feedback_digest = dict(report.get("feedback_digest") or {})
+        demo_readiness = dict(report.get("demo_readiness") or {})
+        submission_checklist = [
+            item for item in competition_submission.get("checklist") or [] if isinstance(item, dict)
+        ]
+
+        def status(ready: bool, seed: bool = False) -> str:
+            if ready:
+                return "ready"
+            return "seed" if seed else "todo"
+
+        checks = [
+            {
+                "id": "profile",
+                "label": "学习画像",
+                "status": status(bool(profile.goal and (profile.weak_points or profile.preferences)), bool(profile.goal)),
+                "evidence": "已有目标、薄弱点或学习偏好，可解释个性化依据。",
+                "action": "先完成一次画像对话或前测，让系统知道学习者卡在哪里。",
+            },
+            {
+                "id": "route",
+                "label": "导学路线",
+                "status": status(bool(session.tasks and session.learning_path.current_task_id), bool(session.tasks)),
+                "evidence": f"当前路线包含 {len(session.tasks)} 个学习任务。",
+                "action": "先创建或刷新一条导学路线，再开始录屏。",
+            },
+            {
+                "id": "resource",
+                "label": "多智能体资源",
+                "status": status(bool(portfolio), bool(demo_blueprint.get("storyline"))),
+                "evidence": f"已沉淀 {len(portfolio)} 个可展示学习产物。",
+                "action": "至少生成一份图解、练习、视频或精选公开视频。",
+            },
+            {
+                "id": "feedback",
+                "label": "练习反馈闭环",
+                "status": status(
+                    int(feedback_digest.get("count") or 0) > 0 or int(evaluation.get("completed_tasks") or 0) > 0,
+                    bool(session.tasks),
+                ),
+                "evidence": "已有任务提交、反馈或反思证据，可展示画像回写。",
+                "action": "完成当前任务并提交一次分数或反思。",
+            },
+            {
+                "id": "report",
+                "label": "学习效果报告",
+                "status": status(bool(report.get("success") and report.get("effect_assessment")), bool(demo_readiness)),
+                "evidence": demo_readiness.get("summary") or "学习报告会汇总掌握度、处方和演示就绪度。",
+                "action": "生成学习报告，展示评估如何调整下一步。",
+            },
+            {
+                "id": "deck",
+                "label": "PPT 骨架",
+                "status": status(bool(presentation_outline.get("slides"))),
+                "evidence": f"已准备 {presentation_outline.get('slide_count') or 0} 页答辩大纲。",
+                "action": "生成课程产出包，使用演示 PPT 骨架整理答辩材料。",
+            },
+            {
+                "id": "script",
+                "label": "录屏讲稿",
+                "status": status(bool(recording_script.get("segments"))),
+                "evidence": f"已准备 {len(recording_script.get('segments') or [])} 段录屏讲稿。",
+                "action": "按录屏讲稿准备每段画面和兜底产物。",
+            },
+            {
+                "id": "submission",
+                "label": "提交物清单",
+                "status": status(bool(submission_checklist)),
+                "evidence": f"已检查 {len(submission_checklist)} 项比赛提交物。",
+                "action": "打开比赛提交清单，补齐 PPT、演示视频、文档和部署配置。",
+            },
+        ]
+
+        ready_count = sum(1 for item in checks if item["status"] == "ready")
+        seed_count = sum(1 for item in checks if item["status"] == "seed")
+        total_count = len(checks)
+        score = round((ready_count + seed_count * 0.5) / total_count * 100)
+        first_gap = next((item for item in checks if item["status"] != "ready"), None)
+        status_value = "ready" if ready_count == total_count else "rehearsable" if ready_count + seed_count == total_count else "needs_attention"
+        course_name = metadata.get("course_name") or session.course_map.title or session.goal
+        return {
+            "title": "赛前一键检查",
+            "summary": f"围绕「{course_name}」检查录屏、答辩和提交材料是否成链。",
+            "status": status_value,
+            "score": score,
+            "ready_count": ready_count,
+            "seed_count": seed_count,
+            "total_count": total_count,
+            "primary_gap": first_gap,
+            "next_action": (first_gap or {}).get("action") or "可以开始录制 7 分钟演示，并按提交清单整理材料。",
+            "checks": checks,
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -6654,6 +6774,8 @@ class GuideV2Manager:
         ]
         recording_script = dict(package.get("recording_script") or {})
         recording_segments = [item for item in recording_script.get("segments") or [] if isinstance(item, dict)]
+        demo_preflight = dict(package.get("demo_preflight") or {})
+        preflight_checks = [item for item in demo_preflight.get("checks") or [] if isinstance(item, dict)]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -6782,6 +6904,18 @@ class GuideV2Manager:
                 lines.extend(["", "### 演示兜底", ""])
                 for item in demo_fallbacks[:4]:
                     lines.append(f"- {item}")
+        if demo_preflight:
+            lines.extend(["", "## 赛前一键检查", ""])
+            lines.append(f"- 状态：{demo_preflight.get('status') or '-'}")
+            lines.append(f"- 就绪：{demo_preflight.get('ready_count', 0)} / {demo_preflight.get('total_count', 0)}")
+            lines.append(f"- 下一步：{demo_preflight.get('next_action') or '-'}")
+            if preflight_checks:
+                lines.extend(["", "### 检查项", ""])
+                for item in preflight_checks[:8]:
+                    lines.append(
+                        f"- [{item.get('status') or '-'}] {item.get('label') or '-'}："
+                        f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
+                    )
         if fallback_kit:
             lines.extend(["", "## 录屏兜底包", ""])
             lines.append(f"- 摘要：{fallback_kit.get('summary') or '-'}")

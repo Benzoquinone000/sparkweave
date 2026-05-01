@@ -1446,6 +1446,30 @@ export interface GuideV2CoursePackage {
     fallback_script?: string[];
   };
   demo_seed_pack?: GuideV2DemoSeedPack;
+  demo_preflight?: {
+    title?: string;
+    summary?: string;
+    status?: "ready" | "rehearsable" | "needs_attention" | string;
+    score?: number;
+    ready_count?: number;
+    seed_count?: number;
+    total_count?: number;
+    next_action?: string;
+    primary_gap?: {
+      id?: string;
+      label?: string;
+      status?: string;
+      evidence?: string;
+      action?: string;
+    } | null;
+    checks?: Array<{
+      id?: string;
+      label?: string;
+      status?: string;
+      evidence?: string;
+      action?: string;
+    }>;
+  };
   presentation_outline?: {
     title?: string;
     summary?: string;

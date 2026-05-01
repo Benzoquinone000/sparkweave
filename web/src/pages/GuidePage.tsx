@@ -3163,6 +3163,7 @@ function CoursePackagePanel({
   const demoBlueprint = coursePackage?.demo_blueprint ?? null;
   const fallbackKit = coursePackage?.demo_fallback_kit ?? null;
   const seedPack = coursePackage?.demo_seed_pack ?? null;
+  const demoPreflight = coursePackage?.demo_preflight ?? null;
   const presentationOutline = coursePackage?.presentation_outline ?? null;
   const recordingScript = coursePackage?.recording_script ?? null;
   const competitionSubmission = coursePackage?.competition_submission ?? null;
@@ -3188,6 +3189,7 @@ function CoursePackagePanel({
         <p className="text-sm font-semibold text-ink">{guideDisplayText(project.title, "学习成果项目")}</p>
         <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{guideDisplayText(project.scenario, "完成更多学习任务后会生成更贴合你的项目说明。")}</p>
       </div>
+      <CourseDemoPreflightCard preflight={demoPreflight} />
       <CourseLearningStyleCard learningStyle={learningStyle} />
       <CourseDemoRecordingChecklistCard
         blueprint={demoBlueprint}
@@ -3295,6 +3297,50 @@ function CourseCompetitionSubmissionCard({
           下一步：{guideDisplayText(submission.next_action)}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function CourseDemoPreflightCard({
+  preflight,
+}: {
+  preflight: GuideV2CoursePackage["demo_preflight"] | null;
+}) {
+  const checks = preflight?.checks ?? [];
+  if (!preflight || !checks.length) return null;
+  const ready = Number(preflight.ready_count ?? 0);
+  const total = Number(preflight.total_count ?? checks.length);
+  const gap = preflight.primary_gap;
+  return (
+    <div className="mt-4 rounded-lg border border-red-100 bg-red-50 p-3" data-testid="guide-demo-preflight-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={preflightStatusTone(preflight.status)}>{guideDisplayText(preflight.title, "赛前一键检查")}</Badge>
+            <Badge tone="neutral">{ready} / {total}</Badge>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-red-950">
+            {guideDisplayText(preflight.summary, "检查录屏、答辩和提交材料是否成链。")}
+          </p>
+        </div>
+        <Badge tone={preflightStatusTone(preflight.status)}>{preflightStatusLabel(preflight.status)}</Badge>
+      </div>
+      {gap ? (
+        <p className="mt-3 rounded-lg border border-white/80 bg-white p-2 text-xs leading-5 text-slate-700">
+          先补：{guideDisplayText(gap.label, "待补齐")}。{guideDisplayText(gap.action || preflight.next_action, "补齐后即可开始录屏。")}
+        </p>
+      ) : (
+        <p className="mt-3 rounded-lg border border-white/80 bg-white p-2 text-xs leading-5 text-slate-700">
+          {guideDisplayText(preflight.next_action, "可以开始录制 7 分钟演示。")}
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {checks.slice(0, 5).map((item) => (
+          <Badge key={item.id || item.label} tone={preflightCheckTone(item.status)}>
+            {guideDisplayText(item.label, "检查项")}
+          </Badge>
+        ))}
+      </div>
     </div>
   );
 }
@@ -4501,6 +4547,30 @@ function submissionStatusLabel(status?: string): string {
   if (value === "seed") return "有种子";
   if (value === "todo" || value === "missing") return "待补齐";
   return "待确认";
+}
+
+function preflightStatusTone(status?: string): "neutral" | "success" | "warning" | "danger" | "brand" {
+  const value = String(status || "").toLowerCase();
+  if (value === "ready") return "success";
+  if (value === "rehearsable") return "brand";
+  if (value === "needs_attention") return "warning";
+  return "neutral";
+}
+
+function preflightStatusLabel(status?: string): string {
+  const value = String(status || "").toLowerCase();
+  if (value === "ready") return "可以录制";
+  if (value === "rehearsable") return "可排练";
+  if (value === "needs_attention") return "先补一项";
+  return "检查中";
+}
+
+function preflightCheckTone(status?: string): "neutral" | "success" | "warning" | "danger" | "brand" {
+  const value = String(status || "").toLowerCase();
+  if (value === "ready") return "success";
+  if (value === "seed") return "brand";
+  if (value === "todo") return "warning";
+  return "neutral";
 }
 
 const GUIDE_DISPLAY_COPY: Record<string, string> = {

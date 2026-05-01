@@ -58,6 +58,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-course-package-panel")).toBeVisible();
   await expect(page.getByTestId("guide-course-package-panel")).toContainText("稳定演示产出包");
   await expect(page.getByTestId("guide-course-package-panel")).not.toContainText("Stable demo course package");
+  await expect(page.getByTestId("guide-demo-preflight-card")).toBeVisible();
+  await expect(page.getByTestId("guide-demo-preflight-card")).toContainText("赛前一键检查");
+  await expect(page.getByTestId("guide-demo-preflight-card")).toContainText("先补");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toBeVisible();
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
@@ -620,6 +623,30 @@ async function mockGuideV2StableDemoApis(page: Page) {
           checklist: ["Open guide route before recording."],
         },
         demo_seed_pack: demoSeed,
+        demo_preflight: {
+          title: "赛前一键检查",
+          summary: "围绕机器学习基础检查录屏、答辩和提交材料是否成链。",
+          status: "needs_attention",
+          score: 75,
+          ready_count: 5,
+          seed_count: 2,
+          total_count: 8,
+          next_action: "先生成一份可展示资源。",
+          primary_gap: {
+            id: "resource",
+            label: "多智能体资源",
+            status: "todo",
+            evidence: "还没有沉淀可展示学习产物。",
+            action: "至少生成一份图解、练习、视频或精选公开视频。",
+          },
+          checks: [
+            { id: "profile", label: "学习画像", status: "ready" },
+            { id: "route", label: "导学路线", status: "ready" },
+            { id: "resource", label: "多智能体资源", status: "todo" },
+            { id: "feedback", label: "练习反馈闭环", status: "seed" },
+            { id: "report", label: "学习效果报告", status: "ready" },
+          ],
+        },
         presentation_outline: {
           title: "演示 PPT 骨架",
           summary: "按赛题评分点生成 7 页答辩大纲。",

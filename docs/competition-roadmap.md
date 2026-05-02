@@ -313,6 +313,7 @@
 - CI 会上传 `competition-readiness` artifact，包含结构化就绪报告和 `competition_package` 提交包快照，方便赛前从 GitHub Actions 直接下载核对。
 - 新增 `scripts/render_competition_summary.py` 和 CLI `--summary` 参数：把 JSON 就绪报告压缩成一页 Markdown 摘要，CI 会直接写入 Actions Summary，让“这次提交能不能演示”不用再翻长日志。
 - `competition-package` 和 `competition-preflight` 支持 `--archive`：正式归档时可同步生成 `sparkweave_competition_package.zip`，CI artifact 也会保留这份可上传提交包。
+- 赛前 readiness 已把 zip 提交包纳入检查项：不仅验证目录导出，也验证可上传压缩包确实生成且非空。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

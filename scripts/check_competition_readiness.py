@@ -457,6 +457,7 @@ def check_generated_exports() -> list[Check]:
         tmpdir = Path(tmp)
         demo_dir = tmpdir / "demo_materials"
         package_dir = tmpdir / "competition_package"
+        archive_path = tmpdir / "sparkweave_competition_package.zip"
 
         checks.append(
             run_project_script(
@@ -491,6 +492,15 @@ def check_generated_exports() -> list[Check]:
                 "export_competition_package.py",
                 "--output",
                 str(package_dir),
+                "--archive",
+                str(archive_path),
+            )
+        )
+        checks.append(
+            Check(
+                "Competition package archive",
+                archive_path.exists() and archive_path.stat().st_size > 0,
+                "missing or empty archive" if not archive_path.exists() or archive_path.stat().st_size <= 0 else "",
             )
         )
         checks.extend(

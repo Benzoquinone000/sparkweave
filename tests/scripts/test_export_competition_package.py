@@ -80,6 +80,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     result = run_script("export_competition_package.py", output)
 
     assert result.returncode == 0, result.stderr or result.stdout
+    assert (output / "START_HERE.md").exists()
     assert (output / "index.html").exists()
     assert (output / "checksums.sha256").exists()
     assert (output / "submission_manifest.md").exists()
@@ -106,13 +107,19 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "demo_materials" / "sparkweave-final-pitch-checklist.md").exists()
 
     manifest = (output / "submission_manifest.md").read_text(encoding="utf-8")
+    start_here = (output / "START_HERE.md").read_text(encoding="utf-8")
     index = (output / "index.html").read_text(encoding="utf-8")
+    assert "先看这里" in start_here
+    assert "index.html" in start_here
+    assert "sparkweave-competition-scorecard.md" in start_here
     assert "SparkWeave 星火织学提交包" in index
+    assert "START_HERE.md" in index
     assert "demo_materials/sparkweave-demo-deck.html" in index
     assert "screenshots/screenshots-simplified-guide.png" in index
     assert "checksums.sha256" in index
     assert "五项要求证据" in index
     checksums = (output / "checksums.sha256").read_text(encoding="utf-8")
+    assert "START_HERE.md" in checksums
     assert "index.html" in checksums
     assert "submission_manifest.md" in checksums
     assert "demo_materials/sparkweave-competition-scorecard.md" in checksums
@@ -154,6 +161,7 @@ def test_export_competition_package_can_write_archive(tmp_path: Path) -> None:
     assert f"[competition-package] archived to {archive}" in result.stdout
     with zipfile.ZipFile(archive) as package:
         names = set(package.namelist())
+    assert "competition_package/START_HERE.md" in names
     assert "competition_package/index.html" in names
     assert "competition_package/checksums.sha256" in names
     assert "competition_package/submission_manifest.md" in names

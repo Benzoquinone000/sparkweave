@@ -122,6 +122,7 @@ def main() -> int:
     manifest = build_manifest(output, copied, missing, selected_template=selected_template)
     (output / "README.md").write_text(manifest, encoding="utf-8")
     (output / "submission_manifest.md").write_text(manifest, encoding="utf-8")
+    (output / "START_HERE.md").write_text(build_start_here(selected_template), encoding="utf-8")
     (output / "index.html").write_text(build_submission_index(selected_template, missing), encoding="utf-8")
     write_checksums(output)
 
@@ -302,6 +303,42 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
     return "\n".join(lines) + "\n"
 
 
+def build_start_here(selected_template: dict[str, str]) -> str:
+    course_name = selected_template.get("course_name", selected_template.get("id", "大模型教育智能体系统开发"))
+    return "\n".join(
+        [
+            "# 先看这里",
+            "",
+            "这是一份 SparkWeave 星火织学比赛提交包。解压后不需要从一堆文件里找入口，按下面顺序看即可。",
+            "",
+            "## 1. 先打开入口页",
+            "",
+            "- 打开 `index.html`。",
+            "- 它会带你进入演示页、评分点证据、7 分钟讲稿、关键截图和运行说明。",
+            "",
+            "## 2. 快速理解项目",
+            "",
+            "- `demo_materials/sparkweave-evaluator-one-pager.md`：评委一页说明。",
+            "- `demo_materials/sparkweave-competition-scorecard.md`：赛题五项要求证据表。",
+            "- `demo_materials/sparkweave-demo-deck.html`：可直接打开的演示页。",
+            "",
+            "## 3. 录屏或答辩",
+            "",
+            "- `demo_materials/sparkweave-7min-recording-script.md`：7 分钟演示视频讲稿。",
+            "- `docs/competition-demo-runbook.md`：录屏路径和兜底动作。",
+            f"- 推荐演示课程：{course_name}。",
+            "",
+            "## 4. 运行和复核",
+            "",
+            "- `docs/getting-started.md`：从安装到启动。",
+            "- `runtime/scripts/start_web.py`：本地启动入口。",
+            "- `checksums.sha256`：文件完整性校验清单。",
+            "- 如需复核提交包，请运行：`python runtime/scripts/verify_competition_package.py .`。",
+            "",
+        ]
+    )
+
+
 def build_submission_index(selected_template: dict[str, str], missing: list[str]) -> str:
     course_name = escape(selected_template.get("course_name", selected_template.get("id", "大模型教育智能体系统开发")))
     missing_note = (
@@ -465,6 +502,7 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
 
     <h2>先看这几项</h2>
     <section class="grid" aria-label="核心材料">
+      <a class="card" href="START_HERE.md"><span class="tag">入口</span><h3>先看这里</h3><p>解压后的最短阅读顺序和复核命令。</p></a>
       <a class="card" href="demo_materials/sparkweave-demo-deck.html"><span class="tag">演示页</span><h3>可打开的 PPT 骨架</h3><p>用于快速讲清项目价值、五项赛题对齐和演示路线。</p></a>
       <a class="card" href="demo_materials/sparkweave-evaluator-one-pager.md"><span class="tag">评委一页纸</span><h3>项目速览</h3><p>把定位、证据链、录屏路线和兜底材料压缩到一页。</p></a>
       <a class="card" href="demo_materials/sparkweave-competition-scorecard.md"><span class="tag">评分点</span><h3>赛题证据表</h3><p>逐条映射画像、资源生成、路径规划、智能辅导和学习评估。</p></a>

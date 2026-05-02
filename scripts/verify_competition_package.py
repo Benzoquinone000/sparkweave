@@ -11,6 +11,7 @@ import zipfile
 
 
 REQUIRED_FILES = [
+    "START_HERE.md",
     "index.html",
     "checksums.sha256",
     "submission_manifest.md",

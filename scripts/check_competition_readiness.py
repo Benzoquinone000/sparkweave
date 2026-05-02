@@ -519,6 +519,7 @@ def check_generated_exports() -> list[Check]:
                 archive_path,
                 [
                     "competition_package/index.html",
+                    "competition_package/START_HERE.md",
                     "competition_package/checksums.sha256",
                     "competition_package/submission_manifest.md",
                     "competition_package/demo_materials/sparkweave-demo-deck.html",
@@ -537,6 +538,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir,
                 [
                     "index.html",
+                    "START_HERE.md",
                     "checksums.sha256",
                     "README.md",
                     "submission_manifest.md",
@@ -563,6 +565,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir,
                 [
                     ("index.html", "SparkWeave 星火织学提交包"),
+                    ("START_HERE.md", "先看这里"),
                     ("checksums.sha256", "index.html"),
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
                     ("docs/iflytek-integration.md", "科大讯飞能力接入说明"),

@@ -140,7 +140,7 @@ cd ..
 ```
 
 `scripts/export_demo_materials.py` 会离线生成 PPT 骨架、可打印演示页、7 分钟录屏讲稿、多智能体协作蓝图、赛题评分点证据表、答辩问答预案和最终答辩材料清单，适合作为赛前起稿材料。
-`scripts/export_competition_package.py` 会把比赛文档、课程模板、页面截图、架构图和运行配置样例整理到 `dist/competition_package/`，并生成解压后可直接打开的 `index.html` 材料导航页和 `checksums.sha256` 完整性校验清单；可用 `--template higher_math_limits_derivatives` 为不同课程样例生成对应演示材料。
+`scripts/export_competition_package.py` 会把比赛文档、课程模板、页面截图、架构图和运行配置样例整理到 `dist/competition_package/`，并生成 `START_HERE.md`、解压后可直接打开的 `index.html` 材料导航页和 `checksums.sha256` 完整性校验清单；可用 `--template higher_math_limits_derivatives` 为不同课程样例生成对应演示材料。
 `scripts/verify_competition_package.py` 可独立验证导出的目录或 zip：检查必备文件、危险条目和 SHA256 校验清单，适合下载 artifact 后复核。
 `scripts/check_competition_readiness.py` 会在临时目录中生成演示材料和提交包，并检查文档、截图、课程模板、运行脚本等关键交付物是否齐全；需要归档时可运行 `python -m sparkweave_cli competition-check --format json --output dist/competition-readiness.json` 生成结构化报告。
 `scripts/render_competition_summary.py` 会把结构化就绪报告压缩成一页 Markdown 摘要；GitHub Actions 也会把这份摘要写到运行页面，并上传 `competition-readiness` artifact。

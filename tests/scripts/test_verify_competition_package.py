@@ -25,6 +25,7 @@ def test_verify_competition_package_directory_and_archive(tmp_path: Path) -> Non
 
     export = run_script("export_competition_package.py", "--output", str(package_dir), "--archive", str(archive))
     assert export.returncode == 0, export.stderr or export.stdout
+    assert (package_dir / "START_HERE.md").exists()
 
     directory_result = run_script("verify_competition_package.py", str(package_dir))
     archive_result = run_script("verify_competition_package.py", str(archive))

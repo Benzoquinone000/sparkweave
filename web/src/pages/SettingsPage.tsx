@@ -566,15 +566,18 @@ function ServiceStatusStrip({ status }: { status?: SystemStatus }) {
     },
   ];
   return (
-    <section className="px-1">
+    <section className="px-1" data-testid="settings-status-strip">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        {items.map((item) => (
-          <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-sm ${item.error ? "bg-brand-red" : item.ok ? "bg-emerald-500" : "bg-slate-300"}`} />
-            <span className="shrink-0 text-slate-500">{item.label}</span>
-            <span className="max-w-[180px] truncate font-medium text-ink">{item.error || item.value}</span>
-          </div>
-        ))}
+        {items.map((item) => {
+          const displayValue = item.error ? friendlyServiceError(String(item.error)) : item.value;
+          return (
+            <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-sm ${item.error ? "bg-brand-red" : item.ok ? "bg-emerald-500" : "bg-slate-300"}`} />
+              <span className="shrink-0 text-slate-500">{item.label}</span>
+              <span className="max-w-[180px] truncate font-medium text-ink">{displayValue}</span>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

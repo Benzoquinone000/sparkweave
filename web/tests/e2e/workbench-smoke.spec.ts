@@ -1189,8 +1189,29 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
   test.skip(testInfo.project.name !== "desktop", "settings service test smoke runs once");
   const settings = await mockSettingsTourApis(page);
   await installMockSettingsEventSource(page);
+  await page.route("**/api/v1/system/status", (route) =>
+    route.fulfill({
+      json: {
+        backend: { status: "online" },
+        llm: {
+          status: "error",
+          error: "Error code: 401 - {'message': 'HMAC secret key does not match'}",
+        },
+        embeddings: { status: "configured", model: "embedding-mock" },
+        search: {
+          status: "error",
+          error: "Error code: 504 - {'message': 'The upstream server is timing out'}",
+        },
+        ocr: { status: "optional", provider: "iflytek" },
+      },
+    }),
+  );
 
   await page.goto("/settings");
+  await expect(page.getByTestId("settings-status-strip")).toContainText("密钥或鉴权信息不正确");
+  await expect(page.getByTestId("settings-status-strip")).toContainText("服务响应超时");
+  await expect(page.getByTestId("settings-status-strip")).not.toContainText("HMAC");
+  await expect(page.getByTestId("settings-status-strip")).not.toContainText("upstream");
   await page.getByTestId("settings-llm-base-url").fill("https://updated-llm.example/v1");
   await page.getByTestId("settings-llm-model").fill("gpt-updated");
   await page.getByTestId("settings-llm-api-key").fill("sk-updated");

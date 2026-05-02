@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from typer.testing import CliRunner
@@ -197,6 +198,24 @@ def test_competition_check_command_runs_readiness_script(monkeypatch) -> None:
     assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
         "scripts/check_competition_readiness.py"
     )
+    assert calls[0][0][-2:] == ["--format", "text"]
+
+
+def test_competition_check_command_passes_report_options(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "readiness.json"
+    result = runner.invoke(app, ["competition-check", "--format", "json", "--output", str(output)])
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][0][-4:] == ["--format", "json", "--output", str(output)]
 
 
 def test_session_list_command_uses_shared_store(monkeypatch) -> None:

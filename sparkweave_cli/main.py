@@ -149,12 +149,23 @@ def serve(
 
 
 @app.command("competition-check")
-def competition_check() -> None:
+def competition_check(
+    fmt: str = typer.Option("text", "--format", "-f", help="Output format: text | json."),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write a JSON readiness report.",
+    ),
+) -> None:
     """Check whether key competition submission materials are ready."""
 
     root = Path(__file__).resolve().parent.parent
     script = root / "scripts" / "check_competition_readiness.py"
-    result = subprocess.run([sys.executable, str(script)], cwd=root, check=False)
+    cmd = [sys.executable, str(script), "--format", fmt]
+    if output is not None:
+        cmd.extend(["--output", str(output)])
+    result = subprocess.run(cmd, cwd=root, check=False)
     raise typer.Exit(code=result.returncode)
 
 

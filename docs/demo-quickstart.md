@@ -15,7 +15,7 @@ python -m sparkweave_cli competition-check
 需要把检查结果交给 CI、前端或答辩材料归档时，可以生成结构化报告：
 
 ```powershell
-python scripts/check_competition_readiness.py --format json --output dist/competition-readiness.json
+python -m sparkweave_cli competition-check --format json --output dist/competition-readiness.json
 ```
 
 ## 录屏只走五步

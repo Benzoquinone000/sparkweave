@@ -1,0 +1,275 @@
+{
+  "id": "ai_learning_agents_systems",
+  "title": "完整课程：大模型教育智能体系统开发",
+  "course_id": "AIED301",
+  "course_name": "大模型教育智能体系统开发",
+  "description": "面向高校人工智能、教育技术和软件工程方向学生的 8 周项目式课程。课程围绕学习画像、RAG 知识库、多智能体协作、个性化路径规划、多模态资源生成和学习效果评估，完成一个可运行的 AI 学习智能体原型。",
+  "target_learners": "具备 Python 或 Web 开发基础，了解大模型 API 基本调用，希望完成一个教育智能体课程项目的本科高年级或研究生初学者。",
+  "level": "intermediate",
+  "suggested_weeks": 8,
+  "credits": 2,
+  "estimated_minutes": 560,
+  "tags": ["llm", "education", "multi-agent", "rag", "learner-profile", "project-based"],
+  "default_goal": "我想系统学习大模型教育智能体系统开发，并完成一个能展示学习画像、资源生成、个性化导学和学习评估闭环的课程项目。",
+  "default_preferences": ["visual", "practice", "external_video"],
+  "default_time_budget_minutes": 50,
+  "learning_outcomes": [
+    "能解释学习画像如何从对话、练习、反思和行为证据中持续更新。",
+    "能设计一个面向课程资料的 RAG 检索增强流程，并说明召回、重排和引用依据。",
+    "能拆分教育场景中的多智能体角色，包括画像、规划、检索、图解、动画、出题和评估。",
+    "能生成图解、短视频讲解、互动练习和学习报告等多模态学习资源。",
+    "能根据学习证据形成下一步学习处方，并把评估结果回写到学习画像。"
+  ],
+  "assessment": [
+    { "name": "学习画像设计说明", "weight": 20, "description": "提交画像字段、证据来源、可信度和用户校准机制。" },
+    { "name": "RAG 与多智能体流程图", "weight": 25, "description": "展示检索、规划、资源生成和评估智能体如何协作。" },
+    { "name": "多模态资源生成 Demo", "weight": 25, "description": "生成一组图解、短视频讲解和互动练习，并说明个性化依据。" },
+    { "name": "学习效果评估报告", "weight": 20, "description": "基于练习、反思和资源使用反馈生成可执行学习处方。" },
+    { "name": "课程项目答辩", "weight": 10, "description": "用 7 分钟演示完整学习闭环和关键创新点。" }
+  ],
+  "project_milestones": [
+    { "week": 1, "topic": "教育智能体系统全景", "deliverable": "系统角色图和课程项目目标卡" },
+    { "week": 2, "topic": "学习画像与证据建模", "deliverable": "画像字段表、证据账本和用户校准入口" },
+    { "week": 3, "topic": "课程知识库与 RAG", "deliverable": "资料导入、检索测试和引用依据说明" },
+    { "week": 4, "topic": "多智能体协作编排", "deliverable": "画像、规划、检索、生成和评估智能体接力图" },
+    { "week": 5, "topic": "多模态资源生成", "deliverable": "图解、Manim 短视频和互动练习样例" },
+    { "week": 6, "topic": "个性化路径规划", "deliverable": "当前任务、补基任务和下一步推荐策略" },
+    { "week": 7, "topic": "学习效果评估", "deliverable": "学习报告、错因分析和学习处方" },
+    { "week": 8, "topic": "项目演示与答辩", "deliverable": "7 分钟演示脚本、PPT 骨架和提交清单" }
+  ],
+  "nodes": [
+    {
+      "node_id": "AE1",
+      "title": "教育智能体系统全景",
+      "description": "理解大模型教育智能体由用户入口、学习画像、课程资料、多智能体编排和学习评估闭环组成。",
+      "difficulty": "easy",
+      "estimated_minutes": 45,
+      "tags": ["overview", "architecture"],
+      "mastery_target": "能用一张图解释教育智能体系统的核心模块和数据流。",
+      "resource_strategy": ["concept map", "external_video"]
+    },
+    {
+      "node_id": "AE2",
+      "title": "学习画像与证据建模",
+      "description": "设计画像字段、证据来源、可信度、时间衰减和用户显式校准机制。",
+      "prerequisites": ["AE1"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["learner-profile", "evidence"],
+      "mastery_target": "能说明画像不是静态标签，而是由学习证据持续更新的可解释模型。",
+      "resource_strategy": ["visual", "practice"]
+    },
+    {
+      "node_id": "AE3",
+      "title": "课程知识库与 RAG",
+      "description": "理解课程资料导入、分块、向量检索、引用依据和回答生成之间的关系。",
+      "prerequisites": ["AE2"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["rag", "knowledge-base"],
+      "mastery_target": "能画出一个课程 RAG 流程，并解释如何避免无依据回答。",
+      "resource_strategy": ["flow chart", "quiz"]
+    },
+    {
+      "node_id": "AE4",
+      "title": "多智能体协作编排",
+      "description": "把画像、路径规划、知识检索、图解、动画、出题和评估拆成可协作角色。",
+      "prerequisites": ["AE3"],
+      "difficulty": "medium",
+      "estimated_minutes": 80,
+      "tags": ["multi-agent", "orchestration"],
+      "mastery_target": "能解释一个学习请求如何被协调智能体分发给多个专业智能体。",
+      "resource_strategy": ["agent trace", "case study"]
+    },
+    {
+      "node_id": "AE5",
+      "title": "多模态学习资源生成",
+      "description": "根据学习画像和当前任务生成文字讲解、图解、短视频、互动练习和外部公开视频建议。",
+      "prerequisites": ["AE4"],
+      "difficulty": "medium",
+      "estimated_minutes": 90,
+      "tags": ["multimodal", "resource-generation"],
+      "mastery_target": "能根据不同学习卡点选择合适的资源类型，并说明生成依据。",
+      "resource_strategy": ["visual", "video", "practice"]
+    },
+    {
+      "node_id": "AE6",
+      "title": "个性化路径规划与资源推送",
+      "description": "根据目标、时间预算、掌握度和偏好生成当前任务、补基任务和下一步推荐。",
+      "prerequisites": ["AE5"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["learning-path", "recommendation"],
+      "mastery_target": "能解释为什么系统现在建议用户先做某一个任务。",
+      "resource_strategy": ["decision card", "practice"]
+    },
+    {
+      "node_id": "AE7",
+      "title": "学习效果评估与处方",
+      "description": "汇总练习结果、反思质量、资源使用和画像变化，生成学习报告和下一步处方。",
+      "prerequisites": ["AE6"],
+      "difficulty": "hard",
+      "estimated_minutes": 85,
+      "tags": ["assessment", "feedback"],
+      "mastery_target": "能把学习证据转化为具体、可执行的下一步学习建议。",
+      "resource_strategy": ["rubric", "report"]
+    },
+    {
+      "node_id": "AE8",
+      "title": "课程项目演示与答辩",
+      "description": "整理项目源码、课程数据、演示 PPT、7 分钟视频脚本和答辩问题预案。",
+      "prerequisites": ["AE7"],
+      "difficulty": "hard",
+      "estimated_minutes": 120,
+      "tags": ["demo", "defense"],
+      "mastery_target": "能在 7 分钟内演示完整学习闭环，并回答技术实现和创新价值问题。",
+      "resource_strategy": ["demo script", "checklist"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "A1",
+      "node_id": "AE1",
+      "type": "visualize",
+      "title": "画出教育智能体系统全景图",
+      "instruction": "用一张图说明用户、学习画像、知识库、多智能体、资源生成和学习评估如何形成闭环。",
+      "estimated_minutes": 15,
+      "success_criteria": ["包含六个核心模块", "能说明数据如何回流到学习画像"]
+    },
+    {
+      "task_id": "A2",
+      "node_id": "AE2",
+      "type": "practice",
+      "title": "设计学习画像证据表",
+      "instruction": "列出至少 5 类画像字段，并为每类字段写出证据来源、可信度和用户校准方式。",
+      "estimated_minutes": 18,
+      "success_criteria": ["画像字段可解释", "证据来源不只依赖一次对话"]
+    },
+    {
+      "task_id": "A3",
+      "node_id": "AE3",
+      "type": "quiz",
+      "title": "判断 RAG 流程中的关键风险",
+      "instruction": "完成一组选择、判断和简答题，区分分块、召回、引用缺失、过期资料和幻觉风险。",
+      "estimated_minutes": 14,
+      "success_criteria": ["能指出至少三个 RAG 风险", "能说明如何用引用依据降低风险"]
+    },
+    {
+      "task_id": "A4",
+      "node_id": "AE4",
+      "type": "visualize",
+      "title": "画出多智能体接力路线",
+      "instruction": "把一次“我想补齐梯度下降直观理解”的请求拆成画像、规划、检索、图解、出题和评估智能体的协作步骤。",
+      "estimated_minutes": 16,
+      "success_criteria": ["每个智能体职责清楚", "能解释协调智能体为什么唤醒这些角色"]
+    },
+    {
+      "task_id": "A5",
+      "node_id": "AE5",
+      "type": "video",
+      "title": "生成一段多模态资源讲解",
+      "instruction": "围绕一个抽象概念生成图解或 Manim 短视频讲解，并补一组互动练习验证理解。",
+      "estimated_minutes": 20,
+      "success_criteria": ["资源围绕当前卡点", "包含图解或短视频要点", "练习能给出对错反馈"]
+    },
+    {
+      "task_id": "A6",
+      "node_id": "AE6",
+      "type": "practice",
+      "title": "写出个性化下一步推荐",
+      "instruction": "根据一个学生的目标、薄弱点、时间预算和资源偏好，写出当前任务、推荐理由和备选路径。",
+      "estimated_minutes": 15,
+      "success_criteria": ["推荐任务具体可执行", "说明推荐依据", "包含一个备选资源"]
+    },
+    {
+      "task_id": "A7",
+      "node_id": "AE7",
+      "type": "project",
+      "title": "生成学习效果评估报告",
+      "instruction": "根据练习正确率、反思文本和资源观看证据，生成掌握度判断、主要错因和下一步学习处方。",
+      "estimated_minutes": 22,
+      "success_criteria": ["报告有明确证据", "建议可执行", "能说明画像如何被更新"]
+    },
+    {
+      "task_id": "A8",
+      "node_id": "AE8",
+      "type": "project",
+      "title": "整理 7 分钟项目演示脚本",
+      "instruction": "把学习画像、个性化导学、多智能体资源生成、智能辅导和学习评估压缩成 7 分钟演示路线。",
+      "estimated_minutes": 25,
+      "success_criteria": ["覆盖赛题五项要求", "每一段都有页面动作", "准备一个兜底展示材料"]
+    }
+  ],
+  "learning_path": {
+    "title": "教育智能体系统 8 阶段项目式路线",
+    "rationale": "先建立系统全景和画像证据模型，再完成 RAG 与多智能体编排，最后用多模态资源、路径规划和学习评估形成可答辩的课程项目。",
+    "node_sequence": ["AE1", "AE2", "AE3", "AE4", "AE5", "AE6", "AE7", "AE8"],
+    "today_focus": "先画出教育智能体系统全景图，再补齐学习画像证据表。",
+    "next_recommendation": "完成当前任务后生成多智能体接力路线图，并做一组 RAG 风险判断题。"
+  },
+  "recommendations": [
+    "先用系统全景图建立项目边界，避免一开始就陷入接口或页面细节。",
+    "学习画像要强调证据、可信度和用户校准，而不是简单贴标签。",
+    "多智能体协作最好用一条真实学习请求串起来展示，让评委看到角色接力。",
+    "每个资源生成任务都要能回到学习效果评估，否则容易变成单点功能展示。",
+    "答辩前固定一条稳定 Demo 路线，并准备历史产物作为兜底。"
+  ],
+  "demo_seed": {
+    "title": "大模型教育智能体稳定演示样例",
+    "scenario": "从学习画像全景图开始，生成多智能体接力路线，再产出图解/视频/练习和学习评估报告，完整覆盖赛题五项要求。",
+    "persona": {
+      "goal": "完成一个能展示学习画像、多智能体资源生成、个性化导学和学习效果评估的教育智能体课程项目。",
+      "weak_points": ["多智能体协作边界不清", "学习画像证据链薄弱", "学习评估容易停留在分数展示"],
+      "preferences": ["visual", "practice", "external_video"],
+      "time_budget_minutes": 50
+    },
+    "task_chain": ["A1", "A2", "A4", "A5", "A7", "A8"],
+    "resource_prompts": {
+      "A1": "生成一张教育智能体系统全景图，包含用户入口、学习画像、知识库、协调智能体、资源智能体和学习评估闭环。",
+      "A2": "生成一组学习画像证据表练习，要求区分对话证据、练习证据、反思证据、资源使用证据和用户校准证据。",
+      "A4": "生成一张多智能体接力路线图，展示画像、规划、检索、图解、动画、出题和评估智能体如何协作。",
+      "A5": "生成一段教育智能体资源生成讲解短视频脚本，并配一组选择、判断、填空和简答练习。",
+      "A7": "生成一份学习效果评估报告模板，输出掌握度、错因、证据和下一步学习处方。",
+      "A8": "生成 7 分钟项目演示脚本，按赛题五项要求安排页面动作、讲述词和兜底材料。"
+    },
+    "sample_artifacts": [
+      {
+        "task_id": "A1",
+        "type": "visual",
+        "title": "教育智能体系统全景图兜底素材",
+        "preview": "用户目标进入系统后，画像中心汇总证据，协调智能体调用知识库、图解、动画、出题和评估智能体，最后把反馈回写画像。",
+        "demo_action": "打开知识地图或图解结果，说明系统不是单一聊天机器人，而是学习闭环工作台。",
+        "talking_point": "这张图对应赛题的画像、资源生成、路径规划、智能辅导和学习评估五条主线。"
+      },
+      {
+        "task_id": "A4",
+        "type": "visual",
+        "title": "多智能体接力路线兜底素材",
+        "preview": "画像智能体识别薄弱点，规划智能体选择当前任务，检索智能体补依据，图解/视频/出题智能体生成资源，评估智能体回写结果。",
+        "demo_action": "在聊天或导学页展开协作明细，展示每个智能体的用户可读职责。",
+        "talking_point": "多智能体不是后台名词，而是能被用户理解的接力过程。"
+      },
+      {
+        "task_id": "A5",
+        "type": "video",
+        "title": "多模态资源讲解兜底素材",
+        "preview": "用 30 秒短视频说明从卡点到资源的生成过程：先看图解，再做练习，最后把反馈写入学习报告。",
+        "demo_action": "如果现场视频生成较慢，展示已有 Manim/图解产物和练习反馈卡。",
+        "talking_point": "多模态资源必须服务当前学习卡点，而不是随机生成好看的内容。"
+      },
+      {
+        "task_id": "A7",
+        "type": "report",
+        "title": "学习效果评估报告兜底素材",
+        "preview": "报告包含掌握度、错因、证据列表、下一步学习处方和演示就绪度检查。",
+        "demo_action": "提交一次练习结果后打开学习报告，展示分数如何转化为下一步任务。",
+        "talking_point": "学习评估的价值不是给分，而是动态调整学习路径。"
+      }
+    ],
+    "sample_reflection": {
+      "score": 0.81,
+      "reflection": "我已经理解学习画像和多智能体接力的主线，但 RAG 引用依据和学习评估处方还需要用真实案例再练一次。",
+      "mistake_types": ["evidence_chain", "agent_boundary", "assessment_actionability"]
+    }
+  }
+}

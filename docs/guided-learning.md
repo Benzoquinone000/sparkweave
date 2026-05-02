@@ -315,10 +315,11 @@ python scripts/check_course_templates.py
 
 `demo_seed` 也可以提供 `sample_artifacts`。它不是正式生成产物，而是录屏兜底素材说明，例如“图解应包含哪些元素”“Manim 视频可以展示哪些关键帧”“练习卡应该怎样反馈”。前端会把它压缩到“录屏检查”卡片，课程产出包 Markdown 会写入完整素材说明，避免现场模型慢或渲染慢时演示断掉。
 
-当前仓库内置两条外部完整课程样例：
+当前仓库内置三条外部完整课程样例：
 
 - `data/course_templates/robotics_ros_foundations.json`：展示项目式导学、图解、练习、公开视频和课程报告闭环。
 - `data/course_templates/higher_math_limits_derivatives.json`：展示公式渲染、极限图解、Manim 动画和交互练习闭环。
+- `data/course_templates/ai_learning_agents_systems.json`：展示学习画像、RAG、多智能体接力、多模态资源生成和学习效果评估，适合作为赛题主线课程 Demo。
 
 ## 学习证据闭环
 

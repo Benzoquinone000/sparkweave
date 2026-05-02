@@ -54,12 +54,15 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Competition package export" in result.stdout
     assert "[ok] Competition package archive" in result.stdout
     assert "[ok] Competition archive content: competition_package/index.html" in result.stdout
+    assert "[ok] Competition archive content: competition_package/checksums.sha256" in result.stdout
     assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in result.stdout
     assert "[ok] Competition archive content: competition_package/runtime/scripts/start_web.py" in result.stdout
     assert "[ok] Competition archive safety" in result.stdout
     assert "[ok] Generated package: index.html" in result.stdout
+    assert "[ok] Generated package: checksums.sha256" in result.stdout
     assert "[ok] Generated package links: index.html" in result.stdout
     assert "[ok] Generated package links: demo_materials/sparkweave-demo-deck.html" in result.stdout
+    assert "[ok] Generated package checksums" in result.stdout
     assert "[ok] Generated package content: docs/demo-quickstart.md" in result.stdout
     assert "[ok] Generated package content: docs/iflytek-integration.md" in result.stdout
     assert "All required competition materials are ready." in result.stdout
@@ -113,13 +116,17 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition proof chain: test coverage" in check_names
     assert "Competition package archive" in check_names
     assert "Competition archive content: competition_package/index.html" in check_names
+    assert "Competition archive content: competition_package/checksums.sha256" in check_names
     assert "Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in check_names
     assert "Competition archive content: competition_package/runtime/scripts/start_web.py" in check_names
     assert "Competition archive safety" in check_names
     assert "Generated package: index.html" in check_names
+    assert "Generated package: checksums.sha256" in check_names
     assert "Generated package content: index.html" in check_names
+    assert "Generated package content: checksums.sha256" in check_names
     assert "Generated package links: index.html" in check_names
     assert "Generated package links: demo_materials/sparkweave-demo-deck.html" in check_names
+    assert "Generated package checksums" in check_names
     assert "User-facing diagnostics: settings status strip" in check_names
     assert "User-facing diagnostics: test coverage" in check_names
     assert "User-facing knowledge progress: milestone view" in check_names

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import hashlib
 from html.parser import HTMLParser
 import json
 from pathlib import Path
@@ -517,6 +518,7 @@ def check_generated_exports() -> list[Check]:
                 archive_path,
                 [
                     "competition_package/index.html",
+                    "competition_package/checksums.sha256",
                     "competition_package/submission_manifest.md",
                     "competition_package/demo_materials/sparkweave-demo-deck.html",
                     "competition_package/demo_materials/sparkweave-competition-scorecard.md",
@@ -534,6 +536,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir,
                 [
                     "index.html",
+                    "checksums.sha256",
                     "README.md",
                     "submission_manifest.md",
                     "demo_materials/sparkweave-demo-deck.html",
@@ -558,6 +561,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir,
                 [
                     ("index.html", "SparkWeave 星火织学提交包"),
+                    ("checksums.sha256", "index.html"),
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
                     ("docs/iflytek-integration.md", "科大讯飞能力接入说明"),
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
@@ -577,6 +581,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir / "demo_materials" / "sparkweave-demo-deck.html",
             )
         )
+        checks.append(check_package_checksums(package_dir))
     return checks
 
 
@@ -606,6 +611,46 @@ def check_archive_entries(archive_path: Path, expected_entries: list[str]) -> li
             )
         )
     return checks
+
+
+def check_package_checksums(package_dir: Path) -> Check:
+    checksum_path = package_dir / "checksums.sha256"
+    if not checksum_path.exists():
+        return Check("Generated package checksums", False, "missing checksums.sha256")
+    try:
+        lines = [line.strip() for line in checksum_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except UnicodeDecodeError as exc:
+        return Check("Generated package checksums", False, f"not utf-8 text: {exc}")
+
+    expected_files = {
+        path.relative_to(package_dir).as_posix()
+        for path in package_dir.rglob("*")
+        if path.is_file() and path != checksum_path
+    }
+    recorded: dict[str, str] = {}
+    for line in lines:
+        try:
+            digest, relative = line.split("  ", 1)
+        except ValueError:
+            return Check("Generated package checksums", False, f"invalid checksum line: {line[:80]}")
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest.lower()):
+            return Check("Generated package checksums", False, f"invalid sha256 digest for {relative}")
+        recorded[relative] = digest.lower()
+
+    missing = sorted(expected_files - recorded.keys())
+    extra = sorted(recorded.keys() - expected_files)
+    if missing:
+        return Check("Generated package checksums", False, "missing checksum for " + ", ".join(missing[:5]))
+    if extra:
+        return Check("Generated package checksums", False, "checksum references missing file " + ", ".join(extra[:5]))
+
+    mismatched: list[str] = []
+    for relative, expected_digest in recorded.items():
+        if sha256_file(package_dir / relative) != expected_digest:
+            mismatched.append(relative)
+    if mismatched:
+        return Check("Generated package checksums", False, "checksum mismatch: " + ", ".join(mismatched[:5]))
+    return Check("Generated package checksums", True, f"{len(recorded)} file checksum(s) verified")
 
 
 def check_archive_safety(archive_path: Path) -> Check:
@@ -656,6 +701,14 @@ def check_archive_safety(archive_path: Path) -> Check:
     if problems:
         return Check("Competition archive safety", False, "unsafe entries: " + ", ".join(problems[:5]))
     return Check("Competition archive safety", True, f"{len(entries)} archive entrie(s) checked")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def check_generated_content(group: str, root: Path, expectations: list[tuple[str, str]]) -> list[Check]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+import hashlib
 from html import escape
 import json
 from pathlib import Path
@@ -121,6 +122,7 @@ def main() -> int:
     (output / "README.md").write_text(manifest, encoding="utf-8")
     (output / "submission_manifest.md").write_text(manifest, encoding="utf-8")
     (output / "index.html").write_text(build_submission_index(selected_template, missing), encoding="utf-8")
+    write_checksums(output)
 
     print(f"[competition-package] exported to {output}")
     print(f"[competition-package] copied {len(copied)} file(s), missing {len(missing)} file(s).")
@@ -224,6 +226,26 @@ def copy_file(source: Path, target: Path, copied: list[str]) -> None:
     copied.append(str(source.relative_to(ROOT)).replace("\\", "/"))
 
 
+def write_checksums(package_dir: Path) -> Path:
+    checksum_path = package_dir / "checksums.sha256"
+    lines: list[str] = []
+    for path in sorted(item for item in package_dir.rglob("*") if item.is_file()):
+        if path == checksum_path:
+            continue
+        relative = path.relative_to(package_dir).as_posix()
+        lines.append(f"{sha256_file(path)}  {relative}")
+    checksum_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return checksum_path
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def build_manifest(output: Path, copied: list[str], missing: list[str], *, selected_template: dict[str, str]) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     course_template_count = len([item for item in copied if item.startswith("data/course_templates/")])
@@ -248,6 +270,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
+        "- `checksums.sha256`：提交包文件完整性校验清单。",
         "",
         "## 赛题提交物映射",
         "",
@@ -470,6 +493,7 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
       <a class="card" href="docs/architecture.md"><span class="tag">架构</span><h3>系统架构说明</h3><p>后端、前端、多智能体和运行时能力的整体说明。</p></a>
       <a class="card" href="assets/architecture.svg"><span class="tag">图示</span><h3>系统架构图</h3><p>可直接放入 PPT 或答辩材料。</p></a>
       <a class="card" href="docs/getting-started.md"><span class="tag">运行</span><h3>启动与配置</h3><p>从依赖安装、环境变量到本地启动的最短路径。</p></a>
+      <a class="card" href="checksums.sha256"><span class="tag">校验</span><h3>文件完整性</h3><p>用于核对提交包文件是否在传输或二次打包中被改动。</p></a>
     </section>
   </main>
 </body>

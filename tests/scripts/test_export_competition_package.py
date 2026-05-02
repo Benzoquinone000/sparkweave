@@ -81,6 +81,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert (output / "index.html").exists()
+    assert (output / "checksums.sha256").exists()
     assert (output / "submission_manifest.md").exists()
     assert (output / "docs" / "competition-demo-runbook.md").exists()
     assert (output / "docs" / "iflytek-integration.md").exists()
@@ -108,7 +109,12 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "SparkWeave 星火织学提交包" in index
     assert "demo_materials/sparkweave-demo-deck.html" in index
     assert "screenshots/screenshots-simplified-guide.png" in index
+    assert "checksums.sha256" in index
     assert "五项要求证据" in index
+    checksums = (output / "checksums.sha256").read_text(encoding="utf-8")
+    assert "index.html" in checksums
+    assert "submission_manifest.md" in checksums
+    assert "demo_materials/sparkweave-competition-scorecard.md" in checksums
     assert "SparkWeave 比赛提交包索引" in manifest
     assert "大模型教育智能体系统开发" in manifest
     assert "demo_materials/sparkweave-demo-deck-outline.md" in manifest
@@ -148,6 +154,7 @@ def test_export_competition_package_can_write_archive(tmp_path: Path) -> None:
     with zipfile.ZipFile(archive) as package:
         names = set(package.namelist())
     assert "competition_package/index.html" in names
+    assert "competition_package/checksums.sha256" in names
     assert "competition_package/submission_manifest.md" in names
     assert "competition_package/demo_materials/sparkweave-competition-scorecard.md" in names
     assert "competition_package/runtime/scripts/start_web.py" in names

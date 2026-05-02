@@ -84,10 +84,25 @@ def _default_readiness_report() -> Path:
     return _repo_root() / "dist" / "competition-readiness.json"
 
 
+def _default_competition_package() -> Path:
+    return _repo_root() / "dist" / "competition_package"
+
+
 def _render_readiness_summary(report: Path, summary: Path) -> None:
     root = _repo_root()
     result = subprocess.run(
         _project_script_cmd("render_competition_summary.py", [str(report), "--output", str(summary)]),
+        cwd=root,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+
+
+def _verify_competition_package(package: Path) -> None:
+    root = _repo_root()
+    result = subprocess.run(
+        _project_script_cmd("verify_competition_package.py", [str(package)]),
         cwd=root,
         check=False,
     )
@@ -382,7 +397,13 @@ def competition_preflight(
         cwd=root,
         check=False,
     )
-    raise typer.Exit(code=package_result.returncode)
+    if package_result.returncode != 0:
+        raise typer.Exit(code=package_result.returncode)
+
+    _verify_competition_package(output or _default_competition_package())
+    if archive is not None:
+        _verify_competition_package(archive)
+    raise typer.Exit(code=0)
 
 
 def main() -> None:

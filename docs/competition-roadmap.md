@@ -320,6 +320,7 @@
 - zip 安全结构纳入 readiness：压缩包必须只有 `competition_package/` 根目录，不能夹带 `.env`、本地用户数据、缓存、`node_modules`、构建产物或路径穿越条目。
 - 提交包新增 `checksums.sha256` 完整性校验清单，readiness 会重新计算并比对所有文件，防止材料在传输或二次打包后悄悄损坏。
 - 新增 `verify_competition_package.py` 和 CLI `competition-verify`：提交包下载到任意环境后，也能独立验证必备文件、安全结构和 SHA256 完整性。
+- `competition-preflight` 已接入最终产物验证：导出目录和 zip 后会自动运行 `competition-verify`，避免“生成了但忘记验”的赛前疏漏。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

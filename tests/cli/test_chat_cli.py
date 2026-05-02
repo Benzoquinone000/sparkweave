@@ -368,7 +368,7 @@ def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path
     )
 
     assert result.exit_code == 0, result.output
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
         "scripts/check_competition_readiness.py"
     )
@@ -377,6 +377,10 @@ def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path
         "scripts/export_competition_package.py"
     )
     assert calls[1][0][-4:] == ["--template", "higher_math_limits_derivatives", "--output", str(output)]
+    assert calls[2][0][1].endswith("scripts\\verify_competition_package.py") or calls[2][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[2][0][-1] == str(output)
 
 
 def test_competition_preflight_can_build_web_before_export(monkeypatch, tmp_path: Path) -> None:
@@ -393,7 +397,7 @@ def test_competition_preflight_can_build_web_before_export(monkeypatch, tmp_path
     result = runner.invoke(app, ["competition-preflight", "--with-build", "--output", str(output)])
 
     assert result.exit_code == 0, result.output
-    assert len(calls) == 3
+    assert len(calls) == 4
     assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
         "scripts/check_competition_readiness.py"
     )
@@ -403,6 +407,10 @@ def test_competition_preflight_can_build_web_before_export(monkeypatch, tmp_path
         "scripts/export_competition_package.py"
     )
     assert calls[2][0][-4:] == ["--template", "ai_learning_agents_systems", "--output", str(output)]
+    assert calls[3][0][1].endswith("scripts\\verify_competition_package.py") or calls[3][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[3][0][-1] == str(output)
 
 
 def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -> None:
@@ -434,7 +442,7 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
     )
 
     assert result.exit_code == 0, result.output
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
         "scripts/check_competition_readiness.py"
     )
@@ -454,6 +462,14 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
         "--archive",
         str(archive),
     ]
+    assert calls[3][0][1].endswith("scripts\\verify_competition_package.py") or calls[3][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[3][0][-1] == str(output)
+    assert calls[4][0][1].endswith("scripts\\verify_competition_package.py") or calls[4][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[4][0][-1] == str(archive)
 
 
 def test_competition_preflight_stops_when_web_build_fails(monkeypatch) -> None:
@@ -471,6 +487,26 @@ def test_competition_preflight_stops_when_web_build_fails(monkeypatch) -> None:
     assert result.exit_code == 3, result.output
     assert len(calls) == 2
     assert calls[1] == ["npm", "run", "build"]
+
+
+def test_competition_preflight_stops_when_verification_fails(monkeypatch, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append(list(cmd))
+        return type("Result", (), {"returncode": 7 if len(calls) == 3 else 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    result = runner.invoke(app, ["competition-preflight", "--output", str(output)])
+
+    assert result.exit_code == 7, result.output
+    assert len(calls) == 3
+    assert calls[2][1].endswith("scripts\\verify_competition_package.py") or calls[2][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[2][-1] == str(output)
 
 
 def test_competition_preflight_stops_when_readiness_fails(monkeypatch) -> None:

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import sys
 from typing import Optional
 
 import typer
@@ -118,7 +121,6 @@ def serve(
 ) -> None:
     """Start the SparkWeave API server."""
     import asyncio
-    import sys
 
     set_mode(RunMode.SERVER)
 
@@ -144,6 +146,16 @@ def serve(
         reload=reload,
         reload_excludes=["web/*", "data/*"] if reload else None,
     )
+
+
+@app.command("competition-check")
+def competition_check() -> None:
+    """Check whether key competition submission materials are ready."""
+
+    root = Path(__file__).resolve().parent.parent
+    script = root / "scripts" / "check_competition_readiness.py"
+    result = subprocess.run([sys.executable, str(script)], cwd=root, check=False)
+    raise typer.Exit(code=result.returncode)
 
 
 def main() -> None:

@@ -108,6 +108,7 @@ python scripts/check_course_templates.py
 python scripts/export_demo_materials.py
 python scripts/export_competition_package.py
 python scripts/check_competition_readiness.py
+python -m sparkweave_cli competition-check
 cd web
 npm run lint
 npm run build

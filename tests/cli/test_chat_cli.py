@@ -181,6 +181,24 @@ def test_serve_command_uses_ng_api_entrypoint(monkeypatch) -> None:
     ]
 
 
+def test_competition_check_command_runs_readiness_script(monkeypatch) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["competition-check"])
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
+        "scripts/check_competition_readiness.py"
+    )
+
+
 def test_session_list_command_uses_shared_store(monkeypatch) -> None:
     async def _list_sessions(self, limit: int = 50, offset: int = 0):  # noqa: ANN001
         return [

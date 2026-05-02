@@ -130,6 +130,7 @@ def build_report() -> dict[str, object]:
     checks.append(run_project_script("Course template schema", "check_course_templates.py"))
     checks.extend(check_runtime_collaboration_route())
     checks.extend(check_effect_assessment_chain())
+    checks.extend(check_competition_proof_chain())
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
@@ -233,6 +234,40 @@ def check_effect_assessment_chain() -> list[Check]:
             "Effect assessment chain: test coverage",
             "tests/services/test_guide_v2.py",
             ["assessment_chain", "评估链路"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_competition_proof_chain() -> list[Check]:
+    expectations = [
+        (
+            "Competition proof chain: backend package",
+            "sparkweave/services/guide_v2.py",
+            ["proof_chain", "功能证据", "现场动作", "答辩讲法"],
+        ),
+        (
+            "Competition proof chain: frontend card",
+            "web/src/pages/GuidePage.tsx",
+            ["guide-competition-proof-chain", "proofChain", "证明"],
+        ),
+        (
+            "Competition proof chain: test coverage",
+            "tests/services/test_guide_v2.py",
+            ["proof_chain", "三步证明链"],
         ),
     ]
     checks: list[Check] = []

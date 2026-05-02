@@ -28,6 +28,9 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Effect assessment chain: backend report" in result.stdout
     assert "[ok] Effect assessment chain: frontend card" in result.stdout
     assert "[ok] Effect assessment chain: test coverage" in result.stdout
+    assert "[ok] Competition proof chain: backend package" in result.stdout
+    assert "[ok] Competition proof chain: frontend card" in result.stdout
+    assert "[ok] Competition proof chain: test coverage" in result.stdout
     assert "[ok] Assets: docs/assets/agent-collaboration-blueprint.svg" in result.stdout
     assert "[ok] Offline demo material export" in result.stdout
     assert "[ok] Generated demo content: sparkweave-demo-deck.html" in result.stdout
@@ -80,6 +83,9 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Effect assessment chain: backend report" in check_names
     assert "Effect assessment chain: frontend card" in check_names
     assert "Effect assessment chain: test coverage" in check_names
+    assert "Competition proof chain: backend package" in check_names
+    assert "Competition proof chain: frontend card" in check_names
+    assert "Competition proof chain: test coverage" in check_names
     assert "Assets: docs/assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package: assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names

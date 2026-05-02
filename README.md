@@ -20,6 +20,18 @@
 
 SparkWeave 星火织学围绕“对话式学习画像自主构建、多智能体协同资源生成、个性化学习路径规划、智能辅导、学习效果评估”构建。系统后端由 `sparkweave` 提供，前端由 `web` 提供，支持在同一学习工作台内完成资料导入、知识问答、题目生成、可视化解释、数学动画视频讲解、Notebook 沉淀与 SparkBot 长期陪伴。
 
+## 60 秒看懂
+
+| 你想了解 | 直接看这里 |
+| --- | --- |
+| 项目解决什么问题 | 学生只跟着“当前任务”走，系统在背后完成画像、资源、练习、反馈和路径调整。 |
+| 比赛五项如何对齐 | [赛题对齐路线](docs/competition-roadmap.md)、`dist/demo_materials/sparkweave-competition-scorecard.md` |
+| 多智能体协作在哪里 | [多智能体协作蓝图](docs/guided-learning.md#课程产出包与比赛材料)、`sparkweave-agent-collaboration-blueprint.md` |
+| 7 分钟视频怎么录 | [演示者 5 分钟入口](docs/demo-quickstart.md)、[比赛 Runbook](docs/competition-demo-runbook.md) |
+| 科大讯飞工具怎么用 | [科大讯飞能力接入说明](docs/iflytek-integration.md) |
+
+最快演示路径：启动项目后打开 `http://localhost:3782/guide`，选择“大模型教育智能体系统开发”课程，按“当前任务 -> 生成资源 -> 提交反馈 -> 学习报告 -> 课程产出包”走一遍。
+
 ## 项目亮点
 
 | 方向 | 能力 |

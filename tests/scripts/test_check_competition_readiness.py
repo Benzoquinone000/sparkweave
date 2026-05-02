@@ -22,5 +22,7 @@ def test_check_competition_readiness() -> None:
     assert "SparkWeave competition readiness" in result.stdout
     assert "[ok] Course template schema" in result.stdout
     assert "[ok] Offline demo material export" in result.stdout
+    assert "[ok] Generated demo content: sparkweave-demo-deck.html" in result.stdout
     assert "[ok] Competition package export" in result.stdout
+    assert "[ok] Generated package content: docs/demo-quickstart.md" in result.stdout
     assert "All required competition materials are ready." in result.stdout

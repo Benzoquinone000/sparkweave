@@ -138,6 +138,18 @@ def check_generated_exports() -> list[Check]:
             )
         )
         checks.extend(check_generated_files("Generated demo", demo_dir, GENERATED_DEMO_FILES))
+        checks.extend(
+            check_generated_content(
+                "Generated demo content",
+                demo_dir,
+                [
+                    ("sparkweave-demo-deck.html", "SparkWeave 演示页"),
+                    ("sparkweave-demo-deck-outline.md", "SparkWeave 演示 PPT 骨架"),
+                    ("sparkweave-7min-recording-script.md", "SparkWeave 7 分钟录屏讲稿"),
+                    ("sparkweave-defense-qa.md", "SparkWeave 答辩问答预案"),
+                ],
+            )
+        )
 
         checks.append(
             run_project_script(
@@ -162,6 +174,17 @@ def check_generated_exports() -> list[Check]:
                 ],
             )
         )
+        checks.extend(
+            check_generated_content(
+                "Generated package content",
+                package_dir,
+                [
+                    ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
+                    ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
+                    ("docs/demo-quickstart.md", "演示者 5 分钟入口"),
+                ],
+            )
+        )
     return checks
 
 
@@ -170,6 +193,28 @@ def check_generated_files(group: str, root: Path, relative_paths: list[str]) -> 
         Check(f"{group}: {relative}", (root / relative).exists(), "missing after export" if not (root / relative).exists() else "")
         for relative in relative_paths
     ]
+
+
+def check_generated_content(group: str, root: Path, expectations: list[tuple[str, str]]) -> list[Check]:
+    checks: list[Check] = []
+    for relative, needle in expectations:
+        path = root / relative
+        if not path.exists():
+            checks.append(Check(f"{group}: {relative}", False, "missing after export"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(f"{group}: {relative}", False, f"not utf-8 text: {exc}"))
+            continue
+        checks.append(
+            Check(
+                f"{group}: {relative}",
+                needle in content,
+                "" if needle in content else f"missing marker {needle!r}",
+            )
+        )
+    return checks
 
 
 def compact_output(value: str) -> str:

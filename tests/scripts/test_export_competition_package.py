@@ -8,13 +8,14 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def run_script(script: str, output: Path) -> subprocess.CompletedProcess[str]:
+def run_script(script: str, output: Path, *extra_args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,
             str(ROOT / "scripts" / script),
             "--output",
             str(output),
+            *extra_args,
         ],
         cwd=ROOT,
         text=True,
@@ -78,3 +79,17 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "demo_materials/sparkweave-demo-deck.html" in manifest
     assert "demo_materials/sparkweave-competition-scorecard.md" in manifest
     assert "missing 0 file(s)" not in manifest
+
+
+def test_export_competition_package_accepts_course_template(tmp_path: Path) -> None:
+    output = tmp_path / "math_package"
+
+    result = run_script("export_competition_package.py", output, "--template", "higher_math_limits_derivatives")
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    manifest = (output / "submission_manifest.md").read_text(encoding="utf-8")
+    scorecard = (output / "demo_materials" / "sparkweave-competition-scorecard.md").read_text(encoding="utf-8")
+
+    assert "高等数学" in manifest
+    assert "高等数学" in scorecard
+    assert "SparkWeave 赛题评分点证据表" in scorecard

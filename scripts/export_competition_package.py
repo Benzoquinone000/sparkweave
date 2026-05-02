@@ -11,6 +11,7 @@ import shutil
 from typing import Iterable
 
 from export_demo_materials import (
+    DEFAULT_TEMPLATE_ID,
     build_deck_html,
     build_deck_outline,
     build_competition_scorecard,
@@ -83,6 +84,7 @@ def main() -> int:
         default=DEFAULT_OUTPUT,
         help="Output directory. Defaults to dist/competition_package.",
     )
+    parser.add_argument("--template", default=DEFAULT_TEMPLATE_ID, help="Course template id for demo materials.")
     parser.add_argument(
         "--no-clean",
         action="store_true",
@@ -99,9 +101,9 @@ def main() -> int:
     copy_many(ASSETS, output / "assets", copied, missing)
     copy_course_templates(output / "course_templates", copied, missing)
     copy_screenshots(output / "screenshots", copied, missing)
-    export_demo_materials(output / "demo_materials", copied, missing)
+    selected_template = export_demo_materials(output / "demo_materials", copied, missing, template_id=args.template)
 
-    manifest = build_manifest(output, copied, missing)
+    manifest = build_manifest(output, copied, missing, selected_template=selected_template)
     (output / "README.md").write_text(manifest, encoding="utf-8")
     (output / "submission_manifest.md").write_text(manifest, encoding="utf-8")
 
@@ -154,12 +156,16 @@ def copy_screenshots(target_dir: Path, copied: list[str], missing: list[str]) ->
         copy_file(source, target_dir / name, copied)
 
 
-def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str]) -> None:
-    template_path = ROOT / "data" / "course_templates" / "ai_learning_agents_systems.json"
+def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str], *, template_id: str) -> dict[str, str]:
+    template_path = ROOT / "data" / "course_templates" / f"{template_id}.json"
     if not template_path.exists():
-        missing.append("data/course_templates/ai_learning_agents_systems.json")
-        return
+        missing.append(f"data/course_templates/{template_id}.json")
+        return {"id": template_id, "course_name": template_id}
     template = json.loads(template_path.read_text(encoding="utf-8"))
+    selected = {
+        "id": str(template.get("id") or template_id),
+        "course_name": str(template.get("course_name") or template.get("title") or template_id),
+    }
     target_dir.mkdir(parents=True, exist_ok=True)
     materials = {
         "README.md": build_demo_index(template, target_dir),
@@ -173,6 +179,7 @@ def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str
         target = target_dir / name
         target.write_text(content, encoding="utf-8")
         copied.append(f"demo_materials/{name}")
+    return selected
 
 
 def copy_file(source: Path, target: Path, copied: list[str]) -> None:
@@ -181,7 +188,7 @@ def copy_file(source: Path, target: Path, copied: list[str]) -> None:
     copied.append(str(source.relative_to(ROOT)).replace("\\", "/"))
 
 
-def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
+def build_manifest(output: Path, copied: list[str], missing: list[str], *, selected_template: dict[str, str]) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     course_template_count = len([item for item in copied if item.startswith("data/course_templates/")])
     screenshot_count = len([item for item in copied if item.startswith("web/screenshots")])
@@ -195,6 +202,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         f"- 课程模板：{course_template_count}",
         f"- 页面截图：{screenshot_count}",
         f"- 离线演示材料：{demo_material_count}",
+        f"- 演示课程：{selected_template.get('course_name', selected_template.get('id', '未指定'))}",
         "",
         "## 文件夹说明",
         "",
@@ -222,7 +230,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         "",
         "1. 先按 `docs/getting-started.md` 和 `runtime/scripts/check_install.py` 确认环境。",
         "2. 先用 `demo_materials/` 离线材料搭 PPT、视频脚本和答辩问答骨架。",
-        "3. 运行 Web 后打开 `/guide`，优先选择“大模型教育智能体系统开发”赛题主线课程。",
+        f"3. 运行 Web 后打开 `/guide`，优先选择“{selected_template.get('course_name', '大模型教育智能体系统开发')}”课程。",
         "4. 按 `docs/competition-demo-runbook.md` 录制 7 分钟演示视频。",
         "5. 使用导学页的课程产出包和学习报告 Markdown 下载按钮，把真实 session 证据补入 PPT 和提交文档。",
         "6. 赛前再次运行 `python scripts/check_course_templates.py`、`cd web && npm run build`。",

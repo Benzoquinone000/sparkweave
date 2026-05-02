@@ -43,13 +43,14 @@ sparkweave competition-check
 sparkweave competition-demo --template ai_learning_agents_systems
 sparkweave competition-package --template ai_learning_agents_systems
 sparkweave competition-verify dist/sparkweave_competition_package.zip
+sparkweave competition-verify dist/sparkweave_competition_package.zip --format json --output dist/competition-package-verify.json
 sparkweave competition-preflight --template ai_learning_agents_systems
 sparkweave competition-preflight --template ai_learning_agents_systems --with-build --report dist/competition-readiness.json --summary dist/competition-readiness.md --archive dist/sparkweave_competition_package.zip
 python scripts/render_competition_summary.py dist/competition-readiness.json --output dist/competition-readiness.md
 ```
 
 `competition-demo` 会导出 PPT 骨架、7 分钟录屏讲稿、多智能体协作蓝图、赛题评分点证据表、答辩问答预案和最终答辩材料清单。`competition-package` 会整理文档、截图、课程模板、运行配置和离线演示材料，并生成 `START_HERE.md`、解压后可直接打开的 `index.html` 材料导航页和 `checksums.sha256` 完整性校验清单。
-`competition-verify` 可独立验证导出的目录或 zip，适合下载 GitHub Actions artifact 后复核文件完整性和安全结构。
+`competition-verify` 可独立验证导出的目录或 zip，适合下载 GitHub Actions artifact 后复核文件完整性和安全结构；需要归档时可用 `--format json --output dist/competition-package-verify.json` 写出机器可读验证报告。
 `competition-preflight` 会先运行就绪检查，通过后再导出提交包，并自动运行 `competition-verify` 验证最终目录和 zip；带上 `--with-build` 时会在打包前运行 `web` 的生产构建，适合赛前最后一次归档；带上 `--summary` 时会同时写出一页 Markdown 就绪摘要；带上 `--archive` 时会额外生成可上传的 zip 提交包。
 `render_competition_summary.py` 会把 JSON 就绪报告转换成一页 Markdown 摘要，适合贴到 GitHub Actions summary、答辩材料或赛前核对群。
 

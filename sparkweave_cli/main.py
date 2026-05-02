@@ -322,10 +322,20 @@ def competition_verify(
         Path("dist/competition_package"),
         help="Competition package directory or zip archive to verify.",
     ),
+    fmt: str = typer.Option("text", "--format", "-f", help="Output format: text | json."),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write the verification report.",
+    ),
 ) -> None:
     """Verify an exported competition package directory or zip archive."""
 
-    _run_project_script("verify_competition_package.py", [str(package)])
+    cmd = [str(package), "--format", fmt]
+    if output is not None:
+        cmd.extend(["--output", str(output)])
+    _run_project_script("verify_competition_package.py", cmd)
 
 
 @app.command("competition-preflight")

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import tempfile
 from pathlib import Path
 import zipfile
@@ -52,73 +53,172 @@ def main() -> int:
         default=Path("dist/competition_package"),
         help="Competition package directory or zip archive.",
     )
+    parser.add_argument(
+        "--format",
+        "-f",
+        choices=["text", "json"],
+        default="text",
+        help="Output format.",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        help="Optional path to write the verification report.",
+    )
     args = parser.parse_args()
 
-    package = args.package
+    report = verify_package(args.package)
+    emit_report(report, fmt=args.format, output=args.output)
+    return 0 if report["ok"] else 1
+
+
+def verify_package(package: Path) -> dict[str, object]:
     if not package.exists():
-        print(f"[competition-verify] missing package: {package}")
-        return 1
+        return failure_report(
+            package,
+            kind="missing",
+            headline=f"missing package: {package}",
+        )
 
     if package.is_file():
         return verify_archive(package)
     return verify_directory(package)
 
 
-def verify_archive(archive_path: Path) -> int:
+def verify_archive(archive_path: Path) -> dict[str, object]:
     if archive_path.suffix.lower() != ".zip":
-        print(f"[competition-verify] unsupported archive type: {archive_path}")
-        return 1
+        return failure_report(
+            archive_path,
+            kind="archive",
+            headline=f"unsupported archive type: {archive_path}",
+        )
     try:
         with zipfile.ZipFile(archive_path) as archive:
             entries = archive.namelist()
             problems = unsafe_archive_entries(entries)
             if problems:
-                print("[competition-verify] archive contains unsafe entries:")
-                for item in problems[:10]:
-                    print(f"- {item}")
-                return 1
+                return failure_report(
+                    archive_path,
+                    kind="archive",
+                    headline="archive contains unsafe entries:",
+                    details=problems[:10],
+                    archive_entries=len(entries),
+                )
             with tempfile.TemporaryDirectory(prefix="sparkweave-package-verify-") as tmp:
                 archive.extractall(tmp)
                 extracted = Path(tmp) / "competition_package"
                 result = verify_directory(extracted, source_label=str(archive_path))
-                if result != 0:
+                result["kind"] = "archive"
+                result["path"] = str(archive_path)
+                result["archive_entries"] = len(entries)
+                if not result["ok"]:
                     return result
     except zipfile.BadZipFile as exc:
-        print(f"[competition-verify] bad zip file: {exc}")
-        return 1
+        return failure_report(
+            archive_path,
+            kind="archive",
+            headline=f"bad zip file: {exc}",
+        )
 
-    print(f"[competition-verify] archive OK: {archive_path}")
-    return 0
+    result["messages"].append(f"archive OK: {archive_path}")
+    return result
 
 
-def verify_directory(package_dir: Path, *, source_label: str | None = None) -> int:
+def verify_directory(package_dir: Path, *, source_label: str | None = None) -> dict[str, object]:
     label = source_label or str(package_dir)
     if not package_dir.is_dir():
-        print(f"[competition-verify] package is not a directory: {package_dir}")
-        return 1
+        return failure_report(
+            package_dir,
+            kind="directory",
+            headline=f"package is not a directory: {package_dir}",
+        )
 
     missing = [relative for relative in REQUIRED_FILES if not (package_dir / relative).exists()]
     if missing:
-        print("[competition-verify] missing required files:")
-        for item in missing:
-            print(f"- {item}")
-        return 1
+        return failure_report(
+            package_dir,
+            kind="directory",
+            headline="missing required files:",
+            details=missing,
+        )
 
     unsafe = unsafe_directory_entries(package_dir)
     if unsafe:
-        print("[competition-verify] package contains unsafe files:")
-        for item in unsafe[:10]:
-            print(f"- {item}")
-        return 1
+        return failure_report(
+            package_dir,
+            kind="directory",
+            headline="package contains unsafe files:",
+            details=unsafe[:10],
+        )
 
-    checksum_error = verify_checksums(package_dir)
+    checksum_error, checksum_count = verify_checksums(package_dir)
     if checksum_error:
-        print(f"[competition-verify] {checksum_error}")
-        return 1
+        return failure_report(
+            package_dir,
+            kind="directory",
+            headline=checksum_error,
+        )
 
     file_count = sum(1 for path in package_dir.rglob("*") if path.is_file())
-    print(f"[competition-verify] package OK: {label} ({file_count} files)")
-    return 0
+    return {
+        "ok": True,
+        "path": str(package_dir),
+        "kind": "directory",
+        "headline": f"package OK: {label} ({file_count} files)",
+        "messages": [f"package OK: {label} ({file_count} files)"],
+        "errors": [],
+        "details": [],
+        "file_count": file_count,
+        "checksum_count": checksum_count,
+        "archive_entries": 0,
+        "required_files": REQUIRED_FILES,
+    }
+
+
+def failure_report(
+    path: Path,
+    *,
+    kind: str,
+    headline: str,
+    details: list[str] | None = None,
+    archive_entries: int = 0,
+) -> dict[str, object]:
+    return {
+        "ok": False,
+        "path": str(path),
+        "kind": kind,
+        "headline": headline,
+        "messages": [],
+        "errors": [headline],
+        "details": details or [],
+        "file_count": 0,
+        "checksum_count": 0,
+        "archive_entries": archive_entries,
+        "required_files": REQUIRED_FILES,
+    }
+
+
+def emit_report(report: dict[str, object], *, fmt: str, output: Path | None = None) -> None:
+    if fmt == "json":
+        payload = json.dumps(report, ensure_ascii=False, indent=2)
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(payload + "\n", encoding="utf-8")
+        print(payload)
+        return
+
+    for message in report.get("messages", []):
+        print(f"[competition-verify] {message}")
+
+    if not report["ok"]:
+        print(f"[competition-verify] {report['headline']}")
+        for item in list(report.get("details", []))[:10]:
+            print(f"- {item}")
+
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def unsafe_archive_entries(entries: list[str]) -> list[str]:
@@ -155,12 +255,12 @@ def is_forbidden_parts(parts: list[str]) -> bool:
     return any(f"/{forbidden}/" in wrapped for forbidden in FORBIDDEN_DIRS)
 
 
-def verify_checksums(package_dir: Path) -> str:
+def verify_checksums(package_dir: Path) -> tuple[str, int]:
     checksum_path = package_dir / "checksums.sha256"
     try:
         lines = [line.strip() for line in checksum_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except UnicodeDecodeError as exc:
-        return f"checksums.sha256 is not utf-8 text: {exc}"
+        return f"checksums.sha256 is not utf-8 text: {exc}", 0
 
     expected_files = {
         path.relative_to(package_dir).as_posix()
@@ -172,22 +272,22 @@ def verify_checksums(package_dir: Path) -> str:
         try:
             digest, relative = line.split("  ", 1)
         except ValueError:
-            return f"invalid checksum line: {line[:80]}"
+            return f"invalid checksum line: {line[:80]}", 0
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest.lower()):
-            return f"invalid sha256 digest for {relative}"
+            return f"invalid sha256 digest for {relative}", 0
         recorded[relative] = digest.lower()
 
     missing = sorted(expected_files - recorded.keys())
     extra = sorted(recorded.keys() - expected_files)
     if missing:
-        return "missing checksum for " + ", ".join(missing[:5])
+        return "missing checksum for " + ", ".join(missing[:5]), len(recorded)
     if extra:
-        return "checksum references missing file " + ", ".join(extra[:5])
+        return "checksum references missing file " + ", ".join(extra[:5]), len(recorded)
 
     mismatched = [relative for relative, digest in recorded.items() if sha256_file(package_dir / relative) != digest]
     if mismatched:
-        return "checksum mismatch: " + ", ".join(mismatched[:5])
-    return ""
+        return "checksum mismatch: " + ", ".join(mismatched[:5]), len(recorded)
+    return "", len(recorded)
 
 
 def sha256_file(path: Path) -> str:

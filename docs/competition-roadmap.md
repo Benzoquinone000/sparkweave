@@ -322,6 +322,7 @@
 - 新增 `verify_competition_package.py` 和 CLI `competition-verify`：提交包下载到任意环境后，也能独立验证必备文件、安全结构和 SHA256 完整性。
 - `competition-preflight` 已接入最终产物验证：导出目录和 zip 后会自动运行 `competition-verify`，避免“生成了但忘记验”的赛前疏漏。
 - 提交包新增 `START_HERE.md`：解压后先读这一页即可知道先打开入口页、看哪些评分证据、如何录屏、如何运行和如何复核。
+- `competition-verify` 新增 JSON 报告输出：`--format json --output dist/competition-package-verify.json` 可把提交包是否完整、文件数、checksum 数和错误原因沉淀为可归档报告。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

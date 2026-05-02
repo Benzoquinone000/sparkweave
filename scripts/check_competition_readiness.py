@@ -128,6 +128,7 @@ def build_report() -> dict[str, object]:
     checks.extend(check_paths("Course templates", REQUIRED_COURSE_TEMPLATES))
     checks.append(run_project_script("Release safety", "check_release_safety.py"))
     checks.append(run_project_script("Course template schema", "check_course_templates.py"))
+    checks.extend(check_runtime_collaboration_route())
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
@@ -179,6 +180,40 @@ def run_project_script(name: str, script_name: str, *args: str) -> Check:
     if result.returncode == 0:
         return Check(name, True, compact_output(result.stdout))
     return Check(name, False, compact_output(result.stderr or result.stdout))
+
+
+def check_runtime_collaboration_route() -> list[Check]:
+    expectations = [
+        (
+            "Runtime collaboration route: backend emitter",
+            "sparkweave/graphs/chat.py",
+            ["SPECIALIST_COLLABORATION_ROUTES", '"collaboration_route_version": 1', '"collaboration_route"'],
+        ),
+        (
+            "Runtime collaboration route: frontend viewer",
+            "web/src/components/chat/AgentCollaborationPanel.tsx",
+            ["findStructuredRoute", "collaboration_route", "agent_chain"],
+        ),
+        (
+            "Runtime collaboration route: test coverage",
+            "tests/ng/test_chat_graph.py",
+            ["collaboration_route_version", "collaboration_route"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
 
 
 def check_generated_exports() -> list[Check]:

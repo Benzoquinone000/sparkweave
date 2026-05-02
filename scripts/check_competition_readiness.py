@@ -133,6 +133,7 @@ def build_report() -> dict[str, object]:
     checks.extend(check_effect_assessment_chain())
     checks.extend(check_competition_proof_chain())
     checks.extend(check_user_facing_settings_diagnostics())
+    checks.extend(check_user_facing_knowledge_progress())
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
@@ -347,6 +348,46 @@ def check_user_facing_settings_diagnostics() -> list[Check]:
                 "settings-status-strip",
                 "HMAC secret key does not match",
                 "The upstream server is timing out",
+                "not.toContainText",
+            ],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_user_facing_knowledge_progress() -> list[Check]:
+    expectations = [
+        (
+            "User-facing knowledge progress: milestone view",
+            "web/src/pages/KnowledgePage.tsx",
+            [
+                "knowledge-task-milestones",
+                "knowledge-task-log-details",
+                "summarizeKnowledgeTaskLogs",
+                "formatKnowledgeLogLine",
+                "withLegacyText",
+            ],
+        ),
+        (
+            "User-facing knowledge progress: test coverage",
+            "web/tests/e2e/workbench-smoke.spec.ts",
+            [
+                "knowledge-task-milestones",
+                "knowledge-task-log-details",
+                "knowledge-task-logs",
                 "not.toContainText",
             ],
         ),

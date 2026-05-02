@@ -314,6 +314,8 @@ test("knowledge creation listens to named SSE task logs", async ({ page }, testI
   });
   await page.getByRole("button", { name: /创建并索引/ }).click();
 
+  await expect(page.getByTestId("knowledge-task-milestones")).toContainText("关键进展");
+  await expect(page.getByTestId("knowledge-task-log-details")).toContainText("完整处理记录");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 解析中 55% 正在解析文件");

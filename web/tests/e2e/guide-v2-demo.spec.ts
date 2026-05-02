@@ -73,6 +73,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-competition-alignment-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("赛题五项对齐");
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多智能体协同");
+  await expect(page.getByTestId("guide-defense-qa-card")).toBeVisible();
+  await expect(page.getByTestId("guide-defense-qa-card")).toContainText("答辩问答预案");
+  await expect(page.getByTestId("guide-defense-qa-card")).toContainText("普通聊天机器人");
   await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
@@ -750,6 +753,27 @@ async function mockGuideV2StableDemoApis(page: Page) {
               status: "seed",
               evidence: ["画像、图解、出题和评估智能体接力。"],
               demo_action: "展示资源卡里的协作路线。",
+            },
+          ],
+        },
+        defense_qa: {
+          title: "答辩问答预案",
+          summary: "把评委最可能追问的问题整理成可直接讲的回答。",
+          course_name: "Machine Learning Foundations",
+          question_count: 2,
+          next_action: "每个问题准备一个页面定位。",
+          questions: [
+            {
+              question: "为什么不是普通聊天机器人？",
+              answer: "系统会先形成画像，再规划路线、生成资源、收集反馈并调整下一步。",
+              evidence: "画像、路线、资源、反馈和报告已经成链。",
+              demo_reference: "打开导学首页和学习报告。",
+            },
+            {
+              question: "多智能体协作体现在哪里？",
+              answer: "画像、图解、出题和评估智能体会围绕当前任务接力。",
+              evidence: "资源卡展示智能体接力。",
+              demo_reference: "打开资源卡片。",
             },
           ],
         },

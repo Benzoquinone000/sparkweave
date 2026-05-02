@@ -940,6 +940,9 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
         item["requirement"] == "多智能体协同的资源生成"
         for item in package["competition_alignment"]["requirements"]
     )
+    assert package["defense_qa"]["questions"]
+    assert package["defense_qa"]["question_count"] >= 6
+    assert any("多智能体" in item["question"] for item in package["defense_qa"]["questions"])
     assert package["competition_submission"]["checklist"]
     assert any(item["item"] == "演示 PPT" for item in package["competition_submission"]["checklist"])
     assert package["competition_submission"]["ready_count"] >= 1
@@ -960,6 +963,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟录屏讲稿" in package["markdown"]
     assert "赛前一键检查" in package["markdown"]
     assert "赛题五项对齐" in package["markdown"]
+    assert "答辩问答预案" in package["markdown"]
     assert "比赛提交清单" in package["markdown"]
     assert "AI Coding 工具说明" in package["markdown"]
 

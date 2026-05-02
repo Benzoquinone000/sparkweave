@@ -1555,6 +1555,20 @@ export interface GuideV2CoursePackage {
       demo_action?: string;
     }>;
   };
+  defense_qa?: {
+    title?: string;
+    summary?: string;
+    course_name?: string;
+    question_count?: number;
+    top_risk?: string;
+    next_action?: string;
+    questions?: Array<{
+      question?: string;
+      answer?: string;
+      evidence?: string;
+      demo_reference?: string;
+    }>;
+  };
   learning_report?: {
     overall_score?: number;
     readiness?: string;

@@ -3169,6 +3169,7 @@ function CoursePackagePanel({
   const competitionSubmission = coursePackage?.competition_submission ?? null;
   const aiCodingStatement = coursePackage?.ai_coding_statement ?? null;
   const competitionAlignment = coursePackage?.competition_alignment ?? null;
+  const defenseQa = coursePackage?.defense_qa ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
@@ -3202,6 +3203,7 @@ function CoursePackagePanel({
       />
       <CoursePresentationOutlineCard outline={presentationOutline} />
       <CourseCompetitionAlignmentCard alignment={competitionAlignment} />
+      <CourseDefenseQaCard defense={defenseQa} />
       <CourseCompetitionSubmissionCard submission={competitionSubmission} aiCoding={aiCodingStatement} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
@@ -3258,6 +3260,46 @@ function CoursePackagePanel({
         保存产出包到 Notebook
       </Button>
     </section>
+  );
+}
+
+function CourseDefenseQaCard({
+  defense,
+}: {
+  defense: GuideV2CoursePackage["defense_qa"] | null;
+}) {
+  const questions = defense?.questions ?? [];
+  if (!defense || !questions.length) return null;
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-white p-3" data-testid="guide-defense-qa-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(defense.title, "答辩问答预案")}</Badge>
+            {defense.course_name ? <Badge tone="neutral">{guideDisplayText(defense.course_name)}</Badge> : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {guideDisplayText(defense.summary, "把评委可能追问的问题提前整理成可讲的回答。")}
+          </p>
+        </div>
+        <Badge tone="success">{Number(defense.question_count ?? questions.length)} 问</Badge>
+      </div>
+      <div className="mt-3 space-y-2">
+        {questions.slice(0, 2).map((item, index) => (
+          <div key={`${item.question || "question"}-${index}`} className="rounded-lg border border-line bg-canvas p-2">
+            <p className="text-xs font-semibold text-ink">{guideDisplayText(item.question, "答辩问题")}</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+              {guideDisplayText(item.answer || item.evidence, "准备一句能落到页面证据的回答。")}
+            </p>
+          </div>
+        ))}
+      </div>
+      {defense.next_action ? (
+        <p className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+          下一步：{guideDisplayText(defense.next_action)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

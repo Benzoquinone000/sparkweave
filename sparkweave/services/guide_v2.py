@@ -2050,6 +2050,14 @@ class GuideV2Manager:
             demo_blueprint=demo_blueprint,
             demo_seed_pack=demo_seed_pack,
         )
+        defense_qa = self._course_defense_qa(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            learning_style=learning_style,
+            competition_alignment=competition_alignment,
+        )
         package: dict[str, Any] = {
             "success": True,
             "session_id": session.session_id,
@@ -2072,6 +2080,7 @@ class GuideV2Manager:
             "demo_preflight": demo_preflight,
             "ai_coding_statement": ai_coding_statement,
             "competition_alignment": competition_alignment,
+            "defense_qa": defense_qa,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -6820,6 +6829,83 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_defense_qa(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        learning_style: dict[str, Any],
+        competition_alignment: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Prepare concise Q&A notes for competition defense."""
+
+        metadata = dict(session.course_map.metadata or {})
+        course_name = str(metadata.get("course_name") or session.course_map.title or session.goal).strip()
+        profile = session.profile
+        action_brief = dict(report.get("action_brief") or {})
+        effect_assessment = dict(report.get("effect_assessment") or {})
+        resource_types = sorted({str(item.get("type") or "resource") for item in portfolio if isinstance(item, dict)})
+        if not resource_types:
+            resource_types = ["图解", "练习", "短视频或精选公开视频"]
+        alignment_items = [
+            item for item in competition_alignment.get("requirements") or [] if isinstance(item, dict)
+        ]
+        alignment_score = int(competition_alignment.get("coverage_score") or 0)
+        weak_points = "、".join(profile.weak_points[:3]) or "当前薄弱点"
+        preferences = "、".join(profile.preferences[:3]) or "当前偏好"
+        completed = int(evaluation.get("completed_tasks") or 0)
+        overall_score = int(evaluation.get("overall_score") or 0)
+
+        questions = [
+            {
+                "question": "为什么 SparkWeave 不是普通聊天机器人？",
+                "answer": "普通聊天只回答当前问题；SparkWeave 会先形成学习画像，再规划路线、生成资源、收集练习/反思证据，最后用学习报告调整下一步。",
+                "evidence": f"课程「{course_name}」当前已形成画像、路线、资源、反馈和课程产出包。",
+                "demo_reference": "打开导学首页的当前任务，再切到学习报告和课程产出包。",
+            },
+            {
+                "question": "学习画像是怎么来的，如何更新？",
+                "answer": "画像来自对话目标、前测、练习提交、任务反思、Notebook 保存和资源使用反馈；系统只把真实学习行为作为强证据，避免生成行为污染偏好。",
+                "evidence": f"当前画像识别到：{weak_points}；偏好：{preferences}。",
+                "demo_reference": "展示学习画像页或导学任务反馈后的画像回写提示。",
+            },
+            {
+                "question": "多智能体协作具体体现在哪里？",
+                "answer": "对话协调智能体根据画像选择任务，再把图解、动画、出题、检索、评估等子智能体串起来；前端只展示用户可理解的接力路线。",
+                "evidence": f"当前资源类型覆盖：{'、'.join(resource_types[:4])}。",
+                "demo_reference": "展示资源卡里的“智能体接力”或对话页协作路线。",
+            },
+            {
+                "question": "个性化路径如何避免只是固定模板？",
+                "answer": "模板提供稳定课程骨架，画像、前测和任务反馈会改变当前任务、补基任务、复测任务和资源类型；路线不是一次性生成后就不动。",
+                "evidence": f"路线包含 {len(session.tasks)} 个任务，已完成 {completed} 个，当前任务会随反馈推进。",
+                "demo_reference": "提交一次练习或反思，展示下一步建议和学习处方变化。",
+            },
+            {
+                "question": "学习效果评估有什么依据？",
+                "answer": "评估综合任务完成、练习得分、错因类型、反思质量、资源使用和画像趋势，并输出可执行学习处方，而不是只给一个分数。",
+                "evidence": f"当前综合掌握分 {overall_score}；{effect_assessment.get('summary') or action_brief.get('summary') or '学习报告会给出下一步处方。'}",
+                "demo_reference": "打开学习报告，展示处方、错因复测和演示就绪度。",
+            },
+            {
+                "question": "现场模型或视频渲染不稳定怎么办？",
+                "answer": "系统支持稳定 Demo 样例、资源提示词、兜底素材、Notebook 历史产物和录屏讲稿；现场慢时仍能展示完整闭环和可复现路径。",
+                "evidence": f"赛题五项覆盖分 {alignment_score}，产出包包含录屏检查、兜底包和提交清单。",
+                "demo_reference": "打开课程产出包的录屏检查、赛题五项对齐和比赛提交清单。",
+            },
+        ]
+        return {
+            "title": "答辩问答预案",
+            "summary": "把评委最可能追问的问题压缩成可直接讲的回答，并指向对应演示位置。",
+            "course_name": course_name,
+            "question_count": len(questions),
+            "top_risk": (competition_alignment.get("primary_gap") or {}).get("requirement") or "",
+            "questions": questions,
+            "next_action": "录屏前按这 6 个问题各准备一张截图或一个页面定位，答辩时就不容易被问散。",
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -7031,6 +7117,8 @@ class GuideV2Manager:
         alignment_requirements = [
             item for item in competition_alignment.get("requirements") or [] if isinstance(item, dict)
         ]
+        defense_qa = dict(package.get("defense_qa") or {})
+        defense_questions = [item for item in defense_qa.get("questions") or [] if isinstance(item, dict)]
         behavior_summary = dict(report.get("behavior_summary") or {})
         behavior_tags = [str(item) for item in report.get("behavior_tags") or []]
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
@@ -7293,6 +7381,18 @@ class GuideV2Manager:
                 lines.extend(["", "### 可追溯材料", ""])
                 for item in ai_evidence[:5]:
                     lines.append(f"- {item}")
+        if defense_qa:
+            lines.extend(["", "## 答辩问答预案", ""])
+            lines.append(f"- 课程：{defense_qa.get('course_name') or metadata.get('course_name') or '-'}")
+            lines.append(f"- 问题数：{defense_qa.get('question_count') or len(defense_questions)}")
+            lines.append(f"- 下一步：{defense_qa.get('next_action') or '-'}")
+            if defense_questions:
+                lines.extend(["", "### 预案问题", ""])
+                for item in defense_questions[:6]:
+                    lines.append(f"- Q：{item.get('question') or '-'}")
+                    lines.append(f"  - A：{item.get('answer') or '-'}")
+                    lines.append(f"  - 证据：{item.get('evidence') or '-'}")
+                    lines.append(f"  - 演示位置：{item.get('demo_reference') or '-'}")
         return "\n".join(lines).strip() + "\n"
 
     def _fallback_nodes(self, profile: LearnerProfile) -> list[CourseNode]:

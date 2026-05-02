@@ -39,6 +39,8 @@ def test_check_competition_readiness() -> None:
     assert "[ok] User-facing diagnostics: test coverage" in result.stdout
     assert "[ok] User-facing knowledge progress: milestone view" in result.stdout
     assert "[ok] User-facing knowledge progress: test coverage" in result.stdout
+    assert "[ok] User-facing chat trace: collaboration viewer" in result.stdout
+    assert "[ok] User-facing chat trace: final-answer test coverage" in result.stdout
     assert "[ok] Assets: docs/assets/agent-collaboration-blueprint.svg" in result.stdout
     assert "[ok] Offline demo material export" in result.stdout
     assert "[ok] Generated demo content: sparkweave-demo-deck.html" in result.stdout
@@ -102,6 +104,8 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "User-facing diagnostics: test coverage" in check_names
     assert "User-facing knowledge progress: milestone view" in check_names
     assert "User-facing knowledge progress: test coverage" in check_names
+    assert "User-facing chat trace: collaboration viewer" in check_names
+    assert "User-facing chat trace: final-answer test coverage" in check_names
     assert "Assets: docs/assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package: assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names

@@ -37,6 +37,7 @@ def main() -> int:
     fallback_assets = build_demo_fallback_assets(template)
     qa = build_defense_qa(template)
     scorecard = build_competition_scorecard(template)
+    one_pager = build_evaluator_one_pager(template)
     checklist = build_final_pitch_checklist(template)
     index = build_index(template, output)
 
@@ -47,6 +48,7 @@ def main() -> int:
     (output / "sparkweave-demo-fallback-assets.md").write_text(fallback_assets, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
+    (output / "sparkweave-evaluator-one-pager.md").write_text(one_pager, encoding="utf-8")
     (output / "sparkweave-final-pitch-checklist.md").write_text(checklist, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
     copy_static_assets(output)
@@ -580,6 +582,85 @@ def build_competition_scorecard(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_evaluator_one_pager(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    persona = seed.get("persona") if isinstance(seed.get("persona"), dict) else {}
+    weak_points = join_or(list_of_text(persona.get("weak_points"))[:3], "概念边界、证据链、效果评估")
+    preferences = join_or([resource_preference_label(item) for item in list_of_text(persona.get("preferences"))[:3]], "图解、练习、短视频")
+    tasks = task_lookup(template)
+    chain = [tasks.get(task_id, {"title": task_id}) for task_id in list_of_text(seed.get("task_chain"))]
+    task_titles = [text(item.get("title"), "演示任务") for item in chain[:5]]
+    outcomes = list_of_text(template.get("learning_outcomes"))[:3]
+    lines = [
+        "# SparkWeave 评委一页说明",
+        "",
+        f"- 演示课程：{course}",
+        "- 项目定位：面向高校课程学习的多智能体个性化学习系统。",
+        "- 一句话价值：学生只需要跟着当前任务走，系统在背后完成画像、路径、资源、练习、反馈和再规划。",
+        f"- 演示学习者：卡点是 {weak_points}；偏好 {preferences}。",
+        "",
+        "## 先看什么",
+        "",
+        "1. 打开 `http://localhost:3782/guide`，选择赛题主线课程。",
+        "2. 看“当前任务”：系统只给学习者一个明确下一步。",
+        "3. 看“智能体接力”：资源不是随机生成，而是按画像和任务唤醒图解、视频、出题、检索和评估角色。",
+        "4. 提交一次练习或反思，打开学习报告，看下一步处方如何变化。",
+        "5. 打开课程产出包，下载 Markdown 或查看 PPT/录屏/答辩材料。",
+        "",
+        "## 五项赛题对齐",
+        "",
+        "| 赛题要求 | SparkWeave 展示点 | 评委可看页面/材料 |",
+        "| --- | --- | --- |",
+        "| 对话式学习画像自主构建 | 画像来自对话、练习、反思、Notebook 和资源行为，并支持用户校准。 | `/guide`、学习画像页、`docs/learner-profile-design.md` |",
+        "| 多智能体协同资源生成 | 对话协调智能体按画像唤醒规划、检索、图解、动画、出题和评估智能体。 | `/chat` 协作路线、`sparkweave-agent-collaboration-blueprint.md` |",
+        "| 个性化学习路径规划和资源推送 | 当前任务、补基任务、复测和下一步推荐由画像与反馈共同决定。 | `/guide` 当前任务、路线图、学习报告 |",
+        "| 智能辅导 | 文字、图解、Manim 短视频、互动练习和精选公开视频围绕当前卡点生成。 | `/chat` 或 `/guide` 的资源卡 |",
+        "| 学习效果评估 | 练习、错因、反思和资源行为形成学习处方，并回写画像。 | 学习报告、课程产出包、`sparkweave-competition-scorecard.md` |",
+        "",
+        "## 演示任务链",
+        "",
+    ]
+    if task_titles:
+        lines.extend(f"- {index}. {title}" for index, title in enumerate(task_titles, start=1))
+    else:
+        lines.append("- 画像访谈 -> 当前任务 -> 资源生成 -> 练习反馈 -> 学习报告")
+    if outcomes:
+        lines.extend(["", "## 课程学习产出", ""])
+        lines.extend(f"- {item}" for item in outcomes)
+    lines.extend(
+        [
+            "",
+            "## 7 分钟录屏路线",
+            "",
+            "0:00-0:40 说明问题：学生不知道下一步怎么学。",
+            "0:40-1:30 打开导学页：只展示当前任务。",
+            "1:30-2:40 展示画像和路线：解释为什么这样安排。",
+            "2:40-4:00 生成资源：图解、练习、短视频或精选公开视频。",
+            "4:00-5:10 提交反馈：形成真实学习证据。",
+            "5:10-6:10 学习报告：把分数变成学习处方。",
+            "6:10-7:00 课程产出包：收束到提交物和答辩材料。",
+            "",
+            "## 兜底材料",
+            "",
+            "- `sparkweave-demo-deck.html`：可直接打开的演示页。",
+            "- `sparkweave-agent-collaboration-blueprint.md`：多智能体接力说明。",
+            "- `sparkweave-demo-fallback-assets.md`：图解节点、预置练习、视频分镜和讲述点。",
+            "- `sparkweave-7min-recording-script.md`：逐分钟录屏讲稿。",
+            "- `sparkweave-defense-qa.md`：评委追问回答预案。",
+            "",
+            "## 赛前命令",
+            "",
+            "```powershell",
+            "python -m sparkweave_cli competition-check",
+            "python -m sparkweave_cli competition-demo",
+            "python -m sparkweave_cli competition-package",
+            "```",
+        ]
+    )
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_final_pitch_checklist(template: dict[str, Any]) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
@@ -609,6 +690,7 @@ def build_final_pitch_checklist(template: dict[str, Any]) -> str:
         "| 多智能体说明 | `sparkweave-agent-collaboration-blueprint.md` | 能讲清对话协调、画像、路径、资源集群和评估如何接力。 |",
         "| 稳定兜底素材 | `sparkweave-demo-fallback-assets.md` | 现场生成慢时仍能展示图解节点、预置练习、视频分镜和讲述点。 |",
         "| 评分点证据 | `sparkweave-competition-scorecard.md` | 五项赛题要求都有页面入口和一句答辩讲法。 |",
+        "| 评委一页说明 | `sparkweave-evaluator-one-pager.md` | 评委或老师不翻长文档时，先看这一页即可理解项目和演示路线。 |",
         "| 答辩问答 | `sparkweave-defense-qa.md` | 准备画像来源、多智能体、个性化路径、学习评估、稳定性五类追问。 |",
         "| 科大讯飞工具说明 | `docs/iflytek-integration.md` | 明确星火、Embedding、ONE SEARCH、OCR 的使用位置和失败回退。 |",
         "| AI Coding 说明 | `docs/ai-coding-statement.md` | 明确辅助范围、人工复核、密钥边界和可追溯材料。 |",
@@ -669,6 +751,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-demo-fallback-assets.md`：稳定兜底素材清单，包含图解节点、预置练习、视频分镜和讲述点。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
+            "- `sparkweave-evaluator-one-pager.md`：评委一页说明，适合放在提交包首页或答辩前快速阅读。",
             "- `sparkweave-final-pitch-checklist.md`：提交前一页式总览，适合最后排练和材料核对。",
             "",
             "这些材料是离线兜底版本。正式演示时，优先使用导学页课程产出包里的 Markdown 导出，因为它会包含当前真实 session 的画像、任务、报告和产物证据。",

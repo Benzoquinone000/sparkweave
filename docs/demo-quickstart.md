@@ -71,6 +71,7 @@ python -m sparkweave_cli competition-check --format json --output dist/competiti
 - `dist/demo_materials/sparkweave-agent-collaboration-blueprint.md`
 - `dist/demo_materials/sparkweave-demo-fallback-assets.md`
 - `dist/demo_materials/sparkweave-competition-scorecard.md`
+- `dist/demo_materials/sparkweave-evaluator-one-pager.md`
 - `dist/demo_materials/sparkweave-defense-qa.md`
 - `dist/demo_materials/sparkweave-final-pitch-checklist.md`
 - `dist/competition_package/submission_manifest.md`

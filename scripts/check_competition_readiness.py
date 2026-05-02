@@ -73,6 +73,7 @@ GENERATED_DEMO_FILES = [
     "sparkweave-demo-fallback-assets.md",
     "sparkweave-defense-qa.md",
     "sparkweave-competition-scorecard.md",
+    "sparkweave-evaluator-one-pager.md",
     "sparkweave-final-pitch-checklist.md",
 ]
 
@@ -208,6 +209,7 @@ def check_generated_exports() -> list[Check]:
                     ("sparkweave-demo-fallback-assets.md", "SparkWeave 稳定演示兜底素材"),
                     ("sparkweave-defense-qa.md", "SparkWeave 答辩问答预案"),
                     ("sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("sparkweave-evaluator-one-pager.md", "SparkWeave 评委一页说明"),
                     ("sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                 ],
             )
@@ -232,6 +234,7 @@ def check_generated_exports() -> list[Check]:
                     "demo_materials/sparkweave-agent-collaboration-blueprint.md",
                     "demo_materials/sparkweave-demo-fallback-assets.md",
                     "demo_materials/sparkweave-competition-scorecard.md",
+                    "demo_materials/sparkweave-evaluator-one-pager.md",
                     "demo_materials/sparkweave-final-pitch-checklist.md",
                     "assets/agent-collaboration-blueprint.svg",
                     "course_templates/ai_learning_agents_systems.json",
@@ -253,6 +256,7 @@ def check_generated_exports() -> list[Check]:
                     ("demo_materials/sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("demo_materials/sparkweave-demo-fallback-assets.md", "SparkWeave 稳定演示兜底素材"),
                     ("demo_materials/sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("demo_materials/sparkweave-evaluator-one-pager.md", "SparkWeave 评委一页说明"),
                     ("demo_materials/sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                     ("docs/demo-quickstart.md", "演示者 5 分钟入口"),
                 ],

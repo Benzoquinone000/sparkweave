@@ -136,6 +136,7 @@
 - 离线比赛材料也新增 `sparkweave-agent-collaboration-blueprint.md`：即使现场没有真实 session，也能稳定展示多智能体协作架构、Mermaid 草图、角色分工和录屏讲法。
 - 文档素材新增 `docs/assets/agent-collaboration-blueprint.svg`：README、导学文档和比赛提交包都可以直接引用静态协作图，不依赖 Mermaid 渲染环境。
 - 离线比赛材料新增 `sparkweave-demo-fallback-assets.md`：把每门课程模板里的稳定图解节点、预置练习、视频分镜和录屏兜底讲法导出成可直接放入 PPT/提交文档的清单。
+- 离线比赛材料新增 `sparkweave-evaluator-one-pager.md`：把项目定位、五项赛题对齐、演示任务链、7 分钟路线、兜底材料和赛前命令压缩成一页评委手卡。
 - 新增 `docs/iflytek-integration.md`：把讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的作用、配置方式和失败回退整理成比赛答辩可用说明，并纳入提交包。
 - 离线演示材料新增 `sparkweave-final-pitch-checklist.md`：把 PPT、7 分钟视频、多智能体蓝图、讯飞工具说明、AI Coding 说明和赛前命令压成一页式最终核对清单。
 - 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-check --format json` 可生成结构化就绪报告。
@@ -294,7 +295,8 @@
 30. 进行中：新增“大模型教育智能体系统开发”课程模板，把学习画像、RAG、多智能体、资源生成、路径规划、学习评估和答辩脚本串成一门完整高校课程 Demo。
 31. 进行中：新增离线演示材料导出脚本，可基于课程模板生成 PPT 骨架、7 分钟录屏讲稿、评分点证据表和答辩问答预案，并随比赛提交包一起导出。
 32. 进行中：赛前 CLI 入口已覆盖模板列表、演示材料导出、提交包导出、先检查再打包和结构化就绪报告，继续把“赛前准备”做成少命令、可复核的流程。
-33. 下一阶段：继续补完整课程 Demo 数据、演示脚本、兜底产物和真实录屏路线联调。
+33. 进行中：离线材料新增评委一页说明，便于老师或评委不翻长文档也能快速理解项目定位、赛题对齐和演示路线。
+34. 下一阶段：继续补完整课程 Demo 数据、演示脚本、兜底产物和真实录屏路线联调。
 
 ## 维护约定
 

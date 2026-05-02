@@ -35,6 +35,17 @@ sparkweave run deep_question "Linear algebra" --config num_questions=5
 sparkweave chat
 ```
 
+赛前材料与检查：
+
+```powershell
+sparkweave competition-templates
+sparkweave competition-check
+sparkweave competition-demo --template ai_learning_agents_systems
+sparkweave competition-package --template ai_learning_agents_systems
+```
+
+`competition-demo` 会导出 PPT 骨架、7 分钟录屏讲稿、赛题评分点证据表和答辩问答预案。`competition-package` 会整理文档、截图、课程模板、运行配置和离线演示材料。
+
 ## 知识库命令
 
 ```powershell

@@ -75,12 +75,12 @@ python -m sparkweave_cli competition-check --format json --output dist/competiti
 需要重新生成时：
 
 ```powershell
-python scripts/export_demo_materials.py
-python scripts/export_competition_package.py
+python -m sparkweave_cli competition-demo
+python -m sparkweave_cli competition-package
 ```
 
 要为其它完整课程生成演示包，可以指定课程模板：
 
 ```powershell
-python scripts/export_competition_package.py --template higher_math_limits_derivatives
+python -m sparkweave_cli competition-package --template higher_math_limits_derivatives
 ```

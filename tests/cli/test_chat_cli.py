@@ -218,6 +218,70 @@ def test_competition_check_command_passes_report_options(monkeypatch, tmp_path: 
     assert calls[0][0][-4:] == ["--format", "json", "--output", str(output)]
 
 
+def test_competition_templates_command_lists_course_templates() -> None:
+    result = runner.invoke(app, ["competition-templates", "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    templates = json.loads(result.output)
+    ids = {item["id"] for item in templates}
+    assert "ai_learning_agents_systems" in ids
+    assert "higher_math_limits_derivatives" in ids
+    assert "robotics_ros_foundations" in ids
+
+
+def test_competition_demo_command_runs_export_script(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "demo"
+    result = runner.invoke(
+        app,
+        ["competition-demo", "--template", "higher_math_limits_derivatives", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][0][1].endswith("scripts\\export_demo_materials.py") or calls[0][0][1].endswith(
+        "scripts/export_demo_materials.py"
+    )
+    assert calls[0][0][-4:] == ["--template", "higher_math_limits_derivatives", "--output", str(output)]
+
+
+def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    result = runner.invoke(
+        app,
+        [
+            "competition-package",
+            "--template",
+            "robotics_ros_foundations",
+            "--output",
+            str(output),
+            "--no-clean",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][0][1].endswith("scripts\\export_competition_package.py") or calls[0][0][1].endswith(
+        "scripts/export_competition_package.py"
+    )
+    assert calls[0][0][-5:] == ["--template", "robotics_ros_foundations", "--output", str(output), "--no-clean"]
+
+
 def test_session_list_command_uses_shared_store(monkeypatch) -> None:
     async def _list_sessions(self, limit: int = 50, offset: int = 0):  # noqa: ANN001
         return [

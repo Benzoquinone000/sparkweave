@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -62,6 +63,17 @@ register_config(config_app)
 register_session(session_app)
 register_notebook(notebook_app)
 register_provider(provider_app)
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _run_project_script(script_name: str, args: list[str]) -> None:
+    root = _repo_root()
+    script = root / "scripts" / script_name
+    result = subprocess.run([sys.executable, str(script), *args], cwd=root, check=False)
+    raise typer.Exit(code=result.returncode)
 
 
 @app.command("run")
@@ -160,13 +172,89 @@ def competition_check(
 ) -> None:
     """Check whether key competition submission materials are ready."""
 
-    root = Path(__file__).resolve().parent.parent
-    script = root / "scripts" / "check_competition_readiness.py"
-    cmd = [sys.executable, str(script), "--format", fmt]
+    cmd = ["--format", fmt]
     if output is not None:
         cmd.extend(["--output", str(output)])
-    result = subprocess.run(cmd, cwd=root, check=False)
-    raise typer.Exit(code=result.returncode)
+    _run_project_script("check_competition_readiness.py", cmd)
+
+
+@app.command("competition-templates")
+def competition_templates(
+    fmt: str = typer.Option("text", "--format", "-f", help="Output format: text | json."),
+) -> None:
+    """List built-in course templates suitable for demo and submission packages."""
+
+    template_dir = _repo_root() / "data" / "course_templates"
+    templates: list[dict[str, str]] = []
+    for path in sorted(template_dir.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            payload = {}
+        templates.append(
+            {
+                "id": str(payload.get("id") or path.stem),
+                "course_name": str(payload.get("course_name") or payload.get("title") or path.stem),
+                "path": str(path.relative_to(_repo_root())).replace("\\", "/"),
+            }
+        )
+
+    if fmt == "json":
+        print(json.dumps(templates, ensure_ascii=False))
+        return
+
+    console.print("[bold]Competition course templates[/]")
+    for item in templates:
+        console.print(f"- [cyan]{item['id']}[/]：{item['course_name']}")
+
+
+@app.command("competition-demo")
+def competition_demo(
+    template: str = typer.Option(
+        "ai_learning_agents_systems",
+        "--template",
+        "-t",
+        help="Course template id for demo materials.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory. Defaults to dist/demo_materials.",
+    ),
+) -> None:
+    """Export offline PPT outline, recording script, scorecard, and defense notes."""
+
+    cmd = ["--template", template]
+    if output is not None:
+        cmd.extend(["--output", str(output)])
+    _run_project_script("export_demo_materials.py", cmd)
+
+
+@app.command("competition-package")
+def competition_package(
+    template: str = typer.Option(
+        "ai_learning_agents_systems",
+        "--template",
+        "-t",
+        help="Course template id for demo materials.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory. Defaults to dist/competition_package.",
+    ),
+    no_clean: bool = typer.Option(False, "--no-clean", help="Do not remove output before exporting."),
+) -> None:
+    """Export a competition submission package with docs, screenshots, runtime files, and demo materials."""
+
+    cmd = ["--template", template]
+    if output is not None:
+        cmd.extend(["--output", str(output)])
+    if no_clean:
+        cmd.append("--no-clean")
+    _run_project_script("export_competition_package.py", cmd)
 
 
 def main() -> None:

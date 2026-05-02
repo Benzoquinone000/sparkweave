@@ -137,6 +137,8 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Generated package: assets/agent-collaboration-blueprint.svg" in check_names
     assert "Runtime: scripts/render_competition_summary.py" in check_names
     assert "Generated package: runtime/scripts/render_competition_summary.py" in check_names
+    assert "Runtime: scripts/verify_competition_package.py" in check_names
+    assert "Generated package: runtime/scripts/verify_competition_package.py" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-demo-fallback-assets.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names

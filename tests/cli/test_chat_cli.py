@@ -323,6 +323,26 @@ def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: P
     ]
 
 
+def test_competition_verify_command_runs_verify_script(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    package = tmp_path / "sparkweave_package.zip"
+    result = runner.invoke(app, ["competition-verify", str(package)])
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][0][1].endswith("scripts\\verify_competition_package.py") or calls[0][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[0][0][-1] == str(package)
+
+
 def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path: Path) -> None:
     calls: list[tuple[list[str], str]] = []
 

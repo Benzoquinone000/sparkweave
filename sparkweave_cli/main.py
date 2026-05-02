@@ -301,6 +301,18 @@ def competition_package(
     _run_project_script("export_competition_package.py", cmd)
 
 
+@app.command("competition-verify")
+def competition_verify(
+    package: Path = typer.Argument(
+        Path("dist/competition_package"),
+        help="Competition package directory or zip archive to verify.",
+    ),
+) -> None:
+    """Verify an exported competition package directory or zip archive."""
+
+    _run_project_script("verify_competition_package.py", [str(package)])
+
+
 @app.command("competition-preflight")
 def competition_preflight(
     template: str = typer.Option(

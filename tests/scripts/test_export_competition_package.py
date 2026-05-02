@@ -93,6 +93,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "runtime" / "scripts" / "check_competition_readiness.py").exists()
     assert (output / "runtime" / "scripts" / "check_release_safety.py").exists()
     assert (output / "runtime" / "scripts" / "render_competition_summary.py").exists()
+    assert (output / "runtime" / "scripts" / "verify_competition_package.py").exists()
     assert (output / "runtime" / "scripts" / "export_demo_materials.py").exists()
     assert (output / "demo_materials" / "sparkweave-demo-deck-outline.md").exists()
     assert (output / "demo_materials" / "sparkweave-demo-deck.html").exists()

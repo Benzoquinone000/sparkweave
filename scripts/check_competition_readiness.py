@@ -41,6 +41,7 @@ REQUIRED_RUNTIME_FILES = [
     "scripts/check_release_safety.py",
     "scripts/check_competition_readiness.py",
     "scripts/render_competition_summary.py",
+    "scripts/verify_competition_package.py",
     "scripts/export_demo_materials.py",
     "scripts/export_competition_package.py",
 ]
@@ -550,6 +551,7 @@ def check_generated_exports() -> list[Check]:
                     "runtime/scripts/check_competition_readiness.py",
                     "runtime/scripts/check_release_safety.py",
                     "runtime/scripts/render_competition_summary.py",
+                    "runtime/scripts/verify_competition_package.py",
                     "runtime/scripts/start_web.py",
                     "screenshots/screenshots-simplified-guide.png",
                 ],

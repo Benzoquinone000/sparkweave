@@ -63,6 +63,7 @@ RUNTIME_FILES = [
     ("scripts/check_release_safety.py", "scripts/check_release_safety.py"),
     ("scripts/check_competition_readiness.py", "scripts/check_competition_readiness.py"),
     ("scripts/render_competition_summary.py", "scripts/render_competition_summary.py"),
+    ("scripts/verify_competition_package.py", "scripts/verify_competition_package.py"),
     ("scripts/export_competition_package.py", "scripts/export_competition_package.py"),
     ("scripts/export_demo_materials.py", "scripts/export_demo_materials.py"),
 ]

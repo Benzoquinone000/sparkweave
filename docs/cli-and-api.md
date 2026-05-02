@@ -45,7 +45,7 @@ sparkweave competition-package --template ai_learning_agents_systems
 sparkweave competition-preflight --template ai_learning_agents_systems
 ```
 
-`competition-demo` 会导出 PPT 骨架、7 分钟录屏讲稿、赛题评分点证据表和答辩问答预案。`competition-package` 会整理文档、截图、课程模板、运行配置和离线演示材料。
+`competition-demo` 会导出 PPT 骨架、7 分钟录屏讲稿、多智能体协作蓝图、赛题评分点证据表和答辩问答预案。`competition-package` 会整理文档、截图、课程模板、运行配置和离线演示材料。
 `competition-preflight` 会先运行就绪检查，通过后再导出提交包，适合赛前最后一次打包。
 
 ## 知识库命令

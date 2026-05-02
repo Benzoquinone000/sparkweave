@@ -29,6 +29,7 @@ def main() -> int:
     deck = build_deck_outline(template)
     deck_html = build_deck_html(template)
     script = build_recording_script(template)
+    agent_blueprint = build_agent_collaboration_blueprint(template)
     qa = build_defense_qa(template)
     scorecard = build_competition_scorecard(template)
     index = build_index(template, output)
@@ -36,6 +37,7 @@ def main() -> int:
     (output / "sparkweave-demo-deck-outline.md").write_text(deck, encoding="utf-8")
     (output / "sparkweave-demo-deck.html").write_text(deck_html, encoding="utf-8")
     (output / "sparkweave-7min-recording-script.md").write_text(script, encoding="utf-8")
+    (output / "sparkweave-agent-collaboration-blueprint.md").write_text(agent_blueprint, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
@@ -317,6 +319,101 @@ def build_deck_html(template: dict[str, Any]) -> str:
 """
 
 
+def build_agent_collaboration_blueprint(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    persona = seed.get("persona") if isinstance(seed.get("persona"), dict) else {}
+    weak_points = join_or(list_of_text(persona.get("weak_points"))[:3], "概念边界、证据链、效果评估")
+    preferences = join_or([resource_preference_label(item) for item in list_of_text(persona.get("preferences"))[:3]], "图解、练习、短视频")
+    tasks = task_lookup(template)
+    chain = [tasks.get(task_id, {"title": task_id}) for task_id in list_of_text(seed.get("task_chain"))]
+    first_task = text(chain[0].get("title") if chain else "", "当前任务")
+    resource_task = text(chain[2].get("title") if len(chain) >= 3 else first_task, "多智能体资源生成")
+    role_rows = [
+        (
+            "对话协调智能体",
+            "把学习者的一句话请求转成具体学习动作。",
+            f"当前任务：{first_task}",
+            "聊天页或导学页的“继续学习”。",
+        ),
+        (
+            "画像智能体",
+            "读取目标、薄弱点、偏好和学习证据。",
+            f"卡点：{weak_points}；偏好：{preferences}",
+            "学习画像页或课程产出包的画像依据。",
+        ),
+        (
+            "路径规划智能体",
+            "把课程模板和画像压缩成当前任务、补基任务和复测任务。",
+            f"围绕「{course}」推进任务链。",
+            "导学页“先做这一件事”和路线图。",
+        ),
+        (
+            "资源生成智能体集群",
+            "按任务调用图解、动画、出题、检索等专门智能体。",
+            f"围绕「{resource_task}」生成最少必要资源。",
+            "资源卡“智能体接力”和多模态产物。",
+        ),
+        (
+            "评估智能体",
+            "把练习、反思和资源行为转成学习处方并回写画像。",
+            "掌握度、错因、下一步建议。",
+            "提交页、学习报告和课程产出包。",
+        ),
+    ]
+    mermaid = "\n".join(
+        [
+            "graph LR",
+            "  A[学习者请求] --> B[对话协调智能体]",
+            "  B --> C[画像智能体]",
+            "  C --> D[路径规划智能体]",
+            "  D --> E[资源生成智能体集群]",
+            "  E --> F[评估智能体]",
+            "  F --> C",
+        ]
+    )
+    lines = [
+        "# SparkWeave 多智能体协作蓝图",
+        "",
+        f"- 课程：{course}",
+        f"- 生成时间：{now()}",
+        "- 用法：可直接放入 PPT，或在录屏时作为“多智能体协同资源生成”的讲解底稿。",
+        "",
+        "## 一句话讲法",
+        "",
+        "SparkWeave 不是把多个工具并列给学生选择，而是由对话协调智能体读取画像和当前任务，再把图解、动画、出题、检索和评估交给专门智能体接力完成。",
+        "",
+        "## 接力路线图",
+        "",
+        "```mermaid",
+        mermaid,
+        "```",
+        "",
+        "## 角色分工",
+        "",
+        "| 智能体 | 负责什么 | 本课程产出 | 演示入口 |",
+        "| --- | --- | --- | --- |",
+    ]
+    lines.extend(f"| {name} | {role} | {output} | {entry} |" for name, role, output, entry in role_rows)
+    lines.extend(
+        [
+            "",
+            "## 录屏讲法",
+            "",
+            "1. 先说画像：系统知道学习者卡在哪里、偏好什么资源。",
+            "2. 再说路径：系统只给一个当前任务，降低使用负担。",
+            "3. 展示资源：打开资源卡，说明图解/视频/练习不是随机生成，而是按画像和任务接力生成。",
+            "4. 收到反馈：提交练习或反思后，评估智能体把结果回写画像并改变下一步。",
+            "",
+            "## 答辩兜底",
+            "",
+            "- 如果现场生成较慢，展示这份蓝图和课程产出包里的稳定素材。",
+            "- 如果评委追问“协作在哪里”，不要讲内部日志，直接按“画像 -> 路径 -> 资源 -> 评估 -> 画像更新”这条线回答。",
+        ]
+    )
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_defense_qa(template: dict[str, Any]) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     qa = [
@@ -431,6 +528,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-demo-deck-outline.md`：8 页答辩 PPT 骨架。",
             "- `sparkweave-demo-deck.html`：可直接打开、截图或打印为 PDF 的演示页。",
             "- `sparkweave-7min-recording-script.md`：7 分钟录屏分段讲稿。",
+            "- `sparkweave-agent-collaboration-blueprint.md`：多智能体协作蓝图，可直接放入 PPT 或答辩材料。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
             "",

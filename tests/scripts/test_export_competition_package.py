@@ -33,12 +33,14 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert (output / "sparkweave-demo-deck-outline.md").exists()
     assert (output / "sparkweave-demo-deck.html").exists()
     assert (output / "sparkweave-7min-recording-script.md").exists()
+    assert (output / "sparkweave-agent-collaboration-blueprint.md").exists()
     assert (output / "sparkweave-defense-qa.md").exists()
     assert (output / "sparkweave-competition-scorecard.md").exists()
 
     deck = (output / "sparkweave-demo-deck-outline.md").read_text(encoding="utf-8")
     deck_html = (output / "sparkweave-demo-deck.html").read_text(encoding="utf-8")
     script = (output / "sparkweave-7min-recording-script.md").read_text(encoding="utf-8")
+    agent_blueprint = (output / "sparkweave-agent-collaboration-blueprint.md").read_text(encoding="utf-8")
     qa = (output / "sparkweave-defense-qa.md").read_text(encoding="utf-8")
     scorecard = (output / "sparkweave-competition-scorecard.md").read_text(encoding="utf-8")
     assert "SparkWeave 演示 PPT 骨架" in deck
@@ -46,6 +48,8 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert "SparkWeave 演示页" in deck_html
     assert "大模型教育智能体系统开发" in deck
     assert "SparkWeave 7 分钟录屏讲稿" in script
+    assert "SparkWeave 多智能体协作蓝图" in agent_blueprint
+    assert "graph LR" in agent_blueprint
     assert "为什么不是普通聊天机器人" in qa
     assert "SparkWeave 赛题评分点证据表" in scorecard
     assert "多智能体协同的资源生成" in scorecard
@@ -69,6 +73,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "demo_materials" / "sparkweave-demo-deck-outline.md").exists()
     assert (output / "demo_materials" / "sparkweave-demo-deck.html").exists()
     assert (output / "demo_materials" / "sparkweave-7min-recording-script.md").exists()
+    assert (output / "demo_materials" / "sparkweave-agent-collaboration-blueprint.md").exists()
     assert (output / "demo_materials" / "sparkweave-defense-qa.md").exists()
     assert (output / "demo_materials" / "sparkweave-competition-scorecard.md").exists()
 
@@ -77,6 +82,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "大模型教育智能体系统开发" in manifest
     assert "demo_materials/sparkweave-demo-deck-outline.md" in manifest
     assert "demo_materials/sparkweave-demo-deck.html" in manifest
+    assert "demo_materials/sparkweave-agent-collaboration-blueprint.md" in manifest
     assert "demo_materials/sparkweave-competition-scorecard.md" in manifest
     assert "missing 0 file(s)" not in manifest
 

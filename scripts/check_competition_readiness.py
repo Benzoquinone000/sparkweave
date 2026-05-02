@@ -71,6 +71,7 @@ GENERATED_DEMO_FILES = [
     "sparkweave-agent-collaboration-blueprint.md",
     "sparkweave-defense-qa.md",
     "sparkweave-competition-scorecard.md",
+    "sparkweave-final-pitch-checklist.md",
 ]
 
 
@@ -204,6 +205,7 @@ def check_generated_exports() -> list[Check]:
                     ("sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("sparkweave-defense-qa.md", "SparkWeave 答辩问答预案"),
                     ("sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                 ],
             )
         )
@@ -226,6 +228,7 @@ def check_generated_exports() -> list[Check]:
                     "demo_materials/sparkweave-demo-deck.html",
                     "demo_materials/sparkweave-agent-collaboration-blueprint.md",
                     "demo_materials/sparkweave-competition-scorecard.md",
+                    "demo_materials/sparkweave-final-pitch-checklist.md",
                     "course_templates/ai_learning_agents_systems.json",
                     "runtime/scripts/check_competition_readiness.py",
                     "runtime/scripts/check_release_safety.py",
@@ -244,6 +247,7 @@ def check_generated_exports() -> list[Check]:
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
                     ("demo_materials/sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("demo_materials/sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("demo_materials/sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                     ("docs/demo-quickstart.md", "演示者 5 分钟入口"),
                 ],
             )

@@ -17,6 +17,7 @@ from export_demo_materials import (
     build_deck_outline,
     build_competition_scorecard,
     build_defense_qa,
+    build_final_pitch_checklist,
     build_index as build_demo_index,
     build_recording_script,
 )
@@ -177,6 +178,7 @@ def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str
         "sparkweave-agent-collaboration-blueprint.md": build_agent_collaboration_blueprint(template),
         "sparkweave-defense-qa.md": build_defense_qa(template),
         "sparkweave-competition-scorecard.md": build_competition_scorecard(template),
+        "sparkweave-final-pitch-checklist.md": build_final_pitch_checklist(template),
     }
     for name, content in materials.items():
         target = target_dir / name
@@ -211,7 +213,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "",
         "- `docs/`：项目说明、架构、能力、导学、学习画像、比赛路线图、演示 Runbook 和 AI Coding 说明。",
         "- `course_templates/`：可复现的完整高校课程样例，适合录屏和答辩现场演示。",
-        "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、7 分钟录屏讲稿、多智能体协作蓝图、评分点证据表和答辩问答预案。",
+        "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、7 分钟录屏讲稿、多智能体协作蓝图、评分点证据表、答辩问答预案和最终答辩清单。",
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
@@ -220,7 +222,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "",
         "| 提交物 | 本包对应材料 |",
         "| --- | --- |",
-        "| 演示 PPT | `demo_materials/sparkweave-demo-deck-outline.md`、`demo_materials/sparkweave-demo-deck.html`、`demo_materials/sparkweave-agent-collaboration-blueprint.md`、`demo_materials/sparkweave-competition-scorecard.md`、`docs/competition-demo-runbook.md`、`screenshots/` |",
+        "| 演示 PPT | `demo_materials/sparkweave-demo-deck-outline.md`、`demo_materials/sparkweave-demo-deck.html`、`demo_materials/sparkweave-agent-collaboration-blueprint.md`、`demo_materials/sparkweave-competition-scorecard.md`、`demo_materials/sparkweave-final-pitch-checklist.md`、`docs/competition-demo-runbook.md`、`screenshots/` |",
         "| 可运行源码与配置 | GitHub 仓库源码、`runtime/.env.example`、`runtime/requirements*.txt`、`runtime/scripts/start_web.py` |",
         "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`docs/competition-demo-runbook.md` 的分镜和兜底动作 |",
         "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板 |",

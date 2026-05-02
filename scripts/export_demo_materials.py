@@ -32,6 +32,7 @@ def main() -> int:
     agent_blueprint = build_agent_collaboration_blueprint(template)
     qa = build_defense_qa(template)
     scorecard = build_competition_scorecard(template)
+    checklist = build_final_pitch_checklist(template)
     index = build_index(template, output)
 
     (output / "sparkweave-demo-deck-outline.md").write_text(deck, encoding="utf-8")
@@ -40,6 +41,7 @@ def main() -> int:
     (output / "sparkweave-agent-collaboration-blueprint.md").write_text(agent_blueprint, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
+    (output / "sparkweave-final-pitch-checklist.md").write_text(checklist, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
 
     print(f"[demo-materials] exported template {template.get('id')} to {output}")
@@ -513,6 +515,74 @@ def build_competition_scorecard(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_final_pitch_checklist(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    persona = seed.get("persona") if isinstance(seed.get("persona"), dict) else {}
+    weak_points = join_or(list_of_text(persona.get("weak_points"))[:3], "当前薄弱点")
+    preferences = join_or([resource_preference_label(item) for item in list_of_text(persona.get("preferences"))[:3]], "图解、练习、短视频")
+    tasks = task_lookup(template)
+    chain = [tasks.get(task_id, {"title": task_id}) for task_id in list_of_text(seed.get("task_chain"))]
+    task_titles = [text(item.get("title"), "演示任务") for item in chain[:4]]
+    lines = [
+        "# SparkWeave 最终答辩材料清单",
+        "",
+        f"- 课程：{course}",
+        f"- 生成时间：{now()}",
+        "- 用法：正式提交或录屏前，按这张一页式清单逐项勾掉。",
+        "",
+        "## 一句话定位",
+        "",
+        "SparkWeave 星火织学是面向高校课程学习的多智能体个性化学习系统：先构建学习画像，再规划路径、生成资源、完成练习反馈，并用学习效果评估动态调整下一步。",
+        "",
+        "## 必交材料",
+        "",
+        "| 材料 | 推荐文件或页面 | 检查点 |",
+        "| --- | --- | --- |",
+        "| 演示 PPT | `sparkweave-demo-deck-outline.md`、`sparkweave-demo-deck.html` | 至少包含项目价值、五项赛题对齐、画像、路径、多智能体、评估和提交物总结。 |",
+        "| 7 分钟演示视频 | `sparkweave-7min-recording-script.md`、`docs/competition-demo-runbook.md` | 按画像 -> 当前任务 -> 资源 -> 练习 -> 报告 -> 产出包顺序录。 |",
+        "| 多智能体说明 | `sparkweave-agent-collaboration-blueprint.md` | 能讲清对话协调、画像、路径、资源集群和评估如何接力。 |",
+        "| 评分点证据 | `sparkweave-competition-scorecard.md` | 五项赛题要求都有页面入口和一句答辩讲法。 |",
+        "| 答辩问答 | `sparkweave-defense-qa.md` | 准备画像来源、多智能体、个性化路径、学习评估、稳定性五类追问。 |",
+        "| 科大讯飞工具说明 | `docs/iflytek-integration.md` | 明确星火、Embedding、ONE SEARCH、OCR 的使用位置和失败回退。 |",
+        "| AI Coding 说明 | `docs/ai-coding-statement.md` | 明确辅助范围、人工复核、密钥边界和可追溯材料。 |",
+        "",
+        "## 演示学习者口径",
+        "",
+        f"- 当前课程：{course}",
+        f"- 主要卡点：{weak_points}",
+        f"- 资源偏好：{preferences}",
+        f"- 演示任务链：{join_or(task_titles, '画像访谈、前测补基、资源生成、反馈报告')}",
+        "",
+        "## 7 分钟讲述节奏",
+        "",
+        "1. 0:00-0:40：先说问题，学生不知道下一步该学什么。",
+        "2. 0:40-1:30：展示导学页只给一个当前任务。",
+        "3. 1:30-2:40：展示学习画像和路径为什么这样安排。",
+        "4. 2:40-4:00：展示图解、练习、短视频或公开视频，并说明智能体接力。",
+        "5. 4:00-5:10：提交练习或反思，形成真实学习证据。",
+        "6. 5:10-6:10：打开学习报告，展示学习处方和画像回写。",
+        "7. 6:10-7:00：打开课程产出包，收束到提交材料。",
+        "",
+        "## 赛前最后检查",
+        "",
+        "- [ ] `python -m sparkweave_cli competition-check` 通过。",
+        "- [ ] `cd web && npm run build` 通过。",
+        "- [ ] 设置页快速检测问答模型、向量模型、联网搜索和 OCR。",
+        "- [ ] 课程产出包 Markdown 已下载，并补入真实 session 的截图或产物。",
+        "- [ ] PPT 中没有真实密钥、`.env` 内容或调试日志。",
+        "- [ ] 视频中不展示 `thinking/stage_start/raw JSON` 等开发者文本。",
+        "",
+        "## 现场兜底",
+        "",
+        "- 生成慢：展示离线材料、Notebook 历史产物或课程产出包里的稳定素材。",
+        "- 科大讯飞服务不稳定：说明 provider 可切换，学习流程不依赖单一服务。",
+        "- 被问创新：回答“画像驱动的多智能体学习闭环”，不要只讲 API 调用。",
+        "- 被问实用性：回答“学生只跟着当前任务做，系统负责资源、练习、反馈和路径调整”。",
+    ]
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_index(template: dict[str, Any], output: Path) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     return "\n".join(
@@ -531,6 +601,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-agent-collaboration-blueprint.md`：多智能体协作蓝图，可直接放入 PPT 或答辩材料。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
+            "- `sparkweave-final-pitch-checklist.md`：提交前一页式总览，适合最后排练和材料核对。",
             "",
             "这些材料是离线兜底版本。正式演示时，优先使用导学页课程产出包里的 Markdown 导出，因为它会包含当前真实 session 的画像、任务、报告和产物证据。",
         ]

@@ -135,6 +135,7 @@
 - 课程产出包新增“多智能体协作蓝图”：把对话协调、画像、路径规划、资源生成集群和评估智能体压缩成一条可录屏讲述的接力路线，并同步输出到前端卡片和 Markdown。
 - 离线比赛材料也新增 `sparkweave-agent-collaboration-blueprint.md`：即使现场没有真实 session，也能稳定展示多智能体协作架构、Mermaid 草图、角色分工和录屏讲法。
 - 新增 `docs/iflytek-integration.md`：把讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的作用、配置方式和失败回退整理成比赛答辩可用说明，并纳入提交包。
+- 离线演示材料新增 `sparkweave-final-pitch-checklist.md`：把 PPT、7 分钟视频、多智能体蓝图、讯飞工具说明、AI Coding 说明和赛前命令压成一页式最终核对清单。
 - 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-check --format json` 可生成结构化就绪报告。
 - 发布安全检查已进入 CI 和就绪检查：自动扫描跟踪文件中的旧项目名、真实密钥片段和本地环境文件，降低上传 GitHub 和比赛打包风险。
 - 后续优先级不再是继续堆页面，而是准备一门稳定课程 Demo，把画像、导学、资源、练习、反馈、报告串成一条可录屏的完整故事。

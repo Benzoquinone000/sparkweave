@@ -105,6 +105,7 @@ python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
 python scripts/check_course_templates.py
+python scripts/export_demo_materials.py
 python scripts/export_competition_package.py
 cd web
 npm run lint
@@ -112,6 +113,7 @@ npm run build
 cd ..
 ```
 
+`scripts/export_demo_materials.py` 会离线生成 PPT 骨架、7 分钟录屏讲稿和答辩问答预案，适合作为赛前起稿材料。
 `scripts/export_competition_package.py` 会把比赛文档、课程模板、页面截图、架构图和运行配置样例整理到 `dist/competition_package/`，用于赛前打包、PPT 素材整理和答辩材料核对。
 
 上传前请确认 `.env`、`data/user/`、`data/memory/`、`web/node_modules/`、`web/dist/` 等本地配置、运行数据和构建产物没有进入暂存区。

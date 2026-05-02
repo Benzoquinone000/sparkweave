@@ -5,9 +5,17 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+import json
 from pathlib import Path
 import shutil
 from typing import Iterable
+
+from export_demo_materials import (
+    build_deck_outline,
+    build_defense_qa,
+    build_index as build_demo_index,
+    build_recording_script,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +48,8 @@ RUNTIME_FILES = [
     ("scripts/start_web.py", "scripts/start_web.py"),
     ("scripts/check_install.py", "scripts/check_install.py"),
     ("scripts/check_course_templates.py", "scripts/check_course_templates.py"),
+    ("scripts/export_competition_package.py", "scripts/export_competition_package.py"),
+    ("scripts/export_demo_materials.py", "scripts/export_demo_materials.py"),
 ]
 
 ASSETS = [
@@ -84,6 +94,7 @@ def main() -> int:
     copy_many(ASSETS, output / "assets", copied, missing)
     copy_course_templates(output / "course_templates", copied, missing)
     copy_screenshots(output / "screenshots", copied, missing)
+    export_demo_materials(output / "demo_materials", copied, missing)
 
     manifest = build_manifest(output, copied, missing)
     (output / "README.md").write_text(manifest, encoding="utf-8")
@@ -138,6 +149,25 @@ def copy_screenshots(target_dir: Path, copied: list[str], missing: list[str]) ->
         copy_file(source, target_dir / name, copied)
 
 
+def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str]) -> None:
+    template_path = ROOT / "data" / "course_templates" / "ai_learning_agents_systems.json"
+    if not template_path.exists():
+        missing.append("data/course_templates/ai_learning_agents_systems.json")
+        return
+    template = json.loads(template_path.read_text(encoding="utf-8"))
+    target_dir.mkdir(parents=True, exist_ok=True)
+    materials = {
+        "README.md": build_demo_index(template, target_dir),
+        "sparkweave-demo-deck-outline.md": build_deck_outline(template),
+        "sparkweave-7min-recording-script.md": build_recording_script(template),
+        "sparkweave-defense-qa.md": build_defense_qa(template),
+    }
+    for name, content in materials.items():
+        target = target_dir / name
+        target.write_text(content, encoding="utf-8")
+        copied.append(f"demo_materials/{name}")
+
+
 def copy_file(source: Path, target: Path, copied: list[str]) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
@@ -148,6 +178,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     course_template_count = len([item for item in copied if item.startswith("data/course_templates/")])
     screenshot_count = len([item for item in copied if item.startswith("web/screenshots")])
+    demo_material_count = len([item for item in copied if item.startswith("demo_materials/")])
     lines = [
         "# SparkWeave 比赛提交包索引",
         "",
@@ -156,11 +187,13 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         f"- 文档数量：{len([item for item in copied if item.endswith('.md')])}",
         f"- 课程模板：{course_template_count}",
         f"- 页面截图：{screenshot_count}",
+        f"- 离线演示材料：{demo_material_count}",
         "",
         "## 文件夹说明",
         "",
         "- `docs/`：项目说明、架构、能力、导学、学习画像、比赛路线图、演示 Runbook 和 AI Coding 说明。",
         "- `course_templates/`：可复现的完整高校课程样例，适合录屏和答辩现场演示。",
+        "- `demo_materials/`：离线生成的 PPT 骨架、7 分钟录屏讲稿和答辩问答预案。",
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
@@ -169,21 +202,23 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         "",
         "| 提交物 | 本包对应材料 |",
         "| --- | --- |",
-        "| 演示 PPT | `docs/competition-demo-runbook.md`、`docs/demo-script-profile-guide-loop.md`、`screenshots/` |",
+        "| 演示 PPT | `demo_materials/sparkweave-demo-deck-outline.md`、`docs/competition-demo-runbook.md`、`screenshots/` |",
         "| 可运行源码与配置 | GitHub 仓库源码、`runtime/.env.example`、`runtime/requirements*.txt`、`runtime/scripts/start_web.py` |",
-        "| 7 分钟演示视频 | `docs/competition-demo-runbook.md` 的分镜、兜底动作和答辩重点 |",
+        "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`docs/competition-demo-runbook.md` 的分镜和兜底动作 |",
         "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板 |",
         "| 多智能体资源生成 | `docs/capabilities.md`、`docs/guided-learning.md`、`docs/architecture.md` |",
         "| 学习效果评估 | `docs/guided-learning.md`、`docs/learner-profile-design.md`、课程产出包 Markdown 导出 |",
+        "| 答辩问答 | `demo_materials/sparkweave-defense-qa.md`、课程产出包中的答辩问答预案 |",
         "| AI Coding 说明 | `docs/ai-coding-statement.md` |",
         "",
         "## 建议使用顺序",
         "",
         "1. 先按 `docs/getting-started.md` 和 `runtime/scripts/check_install.py` 确认环境。",
-        "2. 运行 Web 后打开 `/guide`，优先选择“大模型教育智能体系统开发”赛题主线课程。",
-        "3. 按 `docs/competition-demo-runbook.md` 录制 7 分钟演示视频。",
-        "4. 使用导学页的课程产出包和学习报告 Markdown 下载按钮整理 PPT 和答辩材料。",
-        "5. 赛前再次运行 `python scripts/check_course_templates.py`、`cd web && npm run build`。",
+        "2. 先用 `demo_materials/` 离线材料搭 PPT、视频脚本和答辩问答骨架。",
+        "3. 运行 Web 后打开 `/guide`，优先选择“大模型教育智能体系统开发”赛题主线课程。",
+        "4. 按 `docs/competition-demo-runbook.md` 录制 7 分钟演示视频。",
+        "5. 使用导学页的课程产出包和学习报告 Markdown 下载按钮，把真实 session 证据补入 PPT 和提交文档。",
+        "6. 赛前再次运行 `python scripts/check_course_templates.py`、`cd web && npm run build`。",
     ]
     if missing:
         lines.extend(["", "## 缺失文件", ""])

@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 from urllib.parse import unquote
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -512,6 +513,21 @@ def check_generated_exports() -> list[Check]:
             )
         )
         checks.extend(
+            check_archive_entries(
+                archive_path,
+                [
+                    "competition_package/index.html",
+                    "competition_package/submission_manifest.md",
+                    "competition_package/demo_materials/sparkweave-demo-deck.html",
+                    "competition_package/demo_materials/sparkweave-competition-scorecard.md",
+                    "competition_package/demo_materials/sparkweave-7min-recording-script.md",
+                    "competition_package/assets/architecture.svg",
+                    "competition_package/runtime/scripts/start_web.py",
+                    "competition_package/screenshots/screenshots-simplified-guide.png",
+                ],
+            )
+        )
+        checks.extend(
             check_generated_files(
                 "Generated package",
                 package_dir,
@@ -568,6 +584,27 @@ def check_generated_files(group: str, root: Path, relative_paths: list[str]) -> 
         Check(f"{group}: {relative}", (root / relative).exists(), "missing after export" if not (root / relative).exists() else "")
         for relative in relative_paths
     ]
+
+
+def check_archive_entries(archive_path: Path, expected_entries: list[str]) -> list[Check]:
+    checks: list[Check] = []
+    if not archive_path.exists():
+        return [Check("Competition archive content", False, "archive missing")]
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            entries = set(archive.namelist())
+    except zipfile.BadZipFile as exc:
+        return [Check("Competition archive content", False, f"bad zip file: {exc}")]
+
+    for entry in expected_entries:
+        checks.append(
+            Check(
+                f"Competition archive content: {entry}",
+                entry in entries,
+                "missing from archive" if entry not in entries else "",
+            )
+        )
+    return checks
 
 
 def check_generated_content(group: str, root: Path, expectations: list[tuple[str, str]]) -> list[Check]:

@@ -53,6 +53,9 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Generated demo links: sparkweave-demo-deck.html" in result.stdout
     assert "[ok] Competition package export" in result.stdout
     assert "[ok] Competition package archive" in result.stdout
+    assert "[ok] Competition archive content: competition_package/index.html" in result.stdout
+    assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in result.stdout
+    assert "[ok] Competition archive content: competition_package/runtime/scripts/start_web.py" in result.stdout
     assert "[ok] Generated package: index.html" in result.stdout
     assert "[ok] Generated package links: index.html" in result.stdout
     assert "[ok] Generated package links: demo_materials/sparkweave-demo-deck.html" in result.stdout
@@ -108,6 +111,9 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition proof chain: frontend card" in check_names
     assert "Competition proof chain: test coverage" in check_names
     assert "Competition package archive" in check_names
+    assert "Competition archive content: competition_package/index.html" in check_names
+    assert "Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in check_names
+    assert "Competition archive content: competition_package/runtime/scripts/start_web.py" in check_names
     assert "Generated package: index.html" in check_names
     assert "Generated package content: index.html" in check_names
     assert "Generated package links: index.html" in check_names

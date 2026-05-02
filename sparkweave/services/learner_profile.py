@@ -576,13 +576,7 @@ class LearnerProfileService:
                     summary=_short(str(event.get("summary") or event.get("reflection") or ""), 180),
                     created_at=_timestamp_to_iso(event.get("created_at")),
                     score=score,
-                    metadata={
-                        "verb": event.get("verb"),
-                        "object_type": object_type,
-                        "resource_type": resource_type,
-                        "ledger": True,
-                        "concepts": concept_labels,
-                    },
+                    metadata=_event_preview_metadata(event, object_type, resource_type, concept_labels),
                 )
             )
 
@@ -1253,6 +1247,37 @@ def _event_concept_labels(event: dict[str, Any]) -> list[str]:
             if label and label not in labels:
                 labels.append(label)
     return labels[:8]
+
+
+def _event_preview_metadata(
+    event: dict[str, Any],
+    object_type: str,
+    resource_type: str,
+    concept_labels: list[str],
+) -> dict[str, Any]:
+    raw_metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    metadata: dict[str, Any] = {
+        "verb": event.get("verb"),
+        "object_type": object_type,
+        "resource_type": resource_type,
+        "ledger": True,
+        "concepts": concept_labels,
+    }
+    for key in (
+        "platform",
+        "kind",
+        "query",
+        "fallback_search",
+        "watch_plan",
+        "reflection_prompt",
+        "style_hint",
+    ):
+        value = raw_metadata.get(key)
+        if value not in (None, "", [], {}):
+            metadata[key] = value
+    if event.get("duration_seconds") not in (None, ""):
+        metadata["duration_seconds"] = event.get("duration_seconds")
+    return metadata
 
 
 def _labels_from_value(value: Any) -> list[str]:

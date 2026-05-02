@@ -247,6 +247,12 @@ async def test_learner_profile_prefers_public_video_after_viewing_video_evidence
             "object_id": "https://example.com/open-course",
             "title": "Gradient descent public video",
             "resource_type": "external_video",
+            "duration_seconds": 540,
+            "metadata": {
+                "platform": "Bilibili",
+                "watch_plan": ["先看第一个视频", "暂停复述核心概念", "回到导学提交反思"],
+                "reflection_prompt": "看完后说清楚梯度下降还卡在哪里。",
+            },
             "created_at": 1_777_000_100,
         }
     )
@@ -263,6 +269,11 @@ async def test_learner_profile_prefers_public_video_after_viewing_video_evidence
 
     assert profile["next_action"]["kind"] == "remediate"
     assert "精选公开视频" in profile["next_action"]["suggested_prompt"]
+    video_evidence = next(item for item in profile["evidence_preview"] if item["metadata"].get("resource_type") == "external_video")
+    assert video_evidence["metadata"]["platform"] == "Bilibili"
+    assert video_evidence["metadata"]["duration_seconds"] == 540
+    assert video_evidence["metadata"]["watch_plan"][0] == "先看第一个视频"
+    assert "梯度下降" in video_evidence["metadata"]["reflection_prompt"]
 
 
 @pytest.mark.asyncio

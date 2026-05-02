@@ -1299,6 +1299,12 @@ function metadataText(metadata: Record<string, unknown> | undefined, key: string
   return typeof value === "string" ? value : "";
 }
 
+function metadataTextList(metadata: Record<string, unknown> | undefined, key: string) {
+  const value = metadata?.[key];
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 3);
+}
+
 function evidenceVerbLabel(value: string) {
   const map: Record<string, string> = {
     requested: "请求",
@@ -1365,6 +1371,8 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
   const verb = evidenceVerbLabel(metadataText(item.metadata, "verb"));
   const resourceType = resourceTypeLabel(metadataText(item.metadata, "resource_type"));
   const sourceLabel = evidenceSourceLabel(item.source_label);
+  const watchPlan = metadataTextList(item.metadata, "watch_plan");
+  const reflectionPrompt = metadataText(item.metadata, "reflection_prompt");
   return (
     <article className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1381,6 +1389,23 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
         </div>
       ) : null}
       {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-600">{item.summary}</p> : null}
+      {watchPlan.length ? (
+        <div className="mt-3 rounded-md border border-teal-100 bg-white px-3 py-2">
+          <p className="text-xs font-medium text-brand-teal">观看计划</p>
+          <ol className="mt-1 grid gap-1 text-xs leading-5 text-slate-600">
+            {watchPlan.map((step, index) => (
+              <li key={`${step}-${index}`}>
+                {index + 1}. {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+      {reflectionPrompt ? (
+        <p className="mt-2 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+          反思问题：{reflectionPrompt}
+        </p>
+      ) : null}
       {item.score !== null && item.score !== undefined ? <p className="mt-2 text-xs text-slate-500">分数：{formatPercent(item.score)}</p> : null}
     </article>
   );

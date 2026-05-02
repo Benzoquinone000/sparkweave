@@ -38,6 +38,7 @@ jobs:
       - name: Run focused backend tests
         run: |
           python -m pytest \
+            tests/cli/test_chat_cli.py \
             tests/scripts/test_check_release_safety.py \
             tests/scripts/test_check_competition_readiness.py \
             tests/scripts/test_export_competition_package.py \

@@ -2882,6 +2882,13 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
           profile_hints_applied: true,
           profile_guided: true,
           rewritten_prompt: "围绕梯度下降安排下一步学习材料。",
+          collaboration_summary: "画像先提供学习依据，协调智能体再唤醒 Knowledge Visualization Agent 接力。",
+          collaboration_route: [
+            { key: "profile", label: "学习画像智能体", detail: "提供薄弱点、偏好和下一步任务。" },
+            { key: "coordinator", label: "对话协调智能体", detail: "识别意图并决定唤醒哪个专门智能体。" },
+            { key: "design", label: "图解设计智能体", detail: "选择适合当前概念的关系图表达方式。" },
+            { key: "render", label: "可视化渲染智能体", detail: "生成可展示、可保存的图解产物。" },
+          ],
         },
       },
       { type: "tool_call", stage: "retrieval", metadata: { tool: "rag_search" } },
@@ -2912,8 +2919,10 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
   await expect(collaboration).not.toContainText("rag_search");
   await expect(route).toContainText("接力路线");
   await expect(route).toContainText("围绕梯度下降安排下一步学习材料。");
+  await expect(route).toContainText("学习画像智能体");
   await expect(route).toContainText("对话协调");
-  await expect(route).toContainText("讲解");
+  await expect(route).toContainText("图解设计智能体");
+  await expect(route).toContainText("可视化渲染智能体");
   await expect(messageTrace).toContainText("协作明细");
   await expect(messageTrace).toContainText("画像触发");
   await expect(messageTrace).toContainText("识别任务");

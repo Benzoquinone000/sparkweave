@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from typing import Optional
@@ -77,6 +78,12 @@ def _run_project_script(script_name: str, args: list[str]) -> None:
     root = _repo_root()
     result = subprocess.run(_project_script_cmd(script_name, args), cwd=root, check=False)
     raise typer.Exit(code=result.returncode)
+
+
+def _npm_command() -> str:
+    if sys.platform == "win32":
+        return shutil.which("npm.cmd") or shutil.which("npm") or "npm.cmd"
+    return shutil.which("npm") or "npm"
 
 
 @app.command("run")
@@ -279,8 +286,13 @@ def competition_preflight(
         "--report",
         help="Optional JSON readiness report path.",
     ),
+    with_build: bool = typer.Option(
+        False,
+        "--with-build",
+        help="Also run the web production build before exporting the package.",
+    ),
 ) -> None:
-    """Run readiness checks, then export a competition package if everything is ready."""
+    """Run readiness checks, optionally build the web UI, then export a competition package."""
 
     root = _repo_root()
     check_args = ["--format", "text"]
@@ -293,6 +305,12 @@ def competition_preflight(
     )
     if check_result.returncode != 0:
         raise typer.Exit(code=check_result.returncode)
+
+    if with_build:
+        console.print("[bold]Building web frontend before packaging...[/]")
+        build_result = subprocess.run([_npm_command(), "run", "build"], cwd=root / "web", check=False)
+        if build_result.returncode != 0:
+            raise typer.Exit(code=build_result.returncode)
 
     package_args = ["--template", template]
     if output is not None:

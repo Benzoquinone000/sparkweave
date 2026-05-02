@@ -318,6 +318,49 @@ def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path
     assert calls[1][0][-4:] == ["--template", "higher_math_limits_derivatives", "--output", str(output)]
 
 
+def test_competition_preflight_can_build_web_before_export(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+    monkeypatch.setattr("sparkweave_cli.main._npm_command", lambda: "npm")
+
+    output = tmp_path / "package"
+    result = runner.invoke(app, ["competition-preflight", "--with-build", "--output", str(output)])
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 3
+    assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
+        "scripts/check_competition_readiness.py"
+    )
+    assert calls[1][0] == ["npm", "run", "build"]
+    assert calls[1][1].endswith("web")
+    assert calls[2][0][1].endswith("scripts\\export_competition_package.py") or calls[2][0][1].endswith(
+        "scripts/export_competition_package.py"
+    )
+    assert calls[2][0][-4:] == ["--template", "ai_learning_agents_systems", "--output", str(output)]
+
+
+def test_competition_preflight_stops_when_web_build_fails(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append(list(cmd))
+        return type("Result", (), {"returncode": 3 if len(calls) == 2 else 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+    monkeypatch.setattr("sparkweave_cli.main._npm_command", lambda: "npm")
+
+    result = runner.invoke(app, ["competition-preflight", "--with-build"])
+
+    assert result.exit_code == 3, result.output
+    assert len(calls) == 2
+    assert calls[1] == ["npm", "run", "build"]
+
+
 def test_competition_preflight_stops_when_readiness_fails(monkeypatch) -> None:
     calls: list[list[str]] = []
 

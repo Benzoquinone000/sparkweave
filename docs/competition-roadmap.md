@@ -144,7 +144,7 @@
 - 离线比赛材料新增 `sparkweave-evaluator-one-pager.md`：把项目定位、五项赛题对齐、演示任务链、7 分钟路线、兜底材料和赛前命令压缩成一页评委手卡。
 - 新增 `docs/iflytek-integration.md`：把讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的作用、配置方式和失败回退整理成比赛答辩可用说明，并纳入提交包。
 - 离线演示材料新增 `sparkweave-final-pitch-checklist.md`：把 PPT、7 分钟视频、多智能体蓝图、讯飞工具说明、AI Coding 说明和赛前命令压成一页式最终核对清单。
-- 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-check --format json` 可生成结构化就绪报告。
+- 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-preflight --with-build` 可在正式归档前追加前端生产构建，`competition-check --format json` 可生成结构化就绪报告。
 - 发布安全检查已进入 CI 和就绪检查：自动扫描跟踪文件中的旧项目名、真实密钥片段和本地环境文件，降低上传 GitHub 和比赛打包风险。
 - 资料库索引进度继续面向用户简化：默认只展示“关键进展”，完整处理记录收进排查入口，避免普通学习者看到长日志流或底层任务事件。
 - 设置页顶部服务状态继续去底层错误化：HMAC、apikey、upstream timeout 等原始异常会压缩成“密钥或鉴权信息不正确”“服务响应超时”等用户可处理结论。
@@ -308,6 +308,7 @@
 
 ## 近期自动验收加固
 
+- `sparkweave competition-preflight --with-build` 已成为正式提交前的推荐命令：先跑就绪检查，再跑前端生产构建，最后导出比赛提交包，减少“检查通过但前端构建失败”的赛前风险。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

@@ -105,6 +105,7 @@ python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
 python scripts/check_course_templates.py
+python scripts/check_release_safety.py
 python scripts/check_competition_readiness.py
 python scripts/export_demo_materials.py
 python scripts/export_competition_package.py
@@ -503,6 +504,12 @@ npm run build
 
 ```powershell
 python scripts/check_install.py
+```
+
+发布安全检查：
+
+```powershell
+python scripts/check_release_safety.py
 ```
 
 运行时烟测：

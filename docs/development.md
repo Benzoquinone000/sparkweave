@@ -33,6 +33,7 @@ python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
 python scripts/check_course_templates.py
+python scripts/check_release_safety.py
 python scripts/check_competition_readiness.py
 python scripts/smoke_ng_runtime.py
 ```
@@ -77,6 +78,7 @@ git status
 python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
+python scripts/check_release_safety.py
 python scripts/check_competition_readiness.py
 python scripts/smoke_ng_runtime.py
 pytest

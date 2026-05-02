@@ -33,6 +33,7 @@ REQUIRED_RUNTIME_FILES = [
     "requirements/math-animator.txt",
     "scripts/start_web.py",
     "scripts/check_install.py",
+    "scripts/check_release_safety.py",
     "scripts/check_competition_readiness.py",
     "scripts/export_demo_materials.py",
     "scripts/export_competition_package.py",
@@ -118,6 +119,7 @@ def build_report() -> dict[str, object]:
     checks.extend(check_paths("Assets", REQUIRED_ASSETS))
     checks.extend(check_paths("Screenshots", REQUIRED_SCREENSHOTS))
     checks.extend(check_paths("Course templates", REQUIRED_COURSE_TEMPLATES))
+    checks.append(run_project_script("Release safety", "check_release_safety.py"))
     checks.append(run_project_script("Course template schema", "check_course_templates.py"))
     checks.extend(check_generated_exports())
 
@@ -219,6 +221,7 @@ def check_generated_exports() -> list[Check]:
                     "demo_materials/sparkweave-demo-deck.html",
                     "course_templates/ai_learning_agents_systems.json",
                     "runtime/scripts/check_competition_readiness.py",
+                    "runtime/scripts/check_release_safety.py",
                     "runtime/scripts/start_web.py",
                     "screenshots/screenshots-simplified-guide.png",
                 ],

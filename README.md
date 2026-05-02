@@ -273,6 +273,7 @@ LLM_HOST=https://spark-api-open.xf-yun.com/x2/
 
 讯飞星火大模型在本项目中仅保留 X2 与 X1.5 两个 OpenAI 兼容 HTTP 入口，模型名统一为 `spark-x`。X2 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/x2/`，X1.5 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/v2/`。`LLM_API_KEY` 可填写 HTTP 协议的 APIPassword，或按官方说明填写 `APIKey:APISecret`。
 设置页选择 `iFlytek Spark X` 后会提供两种鉴权方式：直接填写 `APIPassword`，或分别填写 `APIKey` 与 `APISecret`，保存时会自动拼接为 `APIKey:APISecret`。
+比赛答辩中如需说明讯飞能力接入，可直接参考 [科大讯飞能力接入说明](docs/iflytek-integration.md)。
 
 使用知识库 RAG 时，还需要配置 Embedding：
 

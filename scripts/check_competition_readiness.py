@@ -23,6 +23,7 @@ REQUIRED_DOCS = [
     "docs/demo-quickstart.md",
     "docs/guided-learning.md",
     "docs/learner-profile-design.md",
+    "docs/iflytek-integration.md",
     "docs/ai-coding-statement.md",
 ]
 
@@ -239,6 +240,7 @@ def check_generated_exports() -> list[Check]:
                 package_dir,
                 [
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
+                    ("docs/iflytek-integration.md", "科大讯飞能力接入说明"),
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
                     ("demo_materials/sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("demo_materials/sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),

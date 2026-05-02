@@ -28,6 +28,7 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Generated demo content: sparkweave-competition-scorecard.md" in result.stdout
     assert "[ok] Competition package export" in result.stdout
     assert "[ok] Generated package content: docs/demo-quickstart.md" in result.stdout
+    assert "[ok] Generated package content: docs/iflytek-integration.md" in result.stdout
     assert "All required competition materials are ready." in result.stdout
 
 
@@ -60,4 +61,5 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert report["ready_count"] == report["total_count"]
     assert "Generated demo content: sparkweave-demo-deck.html" in check_names
     assert "Generated demo content: sparkweave-agent-collaboration-blueprint.md" in check_names
+    assert "Generated package content: docs/iflytek-integration.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names

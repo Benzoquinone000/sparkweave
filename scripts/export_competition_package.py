@@ -38,6 +38,7 @@ DOCS = [
     ("docs/guided-learning.md", "guided-learning.md"),
     ("docs/learner-profile-design.md", "learner-profile-design.md"),
     ("docs/ai-coding-statement.md", "ai-coding-statement.md"),
+    ("docs/iflytek-integration.md", "iflytek-integration.md"),
     ("docs/configuration.md", "configuration.md"),
     ("docs/getting-started.md", "getting-started.md"),
 ]
@@ -226,6 +227,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "| 多智能体资源生成 | `demo_materials/sparkweave-agent-collaboration-blueprint.md`、`docs/capabilities.md`、`docs/guided-learning.md`、`docs/architecture.md` |",
         "| 学习效果评估 | `docs/guided-learning.md`、`docs/learner-profile-design.md`、课程产出包 Markdown 导出 |",
         "| 答辩问答 | `demo_materials/sparkweave-defense-qa.md`、课程产出包中的答辩问答预案 |",
+        "| 科大讯飞工具说明 | `docs/iflytek-integration.md`、`docs/configuration.md`、设置页快速检测 |",
         "| AI Coding 说明 | `docs/ai-coding-statement.md` |",
         "",
         "## 建议使用顺序",

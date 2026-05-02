@@ -63,6 +63,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr or result.stdout
     assert (output / "submission_manifest.md").exists()
     assert (output / "docs" / "competition-demo-runbook.md").exists()
+    assert (output / "docs" / "iflytek-integration.md").exists()
     assert (output / "course_templates" / "ai_learning_agents_systems.json").exists()
     assert (output / "assets" / "architecture.svg").exists()
     assert (output / "screenshots" / "screenshots-simplified-guide.png").exists()
@@ -84,6 +85,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "demo_materials/sparkweave-demo-deck.html" in manifest
     assert "demo_materials/sparkweave-agent-collaboration-blueprint.md" in manifest
     assert "demo_materials/sparkweave-competition-scorecard.md" in manifest
+    assert "docs/iflytek-integration.md" in manifest
     assert "missing 0 file(s)" not in manifest
 
 

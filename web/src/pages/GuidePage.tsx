@@ -599,6 +599,24 @@ export function GuidePage() {
     setSaveMessage(`学习效果报告已保存到 ${added || 0} 个 Notebook。`);
   };
 
+  const downloadLearningReport = () => {
+    const markdown = learningReport.data?.markdown?.trim();
+    if (!markdown) {
+      setSaveMessage("学习报告还没有可下载内容，请稍后刷新。");
+      return;
+    }
+    if (typeof document === "undefined") return;
+    const title = guideDisplayText(learningReport.data?.title, "sparkweave-learning-report");
+    const filename = `${guideSafeFilename(title, "sparkweave-learning-report")}.md`;
+    const url = URL.createObjectURL(new Blob([`${markdown}\n`], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    setSaveMessage(`已下载学习报告：${filename}`);
+  };
+
   const saveCoursePackage = async () => {
     if (!activeSessionId || !saveNotebookId) return;
     setSaveMessage("");
@@ -1298,6 +1316,8 @@ export function GuidePage() {
                     canSave={Boolean(activeSessionId && saveNotebookId)}
                     saving={mutations.saveReport.isPending}
                     onSave={() => void saveLearningReport()}
+                    canExport={Boolean(learningReport.data?.markdown)}
+                    onExport={downloadLearningReport}
                     onOpenRouteMap={() => setGuideSubPage("routeMap")}
                     onOpenCoursePackage={() => setGuideSubPage("coursePackage")}
                     onGenerateResource={(type, taskId, prompt) => void generateResource(type, taskId, prompt)}
@@ -2786,6 +2806,8 @@ function LearningReportPanel({
   canSave,
   saving,
   onSave,
+  canExport,
+  onExport,
   onOpenRouteMap,
   onOpenCoursePackage,
   onGenerateResource,
@@ -2795,6 +2817,8 @@ function LearningReportPanel({
   canSave: boolean;
   saving: boolean;
   onSave: () => void;
+  canExport: boolean;
+  onExport: () => void;
   onOpenRouteMap: () => void;
   onOpenCoursePackage: () => void;
   onGenerateResource: (type: GuideV2ResourceType, taskId: string, prompt: string) => void;
@@ -2897,10 +2921,22 @@ function LearningReportPanel({
           最近反馈：{latestFeedback.summary || latestFeedback.title || "系统已根据学习证据更新路线。"}
         </p>
       ) : null}
-      <Button tone="secondary" className="mt-4 w-full" disabled={!canSave || saving || !report} onClick={onSave}>
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-        保存报告到 Notebook
-      </Button>
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <Button tone="secondary" className="w-full" disabled={!canSave || saving || !report} onClick={onSave}>
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+          保存到 Notebook
+        </Button>
+        <Button
+          tone="primary"
+          className="w-full"
+          disabled={!canExport || !report}
+          onClick={onExport}
+          data-testid="guide-learning-report-download"
+        >
+          <FileDown size={16} />
+          下载 Markdown
+        </Button>
+      </div>
     </section>
   );
 }

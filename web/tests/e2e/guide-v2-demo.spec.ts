@@ -76,6 +76,8 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-defense-qa-card")).toBeVisible();
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("答辩问答预案");
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("普通聊天机器人");
+  await expect(page.getByTestId("guide-course-package-download")).toBeEnabled();
+  await expect(page.getByTestId("guide-course-package-download")).toContainText("下载 Markdown");
   await expect(page.getByTestId("guide-competition-submission-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("比赛提交清单");
   await expect(page.getByTestId("guide-competition-submission-card")).toContainText("演示 PPT");
@@ -613,6 +615,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         session_id: "guide-demo",
         title: "Stable demo course package",
         summary: "Stable demo course package for a 7-minute recording.",
+        markdown: "# 稳定演示产出包\n\n## 赛题五项对齐\n\n- 已准备录屏和答辩材料。\n",
         course_metadata: { course_id: "ML101", course_name: "Machine Learning Foundations" },
         capstone_project: {
           title: "Explain gradient descent",

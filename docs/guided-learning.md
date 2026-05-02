@@ -636,6 +636,8 @@ data/user/workspace/guide/v2/learner_memory.json
 
 课程产出包还会生成 `defense_qa`。它把评委最可能追问的问题，例如“为什么不是普通聊天机器人”“画像如何更新”“多智能体协作体现在哪里”“学习效果评估依据是什么”，压缩成短回答、证据和演示页面定位。前端只预览前两个问题，完整问答写入 Markdown，帮助答辩不跑偏。
 
+课程产出包页面支持直接下载 Markdown。这个按钮不替代 Notebook 保存，而是面向比赛提交和赛前整理：用户可以把课程项目、PPT 骨架、录屏讲稿、赛题五项对齐、答辩问答和 AI Coding 说明导出成一个 `.md` 文件，再整理到 PPT 或提交文档中。
+
 React Query 缓存失效在 `useGuideV2Mutations()` 中集中处理。完成任务、生成资源、保存 artifact、提交 quiz、前测、画像对话、刷新推荐都会失效 session、evaluation、study plan、timeline、coach briefing、mistake review、report、course package、resource recommendations 和 learner memory。
 
 ## API 总览

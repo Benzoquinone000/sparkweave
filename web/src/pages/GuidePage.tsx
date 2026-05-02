@@ -7,6 +7,7 @@
   CheckCircle2,
   Clock3,
   Compass,
+  FileDown,
   GraduationCap,
   ListChecks,
   Lightbulb,
@@ -611,6 +612,24 @@ export function GuidePage() {
     setSaveMessage(`课程产出包已保存到 ${added || 0} 个 Notebook。`);
   };
 
+  const downloadCoursePackage = () => {
+    const markdown = coursePackage.data?.markdown?.trim();
+    if (!markdown) {
+      setSaveMessage("课程产出包还没有可下载内容，请稍后刷新。");
+      return;
+    }
+    if (typeof document === "undefined") return;
+    const title = guideDisplayText(coursePackage.data?.title, "sparkweave-course-package");
+    const filename = `${guideSafeFilename(title, "sparkweave-course-package")}.md`;
+    const url = URL.createObjectURL(new Blob([`${markdown}\n`], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    setSaveMessage(`已下载课程产出包：${filename}`);
+  };
+
   const submitQuizArtifact = async (artifact: GuideV2Artifact, answers: QuizResultItem[]) => {
     const taskId = taskIdForArtifact(artifact);
     if (!activeSessionId || !taskId) return;
@@ -997,6 +1016,8 @@ export function GuidePage() {
                   canSave={Boolean(activeSessionId && saveNotebookId)}
                   saving={mutations.saveCoursePackage.isPending}
                   onSave={() => void saveCoursePackage()}
+                  canExport={Boolean(coursePackage.data?.markdown)}
+                  onExport={downloadCoursePackage}
                 />
               </GuideSubPageFrame>
             ) : null}
@@ -3145,12 +3166,16 @@ function CoursePackagePanel({
   canSave,
   saving,
   onSave,
+  canExport,
+  onExport,
 }: {
   coursePackage: GuideV2CoursePackage | null;
   loading: boolean;
   canSave: boolean;
   saving: boolean;
   onSave: () => void;
+  canExport: boolean;
+  onExport: () => void;
 }) {
   const project = coursePackage?.capstone_project ?? {};
   const rubric = coursePackage?.rubric ?? [];
@@ -3255,10 +3280,22 @@ function CoursePackagePanel({
         empty="完成更多任务后生成复习计划。"
         tone="brand"
       />
-      <Button tone="secondary" className="mt-4 w-full" disabled={!canSave || saving || !coursePackage} onClick={onSave}>
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-        保存产出包到 Notebook
-      </Button>
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <Button tone="secondary" className="w-full" disabled={!canSave || saving || !coursePackage} onClick={onSave}>
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+          保存到 Notebook
+        </Button>
+        <Button
+          tone="primary"
+          className="w-full"
+          disabled={!canExport || !coursePackage}
+          onClick={onExport}
+          data-testid="guide-course-package-download"
+        >
+          <FileDown size={16} />
+          下载 Markdown
+        </Button>
+      </div>
     </section>
   );
 }
@@ -4762,6 +4799,16 @@ function guideDisplayText(value: unknown, fallback = ""): string {
   if (translated) return translated;
   if (isLikelyInternalIdentifier(text)) return fallback || "学习内容";
   return text;
+}
+
+function guideSafeFilename(value: unknown, fallback = "sparkweave-course-package"): string {
+  const text = guideDisplayText(value, fallback)
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return text || fallback;
 }
 
 function isLikelyInternalIdentifier(text: string) {

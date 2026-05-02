@@ -987,6 +987,10 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "答辩问答预案" in package["markdown"]
     assert "比赛提交清单" in package["markdown"]
     assert "AI Coding 工具说明" in package["markdown"]
+    assert "[ready]" not in package["markdown"]
+    assert "[seed]" not in package["markdown"]
+    assert "[todo]" not in package["markdown"]
+    assert "[已就绪]" in package["markdown"] or "[可排练]" in package["markdown"]
 
 
 @pytest.mark.asyncio

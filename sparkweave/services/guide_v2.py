@@ -7124,6 +7124,25 @@ class GuideV2Manager:
         recent_timeline_events = [item for item in report.get("recent_timeline_events") or [] if isinstance(item, dict)]
         mistake_summary = dict(report.get("mistake_summary") or {})
         mistake_clusters = [item for item in report.get("mistake_clusters") or [] if isinstance(item, dict)]
+
+        def md_status(value: Any) -> str:
+            labels = {
+                "ready": "已就绪",
+                "seed": "可排练",
+                "todo": "待补齐",
+                "missing": "待补齐",
+                "partial": "待加强",
+                "rehearsable": "可排练",
+                "needs_attention": "先补一项",
+                "not_started": "待开始",
+                "ready_to_learn": "可以开始",
+                "ready_with_support": "可在辅助下开始",
+                "ready_for_retest": "可复测",
+                "needs_remediation": "需补救",
+            }
+            raw = str(value or "").strip()
+            return labels.get(raw, raw or "-")
+
         lines = [
             f"# {package.get('title') or '课程产出包'}",
             "",
@@ -7139,7 +7158,7 @@ class GuideV2Manager:
             "## 学习状态",
             "",
             f"- 综合掌握分：{report.get('overall_score', 0)}",
-            f"- 就绪状态：{report.get('readiness', 'not_started')}",
+            f"- 就绪状态：{md_status(report.get('readiness', 'not_started'))}",
             f"- 进度：{report.get('progress', 0)}%",
             f"- 行为事件：{behavior_summary.get('event_count', 0)} 条",
             f"- 资源/练习：{behavior_summary.get('resource_count', 0)} 个资源，{behavior_summary.get('quiz_attempt_count', 0)} 次练习",
@@ -7232,7 +7251,7 @@ class GuideV2Manager:
             lines.append(f"- {item}")
         if demo_blueprint:
             lines.extend(["", "## 7 分钟演示路线", ""])
-            lines.append(f"- 就绪状态：{demo_blueprint.get('readiness_label') or '-'}")
+            lines.append(f"- 就绪状态：{md_status(demo_blueprint.get('readiness_label'))}")
             lines.append(f"- 就绪分：{demo_blueprint.get('readiness_score', 0)}")
             lines.append(f"- 说明：{demo_blueprint.get('summary') or '-'}")
             for item in demo_storyline[:6]:
@@ -7249,14 +7268,14 @@ class GuideV2Manager:
                     lines.append(f"- {item}")
         if demo_preflight:
             lines.extend(["", "## 赛前一键检查", ""])
-            lines.append(f"- 状态：{demo_preflight.get('status') or '-'}")
+            lines.append(f"- 状态：{md_status(demo_preflight.get('status'))}")
             lines.append(f"- 就绪：{demo_preflight.get('ready_count', 0)} / {demo_preflight.get('total_count', 0)}")
             lines.append(f"- 下一步：{demo_preflight.get('next_action') or '-'}")
             if preflight_checks:
                 lines.extend(["", "### 检查项", ""])
                 for item in preflight_checks[:8]:
                     lines.append(
-                        f"- [{item.get('status') or '-'}] {item.get('label') or '-'}："
+                        f"- [{md_status(item.get('status'))}] {item.get('label') or '-'}："
                         f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
                     )
         if competition_alignment:
@@ -7273,7 +7292,7 @@ class GuideV2Manager:
                 for item in alignment_requirements[:5]:
                     evidence = "；".join(str(value) for value in item.get("evidence") or [] if value)
                     lines.append(
-                        f"- [{item.get('status') or '-'}] {item.get('requirement') or '-'}："
+                        f"- [{md_status(item.get('status'))}] {item.get('requirement') or '-'}："
                         f"{evidence or '-'}；录屏动作：{item.get('demo_action') or '-'}"
                     )
         if fallback_kit:
@@ -7286,7 +7305,7 @@ class GuideV2Manager:
                 lines.extend(["", "### 稳定展示素材", ""])
                 for item in fallback_assets[:5]:
                     lines.append(
-                        f"- [{item.get('status') or '-'}] {item.get('title') or '-'}：{item.get('show') or '-'}"
+                        f"- [{md_status(item.get('status'))}] {item.get('title') or '-'}：{item.get('show') or '-'}"
                     )
             if fallback_checklist:
                 lines.extend(["", "### 录屏前检查", ""])
@@ -7358,7 +7377,7 @@ class GuideV2Manager:
                 lines.extend(["", "### 提交物状态", ""])
                 for item in submission_checklist[:7]:
                     lines.append(
-                        f"- [{item.get('status') or '-'}] {item.get('item') or '-'}："
+                        f"- [{md_status(item.get('status'))}] {item.get('item') or '-'}："
                         f"{item.get('evidence') or '-'}；建议：{item.get('action') or '-'}"
                     )
         if ai_coding_statement:

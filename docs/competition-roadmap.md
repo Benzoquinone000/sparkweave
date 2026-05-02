@@ -146,6 +146,7 @@
 - 离线演示材料新增 `sparkweave-final-pitch-checklist.md`：把 PPT、7 分钟视频、多智能体蓝图、讯飞工具说明、AI Coding 说明和赛前命令压成一页式最终核对清单。
 - 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-check --format json` 可生成结构化就绪报告。
 - 发布安全检查已进入 CI 和就绪检查：自动扫描跟踪文件中的旧项目名、真实密钥片段和本地环境文件，降低上传 GitHub 和比赛打包风险。
+- 资料库索引进度继续面向用户简化：默认只展示“关键进展”，完整处理记录收进排查入口，避免普通学习者看到长日志流或底层任务事件。
 - 后续优先级不再是继续堆页面，而是准备一门稳定课程 Demo，把画像、导学、资源、练习、反馈、报告串成一条可录屏的完整故事。
 
 ## 第一阶段：统一学习画像中心

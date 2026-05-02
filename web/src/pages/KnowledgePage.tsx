@@ -98,6 +98,7 @@ export function KnowledgePage() {
   const progressPercent = clampPercent(liveProgress?.percent);
   const progressStage = formatProgressStage(liveProgress?.stage || liveProgress?.status || "idle");
   const progressMessage = formatProgressMessage(liveProgress, activeKb, Boolean(taskId || taskLogs.length));
+  const taskMilestones = useMemo(() => summarizeKnowledgeTaskLogs(taskLogs), [taskLogs]);
   const activeStatistics = isRecord(kbDetail.data?.statistics) ? kbDetail.data.statistics : {};
   const activeMetadata = isRecord(kbDetail.data?.metadata) ? kbDetail.data.metadata : {};
   const activeDocumentCount =
@@ -978,8 +979,35 @@ export function KnowledgePage() {
               />
             </div>
           </div>
-          <div className="dt-event-feed mt-4 max-h-56 overflow-y-auto rounded-lg p-3" data-testid="knowledge-task-logs">
-            {taskLogs.length ? (
+          {taskMilestones.length ? (
+            <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50/70 p-3" data-testid="knowledge-task-milestones">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-ink">关键进展</p>
+                <Badge tone="brand">{taskMilestones.length} 步</Badge>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {taskMilestones.map((line, index) => (
+                  <motion.div
+                    key={`${line}-${index}`}
+                    className="flex gap-2 rounded-md bg-white px-3 py-2 text-xs leading-5 text-slate-700"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.16 }}
+                  >
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-sm bg-brand-teal" />
+                    <span>{line}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <details className="mt-4 rounded-lg border border-line bg-canvas p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-task-log-details">
+            <summary className="dt-interactive flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 py-1 text-sm">
+              <span className="font-medium text-ink">完整处理记录</span>
+              <Badge tone="neutral">{taskLogs.length ? `${taskLogs.length} 条` : "暂无"}</Badge>
+            </summary>
+            <div className="dt-event-feed mt-3 max-h-56 overflow-y-auto rounded-lg bg-white p-3" data-testid="knowledge-task-logs">
+              {taskLogs.length ? (
               <AnimatePresence initial={false}>
                 {taskLogs.map((line) => (
                   <motion.p
@@ -994,10 +1022,11 @@ export function KnowledgePage() {
                   </motion.p>
                 ))}
               </AnimatePresence>
-            ) : (
+              ) : (
               <p className="text-sm text-slate-500">创建或上传资料后，任务日志会显示在这里。</p>
-            )}
-          </div>
+              )}
+            </div>
+          </details>
         </details>
       </div>
     </div>
@@ -1237,8 +1266,31 @@ function formatWsStatus(status: KnowledgeWsStatus) {
 }
 
 function LogText({ line }: { line: string }) {
+  return <>{visibleKnowledgeLogText(line)}</>;
+}
+
+function visibleKnowledgeLogText(line: string) {
   const [visible] = line.split(LEGACY_TEXT_SEPARATOR);
-  return <>{visible}</>;
+  return visible || "";
+}
+
+function summarizeKnowledgeTaskLogs(lines: string[]) {
+  const milestones: string[] = [];
+  for (const line of lines) {
+    const visible = visibleKnowledgeLogText(line).trim();
+    if (!visible || isNoisyKnowledgeLog(visible)) continue;
+    if (milestones[milestones.length - 1] !== visible) milestones.push(visible);
+  }
+  return milestones.slice(-4);
+}
+
+function isNoisyKnowledgeLog(value: string) {
+  const lower = value.toLowerCase();
+  if (lower.includes("heartbeat")) return true;
+  if (/已连接.*(任务流|进度通道)/.test(value)) return true;
+  if (/进度通道保持连接/.test(value)) return true;
+  if (/收到(任务|进度)更新/.test(value)) return true;
+  return false;
 }
 
 function formatProgressStage(stage: string | undefined) {

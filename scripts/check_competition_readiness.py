@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from urllib.parse import unquote
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -485,6 +487,12 @@ def check_generated_exports() -> list[Check]:
                 ],
             )
         )
+        checks.append(
+            check_html_local_links(
+                "Generated demo links: sparkweave-demo-deck.html",
+                demo_dir / "sparkweave-demo-deck.html",
+            )
+        )
 
         checks.append(
             run_project_script(
@@ -545,6 +553,13 @@ def check_generated_exports() -> list[Check]:
                 ],
             )
         )
+        checks.append(check_html_local_links("Generated package links: index.html", package_dir / "index.html"))
+        checks.append(
+            check_html_local_links(
+                "Generated package links: demo_materials/sparkweave-demo-deck.html",
+                package_dir / "demo_materials" / "sparkweave-demo-deck.html",
+            )
+        )
     return checks
 
 
@@ -575,6 +590,54 @@ def check_generated_content(group: str, root: Path, expectations: list[tuple[str
             )
         )
     return checks
+
+
+class LocalLinkCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        for name, value in attrs:
+            if name in {"href", "src", "poster"} and value:
+                self.links.append(value)
+
+
+def check_html_local_links(name: str, html_path: Path) -> Check:
+    if not html_path.exists():
+        return Check(name, False, "missing html file")
+    try:
+        content = html_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        return Check(name, False, f"not utf-8 text: {exc}")
+
+    collector = LocalLinkCollector()
+    collector.feed(content)
+    missing: list[str] = []
+    for raw_link in collector.links:
+        link = normalize_local_link(raw_link)
+        if not link:
+            continue
+        target = (html_path.parent / link).resolve()
+        if not target.exists():
+            missing.append(raw_link)
+
+    if missing:
+        return Check(name, False, "missing local links: " + ", ".join(missing[:5]))
+    return Check(name, True, f"{len(collector.links)} local link(s) checked")
+
+
+def normalize_local_link(value: str) -> str:
+    link = value.strip()
+    lowered = link.lower()
+    if (
+        not link
+        or link.startswith("#")
+        or lowered.startswith(("http://", "https://", "mailto:", "tel:", "javascript:", "data:"))
+    ):
+        return ""
+    link = link.split("#", 1)[0].split("?", 1)[0]
+    return unquote(link)
 
 
 def compact_output(value: str) -> str:

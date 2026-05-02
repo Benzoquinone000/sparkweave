@@ -974,6 +974,11 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["ai_coding_statement"]["privacy_boundary"]
     assert package["competition_alignment"]["requirements"]
     assert package["competition_alignment"]["total_count"] == 5
+    assert [item["label"] for item in package["competition_alignment"]["proof_chain"]] == [
+        "功能证据",
+        "现场动作",
+        "答辩讲法",
+    ]
     assert any(
         item["requirement"] == "多智能体协同的资源生成"
         for item in package["competition_alignment"]["requirements"]
@@ -1005,6 +1010,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟录屏讲稿" in package["markdown"]
     assert "赛前一键检查" in package["markdown"]
     assert "赛题五项对齐" in package["markdown"]
+    assert "三步证明链" in package["markdown"]
     assert "多智能体协作蓝图" in package["markdown"]
     assert "智能体角色" in package["markdown"]
     assert "```mermaid" in package["markdown"]

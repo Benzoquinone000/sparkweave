@@ -1554,6 +1554,10 @@ export interface GuideV2CoursePackage {
       evidence?: string[];
       demo_action?: string;
     } | null;
+    proof_chain?: Array<{
+      label?: string;
+      detail?: string;
+    }>;
     requirements?: Array<{
       id?: string;
       requirement?: string;

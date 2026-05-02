@@ -3467,6 +3467,7 @@ function CourseCompetitionAlignmentCard({
   const coverage = Number(alignment.coverage_score ?? 0);
   const gap = alignment.primary_gap;
   const visibleRequirements = requirements.slice(0, 5);
+  const proofChain = alignment.proof_chain ?? [];
   return (
     <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-competition-alignment-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3500,6 +3501,18 @@ function CourseCompetitionAlignmentCard({
           </div>
         ))}
       </div>
+      {proofChain.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-3" data-testid="guide-competition-proof-chain">
+          {proofChain.slice(0, 3).map((item, index) => (
+            <div key={`${item.label}-${index}`} className="rounded-lg border border-white/80 bg-white p-2">
+              <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `证明 ${index + 1}`)}</p>
+              <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">
+                {guideDisplayText(item.detail, "把功能证据、现场动作和答辩讲法串起来。")}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <p className="mt-3 rounded-lg border border-teal-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
         {gap ? "先补：" : "录屏动作："}
         {guideDisplayText((gap?.demo_action || alignment.next_action), "按画像、路线、资源、练习、报告顺序展示。")}

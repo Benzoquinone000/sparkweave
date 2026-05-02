@@ -6878,6 +6878,21 @@ class GuideV2Manager:
         total_count = len(requirements)
         first_gap = next((item for item in requirements if item["status"] != "ready"), None)
         coverage_score = round((ready_count + seed_count * 0.5) / total_count * 100)
+        proof_chain = [
+            {
+                "label": "功能证据",
+                "detail": f"五项赛题要求中 {ready_count} 项已就绪、{seed_count} 项可排练，覆盖分 {coverage_score}。",
+            },
+            {
+                "label": "现场动作",
+                "detail": (first_gap or requirements[0]).get("demo_action")
+                or "按画像、路线、资源、练习、报告顺序展示完整闭环。",
+            },
+            {
+                "label": "答辩讲法",
+                "detail": "每项要求都绑定到页面入口、学习证据和录屏动作，说明系统不是单点问答，而是持续优化的学习闭环。",
+            },
+        ]
         return {
             "title": "赛题五项对齐",
             "summary": f"围绕「{course_name}」把画像、路径、资源、辅导和评估映射成可录屏证据。",
@@ -6888,6 +6903,7 @@ class GuideV2Manager:
             "total_count": total_count,
             "primary_gap": first_gap,
             "requirements": requirements,
+            "proof_chain": proof_chain,
             "next_action": (first_gap or {}).get("demo_action")
             or demo_blueprint.get("summary")
             or "按画像、路线、资源、练习、报告顺序录制完整闭环。",
@@ -7529,6 +7545,11 @@ class GuideV2Manager:
                 f"覆盖分：{competition_alignment.get('coverage_score', 0)}"
             )
             lines.append(f"- 下一步：{competition_alignment.get('next_action') or '-'}")
+            proof_chain = [item for item in competition_alignment.get("proof_chain") or [] if isinstance(item, dict)]
+            if proof_chain:
+                lines.extend(["", "### 三步证明链", ""])
+                for item in proof_chain[:3]:
+                    lines.append(f"- {item.get('label') or '-'}：{item.get('detail') or '-'}")
             if alignment_requirements:
                 lines.extend(["", "### 五项要求证据", ""])
                 for item in alignment_requirements[:5]:

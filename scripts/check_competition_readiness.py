@@ -129,6 +129,7 @@ def build_report() -> dict[str, object]:
     checks.append(run_project_script("Release safety", "check_release_safety.py"))
     checks.append(run_project_script("Course template schema", "check_course_templates.py"))
     checks.extend(check_runtime_collaboration_route())
+    checks.extend(check_external_video_learning_loop())
     checks.extend(check_effect_assessment_chain())
     checks.extend(check_competition_proof_chain())
     checks.extend(check_generated_exports())
@@ -200,6 +201,45 @@ def check_runtime_collaboration_route() -> list[Check]:
             "Runtime collaboration route: test coverage",
             "tests/ng/test_chat_graph.py",
             ["collaboration_route_version", "collaboration_route"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_external_video_learning_loop() -> list[Check]:
+    expectations = [
+        (
+            "External video loop: search service",
+            "sparkweave/services/video_search.py",
+            ["recommend_learning_videos", "watch_plan", "reflection_prompt", "fallback_search"],
+        ),
+        (
+            "External video loop: chat handoff",
+            "sparkweave/graphs/chat.py",
+            ["external_video_search", "_looks_like_external_video_request", "_run_external_video_search"],
+        ),
+        (
+            "External video loop: viewer evidence",
+            "web/src/components/results/ExternalVideoViewer.tsx",
+            ["external-video-viewer", "external-video-watch-plan", "external-video-mark-viewed", "appendLearnerEvidence"],
+        ),
+        (
+            "External video loop: test coverage",
+            "tests/services/test_video_search.py",
+            ["watch_plan", "reflection_prompt", "fallback_search"],
         ),
     ]
     checks: list[Check] = []

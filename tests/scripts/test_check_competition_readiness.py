@@ -25,6 +25,10 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Runtime collaboration route: backend emitter" in result.stdout
     assert "[ok] Runtime collaboration route: frontend viewer" in result.stdout
     assert "[ok] Runtime collaboration route: test coverage" in result.stdout
+    assert "[ok] External video loop: search service" in result.stdout
+    assert "[ok] External video loop: chat handoff" in result.stdout
+    assert "[ok] External video loop: viewer evidence" in result.stdout
+    assert "[ok] External video loop: test coverage" in result.stdout
     assert "[ok] Effect assessment chain: backend report" in result.stdout
     assert "[ok] Effect assessment chain: frontend card" in result.stdout
     assert "[ok] Effect assessment chain: test coverage" in result.stdout
@@ -80,6 +84,10 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Runtime collaboration route: backend emitter" in check_names
     assert "Runtime collaboration route: frontend viewer" in check_names
     assert "Runtime collaboration route: test coverage" in check_names
+    assert "External video loop: search service" in check_names
+    assert "External video loop: chat handoff" in check_names
+    assert "External video loop: viewer evidence" in check_names
+    assert "External video loop: test coverage" in check_names
     assert "Effect assessment chain: backend report" in check_names
     assert "Effect assessment chain: frontend card" in check_names
     assert "Effect assessment chain: test coverage" in check_names

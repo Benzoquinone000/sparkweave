@@ -129,6 +129,7 @@ def build_report() -> dict[str, object]:
     checks.append(run_project_script("Release safety", "check_release_safety.py"))
     checks.append(run_project_script("Course template schema", "check_course_templates.py"))
     checks.extend(check_runtime_collaboration_route())
+    checks.extend(check_effect_assessment_chain())
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
@@ -198,6 +199,40 @@ def check_runtime_collaboration_route() -> list[Check]:
             "Runtime collaboration route: test coverage",
             "tests/ng/test_chat_graph.py",
             ["collaboration_route_version", "collaboration_route"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_effect_assessment_chain() -> list[Check]:
+    expectations = [
+        (
+            "Effect assessment chain: backend report",
+            "sparkweave/services/guide_v2.py",
+            ["assessment_chain", "观察证据", "定位瓶颈", "调整策略"],
+        ),
+        (
+            "Effect assessment chain: frontend card",
+            "web/src/pages/GuidePage.tsx",
+            ["EffectAssessmentCard", "guide-effect-assessment-chain", "评估依据"],
+        ),
+        (
+            "Effect assessment chain: test coverage",
+            "tests/services/test_guide_v2.py",
+            ["assessment_chain", "评估链路"],
         ),
     ]
     checks: list[Check] = []

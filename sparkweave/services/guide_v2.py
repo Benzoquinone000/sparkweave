@@ -4262,13 +4262,64 @@ class GuideV2Manager:
             strategy.append("进入迁移应用或课程项目，把掌握转化为产出。")
         if not strategy:
             strategy.append("继续保持当前节奏，下一步用迁移题验证稳定掌握。")
+        assessment_chain = GuideV2Manager._effect_assessment_chain(
+            dimensions=dimensions,
+            strategy=strategy,
+            evidence_count=evidence_count,
+            resource_count=resource_count,
+            quiz_count=quiz_count,
+            profile_available=profile_available,
+        )
         return {
             "score": effect_score,
             "label": label,
             "summary": GuideV2Manager._effect_summary(label, effect_score, warning_count),
             "dimensions": dimensions,
             "strategy_adjustments": strategy[:4],
+            "assessment_chain": assessment_chain,
         }
+
+    @staticmethod
+    def _effect_assessment_chain(
+        *,
+        dimensions: list[dict[str, Any]],
+        strategy: list[str],
+        evidence_count: int,
+        resource_count: int,
+        quiz_count: int,
+        profile_available: bool,
+    ) -> list[dict[str, str]]:
+        weakest = min(dimensions, key=lambda item: int(item.get("score") or 0), default={})
+        strongest = max(dimensions, key=lambda item: int(item.get("score") or 0), default={})
+        evidence_parts = [f"{evidence_count} 条学习证据"]
+        if resource_count:
+            evidence_parts.append(f"{resource_count} 个资源")
+        if quiz_count:
+            evidence_parts.append(f"{quiz_count} 次练习")
+        if profile_available:
+            evidence_parts.append("长期画像")
+        observe = "、".join(evidence_parts)
+        weakest_label = str(weakest.get("label") or "学习证据")
+        weakest_score = int(weakest.get("score") or 0)
+        strongest_label = str(strongest.get("label") or "已有优势")
+        strongest_score = int(strongest.get("score") or 0)
+        return [
+            {
+                "step": "observe",
+                "label": "观察证据",
+                "detail": f"系统综合查看 {observe}，先判断当前学习状态是否足够可信。",
+            },
+            {
+                "step": "diagnose",
+                "label": "定位瓶颈",
+                "detail": f"当前最低维度是「{weakest_label}」{weakest_score} 分；相对优势是「{strongest_label}」{strongest_score} 分。",
+            },
+            {
+                "step": "adjust",
+                "label": "调整策略",
+                "detail": strategy[0] if strategy else "继续完成当前任务，系统会根据下一条证据再调整路线。",
+            },
+        ]
 
     @staticmethod
     def _effect_status(score: float) -> str:
@@ -5783,6 +5834,10 @@ class GuideV2Manager:
                 f"- {dimension.get('label') or dimension.get('id')}: {dimension.get('score', 0)}"
                 f"（{dimension.get('status') or '-'}）- {dimension.get('evidence') or '-'}"
             )
+        for item in effect_assessment.get("assessment_chain") or []:
+            if not isinstance(item, dict):
+                continue
+            lines.append(f"- 评估链路：{item.get('label') or '-'} - {item.get('detail') or '-'}")
         for item in effect_assessment.get("strategy_adjustments") or []:
             lines.append(f"- 策略调整：{item}")
         if action_brief:

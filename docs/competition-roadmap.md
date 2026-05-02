@@ -138,6 +138,7 @@
 - 离线比赛材料也新增 `sparkweave-agent-collaboration-blueprint.md`：即使现场没有真实 session，也能稳定展示多智能体协作架构、Mermaid 草图、角色分工和录屏讲法。
 - 文档素材新增 `docs/assets/agent-collaboration-blueprint.svg`：README、导学文档和比赛提交包都可以直接引用静态协作图，不依赖 Mermaid 渲染环境。
 - 对话协调智能体新增结构化 `collaboration_route`：流式事件会直接携带“学习画像 -> 对话协调 -> 专门智能体 -> 评估/卡片”的接力路线，前端优先展示确定路线，避免只靠日志推断协作过程。
+- 学习效果评估新增“观察证据 -> 定位瓶颈 -> 调整策略”的 `assessment_chain`：导学报告和前端评估卡片会把动态调整依据说清楚，直接服务赛题第 5 点。
 - 离线比赛材料新增 `sparkweave-demo-fallback-assets.md`：把每门课程模板里的稳定图解节点、预置练习、视频分镜和录屏兜底讲法导出成可直接放入 PPT/提交文档的清单。
 - 离线比赛材料新增 `sparkweave-evaluator-one-pager.md`：把项目定位、五项赛题对齐、演示任务链、7 分钟路线、兜底材料和赛前命令压缩成一页评委手卡。
 - 新增 `docs/iflytek-integration.md`：把讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的作用、配置方式和失败回退整理成比赛答辩可用说明，并纳入提交包。

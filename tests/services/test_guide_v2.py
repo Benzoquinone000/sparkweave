@@ -859,6 +859,12 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     assert report["effect_assessment"]["dimensions"]
     assert any(item["id"] == "longitudinal_profile" for item in report["effect_assessment"]["dimensions"])
     assert report["effect_assessment"]["strategy_adjustments"]
+    assert [item["step"] for item in report["effect_assessment"]["assessment_chain"]] == [
+        "observe",
+        "diagnose",
+        "adjust",
+    ]
+    assert "定位瓶颈" in report["effect_assessment"]["assessment_chain"][1]["label"]
     assert report["action_brief"]["title"]
     assert report["action_brief"]["primary_action"]["label"]
     assert report["action_brief"]["primary_action"]["target_task_id"]
@@ -877,6 +883,7 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     assert "markdown" in report
     assert "学习效果报告" in report["markdown"]
     assert "学习效果评估" in report["markdown"]
+    assert "评估链路" in report["markdown"]
     assert "学习处方" in report["markdown"]
     assert "演示就绪度" in report["markdown"]
     assert "学习行为证据" in report["markdown"]

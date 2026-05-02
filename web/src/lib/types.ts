@@ -1310,6 +1310,11 @@ export interface GuideV2LearningReport {
       evidence?: string;
     }>;
     strategy_adjustments?: string[];
+    assessment_chain?: Array<{
+      step?: string;
+      label?: string;
+      detail?: string;
+    }>;
   };
   action_brief?: {
     title?: string;

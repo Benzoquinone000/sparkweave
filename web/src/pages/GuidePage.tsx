@@ -2843,6 +2843,7 @@ function LearningReportPanel({
   const progress = Number(overview.progress ?? 0);
   const feedbackDigest = report?.feedback_digest;
   const latestFeedback = feedbackDigest?.latest;
+  const effectAssessment = report?.effect_assessment ?? null;
   const feedbackRoutingSummary = summarizeFeedbackRouting(
     (feedbackDigest?.items ?? []).map((item) => ({
       score_percent: item.score_percent,
@@ -2905,6 +2906,7 @@ function LearningReportPanel({
         <EvalMini label="进度" value={progress} suffix="%" />
         <EvalMini label="反馈" value={Number(feedbackDigest?.count ?? 0)} suffix="次" />
       </div>
+      <EffectAssessmentCard assessment={effectAssessment} />
       <ReportActionBriefCard
         brief={actionBrief}
         canSave={canSave}
@@ -2952,6 +2954,67 @@ function LearningReportPanel({
         </Button>
       </div>
     </section>
+  );
+}
+
+function EffectAssessmentCard({
+  assessment,
+}: {
+  assessment: GuideV2LearningReport["effect_assessment"] | null;
+}) {
+  if (!assessment) return null;
+
+  const dimensions = [...(assessment.dimensions ?? [])]
+    .filter((item) => item.label || item.id)
+    .sort((left, right) => Number(left.score ?? 0) - Number(right.score ?? 0));
+  const chain =
+    assessment.assessment_chain?.length
+      ? assessment.assessment_chain
+      : [
+          {
+            label: "定位瓶颈",
+            detail:
+              dimensions[0]?.evidence ||
+              assessment.summary ||
+              "系统会根据任务进度、练习结果、错因和画像综合判断。",
+          },
+          {
+            label: "调整策略",
+            detail: assessment.strategy_adjustments?.[0] || "继续完成当前任务并留下可评分证据。",
+          },
+        ];
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="guide-effect-assessment-chain">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-ink">评估依据</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {assessment.summary || "系统会用学习证据、练习反馈和画像信号调整下一步。"}
+          </p>
+        </div>
+        <Badge tone={Number(assessment.score ?? 0) >= 70 ? "success" : "warning"}>
+          {assessment.label || "评估中"}
+        </Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {chain.slice(0, 3).map((item, index) => (
+          <div key={`${item.label}-${index}`} className="rounded-lg border border-line bg-white p-3">
+            <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "继续留下学习证据。")}</p>
+          </div>
+        ))}
+      </div>
+      {dimensions.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {dimensions.slice(0, 3).map((item) => (
+            <Badge key={`${item.id}-${item.label}`} tone={Number(item.score ?? 0) >= 70 ? "brand" : "warning"}>
+              {guideDisplayText(item.label, "维度")}：{Number(item.score ?? 0)}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

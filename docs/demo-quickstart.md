@@ -12,6 +12,12 @@ python -m sparkweave_cli competition-check
 
 看到 `All required competition materials are ready.` 后再开始录屏。
 
+需要把检查结果交给 CI、前端或答辩材料归档时，可以生成结构化报告：
+
+```powershell
+python scripts/check_competition_readiness.py --format json --output dist/competition-readiness.json
+```
+
 ## 录屏只走五步
 
 1. 打开 `http://localhost:3782/guide`

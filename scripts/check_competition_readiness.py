@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -74,8 +76,42 @@ class Check:
     ok: bool
     detail: str = ""
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "ok": self.ok,
+            "detail": self.detail,
+        }
+
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Output format. Defaults to text.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Optional path to write the machine-readable JSON report.",
+    )
+    args = parser.parse_args()
+
+    report = build_report()
+    if args.output:
+        output = args.output if args.output.is_absolute() else ROOT / args.output
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.format == "json":
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print_text_report(report)
+    return 0 if report["success"] else 1
+
+
+def build_report() -> dict[str, object]:
     checks: list[Check] = []
     checks.extend(check_paths("Docs", REQUIRED_DOCS))
     checks.extend(check_paths("Runtime", REQUIRED_RUNTIME_FILES))
@@ -86,18 +122,32 @@ def main() -> int:
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
+    return {
+        "success": not failed,
+        "total_count": len(checks),
+        "ready_count": len(checks) - len(failed),
+        "failed_count": len(failed),
+        "summary": (
+            "All required competition materials are ready."
+            if not failed
+            else f"{len(failed)} check(s) need attention before submission."
+        ),
+        "checks": [item.to_dict() for item in checks],
+    }
+
+
+def print_text_report(report: dict[str, object]) -> None:
+    checks = [item for item in report.get("checks", []) if isinstance(item, dict)]
     print("\nSparkWeave competition readiness")
     print("=" * 40)
     for item in checks:
-        mark = "ok" if item.ok else "fail"
-        suffix = f" - {item.detail}" if item.detail else ""
-        print(f"[{mark}] {item.name}{suffix}")
+        ok = bool(item.get("ok"))
+        mark = "ok" if ok else "fail"
+        detail = str(item.get("detail") or "")
+        suffix = f" - {detail}" if detail else ""
+        print(f"[{mark}] {item.get('name')}{suffix}")
     print("=" * 40)
-    if failed:
-        print(f"{len(failed)} check(s) need attention before submission.")
-        return 1
-    print("All required competition materials are ready.")
-    return 0
+    print(str(report.get("summary") or ""))
 
 
 def check_paths(group: str, paths: list[str]) -> list[Check]:

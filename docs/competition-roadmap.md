@@ -309,6 +309,7 @@
 ## 近期自动验收加固
 
 - `sparkweave competition-preflight --with-build` 已成为正式提交前的推荐命令：先跑就绪检查，再跑前端生产构建，最后导出比赛提交包，减少“检查通过但前端构建失败”的赛前风险。
+- GitHub Actions 已直接运行 `sparkweave competition-preflight`：每次推送都会验证“赛前检查 -> 离线材料 -> 提交包”的正式交付入口，避免只测底层脚本而漏掉 CLI 封装层。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

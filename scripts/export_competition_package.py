@@ -11,6 +11,7 @@ import shutil
 from typing import Iterable
 
 from export_demo_materials import (
+    build_deck_html,
     build_deck_outline,
     build_defense_qa,
     build_index as build_demo_index,
@@ -159,6 +160,7 @@ def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str
     materials = {
         "README.md": build_demo_index(template, target_dir),
         "sparkweave-demo-deck-outline.md": build_deck_outline(template),
+        "sparkweave-demo-deck.html": build_deck_html(template),
         "sparkweave-7min-recording-script.md": build_recording_script(template),
         "sparkweave-defense-qa.md": build_defense_qa(template),
     }
@@ -193,7 +195,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         "",
         "- `docs/`：项目说明、架构、能力、导学、学习画像、比赛路线图、演示 Runbook 和 AI Coding 说明。",
         "- `course_templates/`：可复现的完整高校课程样例，适合录屏和答辩现场演示。",
-        "- `demo_materials/`：离线生成的 PPT 骨架、7 分钟录屏讲稿和答辩问答预案。",
+        "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、7 分钟录屏讲稿和答辩问答预案。",
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
@@ -202,7 +204,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str]) -> str:
         "",
         "| 提交物 | 本包对应材料 |",
         "| --- | --- |",
-        "| 演示 PPT | `demo_materials/sparkweave-demo-deck-outline.md`、`docs/competition-demo-runbook.md`、`screenshots/` |",
+        "| 演示 PPT | `demo_materials/sparkweave-demo-deck-outline.md`、`demo_materials/sparkweave-demo-deck.html`、`docs/competition-demo-runbook.md`、`screenshots/` |",
         "| 可运行源码与配置 | GitHub 仓库源码、`runtime/.env.example`、`runtime/requirements*.txt`、`runtime/scripts/start_web.py` |",
         "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`docs/competition-demo-runbook.md` 的分镜和兜底动作 |",
         "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板 |",

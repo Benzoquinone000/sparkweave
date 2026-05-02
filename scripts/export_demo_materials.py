@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import datetime
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -26,11 +27,13 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
 
     deck = build_deck_outline(template)
+    deck_html = build_deck_html(template)
     script = build_recording_script(template)
     qa = build_defense_qa(template)
     index = build_index(template, output)
 
     (output / "sparkweave-demo-deck-outline.md").write_text(deck, encoding="utf-8")
+    (output / "sparkweave-demo-deck.html").write_text(deck_html, encoding="utf-8")
     (output / "sparkweave-7min-recording-script.md").write_text(script, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
@@ -201,6 +204,117 @@ def build_recording_script(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_deck_html(template: dict[str, Any]) -> str:
+    markdown = build_deck_outline(template)
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    sections = markdown.split("\n## P")
+    intro = sections[0]
+    slide_sections = [f"## P{section}" for section in sections[1:]]
+    slides = []
+    for section in slide_sections:
+        lines = section.splitlines()
+        title = lines[0].lstrip("# ").strip() if lines else "演示页"
+        body = "\n".join(lines[1:]).strip()
+        slides.append(
+            f"""
+    <article class="slide">
+      <p class="eyebrow">SparkWeave 星火织学</p>
+      <h2>{escape(title)}</h2>
+      <pre>{escape(body)}</pre>
+    </article>"""
+        )
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SparkWeave 演示页 - {escape(course)}</title>
+  <style>
+    :root {{
+      color: #111827;
+      background: #f7fafc;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }}
+    body {{
+      margin: 0;
+      padding: 32px;
+    }}
+    .cover,
+    .slide {{
+      box-sizing: border-box;
+      min-height: 680px;
+      max-width: 1080px;
+      margin: 0 auto 28px;
+      padding: 48px;
+      border: 1px solid #dde5e8;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(17, 24, 39, 0.08);
+      page-break-after: always;
+    }}
+    .eyebrow {{
+      margin: 0 0 18px;
+      color: #0f766e;
+      font-size: 14px;
+      font-weight: 700;
+    }}
+    h1, h2 {{
+      margin: 0;
+      color: #111827;
+      line-height: 1.16;
+    }}
+    h1 {{
+      font-size: 42px;
+    }}
+    h2 {{
+      font-size: 32px;
+    }}
+    .meta {{
+      margin-top: 24px;
+      color: #4b5563;
+      font-size: 17px;
+      line-height: 1.7;
+    }}
+    pre {{
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 28px 0 0;
+      font: inherit;
+      color: #374151;
+      line-height: 1.75;
+    }}
+    @media print {{
+      body {{
+        padding: 0;
+        background: #fff;
+      }}
+      .cover,
+      .slide {{
+        min-height: 100vh;
+        margin: 0;
+        border: 0;
+        box-shadow: none;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <p class="eyebrow">SparkWeave 星火织学</p>
+    <h1>比赛演示页</h1>
+    <div class="meta">
+      <p>课程：{escape(course)}</p>
+      <p>生成时间：{escape(now())}</p>
+      <p>用途：浏览器打开即可排练，也可以打印为 PDF 后继续整理成 PPT。</p>
+    </div>
+    <pre>{escape(intro.strip())}</pre>
+  </section>
+  {"".join(slides)}
+</body>
+</html>
+"""
+
+
 def build_defense_qa(template: dict[str, Any]) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     qa = [
@@ -239,6 +353,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "## 文件",
             "",
             "- `sparkweave-demo-deck-outline.md`：8 页答辩 PPT 骨架。",
+            "- `sparkweave-demo-deck.html`：可直接打开、截图或打印为 PDF 的演示页。",
             "- `sparkweave-7min-recording-script.md`：7 分钟录屏分段讲稿。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "",

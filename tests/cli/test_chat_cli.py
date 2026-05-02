@@ -530,6 +530,65 @@ def test_competition_preflight_can_write_final_verify_report(monkeypatch, tmp_pa
     assert calls[3][0][-3:] == [str(archive), "--output", str(verify_report)]
 
 
+def test_competition_preflight_appends_verify_report_to_summary(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        cmd = list(cmd)
+        calls.append((cmd, str(cwd)))
+        if any(str(part).endswith("render_competition_summary.py") for part in cmd):
+            Path(cmd[-1]).write_text("# SparkWeave 比赛就绪摘要\n", encoding="utf-8")
+        if any(str(part).endswith("verify_competition_package.py") for part in cmd) and "--output" in cmd:
+            output = Path(cmd[cmd.index("--output") + 1])
+            output.write_text(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "path": "dist/sparkweave_competition_package.zip",
+                        "headline": "package OK: dist/sparkweave_competition_package.zip (61 files)",
+                        "errors": [],
+                        "file_count": 61,
+                        "checksum_count": 60,
+                        "archive_entries": 70,
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    report = tmp_path / "readiness.json"
+    summary = tmp_path / "readiness.md"
+    archive = tmp_path / "package.zip"
+    verify_report = tmp_path / "package-verify.json"
+    result = runner.invoke(
+        app,
+        [
+            "competition-preflight",
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+            "--summary",
+            str(summary),
+            "--archive",
+            str(archive),
+            "--verify-report",
+            str(verify_report),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 5
+    summary_text = summary.read_text(encoding="utf-8")
+    assert "最终提交包验证" in summary_text
+    assert "package OK: dist/sparkweave_competition_package.zip (61 files)" in summary_text
+    assert "文件数：61；SHA256 校验项：60；zip 条目：70" in summary_text
+
+
 def test_competition_preflight_can_write_directory_verify_report(monkeypatch, tmp_path: Path) -> None:
     calls: list[tuple[list[str], str]] = []
 

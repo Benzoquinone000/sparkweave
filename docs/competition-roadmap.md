@@ -324,6 +324,7 @@
 - 提交包新增 `START_HERE.md`：解压后先读这一页即可知道先打开入口页、看哪些评分证据、如何录屏、如何运行和如何复核。
 - `competition-verify` 新增 JSON 报告输出：`--format json --output dist/competition-package-verify.json` 可把提交包是否完整、文件数、checksum 数和错误原因沉淀为可归档报告。
 - `competition-preflight` 新增 `--verify-report`：正式赛前命令可以在生成 zip 后自动留下最终提交物验证报告，CI artifact 也会携带这份复核证据。
+- 一页式 readiness 摘要会自动追加最终提交包验证结论：包含提交包路径、文件数、SHA256 校验项和 zip 条目数，便于 GitHub Actions Summary 直接展示最终可提交状态。
 - `scripts/check_competition_readiness.py` 已把设置页的用户化错误提示纳入就绪检查：HMAC、apikey、upstream timeout 等底层服务异常必须在前端压缩成“密钥或鉴权信息不正确”“服务响应超时”等可处理结论，并由 Playwright 用例防止原始错误重新暴露给普通用户。
 - 资料库索引进度也纳入自动验收：前端默认必须提供“关键进展”里程碑视图，完整日志只能作为排查入口存在，避免普通用户被底层 SSE/WebSocket 事件流淹没。
 - 对话协作轨迹纳入自动验收：最终回答出现后，前端不能再把 `stage_start`、`Thinking...`、`writing` 等调试事件展示给用户，只保留可读的智能体协作摘要、关键观察和最终回答。

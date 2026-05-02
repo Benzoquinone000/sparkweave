@@ -113,6 +113,38 @@ def _verify_competition_package(package: Path, *, report: Optional[Path] = None)
         raise typer.Exit(code=result.returncode)
 
 
+def _append_package_verification_summary(summary: Path, verify_report: Path) -> None:
+    if not summary.exists() or not verify_report.exists():
+        return
+    try:
+        report = json.loads(verify_report.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+
+    ok = bool(report.get("ok"))
+    status = "OK" if ok else "需要处理"
+    path = str(report.get("path") or verify_report)
+    file_count = int(report.get("file_count") or 0)
+    checksum_count = int(report.get("checksum_count") or 0)
+    archive_entries = int(report.get("archive_entries") or 0)
+    headline = str(report.get("headline") or "").strip()
+    errors = [str(item) for item in report.get("errors") or [] if str(item).strip()]
+
+    lines = [
+        "",
+        "## 最终提交包验证",
+        "",
+        f"- {status} **提交包完整性**：{headline or path}",
+        f"- 产物：`{path}`",
+        f"- 文件数：{file_count}；SHA256 校验项：{checksum_count}；zip 条目：{archive_entries}",
+    ]
+    if errors:
+        lines.append("- 需要处理：" + "；".join(errors[:3]))
+
+    with summary.open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
 def _npm_command() -> str:
     if sys.platform == "win32":
         return shutil.which("npm.cmd") or shutil.which("npm") or "npm.cmd"
@@ -422,6 +454,8 @@ def competition_preflight(
     _verify_competition_package(package_dir, report=verify_report if archive is None else None)
     if archive is not None:
         _verify_competition_package(archive, report=verify_report)
+    if summary is not None and verify_report is not None:
+        _append_package_verification_summary(summary, verify_report)
     raise typer.Exit(code=0)
 
 

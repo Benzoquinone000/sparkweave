@@ -29,9 +29,14 @@ jobs:
       - name: Validate course templates
         run: python scripts/check_course_templates.py
 
+      - name: Check competition readiness
+        run: python scripts/check_competition_readiness.py
+
       - name: Run focused backend tests
         run: |
           python -m pytest \
+            tests/scripts/test_check_competition_readiness.py \
+            tests/scripts/test_export_competition_package.py \
             tests/services/test_video_search.py \
             tests/ng/test_chat_graph.py \
             tests/services/test_guide_v2_external_video.py \

@@ -58,6 +58,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "assets" / "architecture.svg").exists()
     assert (output / "screenshots" / "screenshots-simplified-guide.png").exists()
     assert (output / "runtime" / ".env.example").exists()
+    assert (output / "runtime" / "scripts" / "check_competition_readiness.py").exists()
     assert (output / "runtime" / "scripts" / "export_demo_materials.py").exists()
     assert (output / "demo_materials" / "sparkweave-demo-deck-outline.md").exists()
     assert (output / "demo_materials" / "sparkweave-demo-deck.html").exists()

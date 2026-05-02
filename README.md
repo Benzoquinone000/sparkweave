@@ -105,9 +105,9 @@ python scripts/check_install.py
 python scripts/check_ng_replacement.py
 python scripts/check_web_api_contract.py
 python scripts/check_course_templates.py
+python scripts/check_competition_readiness.py
 python scripts/export_demo_materials.py
 python scripts/export_competition_package.py
-python scripts/check_competition_readiness.py
 python -m sparkweave_cli competition-check
 cd web
 npm run lint

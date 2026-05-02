@@ -30,6 +30,7 @@ REQUIRED_RUNTIME_FILES = [
     "requirements/math-animator.txt",
     "scripts/start_web.py",
     "scripts/check_install.py",
+    "scripts/check_competition_readiness.py",
     "scripts/export_demo_materials.py",
     "scripts/export_competition_package.py",
 ]
@@ -154,6 +155,7 @@ def check_generated_exports() -> list[Check]:
                     "submission_manifest.md",
                     "demo_materials/sparkweave-demo-deck.html",
                     "course_templates/ai_learning_agents_systems.json",
+                    "runtime/scripts/check_competition_readiness.py",
                     "runtime/scripts/start_web.py",
                     "screenshots/screenshots-simplified-guide.png",
                 ],

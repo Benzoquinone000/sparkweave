@@ -3505,10 +3505,20 @@ function CourseDemoRecordingChecklistCard({
       }));
   const persona = kit?.persona ?? seed?.persona ?? {};
   const assets = kit?.assets ?? [];
+  const seedArtifacts = seed?.sample_artifacts ?? [];
+  const stableAssets = [
+    ...assets,
+    ...seedArtifacts.map((item) => ({
+      type: item.type,
+      title: item.title,
+      status: item.status || "seed",
+      show: item.preview || item.demo_action || item.talking_point,
+    })),
+  ];
   const fallback = kit?.checklist?.[0] || blueprint?.fallbacks?.[0] || seed?.rehearsal_notes?.[0] || "";
   const title = guideDisplayText(blueprint?.title || seed?.title, "录屏检查");
   const summary = guideDisplayText(blueprint?.summary || kit?.summary || seed?.scenario, "打开画像、路线、资源、反馈和产出包，讲一条完整学习闭环。");
-  const hasContent = Boolean(blueprint || kit || seed || script || steps.length || assets.length || fallback);
+  const hasContent = Boolean(blueprint || kit || seed || script || steps.length || stableAssets.length || fallback);
 
   if (!hasContent) {
     return null;
@@ -3547,9 +3557,9 @@ function CourseDemoRecordingChecklistCard({
           ))}
         </div>
       ) : null}
-      {assets.length ? (
+      {stableAssets.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {assets.slice(0, 2).map((asset) => (
+          {stableAssets.slice(0, 3).map((asset) => (
             <Badge key={`${asset.type}-${asset.title}`} tone={fallbackAssetTone(asset.status)}>
               {fallbackAssetLabel(asset.status)}：{guideDisplayText(asset.title || asset.type, "演示素材")}
             </Badge>

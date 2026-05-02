@@ -825,9 +825,19 @@ export interface GuideV2DemoSeedPack {
     status?: string;
   }>;
   resource_prompts?: Array<{
+    task_id?: string;
     type?: string;
     title?: string;
     prompt?: string;
+  }>;
+  sample_artifacts?: Array<{
+    task_id?: string;
+    type?: string;
+    title?: string;
+    preview?: string;
+    demo_action?: string;
+    talking_point?: string;
+    status?: string;
   }>;
   rehearsal_notes?: string[];
   report_anchor?: {

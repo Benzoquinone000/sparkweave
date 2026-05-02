@@ -389,6 +389,8 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
     assert robotics_package["demo_seed_pack"]["task_chain"][0]["title"] == "画出机器人系统全景图"
     assert robotics_package["demo_seed_pack"]["resource_prompts"][0]["task_id"] == "R1"
     assert "机器人系统全景图" in robotics_package["demo_seed_pack"]["resource_prompts"][0]["prompt"]
+    assert robotics_package["demo_seed_pack"]["sample_artifacts"][0]["task_id"] == "R1"
+    assert "兜底素材" in robotics_package["demo_seed_pack"]["sample_artifacts"][0]["title"]
     assert any("智能机器人与 ROS 基础" in item for item in robotics_package["demo_fallback_kit"]["checklist"])
 
     calculus = await manager.create_session(
@@ -405,6 +407,8 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
     assert calculus_package["demo_seed_pack"]["task_chain"][1]["title"] == "生成割线逼近切线动画"
     assert calculus_package["demo_seed_pack"]["resource_prompts"][1]["type"] == "video"
     assert "Manim" in calculus_package["demo_seed_pack"]["resource_prompts"][1]["prompt"]
+    assert calculus_package["demo_seed_pack"]["sample_artifacts"][1]["type"] == "video"
+    assert "割线逼近切线" in calculus_package["demo_seed_pack"]["sample_artifacts"][1]["title"]
     assert any("高等数学极限与导数" in item for item in calculus_package["demo_fallback_kit"]["checklist"])
 
 
@@ -918,6 +922,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["demo_fallback_kit"]["fallback_script"]
     assert package["demo_seed_pack"]["task_chain"]
     assert package["demo_seed_pack"]["resource_prompts"]
+    assert package["demo_seed_pack"]["sample_artifacts"]
     assert package["demo_seed_pack"]["report_anchor"]["score"] >= 0
     assert package["presentation_outline"]["slide_count"] == 7
     assert package["presentation_outline"]["slides"][0]["title"].startswith("项目价值")
@@ -950,6 +955,7 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟演示路线" in package["markdown"]
     assert "录屏兜底包" in package["markdown"]
     assert "稳定 Demo 样例" in package["markdown"]
+    assert "稳定兜底素材" in package["markdown"]
     assert "演示 PPT 骨架" in package["markdown"]
     assert "7 分钟录屏讲稿" in package["markdown"]
     assert "赛前一键检查" in package["markdown"]

@@ -228,6 +228,32 @@
       "R5": "生成一张 TF 坐标树图解，解释 map、odom、base_link 和传感器坐标。",
       "R6": "生成一段简短动画脚本，说明 cmd_vel 控制闭环如何根据误差更新。"
     },
+    "sample_artifacts": [
+      {
+        "task_id": "R1",
+        "type": "visual",
+        "title": "机器人系统全景图兜底素材",
+        "preview": "感知、决策、控制、执行四层数据流，以及课程项目目标。",
+        "demo_action": "资源生成较慢时直接展示这张系统图结构，说明画像会优先选择图解。",
+        "talking_point": "先建立全景，再进入 ROS 节点通信，用户不会被命令和工具淹没。"
+      },
+      {
+        "task_id": "R5",
+        "type": "visual",
+        "title": "TF 坐标树兜底素材",
+        "preview": "map、odom、base_link、sensor_frame 的父子关系和常见 frame_id 错误。",
+        "demo_action": "打开知识地图后展示坐标树，说明图解智能体如何服务概念边界。",
+        "talking_point": "TF 是 ROS 初学者高频卡点，适合用图而不是只用文字解释。"
+      },
+      {
+        "task_id": "R4",
+        "type": "quiz",
+        "title": "话题/服务/参数辨析练习兜底素材",
+        "preview": "连续数据流、一次请求、运行配置三类场景的选择和判断题。",
+        "demo_action": "提交练习后展示对错反馈、反思输入和学习报告变化。",
+        "talking_point": "练习结果会回写画像，证明系统不是只生成资源。"
+      }
+    ],
     "sample_reflection": {
       "score": 0.72,
       "reflection": "我能看懂 ROS 通信主线，但 TF 坐标父子关系还需要用图再练一次。",

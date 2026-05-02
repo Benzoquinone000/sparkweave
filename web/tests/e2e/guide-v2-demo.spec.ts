@@ -63,6 +63,7 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-demo-preflight-card")).toContainText("先补");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toBeVisible();
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("7 分钟演示路线");
+  await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("稳定图解素材");
   await expect(page.getByTestId("guide-demo-recording-checklist")).toContainText("录屏前先打开导学路线。");
   await expect(page.getByTestId("guide-demo-recording-checklist")).not.toContainText("7-minute demo route");
   await expect(page.getByTestId("guide-recording-script-cue")).toContainText("讲稿");
@@ -300,6 +301,16 @@ async function mockGuideV2StableDemoApis(page: Page) {
         type: "visual",
         title: "Gradient descent visual",
         prompt: "Create a visual explanation for gradient descent intuition.",
+      },
+    ],
+    sample_artifacts: [
+      {
+        type: "visual",
+        title: "稳定图解素材",
+        preview: "损失曲线、负梯度方向和学习率对比。",
+        demo_action: "现场生成较慢时直接展示这份图解结构。",
+        talking_point: "证明资源生成可以沉淀为演示兜底材料。",
+        status: "seed",
       },
     ],
     rehearsal_notes: ["Keep the route short and show the feedback loop."],

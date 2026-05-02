@@ -3278,6 +3278,29 @@ class GuideV2Manager:
                     "prompt": "围绕混淆矩阵生成选择、判断、填空、简答各 1 道，并附答案解析。",
                 },
             ],
+            "sample_artifacts": [
+                {
+                    "type": "visual",
+                    "title": "梯度下降图解兜底素材",
+                    "preview": "损失曲线、当前位置、负梯度方向、学习率过大/过小对比。",
+                    "demo_action": "模型较慢时直接展示这张图解结构，并说明图解智能体会按画像生成。",
+                    "talking_point": "把抽象优化过程变成学生能看懂的运动方向和步长变化。",
+                },
+                {
+                    "type": "video",
+                    "title": "梯度下降短视频兜底素材",
+                    "preview": "4 步讲解：目标函数、斜率含义、参数更新、学习率影响。",
+                    "demo_action": "Manim 渲染较慢时展示脚本结构或历史视频截图。",
+                    "talking_point": "短视频是加分项，核心是展示多模态生成链路可复现。",
+                },
+                {
+                    "type": "quiz",
+                    "title": "模型评估练习兜底素材",
+                    "preview": "准确率、精确率、召回率、F1 的选择、判断、填空、简答混合题。",
+                    "demo_action": "直接进入交互练习提交，展示对错反馈和画像回写。",
+                    "talking_point": "练习结果会进入学习效果评估，而不是只停留在题目展示。",
+                },
+            ],
             "rehearsal_notes": [
                 "优先演示 T1 -> T4 -> T6，覆盖画像、图解/动画、练习反馈和学习报告。",
                 "如果现场时间不够，跳过完整课程项目，只展示课程产出包和演示就绪度。",
@@ -6290,6 +6313,10 @@ class GuideV2Manager:
         task_lookup = {task.task_id: task for task in session.tasks}
         seed_chain = GuideV2Manager._normalize_demo_seed_task_chain(metadata_seed.get("task_chain"))
         seed_prompts = GuideV2Manager._normalize_demo_seed_resource_prompts(metadata_seed.get("resource_prompts"), task_lookup)
+        seed_artifacts = GuideV2Manager._normalize_demo_seed_sample_artifacts(
+            metadata_seed.get("sample_artifacts"),
+            task_lookup,
+        )
         current = GuideV2Manager._current_task(session)
         if not seed_chain:
             seed_chain = [
@@ -6335,6 +6362,7 @@ class GuideV2Manager:
             },
             "task_chain": task_chain,
             "resource_prompts": seed_prompts[:4],
+            "sample_artifacts": seed_artifacts[:4],
             "rehearsal_notes": list(metadata_seed.get("rehearsal_notes") or [])[:4],
             "report_anchor": {
                 "score": evaluation.get("overall_score", 0),
@@ -6930,6 +6958,39 @@ class GuideV2Manager:
         return normalized
 
     @staticmethod
+    def _normalize_demo_seed_sample_artifacts(value: Any, task_lookup: dict[str, LearningTask]) -> list[dict[str, str]]:
+        """Normalize stable fallback artifact descriptions from course templates."""
+
+        items = value if isinstance(value, list) else []
+        normalized: list[dict[str, str]] = []
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            task_id = str(item.get("task_id") or "").strip()
+            task = task_lookup.get(task_id)
+            artifact_type = GuideV2Manager._normalize_resource_type(
+                str(item.get("type") or item.get("resource_type") or (task.type if task else ""))
+            )
+            title = str(item.get("title") or (f"{task.title} 兜底素材" if task else f"稳定素材 {index}")).strip()
+            preview = str(item.get("preview") or item.get("summary") or item.get("show") or "").strip()
+            demo_action = str(item.get("demo_action") or item.get("action") or "录屏波动时直接展示这份稳定素材。").strip()
+            talking_point = str(item.get("talking_point") or item.get("speaker_note") or "").strip()
+            if not preview and not talking_point:
+                continue
+            normalized.append(
+                {
+                    "task_id": task_id,
+                    "type": artifact_type or "visual",
+                    "title": title,
+                    "preview": preview,
+                    "demo_action": demo_action,
+                    "talking_point": talking_point,
+                    "status": str(item.get("status") or "seed"),
+                }
+            )
+        return normalized
+
+    @staticmethod
     def _course_package_markdown(package: dict[str, Any]) -> str:
         project = dict(package.get("capstone_project") or {})
         report = dict(package.get("learning_report") or {})
@@ -6949,6 +7010,7 @@ class GuideV2Manager:
         seed_persona = dict(seed_pack.get("persona") or {})
         seed_chain = [item for item in seed_pack.get("task_chain") or [] if isinstance(item, dict)]
         seed_prompts = [item for item in seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
+        seed_artifacts = [item for item in seed_pack.get("sample_artifacts") or [] if isinstance(item, dict)]
         rehearsal_notes = [str(item) for item in seed_pack.get("rehearsal_notes") or []]
         presentation_outline = dict(package.get("presentation_outline") or {})
         presentation_slides = [item for item in presentation_outline.get("slides") or [] if isinstance(item, dict)]
@@ -7162,6 +7224,14 @@ class GuideV2Manager:
                 lines.extend(["", "### 稳定资源提示词", ""])
                 for item in seed_prompts[:4]:
                     lines.append(f"- {item.get('title') or item.get('type') or '-'}：{item.get('prompt') or '-'}")
+            if seed_artifacts:
+                lines.extend(["", "### 稳定兜底素材", ""])
+                for item in seed_artifacts[:4]:
+                    lines.append(
+                        f"- {item.get('title') or item.get('type') or '-'}："
+                        f"{item.get('preview') or item.get('talking_point') or '-'}；"
+                        f"录屏动作：{item.get('demo_action') or '-'}"
+                    )
             if rehearsal_notes:
                 lines.extend(["", "### 排练备注", ""])
                 for item in rehearsal_notes[:4]:

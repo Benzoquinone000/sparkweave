@@ -75,6 +75,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多智能体协同");
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("学习效果评估");
   await expect(page.getByTestId("guide-competition-requirement")).toHaveCount(5);
+  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toBeVisible();
+  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("多智能体协作蓝图");
+  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("对话协调智能体");
   await expect(page.getByTestId("guide-defense-qa-card")).toBeVisible();
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("答辩问答预案");
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("普通聊天机器人");
@@ -781,6 +784,51 @@ async function mockGuideV2StableDemoApis(page: Page) {
               demo_action: "打开学习报告和课程产出包。",
             },
           ],
+        },
+        agent_collaboration_blueprint: {
+          title: "多智能体协作蓝图",
+          summary: "画像、路径、资源和评估智能体围绕当前任务接力。",
+          course_name: "Machine Learning Foundations",
+          current_task: "Understand gradient descent",
+          readiness: {
+            label: "可排练展示",
+            score: 80,
+            detail: "赛题五项证据 4/5 已就绪。",
+          },
+          roles: [
+            {
+              id: "coordinator",
+              name: "对话协调智能体",
+              responsibility: "把继续学习请求改写成当前任务。",
+              output: "当前任务：梯度下降直观理解",
+            },
+            {
+              id: "profile",
+              name: "画像智能体",
+              responsibility: "读取薄弱点和资源偏好。",
+              output: "偏好图解和练习。",
+            },
+            {
+              id: "resource_cluster",
+              name: "资源生成智能体集群",
+              responsibility: "调用图解、出题和视频检索智能体。",
+              output: "生成图解、练习和精选视频。",
+            },
+            {
+              id: "assessment",
+              name: "评估智能体",
+              responsibility: "根据提交反馈回写画像。",
+              output: "生成下一步学习处方。",
+            },
+          ],
+          route: [
+            { from: "学习者", to: "对话协调智能体", message: "继续学习" },
+            { from: "对话协调智能体", to: "画像智能体", message: "读取薄弱点" },
+            { from: "画像智能体", to: "路径规划智能体", message: "选择当前任务" },
+            { from: "路径规划智能体", to: "资源生成智能体集群", message: "生成资源" },
+          ],
+          mermaid: "graph LR\n  Learner[学习者] --> Coordinator[对话协调]",
+          recording_tip: "录屏时按画像、路径、资源、评估四步讲。",
         },
         defense_qa: {
           title: "答辩问答预案",

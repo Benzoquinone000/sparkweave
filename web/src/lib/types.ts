@@ -1555,6 +1555,33 @@ export interface GuideV2CoursePackage {
       demo_action?: string;
     }>;
   };
+  agent_collaboration_blueprint?: {
+    title?: string;
+    summary?: string;
+    course_name?: string;
+    current_task?: string;
+    readiness?: {
+      label?: string;
+      score?: number;
+      detail?: string;
+    };
+    roles?: Array<{
+      id?: string;
+      name?: string;
+      responsibility?: string;
+      uses?: string;
+      output?: string;
+      demo_action?: string;
+    }>;
+    route?: Array<{
+      from?: string;
+      to?: string;
+      message?: string;
+    }>;
+    mermaid?: string;
+    recording_tip?: string;
+    next_action?: string;
+  };
   defense_qa?: {
     title?: string;
     summary?: string;

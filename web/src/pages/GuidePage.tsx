@@ -3244,6 +3244,7 @@ function CoursePackagePanel({
   const competitionSubmission = coursePackage?.competition_submission ?? null;
   const aiCodingStatement = coursePackage?.ai_coding_statement ?? null;
   const competitionAlignment = coursePackage?.competition_alignment ?? null;
+  const agentCollaboration = coursePackage?.agent_collaboration_blueprint ?? null;
   const defenseQa = coursePackage?.defense_qa ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
@@ -3278,6 +3279,7 @@ function CoursePackagePanel({
       />
       <CoursePresentationOutlineCard outline={presentationOutline} />
       <CourseCompetitionAlignmentCard alignment={competitionAlignment} />
+      <CourseAgentCollaborationCard blueprint={agentCollaboration} />
       <CourseDefenseQaCard defense={defenseQa} />
       <CourseCompetitionSubmissionCard submission={competitionSubmission} aiCoding={aiCodingStatement} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
@@ -3439,6 +3441,70 @@ function CourseCompetitionAlignmentCard({
         {gap ? "先补：" : "录屏动作："}
         {guideDisplayText((gap?.demo_action || alignment.next_action), "按画像、路线、资源、练习、报告顺序展示。")}
       </p>
+    </div>
+  );
+}
+
+function CourseAgentCollaborationCard({
+  blueprint,
+}: {
+  blueprint: GuideV2CoursePackage["agent_collaboration_blueprint"] | null;
+}) {
+  const roles = blueprint?.roles ?? [];
+  const route = blueprint?.route ?? [];
+  if (!blueprint || (!roles.length && !route.length)) return null;
+  const readiness = blueprint.readiness;
+  const leadRoute = route.slice(0, 5);
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-white p-3" data-testid="guide-agent-collaboration-blueprint">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(blueprint.title, "多智能体协作蓝图")}</Badge>
+            {blueprint.course_name ? <Badge tone="neutral">{guideDisplayText(blueprint.course_name)}</Badge> : null}
+            {readiness?.score ? <Badge tone={Number(readiness.score) >= 80 ? "success" : "warning"}>{Number(readiness.score)} 分</Badge> : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {guideDisplayText(blueprint.summary, "把画像、路径、资源和评估串成一条可讲清楚的协作路线。")}
+          </p>
+        </div>
+        {readiness?.label ? <Badge tone={Number(readiness.score ?? 0) >= 80 ? "success" : "warning"}>{guideDisplayText(readiness.label)}</Badge> : null}
+      </div>
+      {leadRoute.length ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {leadRoute.map((item, index) => (
+            <Fragment key={`${item.from}-${item.to}-${index}`}>
+              <span className="rounded-md border border-teal-100 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-900">
+                {guideDisplayText(item.to || item.from, "智能体")}
+              </span>
+              {index < leadRoute.length - 1 ? <span className="text-xs text-slate-400">→</span> : null}
+            </Fragment>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {roles.slice(0, 4).map((role) => (
+          <div key={role.id || role.name} className="rounded-lg border border-line bg-canvas p-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(role.name, "智能体")}</p>
+              <span className="h-1.5 w-1.5 rounded-sm bg-brand-teal" />
+            </div>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+              {guideDisplayText(role.responsibility || role.output, "负责把学习证据转成下一步动作。")}
+            </p>
+            {role.output ? (
+              <p className="mt-1 line-clamp-1 text-xs leading-5 text-teal-700">
+                产出：{guideDisplayText(role.output)}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {blueprint.recording_tip || blueprint.next_action ? (
+        <p className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+          录屏：{guideDisplayText(blueprint.recording_tip || blueprint.next_action)}
+        </p>
+      ) : null}
     </div>
   );
 }

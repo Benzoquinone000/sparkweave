@@ -961,6 +961,10 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
         item["requirement"] == "多智能体协同的资源生成"
         for item in package["competition_alignment"]["requirements"]
     )
+    assert package["agent_collaboration_blueprint"]["roles"]
+    assert package["agent_collaboration_blueprint"]["route"]
+    assert "对话协调智能体" in package["agent_collaboration_blueprint"]["roles"][0]["name"]
+    assert "graph LR" in package["agent_collaboration_blueprint"]["mermaid"]
     assert package["defense_qa"]["questions"]
     assert package["defense_qa"]["question_count"] >= 6
     assert any("多智能体" in item["question"] for item in package["defense_qa"]["questions"])
@@ -984,6 +988,9 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "7 分钟录屏讲稿" in package["markdown"]
     assert "赛前一键检查" in package["markdown"]
     assert "赛题五项对齐" in package["markdown"]
+    assert "多智能体协作蓝图" in package["markdown"]
+    assert "智能体角色" in package["markdown"]
+    assert "```mermaid" in package["markdown"]
     assert "答辩问答预案" in package["markdown"]
     assert "比赛提交清单" in package["markdown"]
     assert "AI Coding 工具说明" in package["markdown"]

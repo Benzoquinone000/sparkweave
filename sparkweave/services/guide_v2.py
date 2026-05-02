@@ -2050,6 +2050,15 @@ class GuideV2Manager:
             demo_blueprint=demo_blueprint,
             demo_seed_pack=demo_seed_pack,
         )
+        agent_collaboration_blueprint = self._course_agent_collaboration_blueprint(
+            session=session,
+            evaluation=evaluation,
+            report=report if report.get("success") else {},
+            portfolio=portfolio,
+            learning_style=learning_style,
+            demo_seed_pack=demo_seed_pack,
+            competition_alignment=competition_alignment,
+        )
         defense_qa = self._course_defense_qa(
             session=session,
             evaluation=evaluation,
@@ -2080,6 +2089,7 @@ class GuideV2Manager:
             "demo_preflight": demo_preflight,
             "ai_coding_statement": ai_coding_statement,
             "competition_alignment": competition_alignment,
+            "agent_collaboration_blueprint": agent_collaboration_blueprint,
             "defense_qa": defense_qa,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
@@ -6829,6 +6839,141 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_agent_collaboration_blueprint(
+        *,
+        session: GuideSessionV2,
+        evaluation: dict[str, Any],
+        report: dict[str, Any],
+        portfolio: list[dict[str, Any]],
+        learning_style: dict[str, Any],
+        demo_seed_pack: dict[str, Any],
+        competition_alignment: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build a user-facing blueprint of how agents hand work to each other."""
+
+        metadata = dict(session.course_map.metadata or {})
+        course_name = str(metadata.get("course_name") or session.course_map.title or session.goal).strip()
+        profile = session.profile
+        current_task = GuideV2Manager._current_task(session)
+        task_title = current_task.title if current_task else session.goal
+        action_brief = dict(report.get("action_brief") or {})
+        effect_assessment = dict(report.get("effect_assessment") or {})
+        behavior_summary = dict(report.get("behavior_summary") or {})
+        seed_prompts = [item for item in demo_seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
+        resource_types = sorted(
+            {
+                str(item.get("type") or item.get("resource_type") or item.get("capability") or "")
+                for item in [*portfolio, *seed_prompts]
+                if isinstance(item, dict)
+            }
+            - {""}
+        )
+        readable_resources = GuideV2Manager._readable_resource_types(resource_types)
+        style_label = learning_style.get("label") or "画像驱动"
+        style_summary = learning_style.get("summary") or "系统会根据目标、薄弱点、偏好和学习证据安排资源。"
+        alignment_ready = int(competition_alignment.get("ready_count") or 0)
+        alignment_total = int(competition_alignment.get("total_count") or 5)
+
+        roles = [
+            {
+                "id": "coordinator",
+                "name": "对话协调智能体",
+                "responsibility": "把用户的一句话请求改写成当前最适合推进的学习动作。",
+                "uses": f"课程目标：{profile.goal or session.goal}",
+                "output": f"当前任务：{task_title}",
+                "demo_action": "在聊天页或导学页点击继续学习，展示系统如何自动选择下一步。",
+            },
+            {
+                "id": "profile",
+                "name": "画像智能体",
+                "responsibility": "从目标、练习、反思和资源使用中提炼学习者画像。",
+                "uses": f"薄弱点：{'、'.join(profile.weak_points[:3]) or '等待更多证据'}；偏好：{'、'.join(profile.preferences[:3]) or '等待更多证据'}",
+                "output": f"{style_label}：{style_summary}",
+                "demo_action": "打开学习画像或课程产出包，说明推荐依据来自真实学习证据。",
+            },
+            {
+                "id": "planner",
+                "name": "路径规划智能体",
+                "responsibility": "把完整课程拆成当前任务、补基任务和复测任务。",
+                "uses": f"课程节点 {len(session.course_map.nodes)} 个，学习任务 {len(session.tasks)} 个。",
+                "output": f"下一步：{action_brief.get('title') or task_title}",
+                "demo_action": "展示导学首页只给一个当前任务，避免让用户自己挑工具。",
+            },
+            {
+                "id": "resource_cluster",
+                "name": "资源生成智能体集群",
+                "responsibility": "按画像调用图解、动画、出题、公开视频检索等专门智能体。",
+                "uses": f"已准备资源：{readable_resources or '图解、练习、短视频或精选公开视频'}",
+                "output": f"作品集 {len(portfolio)} 个产物，稳定提示词 {len(seed_prompts)} 条。",
+                "demo_action": "打开任一资源卡，展示智能体接力路线和生成依据。",
+            },
+            {
+                "id": "assessment",
+                "name": "评估智能体",
+                "responsibility": "根据提交、得分、错因和反思给出学习处方，并回写画像。",
+                "uses": f"行为证据 {behavior_summary.get('event_count', 0)} 条，练习 {behavior_summary.get('quiz_attempt_count', 0)} 次。",
+                "output": effect_assessment.get("summary") or f"综合掌握分：{evaluation.get('overall_score', 0)}。",
+                "demo_action": "提交一次练习或反思后打开学习报告，说明下一步如何变化。",
+            },
+        ]
+
+        route = [
+            {"from": "学习者", "to": "对话协调智能体", "message": "我要继续学 / 帮我生成资源"},
+            {"from": "对话协调智能体", "to": "画像智能体", "message": "读取目标、薄弱点和偏好"},
+            {"from": "画像智能体", "to": "路径规划智能体", "message": "给出当前能力边界和推进方式"},
+            {"from": "路径规划智能体", "to": "资源生成智能体集群", "message": f"围绕「{task_title}」生成最少必要资源"},
+            {"from": "资源生成智能体集群", "to": "评估智能体", "message": "把学习产物和答题证据交给评估"},
+            {"from": "评估智能体", "to": "学习画像", "message": "回写掌握度、错因和下一步建议"},
+        ]
+        mermaid = "\n".join(
+            [
+                "graph LR",
+                "  Learner[学习者] --> Coordinator[对话协调]",
+                "  Coordinator --> Profile[画像]",
+                "  Profile --> Planner[路径规划]",
+                "  Planner --> Resources[资源智能体集群]",
+                "  Resources --> Assessment[评估]",
+                "  Assessment --> Profile",
+            ]
+        )
+        return {
+            "title": "多智能体协作蓝图",
+            "summary": f"围绕「{course_name}」，系统用一条接力路线把画像、路径、资源和评估串成学习闭环。",
+            "course_name": course_name,
+            "current_task": task_title,
+            "readiness": {
+                "label": "可录屏展示" if alignment_ready >= alignment_total else "可排练展示",
+                "score": int(competition_alignment.get("coverage_score") or 0),
+                "detail": f"赛题五项证据 {alignment_ready}/{alignment_total} 已就绪。",
+            },
+            "roles": roles,
+            "route": route,
+            "mermaid": mermaid,
+            "recording_tip": "录屏时只讲这条接力路线：画像判断 -> 路径选择 -> 资源生成 -> 练习反馈 -> 画像更新。",
+            "next_action": "在课程产出包中展示协作蓝图，再打开一个资源卡证明它不是静态图，而是真正参与生成和评估。",
+        }
+
+    @staticmethod
+    def _readable_resource_types(resource_types: list[str]) -> str:
+        labels = {
+            "visual": "图解",
+            "visualize": "图解",
+            "video": "短视频",
+            "math_animator": "数学动画",
+            "external_video": "精选公开视频",
+            "quiz": "交互练习",
+            "question": "交互练习",
+            "research": "资料整理",
+            "rag": "知识库引用",
+        }
+        names: list[str] = []
+        for item in resource_types:
+            label = labels.get(str(item), str(item))
+            if label and label not in names:
+                names.append(label)
+        return "、".join(names[:5])
+
+    @staticmethod
     def _course_defense_qa(
         *,
         session: GuideSessionV2,
@@ -7117,6 +7262,9 @@ class GuideV2Manager:
         alignment_requirements = [
             item for item in competition_alignment.get("requirements") or [] if isinstance(item, dict)
         ]
+        agent_blueprint = dict(package.get("agent_collaboration_blueprint") or {})
+        agent_roles = [item for item in agent_blueprint.get("roles") or [] if isinstance(item, dict)]
+        agent_route = [item for item in agent_blueprint.get("route") or [] if isinstance(item, dict)]
         defense_qa = dict(package.get("defense_qa") or {})
         defense_questions = [item for item in defense_qa.get("questions") or [] if isinstance(item, dict)]
         behavior_summary = dict(report.get("behavior_summary") or {})
@@ -7295,6 +7443,31 @@ class GuideV2Manager:
                         f"- [{md_status(item.get('status'))}] {item.get('requirement') or '-'}："
                         f"{evidence or '-'}；录屏动作：{item.get('demo_action') or '-'}"
                     )
+        if agent_blueprint:
+            lines.extend(["", "## 多智能体协作蓝图", ""])
+            lines.append(f"- 课程：{agent_blueprint.get('course_name') or metadata.get('course_name') or '-'}")
+            lines.append(f"- 当前任务：{agent_blueprint.get('current_task') or '-'}")
+            readiness = dict(agent_blueprint.get("readiness") or {})
+            lines.append(
+                f"- 展示状态：{readiness.get('label') or '-'}"
+                f"（{readiness.get('score', 0)} 分，{readiness.get('detail') or '-'}）"
+            )
+            lines.append(f"- 讲述提示：{agent_blueprint.get('recording_tip') or '-'}")
+            if agent_roles:
+                lines.extend(["", "### 智能体角色", ""])
+                for item in agent_roles[:6]:
+                    lines.append(
+                        f"- {item.get('name') or '-'}：{item.get('responsibility') or '-'}；"
+                        f"产出：{item.get('output') or '-'}；录屏动作：{item.get('demo_action') or '-'}"
+                    )
+            if agent_route:
+                lines.extend(["", "### 接力路线", ""])
+                for item in agent_route[:8]:
+                    lines.append(
+                        f"- {item.get('from') or '-'} -> {item.get('to') or '-'}：{item.get('message') or '-'}"
+                    )
+            if agent_blueprint.get("mermaid"):
+                lines.extend(["", "### 可视化草图", "", "```mermaid", str(agent_blueprint.get("mermaid")), "```"])
         if fallback_kit:
             lines.extend(["", "## 录屏兜底包", ""])
             lines.append(f"- 摘要：{fallback_kit.get('summary') or '-'}")

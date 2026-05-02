@@ -29,6 +29,7 @@ DOCS = [
     ("docs/capabilities.md", "capabilities.md"),
     ("docs/competition-demo-runbook.md", "competition-demo-runbook.md"),
     ("docs/competition-roadmap.md", "competition-roadmap.md"),
+    ("docs/demo-quickstart.md", "demo-quickstart.md"),
     ("docs/demo-course-templates.md", "demo-course-templates.md"),
     ("docs/demo-script-profile-guide-loop.md", "demo-script-profile-guide-loop.md"),
     ("docs/guided-learning.md", "guided-learning.md"),

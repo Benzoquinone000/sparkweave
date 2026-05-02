@@ -18,6 +18,7 @@ REQUIRED_DOCS = [
     "docs/capabilities.md",
     "docs/competition-demo-runbook.md",
     "docs/competition-roadmap.md",
+    "docs/demo-quickstart.md",
     "docs/guided-learning.md",
     "docs/learner-profile-design.md",
     "docs/ai-coding-statement.md",

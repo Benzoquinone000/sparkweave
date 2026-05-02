@@ -24,24 +24,25 @@
 18. [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md)
 19. [导学空间与 Guide V2](./guided-learning.md)
 20. [稳定课程 Demo 模板](./demo-course-templates.md)
-21. [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md)
-22. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
-23. [Capabilities 详解](./capabilities.md)
-24. [Tools 工具系统](./tools.md)
-25. [CLI 与 API 使用](./cli-and-api.md)
-26. [知识库详解](./knowledge-base.md)
-27. [题目工作流](./question-workflows.md)
-28. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
-29. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
-30. [前端工作台](./frontend.md)
-31. [服务层与数据流](./services.md)
-32. [设置与 Provider 配置](./settings-and-providers.md)
-33. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
-34. [环境变量配置](./configuration.md)
-35. [插件开发](./plugin-development.md)
-36. [赛题对齐与后续开发路线](./competition-roadmap.md)
-37. [AI Coding 工具使用说明](./ai-coding-statement.md)
-38. [开发与维护](./development.md)
+21. [演示者 5 分钟入口](./demo-quickstart.md)
+22. [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md)
+23. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
+24. [Capabilities 详解](./capabilities.md)
+25. [Tools 工具系统](./tools.md)
+26. [CLI 与 API 使用](./cli-and-api.md)
+27. [知识库详解](./knowledge-base.md)
+28. [题目工作流](./question-workflows.md)
+29. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
+30. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
+31. [前端工作台](./frontend.md)
+32. [服务层与数据流](./services.md)
+33. [设置与 Provider 配置](./settings-and-providers.md)
+34. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
+35. [环境变量配置](./configuration.md)
+36. [插件开发](./plugin-development.md)
+37. [赛题对齐与后续开发路线](./competition-roadmap.md)
+38. [AI Coding 工具使用说明](./ai-coding-statement.md)
+39. [开发与维护](./development.md)
 
 ## 文档定位
 
@@ -67,6 +68,7 @@
 | [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md) | 运行时维护者、能力开发者、画像功能开发者 | 画像如何被压缩成模型上下文，注入 LangGraph 回合并覆盖 Chat/解题/出题/图解/动画 |
 | [导学空间与 Guide V2](./guided-learning.md) | 导学功能维护者、前后端集成方 | 旧版导学、Guide V2 学习画像、课程模板、任务证据闭环、资源生成、报告和 Notebook/题目本保存 |
 | [稳定课程 Demo 模板](./demo-course-templates.md) | 比赛材料整理者、录屏负责人、导学功能维护者 | 机器学习、ROS、高等数学三条可复现课程演示路线、任务链、兜底材料和扩展模板格式 |
+| [演示者 5 分钟入口](./demo-quickstart.md) | 录屏者、答辩者、现场演示者 | 最短演示路径、赛题五项映射、现场兜底和赛后材料整理 |
 | [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md) | 录屏负责人、答辩负责人、项目负责人 | 正式录制前检查、7 分钟分段讲法、页面动作、兜底策略和答辩优先回答 |
 | [SparkBot 与 Agents 工作台](./sparkbot-agents.md) | 长期智能体维护者、前端集成方、渠道开发者 | SparkBot 生命周期、工作区文件、渠道 schema、WebSocket 聊天、工具、heartbeat、cron、team 和排查路径 |
 | [Capabilities 详解](./capabilities.md) | 能力开发者、前后端集成方 | Chat、Deep Solve、Deep Question、Deep Research、Visualize、Math Animator 的配置、阶段和结果 |

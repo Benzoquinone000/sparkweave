@@ -22,6 +22,7 @@ def test_check_competition_readiness() -> None:
     assert result.returncode == 0, result.stderr or result.stdout
     assert "SparkWeave competition readiness" in result.stdout
     assert "[ok] Course template schema" in result.stdout
+    assert "[ok] Runtime: scripts/render_competition_summary.py" in result.stdout
     assert "[ok] Runtime collaboration route: backend emitter" in result.stdout
     assert "[ok] Runtime collaboration route: frontend viewer" in result.stdout
     assert "[ok] Runtime collaboration route: test coverage" in result.stdout
@@ -108,6 +109,8 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "User-facing chat trace: final-answer test coverage" in check_names
     assert "Assets: docs/assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package: assets/agent-collaboration-blueprint.svg" in check_names
+    assert "Runtime: scripts/render_competition_summary.py" in check_names
+    assert "Generated package: runtime/scripts/render_competition_summary.py" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-demo-fallback-assets.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names

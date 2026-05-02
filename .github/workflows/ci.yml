@@ -38,6 +38,9 @@ jobs:
       - name: Run competition preflight CLI
         run: python -m sparkweave_cli competition-preflight --report dist/competition-readiness.json
 
+      - name: Summarize competition readiness
+        run: python scripts/render_competition_summary.py dist/competition-readiness.json --output "$GITHUB_STEP_SUMMARY"
+
       - name: Upload competition readiness artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -53,6 +56,7 @@ jobs:
             tests/cli/test_chat_cli.py \
             tests/scripts/test_check_release_safety.py \
             tests/scripts/test_check_competition_readiness.py \
+            tests/scripts/test_render_competition_summary.py \
             tests/scripts/test_export_competition_package.py \
             tests/services/test_video_search.py \
             tests/ng/test_chat_graph.py \

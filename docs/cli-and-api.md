@@ -44,10 +44,12 @@ sparkweave competition-demo --template ai_learning_agents_systems
 sparkweave competition-package --template ai_learning_agents_systems
 sparkweave competition-preflight --template ai_learning_agents_systems
 sparkweave competition-preflight --template ai_learning_agents_systems --with-build --report dist/competition-readiness.json
+python scripts/render_competition_summary.py dist/competition-readiness.json --output dist/competition-readiness.md
 ```
 
 `competition-demo` 会导出 PPT 骨架、7 分钟录屏讲稿、多智能体协作蓝图、赛题评分点证据表、答辩问答预案和最终答辩材料清单。`competition-package` 会整理文档、截图、课程模板、运行配置和离线演示材料。
 `competition-preflight` 会先运行就绪检查，通过后再导出提交包；带上 `--with-build` 时会在打包前运行 `web` 的生产构建，适合赛前最后一次归档。
+`render_competition_summary.py` 会把 JSON 就绪报告转换成一页 Markdown 摘要，适合贴到 GitHub Actions summary、答辩材料或赛前核对群。
 
 ## 知识库命令
 

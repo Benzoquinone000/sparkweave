@@ -8,12 +8,16 @@ import json
 from datetime import datetime
 from html import escape
 from pathlib import Path
+import shutil
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATE_ID = "ai_learning_agents_systems"
 DEFAULT_OUTPUT = ROOT / "dist" / "demo_materials"
+AGENT_BLUEPRINT_ASSET = "agent-collaboration-blueprint.svg"
+AGENT_BLUEPRINT_ASSET_SOURCE = ROOT / "docs" / "assets" / AGENT_BLUEPRINT_ASSET
+AGENT_BLUEPRINT_ASSET_REF = f"../assets/{AGENT_BLUEPRINT_ASSET}"
 
 
 def main() -> int:
@@ -43,6 +47,7 @@ def main() -> int:
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
     (output / "sparkweave-final-pitch-checklist.md").write_text(checklist, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
+    copy_static_assets(output)
 
     print(f"[demo-materials] exported template {template.get('id')} to {output}")
     return 0
@@ -114,7 +119,7 @@ def build_deck_outline(template: dict[str, Any]) -> str:
                 "检索、图解、视频、出题智能体生成不同资源。",
                 "评估智能体把结果压缩成下一步学习处方。",
             ],
-            "visual": "聊天协作明细或导学资源卡里的接力路线。",
+            "visual": f"聊天协作明细、导学资源卡里的接力路线，或静态图 {AGENT_BLUEPRINT_ASSET_REF}。",
         },
         {
             "title": "多模态资源：只围绕当前任务生成",
@@ -226,6 +231,7 @@ def build_deck_html(template: dict[str, Any]) -> str:
     <article class="slide">
       <p class="eyebrow">SparkWeave 星火织学</p>
       <h2>{escape(title)}</h2>
+      {agent_blueprint_image(title)}
       <pre>{escape(body)}</pre>
     </article>"""
         )
@@ -288,6 +294,16 @@ def build_deck_html(template: dict[str, Any]) -> str:
       font: inherit;
       color: #374151;
       line-height: 1.75;
+    }}
+    .diagram {{
+      display: block;
+      width: 100%;
+      max-height: 430px;
+      object-fit: contain;
+      margin: 28px 0 0;
+      border: 1px solid #dde5e8;
+      border-radius: 8px;
+      background: #f7fafc;
     }}
     @media print {{
       body {{
@@ -380,6 +396,8 @@ def build_agent_collaboration_blueprint(template: dict[str, Any]) -> str:
         f"- 课程：{course}",
         f"- 生成时间：{now()}",
         "- 用法：可直接放入 PPT，或在录屏时作为“多智能体协同资源生成”的讲解底稿。",
+        "",
+        f"![SparkWeave 多智能体协作蓝图]({AGENT_BLUEPRINT_ASSET_REF})",
         "",
         "## 一句话讲法",
         "",
@@ -599,6 +617,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-demo-deck.html`：可直接打开、截图或打印为 PDF 的演示页。",
             "- `sparkweave-7min-recording-script.md`：7 分钟录屏分段讲稿。",
             "- `sparkweave-agent-collaboration-blueprint.md`：多智能体协作蓝图，可直接放入 PPT 或答辩材料。",
+            f"- `../assets/{AGENT_BLUEPRINT_ASSET}`：多智能体协作静态图，适合直接放进 README、PPT 或提交文档。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
             "- `sparkweave-final-pitch-checklist.md`：提交前一页式总览，适合最后排练和材料核对。",
@@ -611,6 +630,20 @@ def build_index(template: dict[str, Any], output: Path) -> str:
 def task_lookup(template: dict[str, Any]) -> dict[str, dict[str, Any]]:
     tasks = template.get("tasks") if isinstance(template.get("tasks"), list) else []
     return {str(item.get("task_id")): item for item in tasks if isinstance(item, dict) and item.get("task_id")}
+
+
+def copy_static_assets(output: Path) -> None:
+    if not AGENT_BLUEPRINT_ASSET_SOURCE.exists():
+        return
+    target = output.parent / "assets" / AGENT_BLUEPRINT_ASSET
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(AGENT_BLUEPRINT_ASSET_SOURCE, target)
+
+
+def agent_blueprint_image(title: str) -> str:
+    if "多智能体接力" not in title:
+        return ""
+    return f'<img class="diagram" src="{escape(AGENT_BLUEPRINT_ASSET_REF)}" alt="SparkWeave 多智能体协作蓝图" />'
 
 
 def list_of_text(value: Any) -> list[str]:

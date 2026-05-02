@@ -37,6 +37,7 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert (output / "sparkweave-defense-qa.md").exists()
     assert (output / "sparkweave-competition-scorecard.md").exists()
     assert (output / "sparkweave-final-pitch-checklist.md").exists()
+    assert (output.parent / "assets" / "agent-collaboration-blueprint.svg").exists()
 
     deck = (output / "sparkweave-demo-deck-outline.md").read_text(encoding="utf-8")
     deck_html = (output / "sparkweave-demo-deck.html").read_text(encoding="utf-8")
@@ -48,10 +49,13 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert "SparkWeave 演示 PPT 骨架" in deck
     assert "<!doctype html>" in deck_html
     assert "SparkWeave 演示页" in deck_html
+    assert "../assets/agent-collaboration-blueprint.svg" in deck
+    assert "../assets/agent-collaboration-blueprint.svg" in deck_html
     assert "大模型教育智能体系统开发" in deck
     assert "SparkWeave 7 分钟录屏讲稿" in script
     assert "SparkWeave 多智能体协作蓝图" in agent_blueprint
     assert "graph LR" in agent_blueprint
+    assert "../assets/agent-collaboration-blueprint.svg" in agent_blueprint
     assert "为什么不是普通聊天机器人" in qa
     assert "SparkWeave 赛题评分点证据表" in scorecard
     assert "多智能体协同的资源生成" in scorecard

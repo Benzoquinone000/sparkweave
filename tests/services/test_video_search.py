@@ -129,6 +129,46 @@ async def test_recommend_learning_videos_accepts_generic_provider_result_shapes(
 
 
 @pytest.mark.asyncio
+async def test_recommend_learning_videos_accepts_nested_provider_payloads(monkeypatch) -> None:
+    async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
+        return {
+            "data": {
+                "items": [
+                    {
+                        "name": "Gradient descent visual short",
+                        "videoUrl": "https://www.youtube.com/shorts/NestedABC123",
+                        "summary": "Beginner visual explanation.",
+                        "metadata": {
+                            "thumbnailUrl": "https://example.com/nested.jpg",
+                            "channel": "Visual ML",
+                            "durationSeconds": 360,
+                        },
+                    }
+                ]
+            },
+            "answer": {
+                "videos": [
+                    {
+                        "title": "Bilibili nested concept guide",
+                        "url": "https://www.bilibili.com/video/BV1Nested9A",
+                        "description": "Short concept guide.",
+                    }
+                ]
+            },
+        }
+
+    monkeypatch.setattr(video_search, "web_search", _fake_web_search)
+
+    result = await video_search.recommend_learning_videos(topic="gradient descent", max_results=3)
+
+    by_url = {item["url"]: item for item in result["videos"]}
+    assert "https://www.youtube.com/watch?v=NestedABC123" in by_url
+    assert "https://www.bilibili.com/video/BV1Nested9A" in by_url
+    assert by_url["https://www.youtube.com/watch?v=NestedABC123"]["thumbnail"] == "https://example.com/nested.jpg"
+    assert by_url["https://www.youtube.com/watch?v=NestedABC123"]["duration_seconds"] == 360
+
+
+@pytest.mark.asyncio
 async def test_recommend_learning_videos_returns_platform_search_fallbacks(monkeypatch) -> None:
     async def _fake_web_search(**kwargs: Any) -> dict[str, Any]:
         return {

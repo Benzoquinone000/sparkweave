@@ -12,6 +12,37 @@ from sparkweave.services.search import web_search
 
 VideoSearchEventSink = Callable[[str, dict[str, Any]], None]
 
+SEARCH_CONTAINER_KEYS = {
+    "search_results",
+    "citations",
+    "results",
+    "organic",
+    "items",
+    "data",
+    "videos",
+    "video_results",
+    "videoResults",
+    "answer",
+}
+SEARCH_ITEM_KEYS = {
+    "title",
+    "name",
+    "headline",
+    "url",
+    "link",
+    "href",
+    "video_url",
+    "videoUrl",
+    "source_url",
+    "sourceUrl",
+    "snippet",
+    "content",
+    "description",
+    "body",
+    "summary",
+    "text",
+}
+
 
 @dataclass
 class VideoCandidate:
@@ -135,27 +166,54 @@ def _iter_search_items(result: Any) -> list[dict[str, str]]:
     if not isinstance(result, dict):
         return []
     items: list[dict[str, str]] = []
-    for key in ("search_results", "citations", "results", "organic", "items", "data", "videos"):
-        value = result.get(key)
-        if not isinstance(value, list):
+    seen: set[int] = set()
+    for raw in _collect_search_records(result):
+        marker = id(raw)
+        if marker in seen:
             continue
-        for raw in value:
-            if not isinstance(raw, dict):
-                continue
-            items.append(
-                {
-                    "title": _item_text(raw, "title", "name", "headline"),
-                    "url": _item_text(raw, "url", "link", "href", "video_url", "videoUrl", "source_url", "sourceUrl"),
-                    "snippet": _item_text(raw, "snippet", "content", "description", "body", "summary", "text"),
-                    "source": _item_text(raw, "source", "website", "platform", "site_name", "siteName"),
-                    "date": _item_text(raw, "date", "published_at", "published", "publishedAt", "published_date", "publishedDate"),
-                    "thumbnail": _item_text(raw, "thumbnail", "image", "thumbnail_url", "thumbnailUrl", "image_url", "imageUrl", "cover", "cover_url"),
-                    "channel": _item_text(raw, "channel", "author", "creator", "uploader", "owner", "publisher"),
-                    "duration": _item_text(raw, "duration", "length", "video_duration", "videoDuration"),
-                    "duration_seconds": _item_text(raw, "duration_seconds", "duration_sec", "durationSeconds", "length_seconds", "lengthSeconds"),
-                }
-            )
+        seen.add(marker)
+        items.append(
+            {
+                "title": _item_text(raw, "title", "name", "headline"),
+                "url": _item_text(raw, "url", "link", "href", "video_url", "videoUrl", "source_url", "sourceUrl"),
+                "snippet": _item_text(raw, "snippet", "content", "description", "body", "summary", "text"),
+                "source": _item_text(raw, "source", "website", "platform", "site_name", "siteName"),
+                "date": _item_text(raw, "date", "published_at", "published", "publishedAt", "published_date", "publishedDate"),
+                "thumbnail": _item_text(raw, "thumbnail", "image", "thumbnail_url", "thumbnailUrl", "image_url", "imageUrl", "cover", "cover_url"),
+                "channel": _item_text(raw, "channel", "author", "creator", "uploader", "owner", "publisher"),
+                "duration": _item_text(raw, "duration", "length", "video_duration", "videoDuration"),
+                "duration_seconds": _item_text(raw, "duration_seconds", "duration_sec", "durationSeconds", "length_seconds", "lengthSeconds"),
+            }
+        )
     return items
+
+
+def _collect_search_records(value: Any, *, depth: int = 0) -> list[dict[str, Any]]:
+    if depth > 5:
+        return []
+    if isinstance(value, list):
+        records: list[dict[str, Any]] = []
+        for item in value:
+            records.extend(_collect_search_records(item, depth=depth + 1))
+        return records
+    if not isinstance(value, dict):
+        return []
+
+    records = [value] if _looks_like_search_item(value) else []
+    for key, nested in value.items():
+        if key in SEARCH_CONTAINER_KEYS or isinstance(nested, list):
+            records.extend(_collect_search_records(nested, depth=depth + 1))
+    return records
+
+
+def _looks_like_search_item(raw: dict[str, Any]) -> bool:
+    if not SEARCH_ITEM_KEYS.intersection(raw):
+        return False
+    return bool(
+        _item_text(raw, "url", "link", "href", "video_url", "videoUrl", "source_url", "sourceUrl")
+        or _item_text(raw, "title", "name", "headline")
+        or _item_text(raw, "snippet", "content", "description", "body", "summary", "text")
+    )
 
 
 def _candidate_from_item(item: dict[str, str]) -> VideoCandidate | None:
@@ -287,10 +345,12 @@ def _parse_video_url(raw_url: str) -> tuple[str, str, str, str]:
 
 
 def _find_video_url(text: str) -> str:
-    candidates = [text.strip()]
+    candidates: list[str] = []
     candidates.extend(re.findall(r"https?://[^\s<>'\")]+", text))
     candidates.extend(re.findall(r"(?:www\.)?(?:youtube\.com|youtu\.be|bilibili\.com)/[^\s<>'\")]+", text, flags=re.IGNORECASE))
     candidates.extend(re.findall(r"(?:BV[0-9A-Za-z]{8,}|av\d{4,})", text, flags=re.IGNORECASE))
+    if not candidates and text.strip():
+        candidates.append(text.strip())
     for candidate in candidates:
         cleaned = candidate.strip().rstrip(".,，。；;)")
         if not cleaned:

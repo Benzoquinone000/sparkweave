@@ -508,6 +508,7 @@ def check_generated_exports() -> list[Check]:
                 "Generated package",
                 package_dir,
                 [
+                    "index.html",
                     "README.md",
                     "submission_manifest.md",
                     "demo_materials/sparkweave-demo-deck.html",
@@ -531,6 +532,7 @@ def check_generated_exports() -> list[Check]:
                 "Generated package content",
                 package_dir,
                 [
+                    ("index.html", "SparkWeave 星火织学提交包"),
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
                     ("docs/iflytek-integration.md", "科大讯飞能力接入说明"),
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),

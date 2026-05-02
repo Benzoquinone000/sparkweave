@@ -52,6 +52,7 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Generated demo content: sparkweave-final-pitch-checklist.md" in result.stdout
     assert "[ok] Competition package export" in result.stdout
     assert "[ok] Competition package archive" in result.stdout
+    assert "[ok] Generated package: index.html" in result.stdout
     assert "[ok] Generated package content: docs/demo-quickstart.md" in result.stdout
     assert "[ok] Generated package content: docs/iflytek-integration.md" in result.stdout
     assert "All required competition materials are ready." in result.stdout
@@ -103,6 +104,8 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition proof chain: frontend card" in check_names
     assert "Competition proof chain: test coverage" in check_names
     assert "Competition package archive" in check_names
+    assert "Generated package: index.html" in check_names
+    assert "Generated package content: index.html" in check_names
     assert "User-facing diagnostics: settings status strip" in check_names
     assert "User-facing diagnostics: test coverage" in check_names
     assert "User-facing knowledge progress: milestone view" in check_names

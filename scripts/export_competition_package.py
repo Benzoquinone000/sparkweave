@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+from html import escape
 import json
 from pathlib import Path
 import shutil
@@ -119,6 +120,7 @@ def main() -> int:
     manifest = build_manifest(output, copied, missing, selected_template=selected_template)
     (output / "README.md").write_text(manifest, encoding="utf-8")
     (output / "submission_manifest.md").write_text(manifest, encoding="utf-8")
+    (output / "index.html").write_text(build_submission_index(selected_template, missing), encoding="utf-8")
 
     print(f"[competition-package] exported to {output}")
     print(f"[competition-package] copied {len(copied)} file(s), missing {len(missing)} file(s).")
@@ -274,6 +276,205 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         lines.extend(["", "## 缺失文件", ""])
         lines.extend(f"- `{item}`" for item in missing)
     return "\n".join(lines) + "\n"
+
+
+def build_submission_index(selected_template: dict[str, str], missing: list[str]) -> str:
+    course_name = escape(selected_template.get("course_name", selected_template.get("id", "大模型教育智能体系统开发")))
+    missing_note = (
+        "<p class=\"warning\">当前提交包存在缺失文件，请先查看 <a href=\"submission_manifest.md\">提交包索引</a>。</p>"
+        if missing
+        else "<p class=\"success\">提交包基础材料已齐全，可直接用于演示彩排和人工核对。</p>"
+    )
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SparkWeave 星火织学提交包</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f7fafc;
+      --surface: #ffffff;
+      --text: #111827;
+      --muted: #5f6b76;
+      --line: #dde5e8;
+      --primary: #0f766e;
+      --blue: #2563eb;
+      --red: #e60012;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.62;
+    }}
+    main {{
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 48px;
+    }}
+    header {{
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 18px;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }}
+    .logo {{
+      width: 76px;
+      height: 76px;
+      object-fit: contain;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+    }}
+    h1, h2, h3, p {{ margin: 0; }}
+    h1 {{ font-size: 28px; line-height: 1.2; }}
+    h2 {{ margin-top: 30px; font-size: 20px; }}
+    h3 {{ font-size: 16px; }}
+    .lead {{ margin-top: 10px; color: var(--muted); max-width: 760px; }}
+    .badge {{
+      display: inline-flex;
+      align-items: center;
+      margin-top: 14px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }}
+    .card {{
+      display: block;
+      min-height: 124px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }}
+    .card:hover {{
+      transform: translateY(-2px);
+      border-color: rgba(15, 118, 110, 0.42);
+      box-shadow: 0 10px 22px rgba(17, 24, 39, 0.08);
+    }}
+    .card p {{ margin-top: 8px; color: var(--muted); font-size: 14px; }}
+    .tag {{ color: var(--blue); font-size: 13px; font-weight: 700; }}
+    .proof {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }}
+    .proof span {{
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--primary);
+      border-radius: 8px;
+      font-size: 14px;
+    }}
+    .screens {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }}
+    figure {{
+      margin: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }}
+    figure img {{
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      border-bottom: 1px solid var(--line);
+    }}
+    figcaption {{ padding: 10px 12px; color: var(--muted); font-size: 14px; }}
+    .success, .warning {{
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+    }}
+    .success {{ border-left: 3px solid var(--primary); }}
+    .warning {{ border-left: 3px solid var(--red); }}
+    a {{ color: var(--blue); }}
+    @media (max-width: 640px) {{
+      main {{ width: min(100% - 20px, 1120px); padding-top: 22px; }}
+      header {{ grid-template-columns: 1fr; }}
+      h1 {{ font-size: 24px; }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="logo" src="assets/logo-ver2.png" alt="SparkWeave logo" />
+      <div>
+        <h1>SparkWeave 星火织学提交包</h1>
+        <p class="lead">面向高校课程学习的多智能体个性化学习系统。当前演示课程：{course_name}。</p>
+        <span class="badge">A3 基于大模型的个性化资源生成与学习多智能体系统开发</span>
+      </div>
+    </header>
+
+    {missing_note}
+
+    <h2>先看这几项</h2>
+    <section class="grid" aria-label="核心材料">
+      <a class="card" href="demo_materials/sparkweave-demo-deck.html"><span class="tag">演示页</span><h3>可打开的 PPT 骨架</h3><p>用于快速讲清项目价值、五项赛题对齐和演示路线。</p></a>
+      <a class="card" href="demo_materials/sparkweave-evaluator-one-pager.md"><span class="tag">评委一页纸</span><h3>项目速览</h3><p>把定位、证据链、录屏路线和兜底材料压缩到一页。</p></a>
+      <a class="card" href="demo_materials/sparkweave-competition-scorecard.md"><span class="tag">评分点</span><h3>赛题证据表</h3><p>逐条映射画像、资源生成、路径规划、智能辅导和学习评估。</p></a>
+      <a class="card" href="demo_materials/sparkweave-7min-recording-script.md"><span class="tag">录屏</span><h3>7 分钟讲稿</h3><p>按时间段给出画面、讲述词和现场兜底动作。</p></a>
+    </section>
+
+    <h2>五项要求证据</h2>
+    <section class="proof" aria-label="赛题五项要求">
+      <span>对话式学习画像自主构建</span>
+      <span>多智能体协同资源生成</span>
+      <span>个性化路径规划与资源推送</span>
+      <span>多模态智能辅导</span>
+      <span>学习效果评估闭环</span>
+    </section>
+
+    <h2>关键截图</h2>
+    <section class="screens" aria-label="页面截图">
+      <figure><img src="screenshots/screenshots-refined-chat.png" alt="学习工作台截图" /><figcaption>学习工作台</figcaption></figure>
+      <figure><img src="screenshots/screenshots-simplified-guide.png" alt="导学页面截图" /><figcaption>懒人式导学</figcaption></figure>
+      <figure><img src="screenshots/screenshots-simplified-final-knowledge.png" alt="知识库页面截图" /><figcaption>资料与知识库</figcaption></figure>
+      <figure><img src="screenshots/screenshots-simplified-final-settings.png" alt="设置页面截图" /><figcaption>服务配置检测</figcaption></figure>
+    </section>
+
+    <h2>更多材料</h2>
+    <section class="grid" aria-label="更多材料">
+      <a class="card" href="submission_manifest.md"><span class="tag">索引</span><h3>提交包清单</h3><p>查看目录说明、材料映射、建议使用顺序和缺失项。</p></a>
+      <a class="card" href="docs/architecture.md"><span class="tag">架构</span><h3>系统架构说明</h3><p>后端、前端、多智能体和运行时能力的整体说明。</p></a>
+      <a class="card" href="assets/architecture.svg"><span class="tag">图示</span><h3>系统架构图</h3><p>可直接放入 PPT 或答辩材料。</p></a>
+      <a class="card" href="docs/getting-started.md"><span class="tag">运行</span><h3>启动与配置</h3><p>从依赖安装、环境变量到本地启动的最短路径。</p></a>
+    </section>
+  </main>
+</body>
+</html>
+"""
 
 
 if __name__ == "__main__":

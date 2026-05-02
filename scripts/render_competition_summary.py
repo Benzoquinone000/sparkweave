@@ -119,7 +119,7 @@ def render_summary(report: dict[str, Any]) -> str:
                 "## 下一步",
                 "",
                 "- 可以进入录屏彩排或下载提交包做最终人工核对。",
-                "- 正式提交前建议再运行 `sparkweave competition-preflight --with-build --report dist/competition-readiness.json`。",
+                "- 正式提交前建议再运行 `sparkweave competition-preflight --with-build --report dist/competition-readiness.json --summary dist/competition-readiness.md`。",
             ]
         )
 

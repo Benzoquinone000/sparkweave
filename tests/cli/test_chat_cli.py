@@ -12,6 +12,7 @@ from sparkweave_cli.main import app
 from sparkweave.app import TurnRequest
 
 runner = CliRunner()
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _install_fake_runtime(monkeypatch, captured_requests: list[TurnRequest]) -> None:
@@ -218,6 +219,35 @@ def test_competition_check_command_passes_report_options(monkeypatch, tmp_path: 
     assert calls[0][0][-4:] == ["--format", "json", "--output", str(output)]
 
 
+def test_competition_check_command_can_render_summary(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    summary = tmp_path / "readiness.md"
+    result = runner.invoke(app, ["competition-check", "--summary", str(summary)])
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 2
+    assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
+        "scripts/check_competition_readiness.py"
+    )
+    default_report = str(ROOT / "dist" / "competition-readiness.json")
+    assert calls[0][0][-4:] == ["--format", "text", "--output", default_report]
+    assert calls[1][0][1].endswith("scripts\\render_competition_summary.py") or calls[1][0][1].endswith(
+        "scripts/render_competition_summary.py"
+    )
+    assert calls[1][0][-3:] == [
+        default_report,
+        "--output",
+        str(summary),
+    ]
+
+
 def test_competition_templates_command_lists_course_templates() -> None:
     result = runner.invoke(app, ["competition-templates", "--format", "json"])
 
@@ -338,6 +368,47 @@ def test_competition_preflight_can_build_web_before_export(monkeypatch, tmp_path
     )
     assert calls[1][0] == ["npm", "run", "build"]
     assert calls[1][1].endswith("web")
+    assert calls[2][0][1].endswith("scripts\\export_competition_package.py") or calls[2][0][1].endswith(
+        "scripts/export_competition_package.py"
+    )
+    assert calls[2][0][-4:] == ["--template", "ai_learning_agents_systems", "--output", str(output)]
+
+
+def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    report = tmp_path / "readiness.json"
+    summary = tmp_path / "readiness.md"
+    result = runner.invoke(
+        app,
+        [
+            "competition-preflight",
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+            "--summary",
+            str(summary),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 3
+    assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
+        "scripts/check_competition_readiness.py"
+    )
+    assert calls[0][0][-4:] == ["--format", "text", "--output", str(report)]
+    assert calls[1][0][1].endswith("scripts\\render_competition_summary.py") or calls[1][0][1].endswith(
+        "scripts/render_competition_summary.py"
+    )
+    assert calls[1][0][-3:] == [str(report), "--output", str(summary)]
     assert calls[2][0][1].endswith("scripts\\export_competition_package.py") or calls[2][0][1].endswith(
         "scripts/export_competition_package.py"
     )

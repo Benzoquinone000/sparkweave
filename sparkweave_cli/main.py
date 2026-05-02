@@ -80,6 +80,21 @@ def _run_project_script(script_name: str, args: list[str]) -> None:
     raise typer.Exit(code=result.returncode)
 
 
+def _default_readiness_report() -> Path:
+    return _repo_root() / "dist" / "competition-readiness.json"
+
+
+def _render_readiness_summary(report: Path, summary: Path) -> None:
+    root = _repo_root()
+    result = subprocess.run(
+        _project_script_cmd("render_competition_summary.py", [str(report), "--output", str(summary)]),
+        cwd=root,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+
+
 def _npm_command() -> str:
     if sys.platform == "win32":
         return shutil.which("npm.cmd") or shutil.which("npm") or "npm.cmd"
@@ -179,13 +194,25 @@ def competition_check(
         "-o",
         help="Optional path to write a JSON readiness report.",
     ),
+    summary: Optional[Path] = typer.Option(
+        None,
+        "--summary",
+        help="Optional path to write a concise Markdown readiness summary.",
+    ),
 ) -> None:
     """Check whether key competition submission materials are ready."""
 
+    if summary is not None and output is None:
+        output = _default_readiness_report()
     cmd = ["--format", fmt]
     if output is not None:
         cmd.extend(["--output", str(output)])
-    _run_project_script("check_competition_readiness.py", cmd)
+    root = _repo_root()
+    result = subprocess.run(_project_script_cmd("check_competition_readiness.py", cmd), cwd=root, check=False)
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+    if summary is not None:
+        _render_readiness_summary(output or _default_readiness_report(), summary)
 
 
 @app.command("competition-templates")
@@ -291,10 +318,17 @@ def competition_preflight(
         "--with-build",
         help="Also run the web production build before exporting the package.",
     ),
+    summary: Optional[Path] = typer.Option(
+        None,
+        "--summary",
+        help="Optional path to write a concise Markdown readiness summary.",
+    ),
 ) -> None:
     """Run readiness checks, optionally build the web UI, then export a competition package."""
 
     root = _repo_root()
+    if summary is not None and report is None:
+        report = _default_readiness_report()
     check_args = ["--format", "text"]
     if report is not None:
         check_args.extend(["--output", str(report)])
@@ -305,6 +339,8 @@ def competition_preflight(
     )
     if check_result.returncode != 0:
         raise typer.Exit(code=check_result.returncode)
+    if summary is not None:
+        _render_readiness_summary(report or _default_readiness_report(), summary)
 
     if with_build:
         console.print("[bold]Building web frontend before packaging...[/]")

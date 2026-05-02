@@ -22,6 +22,7 @@ def test_check_competition_readiness() -> None:
     assert result.returncode == 0, result.stderr or result.stdout
     assert "SparkWeave competition readiness" in result.stdout
     assert "[ok] Course template schema" in result.stdout
+    assert "[ok] Assets: docs/assets/agent-collaboration-blueprint.svg" in result.stdout
     assert "[ok] Offline demo material export" in result.stdout
     assert "[ok] Generated demo content: sparkweave-demo-deck.html" in result.stdout
     assert "[ok] Generated demo content: sparkweave-agent-collaboration-blueprint.md" in result.stdout
@@ -63,5 +64,7 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Generated demo content: sparkweave-demo-deck.html" in check_names
     assert "Generated demo content: sparkweave-agent-collaboration-blueprint.md" in check_names
     assert "Generated demo content: sparkweave-final-pitch-checklist.md" in check_names
+    assert "Assets: docs/assets/agent-collaboration-blueprint.svg" in check_names
+    assert "Generated package: assets/agent-collaboration-blueprint.svg" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names

@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">SparkWeave Agent Collaboration Blueprint</title>
+  <desc id="desc">A user-facing blueprint showing how the conversation coordinator wakes learner profile, path planning, resource agents, assessment, and evidence persistence in SparkWeave.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,8 L11,4 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#111827" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f7fafc; }
+      .panel { fill: #ffffff; stroke: #dde5e8; stroke-width: 1.4; }
+      .teal { fill: #f0fdfa; stroke: #0f766e; stroke-width: 1.5; }
+      .blue { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.5; }
+      .red { fill: #fff1f2; stroke: #e60012; stroke-width: 1.5; }
+      .soft { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; }
+      .title { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 28px; font-weight: 700; fill: #111827; }
+      .subtitle { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 14px; fill: #475569; }
+      .h { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #111827; }
+      .t { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 13px; fill: #334155; }
+      .small { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 12px; fill: #64748b; }
+      .tag { font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .line { stroke: #334155; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #64748b; stroke-width: 1.7; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow); }
+      .mutedline { stroke: #94a3b8; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1280" height="760"/>
+  <text class="title" x="52" y="58">SparkWeave 多智能体协作蓝图</text>
+  <text class="subtitle" x="52" y="84">用户只提出学习目标，系统在背后完成画像读取、路径规划、资源生成、评估反馈和证据回写。</text>
+
+  <rect class="panel" x="48" y="120" width="1184" height="562" rx="8" filter="url(#shadow)"/>
+
+  <rect class="teal" x="86" y="180" width="210" height="112" rx="8"/>
+  <text class="h" x="112" y="214">学习者请求</text>
+  <text class="t" x="112" y="240">“我现在该学什么？”</text>
+  <text class="t" x="112" y="262">“生成图解和练习”</text>
+
+  <rect class="blue" x="360" y="166" width="230" height="140" rx="8"/>
+  <text class="h" x="386" y="202">对话协调智能体</text>
+  <text class="t" x="386" y="230">识别意图，压缩上下文</text>
+  <text class="t" x="386" y="252">选择最合适的能力链路</text>
+  <text class="small" x="386" y="278">Chat Graph / LangGraph Router</text>
+
+  <rect class="soft" x="656" y="118" width="218" height="112" rx="8"/>
+  <text class="h" x="682" y="152">学习画像</text>
+  <text class="t" x="682" y="178">目标、薄弱点、偏好</text>
+  <text class="t" x="682" y="200">证据账本与用户校准</text>
+
+  <rect class="soft" x="656" y="260" width="218" height="112" rx="8"/>
+  <text class="h" x="682" y="294">路径规划</text>
+  <text class="t" x="682" y="320">当前任务与下一步</text>
+  <text class="t" x="682" y="342">补基、练习、复测策略</text>
+
+  <rect class="teal" x="934" y="152" width="238" height="260" rx="8"/>
+  <text class="h" x="962" y="188">资源生成智能体集群</text>
+  <text class="small" x="962" y="212">按画像和任务自动接力</text>
+
+  <rect class="panel" x="962" y="232" width="82" height="52" rx="8"/>
+  <text class="t" x="982" y="264">图解</text>
+  <rect class="panel" x="1060" y="232" width="84" height="52" rx="8"/>
+  <text class="t" x="1080" y="264">动画</text>
+  <rect class="panel" x="962" y="300" width="82" height="52" rx="8"/>
+  <text class="t" x="982" y="332">出题</text>
+  <rect class="panel" x="1060" y="300" width="84" height="52" rx="8"/>
+  <text class="t" x="1074" y="332">视频检索</text>
+  <text class="small" x="962" y="384">Visualize / Math Animator / Question / Search</text>
+
+  <rect class="red" x="690" y="462" width="238" height="118" rx="8"/>
+  <text class="h" x="718" y="496">评估智能体</text>
+  <text class="t" x="718" y="522">批改交互练习和反思</text>
+  <text class="t" x="718" y="544">输出学习处方与复测建议</text>
+
+  <rect class="soft" x="374" y="462" width="236" height="118" rx="8"/>
+  <text class="h" x="402" y="496">Notebook / 证据账本</text>
+  <text class="t" x="402" y="522">保存资源、答题、反馈</text>
+  <text class="t" x="402" y="544">沉淀为下一轮画像依据</text>
+
+  <rect class="panel" x="86" y="452" width="210" height="138" rx="8"/>
+  <rect x="108" y="476" width="72" height="24" rx="8" fill="#0f766e"/>
+  <text class="tag" x="124" y="493">用户看到</text>
+  <text class="t" x="112" y="526">当前只做一件事</text>
+  <text class="t" x="112" y="550">少量推荐资源</text>
+  <text class="t" x="112" y="574">提交后得到反馈</text>
+
+  <path class="line" d="M296 236 L360 236"/>
+  <path class="line" d="M590 218 C622 190 624 176 656 176"/>
+  <path class="line" d="M590 258 C620 282 624 316 656 316"/>
+  <path class="line" d="M874 174 C900 174 908 188 934 204"/>
+  <path class="line" d="M874 316 C900 316 908 300 934 280"/>
+  <path class="line" d="M1053 412 C1053 456 972 506 928 520"/>
+  <path class="line" d="M690 520 L610 520"/>
+  <path class="dash" d="M492 462 C470 394 416 336 360 284"/>
+  <path class="dash" d="M492 580 C424 628 266 624 198 590"/>
+  <path class="mutedline" d="M198 452 C230 384 322 322 360 274"/>
+
+  <rect class="panel" x="112" y="642" width="1036" height="64" rx="8"/>
+  <text class="h" x="142" y="674">录屏讲法</text>
+  <text class="t" x="238" y="674">“SparkWeave 不是把工具堆在页面上，而是由协调智能体根据画像自动唤醒资源、练习和评估智能体，最后把结果回写成下一轮学习依据。”</text>
+</svg>

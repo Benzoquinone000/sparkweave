@@ -26,7 +26,7 @@ SparkWeave 星火织学围绕“对话式学习画像自主构建、多智能体
 | --- | --- |
 | 项目解决什么问题 | 学生只跟着“当前任务”走，系统在背后完成画像、资源、练习、反馈和路径调整。 |
 | 比赛五项如何对齐 | [赛题对齐路线](docs/competition-roadmap.md)、`dist/demo_materials/sparkweave-competition-scorecard.md` |
-| 多智能体协作在哪里 | [多智能体协作蓝图](docs/guided-learning.md#课程产出包与比赛材料)、`sparkweave-agent-collaboration-blueprint.md` |
+| 多智能体协作在哪里 | [多智能体协作蓝图](docs/guided-learning.md#课程产出包与比赛材料)、[静态架构图](docs/assets/agent-collaboration-blueprint.svg)、`sparkweave-agent-collaboration-blueprint.md` |
 | 7 分钟视频怎么录 | [演示者 5 分钟入口](docs/demo-quickstart.md)、[比赛 Runbook](docs/competition-demo-runbook.md) |
 | 科大讯飞工具怎么用 | [科大讯飞能力接入说明](docs/iflytek-integration.md) |
 
@@ -41,6 +41,12 @@ SparkWeave 星火织学围绕“对话式学习画像自主构建、多智能体
 | 资源生成 | 支持课程问答、练习题、学习路径、图表说明、SVG/Mermaid 可视化和 Manim 视频讲解。 |
 | 个性化推送 | 结合 RAG、历史会话、学习记录和题目反馈，形成下一步学习建议。 |
 | 效果评估 | 通过交互式题库、答题回写和学习记录，形成“学习-练习-反馈-再规划”闭环。 |
+
+## 多智能体协作蓝图
+
+<p align="center">
+  <img src="docs/assets/agent-collaboration-blueprint.svg" alt="SparkWeave 多智能体协作蓝图" />
+</p>
 
 ## 页面展示
 

@@ -134,6 +134,7 @@
 - 课程产出包 Markdown 导出继续去开发者化：赛前检查、五项对齐、兜底素材和提交清单里的 `ready/seed/todo` 状态会写成“已就绪 / 可排练 / 待补齐”等中文表达。
 - 课程产出包新增“多智能体协作蓝图”：把对话协调、画像、路径规划、资源生成集群和评估智能体压缩成一条可录屏讲述的接力路线，并同步输出到前端卡片和 Markdown。
 - 离线比赛材料也新增 `sparkweave-agent-collaboration-blueprint.md`：即使现场没有真实 session，也能稳定展示多智能体协作架构、Mermaid 草图、角色分工和录屏讲法。
+- 文档素材新增 `docs/assets/agent-collaboration-blueprint.svg`：README、导学文档和比赛提交包都可以直接引用静态协作图，不依赖 Mermaid 渲染环境。
 - 新增 `docs/iflytek-integration.md`：把讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的作用、配置方式和失败回退整理成比赛答辩可用说明，并纳入提交包。
 - 离线演示材料新增 `sparkweave-final-pitch-checklist.md`：把 PPT、7 分钟视频、多智能体蓝图、讯飞工具说明、AI Coding 说明和赛前命令压成一页式最终核对清单。
 - 赛前 CLI 入口继续收束：`competition-templates` 列出课程模板，`competition-demo` 导出演示材料，`competition-package` 导出提交包，`competition-preflight` 可先检查再打包，`competition-check --format json` 可生成结构化就绪报告。

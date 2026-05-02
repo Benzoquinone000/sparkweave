@@ -65,6 +65,7 @@ ASSETS = [
     ("assets/logo-ver2.png", "logo-ver2.png"),
     ("assets/architecture.svg", "architecture.svg"),
     ("docs/assets/guided-learning-loop.svg", "guided-learning-loop.svg"),
+    ("docs/assets/agent-collaboration-blueprint.svg", "agent-collaboration-blueprint.svg"),
 ]
 
 SCREENSHOT_PATTERNS = [

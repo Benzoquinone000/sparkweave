@@ -639,6 +639,8 @@ data/user/workspace/guide/v2/learner_memory.json
 
 课程产出包还会生成 `agent_collaboration_blueprint`。它把对话协调、画像、路径规划、资源生成集群和评估智能体压缩成用户可读的接力路线：谁接手、用什么证据、产出什么、录屏时看哪一页。前端展示一张简洁协作卡，完整角色表和 Mermaid 草图写入 Markdown，避免把原始运行日志暴露给学习者。
 
+![SparkWeave 多智能体协作蓝图](./assets/agent-collaboration-blueprint.svg)
+
 课程产出包还会生成 `defense_qa`。它把评委最可能追问的问题，例如“为什么不是普通聊天机器人”“画像如何更新”“多智能体协作体现在哪里”“学习效果评估依据是什么”，压缩成短回答、证据和演示页面定位。前端只预览前两个问题，完整问答写入 Markdown，帮助答辩不跑偏。
 
 课程产出包页面支持直接下载 Markdown。这个按钮不替代 Notebook 保存，而是面向比赛提交和赛前整理：用户可以把课程项目、PPT 骨架、录屏讲稿、赛题五项对齐、答辩问答和 AI Coding 说明导出成一个 `.md` 文件，再整理到 PPT 或提交文档中。

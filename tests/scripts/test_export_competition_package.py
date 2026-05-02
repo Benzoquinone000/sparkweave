@@ -70,6 +70,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "docs" / "iflytek-integration.md").exists()
     assert (output / "course_templates" / "ai_learning_agents_systems.json").exists()
     assert (output / "assets" / "architecture.svg").exists()
+    assert (output / "assets" / "agent-collaboration-blueprint.svg").exists()
     assert (output / "screenshots" / "screenshots-simplified-guide.png").exists()
     assert (output / "runtime" / ".env.example").exists()
     assert (output / "runtime" / "scripts" / "check_competition_readiness.py").exists()

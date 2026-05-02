@@ -44,6 +44,7 @@ REQUIRED_ASSETS = [
     "assets/logo-ver2.png",
     "assets/architecture.svg",
     "docs/assets/guided-learning-loop.svg",
+    "docs/assets/agent-collaboration-blueprint.svg",
 ]
 
 REQUIRED_SCREENSHOTS = [
@@ -229,6 +230,7 @@ def check_generated_exports() -> list[Check]:
                     "demo_materials/sparkweave-agent-collaboration-blueprint.md",
                     "demo_materials/sparkweave-competition-scorecard.md",
                     "demo_materials/sparkweave-final-pitch-checklist.md",
+                    "assets/agent-collaboration-blueprint.svg",
                     "course_templates/ai_learning_agents_systems.json",
                     "runtime/scripts/check_competition_readiness.py",
                     "runtime/scripts/check_release_safety.py",

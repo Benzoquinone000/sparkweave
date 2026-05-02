@@ -27,6 +27,7 @@ from export_demo_materials import (
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT = ROOT / "dist" / "competition_package"
+DEFAULT_ARCHIVE = ROOT / "dist" / "sparkweave_competition_package.zip"
 
 DOCS = [
     ("README.md", "project-readme.md"),
@@ -97,6 +98,11 @@ def main() -> int:
         action="store_true",
         help="Do not remove the output directory before exporting.",
     )
+    parser.add_argument(
+        "--archive",
+        type=Path,
+        help="Optional zip archive path to create after exporting the package.",
+    )
     args = parser.parse_args()
 
     output = prepare_output(args.output, clean=not args.no_clean)
@@ -116,6 +122,9 @@ def main() -> int:
 
     print(f"[competition-package] exported to {output}")
     print(f"[competition-package] copied {len(copied)} file(s), missing {len(missing)} file(s).")
+    if args.archive is not None:
+        archive = create_archive(output, args.archive)
+        print(f"[competition-package] archived to {archive}")
     if missing:
         print("[competition-package] missing files:")
         for item in missing:
@@ -133,6 +142,20 @@ def prepare_output(output: Path, *, clean: bool) -> Path:
         shutil.rmtree(resolved)
     resolved.mkdir(parents=True, exist_ok=True)
     return resolved
+
+
+def create_archive(package_dir: Path, archive: Path) -> Path:
+    archive = archive if archive.is_absolute() else ROOT / archive
+    if archive.suffix.lower() != ".zip":
+        archive = archive.with_suffix(".zip")
+    resolved_archive = archive.resolve()
+    resolved_package = package_dir.resolve()
+    if resolved_archive == resolved_package or resolved_package in resolved_archive.parents:
+        raise RuntimeError(f"Refuse to write archive inside package directory: {resolved_archive}")
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    base_name = str(archive.with_suffix(""))
+    created = shutil.make_archive(base_name, "zip", root_dir=package_dir.parent, base_dir=package_dir.name)
+    return Path(created)
 
 
 def copy_many(paths: Iterable[tuple[str, str]], target_dir: Path, copied: list[str], missing: list[str]) -> None:

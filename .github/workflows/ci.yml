@@ -36,7 +36,7 @@ jobs:
         run: python scripts/check_competition_readiness.py
 
       - name: Run competition preflight CLI
-        run: python -m sparkweave_cli competition-preflight --report dist/competition-readiness.json --summary dist/competition-readiness.md
+        run: python -m sparkweave_cli competition-preflight --report dist/competition-readiness.json --summary dist/competition-readiness.md --archive dist/sparkweave_competition_package.zip
 
       - name: Summarize competition readiness
         run: cat dist/competition-readiness.md >> "$GITHUB_STEP_SUMMARY"
@@ -48,6 +48,7 @@ jobs:
           path: |
             dist/competition-readiness.json
             dist/competition-readiness.md
+            dist/sparkweave_competition_package.zip
             dist/competition_package
           if-no-files-found: error
 

@@ -283,6 +283,11 @@ def competition_package(
         help="Output directory. Defaults to dist/competition_package.",
     ),
     no_clean: bool = typer.Option(False, "--no-clean", help="Do not remove output before exporting."),
+    archive: Optional[Path] = typer.Option(
+        None,
+        "--archive",
+        help="Optional zip archive path to create after exporting.",
+    ),
 ) -> None:
     """Export a competition submission package with docs, screenshots, runtime files, and demo materials."""
 
@@ -291,6 +296,8 @@ def competition_package(
         cmd.extend(["--output", str(output)])
     if no_clean:
         cmd.append("--no-clean")
+    if archive is not None:
+        cmd.extend(["--archive", str(archive)])
     _run_project_script("export_competition_package.py", cmd)
 
 
@@ -323,6 +330,11 @@ def competition_preflight(
         "--summary",
         help="Optional path to write a concise Markdown readiness summary.",
     ),
+    archive: Optional[Path] = typer.Option(
+        None,
+        "--archive",
+        help="Optional zip archive path to create after exporting.",
+    ),
 ) -> None:
     """Run readiness checks, optionally build the web UI, then export a competition package."""
 
@@ -351,6 +363,8 @@ def competition_preflight(
     package_args = ["--template", template]
     if output is not None:
         package_args.extend(["--output", str(output)])
+    if archive is not None:
+        package_args.extend(["--archive", str(archive)])
     package_result = subprocess.run(
         _project_script_cmd("export_competition_package.py", package_args),
         cwd=root,

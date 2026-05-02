@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -127,3 +128,19 @@ def test_export_competition_package_accepts_course_template(tmp_path: Path) -> N
     assert "高等数学" in manifest
     assert "高等数学" in scorecard
     assert "SparkWeave 赛题评分点证据表" in scorecard
+
+
+def test_export_competition_package_can_write_archive(tmp_path: Path) -> None:
+    output = tmp_path / "competition_package"
+    archive = tmp_path / "sparkweave_package.zip"
+
+    result = run_script("export_competition_package.py", output, "--archive", str(archive))
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert archive.exists()
+    assert f"[competition-package] archived to {archive}" in result.stdout
+    with zipfile.ZipFile(archive) as package:
+        names = set(package.namelist())
+    assert "competition_package/submission_manifest.md" in names
+    assert "competition_package/demo_materials/sparkweave-competition-scorecard.md" in names
+    assert "competition_package/runtime/scripts/start_web.py" in names

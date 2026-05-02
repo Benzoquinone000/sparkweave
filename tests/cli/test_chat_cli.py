@@ -292,6 +292,7 @@ def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: P
     monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
 
     output = tmp_path / "package"
+    archive = tmp_path / "package.zip"
     result = runner.invoke(
         app,
         [
@@ -300,6 +301,8 @@ def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: P
             "robotics_ros_foundations",
             "--output",
             str(output),
+            "--archive",
+            str(archive),
             "--no-clean",
         ],
     )
@@ -309,7 +312,15 @@ def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: P
     assert calls[0][0][1].endswith("scripts\\export_competition_package.py") or calls[0][0][1].endswith(
         "scripts/export_competition_package.py"
     )
-    assert calls[0][0][-5:] == ["--template", "robotics_ros_foundations", "--output", str(output), "--no-clean"]
+    assert calls[0][0][-7:] == [
+        "--template",
+        "robotics_ros_foundations",
+        "--output",
+        str(output),
+        "--no-clean",
+        "--archive",
+        str(archive),
+    ]
 
 
 def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path: Path) -> None:
@@ -386,6 +397,7 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
     output = tmp_path / "package"
     report = tmp_path / "readiness.json"
     summary = tmp_path / "readiness.md"
+    archive = tmp_path / "package.zip"
     result = runner.invoke(
         app,
         [
@@ -396,6 +408,8 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
             str(report),
             "--summary",
             str(summary),
+            "--archive",
+            str(archive),
         ],
     )
 
@@ -412,7 +426,14 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
     assert calls[2][0][1].endswith("scripts\\export_competition_package.py") or calls[2][0][1].endswith(
         "scripts/export_competition_package.py"
     )
-    assert calls[2][0][-4:] == ["--template", "ai_learning_agents_systems", "--output", str(output)]
+    assert calls[2][0][-6:] == [
+        "--template",
+        "ai_learning_agents_systems",
+        "--output",
+        str(output),
+        "--archive",
+        str(archive),
+    ]
 
 
 def test_competition_preflight_stops_when_web_build_fails(monkeypatch) -> None:

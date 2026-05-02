@@ -30,12 +30,14 @@ def main() -> int:
     deck_html = build_deck_html(template)
     script = build_recording_script(template)
     qa = build_defense_qa(template)
+    scorecard = build_competition_scorecard(template)
     index = build_index(template, output)
 
     (output / "sparkweave-demo-deck-outline.md").write_text(deck, encoding="utf-8")
     (output / "sparkweave-demo-deck.html").write_text(deck_html, encoding="utf-8")
     (output / "sparkweave-7min-recording-script.md").write_text(script, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
+    (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
 
     print(f"[demo-materials] exported template {template.get('id')} to {output}")
@@ -340,6 +342,80 @@ def build_defense_qa(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_competition_scorecard(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    persona = seed.get("persona") if isinstance(seed.get("persona"), dict) else {}
+    weak_points = join_or(list_of_text(persona.get("weak_points"))[:3], "概念边界、证据链、效果评估")
+    preferences = join_or([resource_preference_label(item) for item in list_of_text(persona.get("preferences"))[:3]], "图解、练习、短视频")
+    tasks = task_lookup(template)
+    chain = [tasks.get(task_id, {"title": task_id}) for task_id in list_of_text(seed.get("task_chain"))]
+    task_titles = join_or([text(item.get("title"), "演示任务") for item in chain[:4]], "画像访谈、前测补基、资源生成、反馈报告")
+
+    rows = [
+        (
+            "对话式学习画像自主构建",
+            f"演示学习者卡点：{weak_points}；资源偏好：{preferences}。",
+            "/guide 学习画像卡、/chat 按画像继续、学习画像依据页。",
+            "强调画像来自对话、练习、反思、Notebook 和资源行为，不是手填标签。",
+        ),
+        (
+            "多智能体协同的资源生成",
+            "协调智能体按画像和意图唤醒规划、检索、图解、视频、出题和评估角色。",
+            "/chat 协作路线、/guide 资源卡“智能体接力”。",
+            "讲清“一个请求拆给多个专业角色，再由评估接回闭环”。",
+        ),
+        (
+            "个性化学习路径规划和资源推送",
+            f"课程任务链：{task_titles}。",
+            "/guide 当前任务、课程路线、补基任务和下一步建议。",
+            "强调用户每次只看一个当前任务，系统根据画像和反馈动态调整。",
+        ),
+        (
+            "智能辅导",
+            "同一知识点可生成文字解释、SVG/Mermaid 图解、Manim 短视频、互动练习和精选公开视频。",
+            "/chat 或 /guide 的图解、短视频、练习、精选视频卡片。",
+            "演示一份资源即可，不要贪多；重点说资源围绕当前卡点生成。",
+        ),
+        (
+            "学习效果评估",
+            "练习结果、错因、反思和资源使用行为进入证据账本，并生成学习处方。",
+            "/guide 提交页、学习报告、演示就绪度、课程产出包。",
+            "把评估讲成下一步行动，而不是分数报表。",
+        ),
+    ]
+
+    lines = [
+        "# SparkWeave 赛题评分点证据表",
+        "",
+        f"- 课程：{course}",
+        f"- 生成时间：{now()}",
+        "- 用法：做 PPT 或答辩前，逐行确认每个评分点都有页面证据和一句讲法。",
+        "",
+        "| 赛题要求 | 当前证据 | 演示入口 | 答辩讲法 |",
+        "| --- | --- | --- | --- |",
+    ]
+    lines.extend(f"| {item[0]} | {item[1]} | {item[2]} | {item[3]} |" for item in rows)
+    lines.extend(
+        [
+            "",
+            "## 录屏最小闭环",
+            "",
+            "1. 打开 `/guide`，选择赛题主线课程。",
+            "2. 展示画像如何决定当前任务。",
+            "3. 生成一个图解、短视频、练习或精选公开视频。",
+            "4. 提交一次答案/评分/反思。",
+            "5. 展示学习报告、学习处方和课程产出包。",
+            "",
+            "## 兜底讲法",
+            "",
+            "- 如果模型或视频生成变慢，直接展示课程模板里的稳定任务、历史截图和本离线材料。",
+            "- 如果评委追问创新点，优先讲“画像驱动的多智能体学习闭环”，不要只讲模型调用。",
+        ]
+    )
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_index(template: dict[str, Any], output: Path) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     return "\n".join(
@@ -356,6 +432,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-demo-deck.html`：可直接打开、截图或打印为 PDF 的演示页。",
             "- `sparkweave-7min-recording-script.md`：7 分钟录屏分段讲稿。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
+            "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
             "",
             "这些材料是离线兜底版本。正式演示时，优先使用导学页课程产出包里的 Markdown 导出，因为它会包含当前真实 session 的画像、任务、报告和产物证据。",
         ]

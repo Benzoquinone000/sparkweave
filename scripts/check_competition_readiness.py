@@ -68,6 +68,7 @@ GENERATED_DEMO_FILES = [
     "sparkweave-demo-deck.html",
     "sparkweave-7min-recording-script.md",
     "sparkweave-defense-qa.md",
+    "sparkweave-competition-scorecard.md",
 ]
 
 
@@ -199,6 +200,7 @@ def check_generated_exports() -> list[Check]:
                     ("sparkweave-demo-deck-outline.md", "SparkWeave 演示 PPT 骨架"),
                     ("sparkweave-7min-recording-script.md", "SparkWeave 7 分钟录屏讲稿"),
                     ("sparkweave-defense-qa.md", "SparkWeave 答辩问答预案"),
+                    ("sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
                 ],
             )
         )
@@ -219,6 +221,7 @@ def check_generated_exports() -> list[Check]:
                     "README.md",
                     "submission_manifest.md",
                     "demo_materials/sparkweave-demo-deck.html",
+                    "demo_materials/sparkweave-competition-scorecard.md",
                     "course_templates/ai_learning_agents_systems.json",
                     "runtime/scripts/check_competition_readiness.py",
                     "runtime/scripts/check_release_safety.py",
@@ -234,6 +237,7 @@ def check_generated_exports() -> list[Check]:
                 [
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
+                    ("demo_materials/sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
                     ("docs/demo-quickstart.md", "演示者 5 分钟入口"),
                 ],
             )

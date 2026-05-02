@@ -493,6 +493,73 @@ def test_competition_preflight_can_render_summary(monkeypatch, tmp_path: Path) -
     assert calls[4][0][-1] == str(archive)
 
 
+def test_competition_preflight_can_write_final_verify_report(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    archive = tmp_path / "package.zip"
+    verify_report = tmp_path / "package-verify.json"
+    result = runner.invoke(
+        app,
+        [
+            "competition-preflight",
+            "--output",
+            str(output),
+            "--archive",
+            str(archive),
+            "--verify-report",
+            str(verify_report),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 4
+    assert calls[2][0][1].endswith("scripts\\verify_competition_package.py") or calls[2][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[2][0][-1] == str(output)
+    assert calls[3][0][1].endswith("scripts\\verify_competition_package.py") or calls[3][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[3][0][-3:] == [str(archive), "--output", str(verify_report)]
+
+
+def test_competition_preflight_can_write_directory_verify_report(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    verify_report = tmp_path / "package-verify.json"
+    result = runner.invoke(
+        app,
+        [
+            "competition-preflight",
+            "--output",
+            str(output),
+            "--verify-report",
+            str(verify_report),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 3
+    assert calls[2][0][1].endswith("scripts\\verify_competition_package.py") or calls[2][0][1].endswith(
+        "scripts/verify_competition_package.py"
+    )
+    assert calls[2][0][-3:] == [str(output), "--output", str(verify_report)]
+
+
 def test_competition_preflight_stops_when_web_build_fails(monkeypatch) -> None:
     calls: list[list[str]] = []
 

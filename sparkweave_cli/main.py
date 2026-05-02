@@ -99,10 +99,13 @@ def _render_readiness_summary(report: Path, summary: Path) -> None:
         raise typer.Exit(code=result.returncode)
 
 
-def _verify_competition_package(package: Path) -> None:
+def _verify_competition_package(package: Path, *, report: Optional[Path] = None) -> None:
     root = _repo_root()
+    args = [str(package)]
+    if report is not None:
+        args.extend(["--output", str(report)])
     result = subprocess.run(
-        _project_script_cmd("verify_competition_package.py", [str(package)]),
+        _project_script_cmd("verify_competition_package.py", args),
         cwd=root,
         check=False,
     )
@@ -372,6 +375,11 @@ def competition_preflight(
         "--archive",
         help="Optional zip archive path to create after exporting.",
     ),
+    verify_report: Optional[Path] = typer.Option(
+        None,
+        "--verify-report",
+        help="Optional JSON verification report for the final exported package or archive.",
+    ),
 ) -> None:
     """Run readiness checks, optionally build the web UI, then export a competition package."""
 
@@ -410,9 +418,10 @@ def competition_preflight(
     if package_result.returncode != 0:
         raise typer.Exit(code=package_result.returncode)
 
-    _verify_competition_package(output or _default_competition_package())
+    package_dir = output or _default_competition_package()
+    _verify_competition_package(package_dir, report=verify_report if archive is None else None)
     if archive is not None:
-        _verify_competition_package(archive)
+        _verify_competition_package(archive, report=verify_report)
     raise typer.Exit(code=0)
 
 

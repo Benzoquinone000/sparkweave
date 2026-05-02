@@ -86,10 +86,10 @@ python -m sparkweave_cli competition-package
 赛前最后一次打包可以直接用：
 
 ```powershell
-python -m sparkweave_cli competition-preflight --with-build --report dist/competition-readiness.json
+python -m sparkweave_cli competition-preflight --with-build --report dist/competition-readiness.json --summary dist/competition-readiness.md --archive dist/sparkweave_competition_package.zip --verify-report dist/competition-package-verify.json
 ```
 
-`--with-build` 会先跑前端生产构建，再导出提交包。录屏排练时可以省略它，正式提交前建议保留。
+`--with-build` 会先跑前端生产构建，再导出提交包。`--summary` 生成一页式就绪摘要，`--archive` 生成可上传 zip，`--verify-report` 保存最终提交物验证报告。录屏排练时可以省略构建和归档参数，正式提交前建议保留。
 
 要为其它完整课程生成演示包，可以指定课程模板：
 

@@ -16,7 +16,6 @@ from .ocr import (
     ocr_pdf_with_iflytek,
     recognize_image_with_iflytek,
 )
-from .papers import search_arxiv_papers
 from .paths import get_path_service, get_research_checkpoint_db_path
 from .prompting import load_prompt_hints
 from .question import (
@@ -41,6 +40,15 @@ from .session import (
 from .validation import validate_capability_config
 from .vision import analyze_geogebra_image
 from .vision_input import ImageError, resolve_image_input
+
+
+async def search_arxiv_papers(*args, **kwargs):
+    """Search arXiv papers without importing the optional arxiv client at service import time."""
+
+    from .papers import search_arxiv_papers as _search_arxiv_papers
+
+    return await _search_arxiv_papers(*args, **kwargs)
+
 
 __all__ = [
     "LLMConfig",

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,36 @@ from sparkweave.app import TurnRequest
 
 runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_competition_cli_runs_without_arxiv_dependency() -> None:
+    code = """
+import builtins
+import runpy
+import sys
+
+real_import = builtins.__import__
+
+def guarded_import(name, *args, **kwargs):
+    if name == "arxiv" or name.startswith("arxiv."):
+        raise ModuleNotFoundError("No module named 'arxiv'")
+    return real_import(name, *args, **kwargs)
+
+builtins.__import__ = guarded_import
+sys.argv = ["sparkweave_cli", "competition-templates", "--format", "json"]
+runpy.run_module("sparkweave_cli", run_name="__main__")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "ai_learning_agents_systems" in result.stdout
 
 
 def _install_fake_runtime(monkeypatch, captured_requests: list[TurnRequest]) -> None:

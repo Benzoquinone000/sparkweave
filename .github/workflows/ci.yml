@@ -38,6 +38,15 @@ jobs:
       - name: Run competition preflight CLI
         run: python -m sparkweave_cli competition-preflight --report dist/competition-readiness.json
 
+      - name: Upload competition readiness artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: competition-readiness
+          path: |
+            dist/competition-readiness.json
+            dist/competition_package
+          if-no-files-found: error
+
       - name: Run focused backend tests
         run: |
           python -m pytest \

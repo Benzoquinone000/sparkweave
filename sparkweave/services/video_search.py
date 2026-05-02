@@ -130,6 +130,8 @@ async def recommend_learning_videos(
         "success": True,
         "render_type": "external_video",
         "response": _build_response(videos, topic, fallback_search=fallback_search),
+        "watch_plan": _build_watch_plan(videos, topic, fallback_search=fallback_search),
+        "reflection_prompt": _build_reflection_prompt(topic, hints),
         "videos": [item.to_dict() for item in videos],
         "queries": queries,
         "search_errors": errors,
@@ -434,6 +436,47 @@ def _build_response(videos: list[VideoCandidate], topic: str, *, fallback_search
     lead = f"已为「{topic}」筛选 {len(videos)} 个公开视频，优先选择短时长、入门友好、可嵌入播放的内容。"
     first = videos[0]
     return f"{lead} 推荐先看《{first.title}》，再回到当前任务提交一句反思。"
+
+
+def _build_watch_plan(videos: list[VideoCandidate], topic: str, *, fallback_search: bool = False) -> list[str]:
+    if not videos:
+        return [
+            f"把关键词缩小到「{topic}」里的一个概念，例如公式含义、直观例子或常见误区。",
+            "重新检索后只保留 1 个最短、最清楚的视频，不要连续刷推荐列表。",
+            "看完立刻回到导学提交一句反思，让系统判断是否需要补练习。",
+        ]
+    if fallback_search:
+        return [
+            "只打开一个平台搜索入口，优先选择标题里有“入门”“直观”“例题”的短讲解。",
+            "最多看 1-2 个结果；如果 3 分钟内没有讲到当前卡点，就换下一个。",
+            "看完用一句话写下“我现在懂了什么、还卡在哪里”，再回到导学提交。",
+        ]
+    featured = videos[0]
+    duration = _duration_label(featured.duration_seconds)
+    title = featured.title or "第一个视频"
+    first_step = f"先看《{title}》"
+    if duration:
+        first_step += f"，预计 {duration}"
+    first_step += "；只关注它是否解释清楚当前任务的核心卡点。"
+    return [
+        first_step,
+        "看到关键公式、图示或例题时暂停 10 秒，用自己的话复述一遍。",
+        "看完不要继续刷视频，回到导学提交反思或做一组小练习，让系统更新画像。",
+    ]
+
+
+def _build_reflection_prompt(topic: str, hints: dict[str, Any]) -> str:
+    weak_points = _as_strings(hints.get("weak_points"))[:2]
+    if weak_points:
+        return f"看完后用一句话回答：关于「{topic}」，{ '、'.join(weak_points) } 是否已经清楚？如果还不清楚，卡在哪一步？"
+    return f"看完后用一句话回答：关于「{topic}」，你现在能讲清楚什么？还需要系统继续补哪一块？"
+
+
+def _duration_label(seconds: int | None) -> str:
+    if seconds is None or seconds <= 0:
+        return ""
+    minutes = max(1, round(seconds / 60))
+    return f"{minutes} 分钟"
 
 
 def _public_learner_hints(hints: dict[str, Any]) -> dict[str, Any]:

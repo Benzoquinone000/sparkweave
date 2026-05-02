@@ -670,6 +670,8 @@ export interface ExternalVideoResult {
   success?: boolean;
   render_type?: "external_video" | string;
   response?: string;
+  watch_plan?: string[];
+  reflection_prompt?: string;
   learner_profile_hints?: Record<string, unknown>;
   style_hint?: string;
   videos?: ExternalVideoRecommendation[];

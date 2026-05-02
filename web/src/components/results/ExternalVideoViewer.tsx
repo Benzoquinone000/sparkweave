@@ -33,6 +33,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   const embedUrl = safeEmbedUrl(featured?.embed_url);
   const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
   const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
+  const watchPlan = (result.watch_plan ?? []).filter(Boolean).slice(0, 3);
   const recordedVideoUrls = useRef(new Set<string>());
   const [viewedVideoUrls, setViewedVideoUrls] = useState<Set<string>>(() => new Set());
 
@@ -60,6 +61,8 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
           kind: video.kind || "video",
           fallback_search: result.fallback_search || false,
           query: result.queries?.[0] || "",
+          watch_plan: result.watch_plan ?? [],
+          reflection_prompt: result.reflection_prompt || "",
           style_hint: result.style_hint || "",
           learner_profile_hints: result.learner_profile_hints ?? {},
           agent_chain: result.agent_chain ?? [],
@@ -85,8 +88,10 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       result.fallback_search,
       result.learner_profile_hints,
       result.queries,
+      result.reflection_prompt,
       result.response,
       result.style_hint,
+      result.watch_plan,
     ],
   );
 
@@ -102,11 +107,29 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       {featured ? (
         <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3" data-testid="external-video-watch-plan">
           <p className="text-xs font-semibold text-brand-teal">建议用法</p>
-          <p className="mt-1 text-sm leading-6 text-slate-700">
-            {hasFallbackSearch
-              ? "先打开一个平台搜索入口，选 1-2 个短讲解，看完后回到导学提交反思或做一组练习。"
-              : "先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。"}
-          </p>
+          {watchPlan.length ? (
+            <ol className="mt-2 grid gap-2 text-sm leading-6 text-slate-700">
+              {watchPlan.map((step, index) => (
+                <li key={`${step}-${index}`} className="flex gap-2">
+                  <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-teal-50 text-xs font-semibold text-brand-teal">
+                    {index + 1}
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-1 text-sm leading-6 text-slate-700">
+              {hasFallbackSearch
+                ? "先打开一个平台搜索入口，选 1-2 个短讲解，看完后回到导学提交反思或做一组练习。"
+                : "先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。"}
+            </p>
+          )}
+          {result.reflection_prompt ? (
+            <p className="mt-3 rounded-md border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+              {result.reflection_prompt}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {chain.length ? (

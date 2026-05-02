@@ -44,6 +44,9 @@ async def test_recommend_learning_videos_ranks_public_video_links(monkeypatch) -
     assert result["success"] is True
     assert result["render_type"] == "external_video"
     assert len(result["videos"]) == 2
+    assert result["watch_plan"][0].startswith("先看")
+    assert "回到导学提交" in result["watch_plan"][-1]
+    assert "梯度下降的直观理解" in result["reflection_prompt"]
     assert result["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
     assert result["learner_profile_hints"]["preferences"] == ["video", "visual"]
     assert result["videos"][0]["platform"] == "Bilibili"
@@ -188,6 +191,9 @@ async def test_recommend_learning_videos_returns_platform_search_fallbacks(monke
     assert result["success"] is True
     assert result["fallback_search"] is True
     assert len(result["videos"]) == 2
+    assert result["watch_plan"][0].startswith("只打开一个平台搜索入口")
+    assert "看完用一句话" in result["watch_plan"][-1]
+    assert "梯度下降" in result["reflection_prompt"]
     assert all(item["kind"] == "search_fallback" for item in result["videos"])
     assert result["videos"][0]["url"].startswith("https://search.bilibili.com/")
     assert result["videos"][1]["url"].startswith("https://www.youtube.com/results")

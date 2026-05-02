@@ -192,7 +192,14 @@
         "title": "左右极限图解兜底素材",
         "preview": "从左侧和右侧靠近同一点，比较函数值趋向是否一致。",
         "demo_action": "公式或图解生成较慢时先展示这张趋近图，再补交互练习。",
-        "talking_point": "用图像先解决极限存在性的概念边界。"
+        "talking_point": "用图像先解决极限存在性的概念边界。",
+        "diagram_nodes": ["x 从左侧靠近 a", "x 从右侧靠近 a", "函数值趋向 L", "左右极限比较", "双侧极限结论"],
+        "quiz_items": [
+          { "type": "choice", "question": "左右极限都存在但不相等时，双侧极限是否存在？", "answer": "不存在" },
+          { "type": "judgement", "question": "极限存在必须要求函数在该点有定义。", "answer": "错" },
+          { "type": "fill", "question": "若左极限和右极限都等于 L，则双侧极限等于 ____。", "answer": "L" }
+        ],
+        "latex_focus": "\\lim_{x \\to a^-} f(x)=\\lim_{x \\to a^+} f(x)=L"
       },
       {
         "task_id": "M4",
@@ -200,7 +207,10 @@
         "title": "割线逼近切线动画兜底素材",
         "preview": "割线点逐步靠近，割线斜率收敛到切线斜率，最后出现导数定义。",
         "demo_action": "Manim 渲染较慢时展示历史视频截图或动画脚本关键帧。",
-        "talking_point": "短视频用于解释抽象变化率，是智能辅导的加分展示。"
+        "talking_point": "短视频用于解释抽象变化率，是智能辅导的加分展示。",
+        "video_beats": ["0-5 秒：显示曲线和固定点", "5-14 秒：移动另一个点形成割线", "14-24 秒：割线逐步逼近切线", "24-32 秒：出现导数定义和几何意义"],
+        "latex_focus": "f'(a)=\\lim_{h\\to 0}\\frac{f(a+h)-f(a)}{h}",
+        "key_takeaways": ["导数是差商极限", "切线斜率来自割线斜率逼近", "几何意义先于公式记忆"]
       },
       {
         "task_id": "M5",
@@ -208,7 +218,13 @@
         "title": "链式法则分层练习兜底素材",
         "preview": "基础选择、结构填空和一步简答，重点识别内外层函数。",
         "demo_action": "现场提交一题，展示对错反馈和下一步处方。",
-        "talking_point": "练习反馈让学习效果评估有真实证据。"
+        "talking_point": "练习反馈让学习效果评估有真实证据。",
+        "quiz_items": [
+          { "type": "choice", "question": "对 y=(3x+1)^5 求导时，内层函数是什么？", "answer": "3x+1" },
+          { "type": "fill", "question": "若 y=sin(x^2)，则 y'=____。", "answer": "2x cos(x^2)" },
+          { "type": "short", "question": "为什么链式法则需要乘以内层导数？", "answer": "因为外层变化要叠加内层变量对 x 的变化率" }
+        ],
+        "key_takeaways": ["先圈内外层", "再外层求导", "最后乘以内层导数"]
       }
     ],
     "sample_reflection": {

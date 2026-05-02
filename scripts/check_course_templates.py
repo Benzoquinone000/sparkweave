@@ -135,6 +135,42 @@ def validate_demo_seed(path: Path, demo_seed: Any, task_ids: set[str], errors: l
     for task_id in task_chain:
         if task_ids and str(task_id) not in task_ids:
             errors.append(f"{path}: demo_seed references unknown task {task_id}")
+    validate_demo_seed_artifacts(path, demo_seed.get("sample_artifacts"), task_ids, errors)
+
+
+def validate_demo_seed_artifacts(path: Path, artifacts: Any, task_ids: set[str], errors: list[str]) -> None:
+    if artifacts in (None, []):
+        errors.append(f"{path}: demo_seed.sample_artifacts should include stable recording fallback assets")
+        return
+    if not isinstance(artifacts, list):
+        errors.append(f"{path}: demo_seed.sample_artifacts must be a list")
+        return
+    structured_detail_fields = {
+        "diagram_nodes",
+        "video_beats",
+        "quiz_items",
+        "key_takeaways",
+        "evidence_points",
+        "agent_route",
+        "report_sections",
+        "sample_prescription",
+        "code_snippet",
+        "latex_focus",
+    }
+    for index, item in enumerate(artifacts, start=1):
+        if not isinstance(item, dict):
+            errors.append(f"{path}: demo_seed.sample_artifacts[{index}] must be an object")
+            continue
+        task_id = string_field(item, "task_id")
+        if task_id and task_ids and task_id not in task_ids:
+            errors.append(f"{path}: demo_seed.sample_artifacts[{index}] references unknown task {task_id}")
+        for field in ("title", "preview", "demo_action", "talking_point"):
+            if not string_field(item, field):
+                errors.append(f"{path}: demo_seed.sample_artifacts[{index}] missing {field}")
+        if not any(item.get(field) not in (None, "", [], {}) for field in structured_detail_fields):
+            errors.append(
+                f"{path}: demo_seed.sample_artifacts[{index}] should include at least one structured detail field"
+            )
 
 
 def string_field(payload: dict[str, Any], key: str) -> str:

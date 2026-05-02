@@ -313,7 +313,7 @@ python scripts/check_course_templates.py
 
 录屏稳定性建议给模板补 `demo_seed`。`task_chain` 可以写成任务 ID 列表，也可以写成对象列表；`resource_prompts` 可以写成 `{task_id: prompt}` 字典，也可以写成 `{type,title,prompt}` 数组。课程产出包会把这些内容归一化成 `demo_seed_pack`，用于前端“录屏检查”、稳定提示词和兜底话术。
 
-`demo_seed` 也可以提供 `sample_artifacts`。它不是正式生成产物，而是录屏兜底素材说明，例如“图解应包含哪些元素”“Manim 视频可以展示哪些关键帧”“练习卡应该怎样反馈”。前端会把它压缩到“录屏检查”卡片，课程产出包 Markdown 会写入完整素材说明，避免现场模型慢或渲染慢时演示断掉。
+`demo_seed` 也可以提供结构化 `sample_artifacts`。它不是正式生成产物，而是录屏兜底素材说明，例如“图解应包含哪些节点”“Manim 视频有哪些关键帧”“预置练习的题干与答案是什么”“学习报告处方如何讲”。前端会把它压缩到“录屏检查”卡片，课程产出包 Markdown 会写入完整素材说明，离线演示导出会额外生成 `sparkweave-demo-fallback-assets.md`，避免现场模型慢或渲染慢时演示断掉。
 
 当前仓库内置三条外部完整课程样例：
 

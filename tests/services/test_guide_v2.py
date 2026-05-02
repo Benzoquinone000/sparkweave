@@ -391,6 +391,8 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
     assert "机器人系统全景图" in robotics_package["demo_seed_pack"]["resource_prompts"][0]["prompt"]
     assert robotics_package["demo_seed_pack"]["sample_artifacts"][0]["task_id"] == "R1"
     assert "兜底素材" in robotics_package["demo_seed_pack"]["sample_artifacts"][0]["title"]
+    assert robotics_package["demo_seed_pack"]["sample_artifacts"][0]["diagram_nodes"]
+    assert robotics_package["demo_seed_pack"]["sample_artifacts"][2]["quiz_items"][0]["answer"] == "话题"
     assert any("智能机器人与 ROS 基础" in item for item in robotics_package["demo_fallback_kit"]["checklist"])
 
     calculus = await manager.create_session(
@@ -409,6 +411,9 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
     assert "Manim" in calculus_package["demo_seed_pack"]["resource_prompts"][1]["prompt"]
     assert calculus_package["demo_seed_pack"]["sample_artifacts"][1]["type"] == "video"
     assert "割线逼近切线" in calculus_package["demo_seed_pack"]["sample_artifacts"][1]["title"]
+    assert calculus_package["demo_seed_pack"]["sample_artifacts"][1]["video_beats"]
+    assert "f'(a)" in calculus_package["demo_seed_pack"]["sample_artifacts"][1]["latex_focus"]
+    assert calculus_package["markdown"] and "公式重点" in calculus_package["markdown"]
     assert any("高等数学极限与导数" in item for item in calculus_package["demo_fallback_kit"]["checklist"])
 
     ai_agents = await manager.create_session(
@@ -429,6 +434,11 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
         artifact["task_id"] == "A7" and "学习效果评估报告" in artifact["title"]
         for artifact in ai_agents_package["demo_seed_pack"]["sample_artifacts"]
     )
+    report_artifact = next(
+        artifact for artifact in ai_agents_package["demo_seed_pack"]["sample_artifacts"] if artifact["task_id"] == "A7"
+    )
+    assert report_artifact["sample_prescription"]["primary_action"]
+    assert "预置练习" in ai_agents_package["markdown"]
     assert ai_agents_package["competition_alignment"]["coverage_score"] >= 80
     assert any("大模型教育智能体系统开发" in item for item in ai_agents_package["demo_fallback_kit"]["checklist"])
 

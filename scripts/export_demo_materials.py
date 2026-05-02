@@ -34,6 +34,7 @@ def main() -> int:
     deck_html = build_deck_html(template)
     script = build_recording_script(template)
     agent_blueprint = build_agent_collaboration_blueprint(template)
+    fallback_assets = build_demo_fallback_assets(template)
     qa = build_defense_qa(template)
     scorecard = build_competition_scorecard(template)
     checklist = build_final_pitch_checklist(template)
@@ -43,6 +44,7 @@ def main() -> int:
     (output / "sparkweave-demo-deck.html").write_text(deck_html, encoding="utf-8")
     (output / "sparkweave-7min-recording-script.md").write_text(script, encoding="utf-8")
     (output / "sparkweave-agent-collaboration-blueprint.md").write_text(agent_blueprint, encoding="utf-8")
+    (output / "sparkweave-demo-fallback-assets.md").write_text(fallback_assets, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
     (output / "sparkweave-final-pitch-checklist.md").write_text(checklist, encoding="utf-8")
@@ -459,6 +461,51 @@ def build_defense_qa(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_demo_fallback_assets(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    artifacts = [item for item in seed.get("sample_artifacts") or [] if isinstance(item, dict)]
+    lines = [
+        "# SparkWeave 稳定演示兜底素材",
+        "",
+        f"- 课程：{course}",
+        f"- 生成时间：{now()}",
+        "- 用法：现场生成慢、网络波动或视频渲染失败时，直接展示这些素材讲完整学习闭环。",
+        "",
+    ]
+    if not artifacts:
+        lines.extend(["暂无课程模板兜底素材。", ""])
+        return "\n".join(lines).strip() + "\n"
+
+    for index, item in enumerate(artifacts, start=1):
+        lines.extend(
+            [
+                f"## {index}. {text(item.get('title'), '稳定素材')}",
+                "",
+                f"- 任务：{text(item.get('task_id'), '-')}",
+                f"- 类型：{resource_preference_label(text(item.get('type') or item.get('resource_type'), 'visual'))}",
+                f"- 预览：{text(item.get('preview') or item.get('summary') or item.get('show'), '-')}",
+                f"- 录屏动作：{text(item.get('demo_action') or item.get('action'), '直接展示这份稳定素材。')}",
+                f"- 讲述点：{text(item.get('talking_point') or item.get('speaker_note'), '-')}",
+            ]
+        )
+        for field, label in fallback_asset_detail_labels().items():
+            if item.get(field) in (None, "", [], {}):
+                continue
+            lines.append(f"- {label}：{format_fallback_detail(item.get(field))}")
+        lines.append("")
+    lines.extend(
+        [
+            "## 录屏兜底讲法",
+            "",
+            "1. 先说明这是一份稳定历史产物，用于防止现场模型或渲染波动。",
+            "2. 再指出它对应当前学习任务，而不是孤立素材。",
+            "3. 最后回到提交反馈或学习报告，证明资源会进入评估闭环。",
+        ]
+    )
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_competition_scorecard(template: dict[str, Any]) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
@@ -560,6 +607,7 @@ def build_final_pitch_checklist(template: dict[str, Any]) -> str:
         "| 演示 PPT | `sparkweave-demo-deck-outline.md`、`sparkweave-demo-deck.html` | 至少包含项目价值、五项赛题对齐、画像、路径、多智能体、评估和提交物总结。 |",
         "| 7 分钟演示视频 | `sparkweave-7min-recording-script.md`、`docs/competition-demo-runbook.md` | 按画像 -> 当前任务 -> 资源 -> 练习 -> 报告 -> 产出包顺序录。 |",
         "| 多智能体说明 | `sparkweave-agent-collaboration-blueprint.md` | 能讲清对话协调、画像、路径、资源集群和评估如何接力。 |",
+        "| 稳定兜底素材 | `sparkweave-demo-fallback-assets.md` | 现场生成慢时仍能展示图解节点、预置练习、视频分镜和讲述点。 |",
         "| 评分点证据 | `sparkweave-competition-scorecard.md` | 五项赛题要求都有页面入口和一句答辩讲法。 |",
         "| 答辩问答 | `sparkweave-defense-qa.md` | 准备画像来源、多智能体、个性化路径、学习评估、稳定性五类追问。 |",
         "| 科大讯飞工具说明 | `docs/iflytek-integration.md` | 明确星火、Embedding、ONE SEARCH、OCR 的使用位置和失败回退。 |",
@@ -618,6 +666,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-7min-recording-script.md`：7 分钟录屏分段讲稿。",
             "- `sparkweave-agent-collaboration-blueprint.md`：多智能体协作蓝图，可直接放入 PPT 或答辩材料。",
             f"- `../assets/{AGENT_BLUEPRINT_ASSET}`：多智能体协作静态图，适合直接放进 README、PPT 或提交文档。",
+            "- `sparkweave-demo-fallback-assets.md`：稳定兜底素材清单，包含图解节点、预置练习、视频分镜和讲述点。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
             "- `sparkweave-final-pitch-checklist.md`：提交前一页式总览，适合最后排练和材料核对。",
@@ -670,6 +719,32 @@ def resource_preference_label(value: str) -> str:
         "quiz": "互动题",
     }
     return aliases.get(value, value)
+
+
+def fallback_asset_detail_labels() -> dict[str, str]:
+    return {
+        "diagram_nodes": "图解节点",
+        "video_beats": "视频分镜",
+        "quiz_items": "预置练习",
+        "key_takeaways": "讲解要点",
+        "evidence_points": "证据点",
+        "agent_route": "智能体接力",
+        "report_sections": "报告结构",
+        "sample_prescription": "学习处方",
+        "code_snippet": "代码片段",
+        "latex_focus": "公式重点",
+    }
+
+
+def format_fallback_detail(value: Any) -> str:
+    if isinstance(value, list):
+        return "；".join(format_fallback_detail(item) for item in value[:6])
+    if isinstance(value, dict):
+        parts = []
+        for key, item in list(value.items())[:6]:
+            parts.append(f"{key}: {format_fallback_detail(item)}")
+        return "；".join(parts)
+    return " ".join(str(value).split())
 
 
 def now() -> str:

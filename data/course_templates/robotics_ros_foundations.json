@@ -235,7 +235,10 @@
         "title": "机器人系统全景图兜底素材",
         "preview": "感知、决策、控制、执行四层数据流，以及课程项目目标。",
         "demo_action": "资源生成较慢时直接展示这张系统图结构，说明画像会优先选择图解。",
-        "talking_point": "先建立全景，再进入 ROS 节点通信，用户不会被命令和工具淹没。"
+        "talking_point": "先建立全景，再进入 ROS 节点通信，用户不会被命令和工具淹没。",
+        "diagram_nodes": ["传感器", "感知节点", "决策节点", "控制节点", "执行机构", "调试记录"],
+        "key_takeaways": ["先画系统层次", "再看 ROS 节点", "最后保存调试证据"],
+        "evidence_points": ["节点日志", "话题列表", "TF 树截图", "控制效果记录"]
       },
       {
         "task_id": "R5",
@@ -243,7 +246,13 @@
         "title": "TF 坐标树兜底素材",
         "preview": "map、odom、base_link、sensor_frame 的父子关系和常见 frame_id 错误。",
         "demo_action": "打开知识地图后展示坐标树，说明图解智能体如何服务概念边界。",
-        "talking_point": "TF 是 ROS 初学者高频卡点，适合用图而不是只用文字解释。"
+        "talking_point": "TF 是 ROS 初学者高频卡点，适合用图而不是只用文字解释。",
+        "diagram_nodes": ["map", "odom", "base_link", "laser_frame", "camera_frame"],
+        "quiz_items": [
+          { "type": "judgement", "question": "不同传感器数据可以不经过坐标统一直接融合。", "answer": "错" },
+          { "type": "choice", "question": "机器人本体坐标系通常用哪个 frame 表示？", "answer": "base_link" }
+        ],
+        "key_takeaways": ["父子关系要稳定", "时间戳要对齐", "frame_id 错误会导致定位漂移"]
       },
       {
         "task_id": "R4",
@@ -251,7 +260,13 @@
         "title": "话题/服务/参数辨析练习兜底素材",
         "preview": "连续数据流、一次请求、运行配置三类场景的选择和判断题。",
         "demo_action": "提交练习后展示对错反馈、反思输入和学习报告变化。",
-        "talking_point": "练习结果会回写画像，证明系统不是只生成资源。"
+        "talking_point": "练习结果会回写画像，证明系统不是只生成资源。",
+        "quiz_items": [
+          { "type": "choice", "question": "持续发布机器人速度状态更适合用什么机制？", "answer": "话题" },
+          { "type": "choice", "question": "触发一次抓取动作并等待结果更适合用什么机制？", "answer": "服务" },
+          { "type": "judgement", "question": "参数适合保存运行配置，例如最大速度。", "answer": "对" }
+        ],
+        "code_snippet": "ros2 topic list\nros2 topic echo /cmd_vel\nros2 param get /controller max_speed"
       }
     ],
     "sample_reflection": {

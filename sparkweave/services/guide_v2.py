@@ -7189,11 +7189,11 @@ class GuideV2Manager:
         return normalized
 
     @staticmethod
-    def _normalize_demo_seed_sample_artifacts(value: Any, task_lookup: dict[str, LearningTask]) -> list[dict[str, str]]:
+    def _normalize_demo_seed_sample_artifacts(value: Any, task_lookup: dict[str, LearningTask]) -> list[dict[str, Any]]:
         """Normalize stable fallback artifact descriptions from course templates."""
 
         items = value if isinstance(value, list) else []
-        normalized: list[dict[str, str]] = []
+        normalized: list[dict[str, Any]] = []
         for index, item in enumerate(items, start=1):
             if not isinstance(item, dict):
                 continue
@@ -7208,18 +7208,57 @@ class GuideV2Manager:
             talking_point = str(item.get("talking_point") or item.get("speaker_note") or "").strip()
             if not preview and not talking_point:
                 continue
-            normalized.append(
-                {
-                    "task_id": task_id,
-                    "type": artifact_type or "visual",
-                    "title": title,
-                    "preview": preview,
-                    "demo_action": demo_action,
-                    "talking_point": talking_point,
-                    "status": str(item.get("status") or "seed"),
-                }
-            )
+            artifact: dict[str, Any] = {
+                "task_id": task_id,
+                "type": artifact_type or "visual",
+                "title": title,
+                "preview": preview,
+                "demo_action": demo_action,
+                "talking_point": talking_point,
+                "status": str(item.get("status") or "seed"),
+            }
+            for key in (
+                "diagram_nodes",
+                "video_beats",
+                "quiz_items",
+                "key_takeaways",
+                "evidence_points",
+                "agent_route",
+                "report_sections",
+                "sample_prescription",
+                "code_snippet",
+                "latex_focus",
+            ):
+                detail = GuideV2Manager._normalize_demo_seed_detail(item.get(key))
+                if detail not in (None, "", [], {}):
+                    artifact[key] = detail
+            normalized.append(artifact)
         return normalized
+
+    @staticmethod
+    def _normalize_demo_seed_detail(value: Any) -> Any:
+        """Keep demo seed artifact details deterministic and JSON-friendly."""
+
+        if value is None:
+            return None
+        if isinstance(value, (str, int, float, bool)):
+            text = str(value).strip()
+            return text if text else None
+        if isinstance(value, list):
+            normalized = [GuideV2Manager._normalize_demo_seed_detail(item) for item in value]
+            return [item for item in normalized if item not in (None, "", [], {})][:8]
+        if isinstance(value, dict):
+            normalized_dict: dict[str, Any] = {}
+            for key, item in value.items():
+                safe_key = str(key).strip()
+                if not safe_key:
+                    continue
+                normalized_value = GuideV2Manager._normalize_demo_seed_detail(item)
+                if normalized_value not in (None, "", [], {}):
+                    normalized_dict[safe_key] = normalized_value
+            return normalized_dict
+        text = str(value).strip()
+        return text if text else None
 
     @staticmethod
     def _course_package_markdown(package: dict[str, Any]) -> str:
@@ -7512,6 +7551,9 @@ class GuideV2Manager:
                         f"{item.get('preview') or item.get('talking_point') or '-'}；"
                         f"录屏动作：{item.get('demo_action') or '-'}"
                     )
+                    detail_lines = GuideV2Manager._demo_seed_artifact_markdown_details(item)
+                    if detail_lines:
+                        lines.extend(detail_lines)
             if rehearsal_notes:
                 lines.extend(["", "### 排练备注", ""])
                 for item in rehearsal_notes[:4]:
@@ -8410,6 +8452,42 @@ class GuideV2Manager:
     @staticmethod
     def _fallback_today_focus(course_map: CourseMap) -> str:
         return course_map.nodes[0].title if course_map.nodes else "开始学习"
+
+    @staticmethod
+    def _demo_seed_artifact_markdown_details(item: dict[str, Any]) -> list[str]:
+        details: list[str] = []
+        field_labels = {
+            "diagram_nodes": "图解节点",
+            "video_beats": "视频分镜",
+            "quiz_items": "预置练习",
+            "key_takeaways": "讲解要点",
+            "evidence_points": "证据点",
+            "agent_route": "智能体接力",
+            "report_sections": "报告结构",
+            "sample_prescription": "学习处方",
+            "code_snippet": "代码片段",
+            "latex_focus": "公式重点",
+        }
+        for field, label in field_labels.items():
+            value = item.get(field)
+            if value in (None, "", [], {}):
+                continue
+            details.append(f"  - {label}：{GuideV2Manager._compact_demo_seed_detail(value)}")
+        return details
+
+    @staticmethod
+    def _compact_demo_seed_detail(value: Any) -> str:
+        if isinstance(value, list):
+            parts = [GuideV2Manager._compact_demo_seed_detail(item) for item in value[:4]]
+            return "；".join(part for part in parts if part)
+        if isinstance(value, dict):
+            parts = []
+            for key, item in list(value.items())[:4]:
+                compact = GuideV2Manager._compact_demo_seed_detail(item)
+                if compact:
+                    parts.append(f"{key}: {compact}")
+            return "；".join(parts)
+        return " ".join(str(value).split())[:220]
 
 
 async def _run_langgraph_capability(

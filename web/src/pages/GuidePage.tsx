@@ -3399,7 +3399,9 @@ function CourseCompetitionAlignmentCard({
   if (!alignment || !requirements.length) return null;
   const ready = Number(alignment.ready_count ?? 0);
   const total = Number(alignment.total_count ?? requirements.length);
+  const coverage = Number(alignment.coverage_score ?? 0);
   const gap = alignment.primary_gap;
+  const visibleRequirements = requirements.slice(0, 5);
   return (
     <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-competition-alignment-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3407,6 +3409,7 @@ function CourseCompetitionAlignmentCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="brand">{guideDisplayText(alignment.title, "赛题五项对齐")}</Badge>
             {alignment.course_name ? <Badge tone="neutral">{guideDisplayText(alignment.course_name)}</Badge> : null}
+            {coverage ? <Badge tone={coverage >= 80 ? "success" : "warning"}>覆盖分 {coverage}</Badge> : null}
           </div>
           <p className="mt-2 text-sm leading-6 text-teal-950">
             {guideDisplayText(alignment.summary, "把当前学习闭环映射成比赛可展示证据。")}
@@ -3414,15 +3417,20 @@ function CourseCompetitionAlignmentCard({
         </div>
         <Badge tone={ready >= total ? "success" : "warning"}>{ready} / {total}</Badge>
       </div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
-        {requirements.slice(0, 4).map((item) => (
-          <div key={item.id || item.requirement} className="rounded-lg border border-white/80 bg-white p-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(item.requirement, "赛题要求")}</p>
+      <div className="mt-3 space-y-2">
+        {visibleRequirements.map((item, index) => (
+          <div key={item.id || item.requirement || index} className="rounded-lg border border-white/80 bg-white p-2" data-testid="guide-competition-requirement">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 text-xs font-semibold text-ink">
+                {index + 1}. {guideDisplayText(item.requirement, "赛题要求")}
+              </p>
               <Badge tone={submissionStatusTone(item.status)}>{submissionStatusLabel(item.status)}</Badge>
             </div>
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
               {guideDisplayText((item.evidence ?? []).filter(Boolean)[0], "等待更多学习证据。")}
+            </p>
+            <p className="mt-1 line-clamp-1 text-xs leading-5 text-teal-700">
+              录屏：{guideDisplayText(item.demo_action, "指向当前页面证据，用一句话说明这一项已经闭环。")}
             </p>
           </div>
         ))}

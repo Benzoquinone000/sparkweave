@@ -73,6 +73,8 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-competition-alignment-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("赛题五项对齐");
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多智能体协同");
+  await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("学习效果评估");
+  await expect(page.getByTestId("guide-competition-requirement")).toHaveCount(5);
   await expect(page.getByTestId("guide-defense-qa-card")).toBeVisible();
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("答辩问答预案");
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("普通聊天机器人");
@@ -756,6 +758,27 @@ async function mockGuideV2StableDemoApis(page: Page) {
               status: "seed",
               evidence: ["画像、图解、出题和评估智能体接力。"],
               demo_action: "展示资源卡里的协作路线。",
+            },
+            {
+              id: "path",
+              requirement: "个性化学习路径规划和资源推送",
+              status: "ready",
+              evidence: ["当前任务和补基路线已经生成。"],
+              demo_action: "展示先做这一件事。",
+            },
+            {
+              id: "tutoring",
+              requirement: "智能辅导与多模态答疑",
+              status: "ready",
+              evidence: ["图解、练习和精选视频围绕当前任务生成。"],
+              demo_action: "打开一份资源卡片。",
+            },
+            {
+              id: "assessment",
+              requirement: "学习效果评估",
+              status: "ready",
+              evidence: ["提交反馈后生成学习报告和下一步处方。"],
+              demo_action: "打开学习报告和课程产出包。",
             },
           ],
         },

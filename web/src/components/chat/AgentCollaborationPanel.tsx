@@ -44,6 +44,13 @@ interface ReadableTraceItem {
   detail: string;
 }
 
+interface StructuredRouteItem {
+  key: string;
+  label: string;
+  detail: string;
+  status?: StepStatus;
+}
+
 const BLUEPRINTS: Record<CapabilityId, AgentBlueprint[]> = {
   chat: [
     {
@@ -298,7 +305,16 @@ export function AgentCollaborationPanel({
   const profileAware = events.some((event) => event.metadata?.profile_hints_applied || event.metadata?.profile_guided);
   const profileGuidedPrompt = useMemo(() => findProfileGuidedPrompt(events), [events]);
   const readableEvents = useMemo(() => buildReadableTraceItems(events, status), [events, status]);
-  const routeSummary = summarizeCollaboration(displayedSteps, profileAware);
+  const structuredRoute = useMemo(() => findStructuredRoute(events), [events]);
+  const routeItems = structuredRoute.length
+    ? structuredRoute
+    : displayedSteps.map((step) => ({
+        key: step.key,
+        label: shortAgentName(step.title),
+        detail: step.description,
+        status: step.status,
+      }));
+  const routeSummary = findCollaborationSummary(events) || summarizeCollaboration(displayedSteps, profileAware);
 
   if (!events.length) return null;
 
@@ -306,7 +322,7 @@ export function AgentCollaborationPanel({
     <div className="mt-2 rounded-lg border border-line bg-white p-3" data-testid="agent-collaboration">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-ink">智能体协作 · {displayedSteps.length} 个角色参与</p>
+          <p className="text-xs font-semibold text-ink">智能体协作 · {routeItems.length} 个角色参与</p>
           <p className="mt-1 text-xs text-slate-500">
             {profileGuidedPrompt
               ? "已按学习画像把泛化指令转成具体学习任务"
@@ -336,18 +352,31 @@ export function AgentCollaborationPanel({
             画像触发：{profileGuidedPrompt}
           </p>
         ) : null}
+        {structuredRoute.length ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+            {structuredRoute
+              .map((item) => item.detail)
+              .filter(Boolean)
+              .slice(0, 2)
+              .join("；")}
+          </p>
+        ) : null}
         <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-          {displayedSteps.map((step, index) => (
-            <div key={`${step.key}-route`} className="flex shrink-0 items-center gap-1.5">
-              <span
-                className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium ${routeChipTone(step.status)}`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-sm ${routeDotTone(step.status)}`} />
-                {shortAgentName(step.title)}
-              </span>
-              {index < displayedSteps.length - 1 ? <span className="text-slate-300">→</span> : null}
-            </div>
-          ))}
+          {routeItems.map((item, index) => {
+            const itemStatus =
+              item.status ?? displayedSteps[Math.min(index, Math.max(displayedSteps.length - 1, 0))]?.status ?? "complete";
+            return (
+              <div key={`${item.key}-route`} className="flex shrink-0 items-center gap-1.5" title={item.detail}>
+                <span
+                  className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium ${routeChipTone(itemStatus)}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-sm ${routeDotTone(itemStatus)}`} />
+                  {item.label}
+                </span>
+                {index < routeItems.length - 1 ? <span className="text-slate-300">→</span> : null}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -627,6 +656,57 @@ function findProfileGuidedPrompt(events: StreamEvent[]) {
 function metadataText(metadata: StreamEvent["metadata"] | undefined, key: string) {
   const value = metadata?.[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function findStructuredRoute(events: StreamEvent[]): StructuredRouteItem[] {
+  for (const event of events) {
+    const route = routeFromMetadataValue(event.metadata?.collaboration_route);
+    if (route.length) return route;
+  }
+  for (const event of events) {
+    const route = routeFromMetadataValue(event.metadata?.agent_chain);
+    if (route.length) return route;
+  }
+  return [];
+}
+
+function routeFromMetadataValue(value: unknown): StructuredRouteItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index): StructuredRouteItem | null => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const label = String(record.label ?? record.title ?? record.name ?? "").trim();
+      const detail = String(record.detail ?? record.description ?? record.summary ?? "").trim();
+      const key = String(record.key ?? record.id ?? label ?? `route-${index}`).trim();
+      if (!label && !detail) return null;
+      const status = normalizeRouteStatus(record.status);
+      return {
+        key: key || `route-${index}`,
+        label: label || detail || "学习智能体",
+        detail,
+        ...(status ? { status } : {}),
+      };
+    })
+    .filter((item): item is StructuredRouteItem => item !== null)
+    .slice(0, 6);
+}
+
+function normalizeRouteStatus(value: unknown): StepStatus | undefined {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "pending") return "pending";
+  if (normalized === "running" || normalized === "active" || normalized === "working") return "running";
+  if (normalized === "complete" || normalized === "completed" || normalized === "done" || normalized === "success") return "complete";
+  if (normalized === "error" || normalized === "failed" || normalized === "failure") return "error";
+  return undefined;
+}
+
+function findCollaborationSummary(events: StreamEvent[]) {
+  for (const event of events) {
+    const summary = metadataText(event.metadata, "collaboration_summary");
+    if (summary) return summary.length > 120 ? `${summary.slice(0, 120).trim()}...` : summary;
+  }
+  return "";
 }
 
 function toolDisplayName(tool: string) {

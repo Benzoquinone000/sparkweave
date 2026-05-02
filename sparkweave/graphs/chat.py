@@ -42,6 +42,39 @@ SPECIALIST_LABELS = {
     "visualize": "Knowledge Visualization Agent",
 }
 
+SPECIALIST_COLLABORATION_ROUTES: dict[str, list[dict[str, str]]] = {
+    "deep_question": [
+        {"key": "question", "label": "出题智能体", "detail": "生成选择、判断、填空、简答等练习。"},
+        {"key": "validation", "label": "校验智能体", "detail": "检查答案、解析、难度和题型结构。"},
+        {"key": "feedback", "label": "评估智能体", "detail": "把答题结果回写画像并建议下一步。"},
+    ],
+    "deep_research": [
+        {"key": "decompose", "label": "主题拆解智能体", "detail": "把学习目标拆成可执行子问题。"},
+        {"key": "research", "label": "资料检索智能体", "detail": "从知识库和网络中收集证据。"},
+        {"key": "report", "label": "报告智能体", "detail": "整理学习路径、资源依据和引用。"},
+    ],
+    "deep_solve": [
+        {"key": "planner", "label": "解题规划智能体", "detail": "拆解题意并选择求解路线。"},
+        {"key": "tool", "label": "工具智能体", "detail": "按需检索、计算或运行代码验证。"},
+        {"key": "writer", "label": "讲解智能体", "detail": "把推理过程整理成学生可读答案。"},
+    ],
+    "external_video_search": [
+        {"key": "search", "label": "视频检索智能体", "detail": "检索公开视频和公开课候选链接。"},
+        {"key": "rank", "label": "筛选智能体", "detail": "按主题、时长、可播放性和画像偏好排序。"},
+        {"key": "card", "label": "学习卡片智能体", "detail": "生成观看计划、反思问题和资源卡片。"},
+    ],
+    "math_animator": [
+        {"key": "concept", "label": "概念分析智能体", "detail": "提取数学对象、公式和讲解重点。"},
+        {"key": "scene", "label": "分镜智能体", "detail": "规划动画节奏、画面和叙事顺序。"},
+        {"key": "render", "label": "渲染智能体", "detail": "生成 Manim 代码并产出视频或图解。"},
+    ],
+    "visualize": [
+        {"key": "analysis", "label": "结构分析智能体", "detail": "识别概念关系和图解重点。"},
+        {"key": "design", "label": "图解设计智能体", "detail": "选择 Mermaid、SVG 或结构图表达方式。"},
+        {"key": "render", "label": "可视化渲染智能体", "detail": "生成可展示、可保存的图解产物。"},
+    ],
+}
+
 VISUALIZE_TERMS = (
     "可视化",
     "图示",
@@ -604,6 +637,7 @@ class ChatGraph:
         if not self.coordinator_enabled:
             return CoordinatorDecision(reason="Coordinator disabled for this graph instance.")
         decision = self._decide_specialist(context)
+        profile_hints = self._learner_profile_hints(context)
         metadata = {
             "trace_kind": "coordinator_decision",
             "capability": decision.capability,
@@ -611,6 +645,7 @@ class ChatGraph:
             "reason": decision.reason,
             "delegated": decision.delegates,
             "agent_cluster": SPECIALIST_LABELS.get(decision.capability, "Dialogue Coordinator Agent"),
+            **self._collaboration_metadata(decision, context, profile_hints=profile_hints),
         }
         async with stream.stage("coordinating", source="dialogue_coordinator", metadata=metadata):
             if decision.delegates:
@@ -628,6 +663,61 @@ class ChatGraph:
                     metadata=metadata,
                 )
         return decision
+
+    @staticmethod
+    def _collaboration_metadata(
+        decision: CoordinatorDecision,
+        context: UnifiedContext,
+        *,
+        profile_hints: dict[str, Any] | None = None,
+        rewritten_prompt: str = "",
+    ) -> dict[str, Any]:
+        profile_aware = bool(profile_hints)
+        target = SPECIALIST_LABELS.get(decision.capability, "Dialogue Coordinator Agent")
+        goal = (rewritten_prompt or context.user_message or "").strip()
+        summary = (
+            f"画像先提供学习依据，协调智能体再唤醒 {target} 接力。"
+            if profile_aware
+            else f"协调智能体根据当前请求唤醒 {target} 接力。"
+        )
+        return {
+            "collaboration_route_version": 1,
+            "collaboration_route": ChatGraph._collaboration_route(decision.capability, profile_aware),
+            "collaboration_summary": summary,
+            "collaboration_goal": goal[:260],
+        }
+
+    @staticmethod
+    def _collaboration_route(capability: str, profile_aware: bool) -> list[dict[str, str]]:
+        route: list[dict[str, str]] = []
+        if profile_aware:
+            route.append(
+                {
+                    "key": "profile",
+                    "label": "学习画像智能体",
+                    "detail": "提供薄弱点、偏好、时间预算和下一步任务。",
+                }
+            )
+        route.append(
+            {
+                "key": "coordinator",
+                "label": "对话协调智能体",
+                "detail": "识别意图并决定唤醒哪个专门智能体。",
+            }
+        )
+        route.extend(
+            SPECIALIST_COLLABORATION_ROUTES.get(
+                capability,
+                [
+                    {
+                        "key": "answer",
+                        "label": "讲解智能体",
+                        "detail": "组织适合当前学生阅读的回答。",
+                    }
+                ],
+            )
+        )
+        return route[:6]
 
     def _decide_specialist(self, context: UnifiedContext) -> CoordinatorDecision:
         overrides = dict(context.config_overrides or {})
@@ -716,6 +806,12 @@ class ChatGraph:
         profile_hints = self._learner_profile_hints(context)
         decision_config = dict(decision.config or {})
         rewritten_prompt = str(decision_config.get("_coordinator_user_message") or "").strip()
+        collaboration_metadata = self._collaboration_metadata(
+            decision,
+            context,
+            profile_hints=profile_hints,
+            rewritten_prompt=rewritten_prompt,
+        )
         await stream.progress(
             f"Awakened {SPECIALIST_LABELS.get(decision.capability, decision.capability)}.",
             source="dialogue_coordinator",
@@ -730,6 +826,7 @@ class ChatGraph:
                 "profile_hint_keys": sorted(key for key in profile_hints.keys() if key != "profile_context"),
                 "profile_guided": bool(decision_config.get("profile_guided")),
                 "rewritten_prompt": rewritten_prompt[:260],
+                **collaboration_metadata,
             },
         )
         if self.specialist_runner is not None:
@@ -1147,6 +1244,11 @@ class ChatGraph:
             if progress_tasks:
                 await asyncio.gather(*progress_tasks)
 
+        result.setdefault(
+            "collaboration_route",
+            ChatGraph._collaboration_route("external_video_search", bool(hints)),
+        )
+        result.setdefault("collaboration_route_version", 1)
         response = str(result.get("response") or "")
         async with stream.stage("responding", source="external_video_search"):
             if response:

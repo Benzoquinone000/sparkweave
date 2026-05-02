@@ -189,6 +189,11 @@ async def test_chat_graph_coordinator_delegates_animation_request():
     ]
     assert handoff_events[-1].metadata["profile_hints_applied"] is True
     assert "weak_points" in handoff_events[-1].metadata["profile_hint_keys"]
+    assert handoff_events[-1].metadata["collaboration_route_version"] == 1
+    route = handoff_events[-1].metadata["collaboration_route"]
+    assert route[0]["label"] == "学习画像智能体"
+    assert any(item["label"] == "分镜智能体" for item in route)
+    assert "Math Animation Agent" in handoff_events[-1].metadata["collaboration_summary"]
     assert state["final_answer"] == "animation ready"
 
 
@@ -239,6 +244,8 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].metadata["render_type"] == "external_video"
     assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
     assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
+    assert result_events[-1].metadata["collaboration_route_version"] == 1
+    assert any(item["label"] == "视频检索智能体" for item in result_events[-1].metadata["collaboration_route"])
 
 
 @pytest.mark.asyncio
@@ -275,6 +282,7 @@ async def test_chat_graph_profile_guided_next_step_awakes_preferred_agent():
     ]
     assert handoff_events[-1].metadata["target_capability"] == "external_video_search"
     assert "preferred_resource" in handoff_events[-1].metadata["profile_hint_keys"]
+    assert any(item["label"] == "视频检索智能体" for item in handoff_events[-1].metadata["collaboration_route"])
     assert state["final_answer"] == "profile guided videos ready"
 
 

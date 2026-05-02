@@ -282,6 +282,57 @@ def test_competition_package_command_runs_export_script(monkeypatch, tmp_path: P
     assert calls[0][0][-5:] == ["--template", "robotics_ros_foundations", "--output", str(output), "--no-clean"]
 
 
+def test_competition_preflight_checks_then_exports_package(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append((list(cmd), str(cwd)))
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    output = tmp_path / "package"
+    report = tmp_path / "readiness.json"
+    result = runner.invoke(
+        app,
+        [
+            "competition-preflight",
+            "--template",
+            "higher_math_limits_derivatives",
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 2
+    assert calls[0][0][1].endswith("scripts\\check_competition_readiness.py") or calls[0][0][1].endswith(
+        "scripts/check_competition_readiness.py"
+    )
+    assert calls[0][0][-4:] == ["--format", "text", "--output", str(report)]
+    assert calls[1][0][1].endswith("scripts\\export_competition_package.py") or calls[1][0][1].endswith(
+        "scripts/export_competition_package.py"
+    )
+    assert calls[1][0][-4:] == ["--template", "higher_math_limits_derivatives", "--output", str(output)]
+
+
+def test_competition_preflight_stops_when_readiness_fails(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, cwd=None, check=False):  # noqa: ANN001
+        calls.append(list(cmd))
+        return type("Result", (), {"returncode": 2 if len(calls) == 1 else 0})()
+
+    monkeypatch.setattr("sparkweave_cli.main.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["competition-preflight"])
+
+    assert result.exit_code == 2, result.output
+    assert len(calls) == 1
+
+
 def test_session_list_command_uses_shared_store(monkeypatch) -> None:
     async def _list_sessions(self, limit: int = 50, offset: int = 0):  # noqa: ANN001
         return [

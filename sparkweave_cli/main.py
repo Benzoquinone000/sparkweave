@@ -69,10 +69,13 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _project_script_cmd(script_name: str, args: list[str]) -> list[str]:
+    return [sys.executable, str(_repo_root() / "scripts" / script_name), *args]
+
+
 def _run_project_script(script_name: str, args: list[str]) -> None:
     root = _repo_root()
-    script = root / "scripts" / script_name
-    result = subprocess.run([sys.executable, str(script), *args], cwd=root, check=False)
+    result = subprocess.run(_project_script_cmd(script_name, args), cwd=root, check=False)
     raise typer.Exit(code=result.returncode)
 
 
@@ -255,6 +258,51 @@ def competition_package(
     if no_clean:
         cmd.append("--no-clean")
     _run_project_script("export_competition_package.py", cmd)
+
+
+@app.command("competition-preflight")
+def competition_preflight(
+    template: str = typer.Option(
+        "ai_learning_agents_systems",
+        "--template",
+        "-t",
+        help="Course template id for the exported package.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory. Defaults to dist/competition_package.",
+    ),
+    report: Optional[Path] = typer.Option(
+        None,
+        "--report",
+        help="Optional JSON readiness report path.",
+    ),
+) -> None:
+    """Run readiness checks, then export a competition package if everything is ready."""
+
+    root = _repo_root()
+    check_args = ["--format", "text"]
+    if report is not None:
+        check_args.extend(["--output", str(report)])
+    check_result = subprocess.run(
+        _project_script_cmd("check_competition_readiness.py", check_args),
+        cwd=root,
+        check=False,
+    )
+    if check_result.returncode != 0:
+        raise typer.Exit(code=check_result.returncode)
+
+    package_args = ["--template", template]
+    if output is not None:
+        package_args.extend(["--output", str(output)])
+    package_result = subprocess.run(
+        _project_script_cmd("export_competition_package.py", package_args),
+        cwd=root,
+        check=False,
+    )
+    raise typer.Exit(code=package_result.returncode)
 
 
 def main() -> None:

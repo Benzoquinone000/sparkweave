@@ -79,6 +79,12 @@ python -m sparkweave_cli competition-demo
 python -m sparkweave_cli competition-package
 ```
 
+赛前最后一次打包可以直接用：
+
+```powershell
+python -m sparkweave_cli competition-preflight --report dist/competition-readiness.json
+```
+
 要为其它完整课程生成演示包，可以指定课程模板：
 
 ```powershell

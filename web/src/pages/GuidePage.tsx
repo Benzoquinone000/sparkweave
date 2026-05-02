@@ -1760,7 +1760,10 @@ function CourseTemplateQuickPick({
   busy: boolean;
   onPick: (template: GuideV2CourseTemplate) => void;
 }) {
-  const visibleTemplates = templates.filter((template) => template.id !== demoTemplateId).slice(0, 3);
+  const visibleTemplates = templates
+    .filter((template) => template.id !== demoTemplateId)
+    .sort((left, right) => courseTemplateQuickPickPriority(left) - courseTemplateQuickPickPriority(right))
+    .slice(0, 3);
   if (!visibleTemplates.length) {
     return null;
   }
@@ -1777,6 +1780,7 @@ function CourseTemplateQuickPick({
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         {visibleTemplates.map((template) => {
           const selected = template.id === selectedTemplateId;
+          const competitionTemplate = template.id === "ai_learning_agents_systems";
           const title = guideDisplayText(template.course_name || template.title, "内置课程");
           const minutes = template.default_time_budget_minutes || template.estimated_minutes || 0;
           return (
@@ -1784,7 +1788,11 @@ function CourseTemplateQuickPick({
               key={template.id}
               type="button"
               className={`rounded-lg border bg-white p-3 text-left transition ${
-                selected ? "border-teal-300 ring-2 ring-teal-100" : "border-line hover:border-teal-200 hover:bg-teal-50/60"
+                selected
+                  ? "border-teal-300 ring-2 ring-teal-100"
+                  : competitionTemplate
+                    ? "border-teal-200 hover:border-teal-300 hover:bg-teal-50/60"
+                    : "border-line hover:border-teal-200 hover:bg-teal-50/60"
               }`}
               data-testid={`guide-course-template-${template.id}`}
               disabled={busy}
@@ -1792,7 +1800,7 @@ function CourseTemplateQuickPick({
             >
               <div className="flex items-start justify-between gap-2">
                 <GraduationCap size={16} className={selected ? "mt-0.5 shrink-0 text-brand-teal" : "mt-0.5 shrink-0 text-brand-blue"} />
-                <Badge tone={selected ? "brand" : "neutral"}>{selected ? "已选择" : "课程"}</Badge>
+                <Badge tone={selected || competitionTemplate ? "brand" : "neutral"}>{selected ? "已选择" : competitionTemplate ? "赛题主线" : "课程"}</Badge>
               </div>
               <p className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-ink">{title}</p>
               <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-slate-500">
@@ -1818,6 +1826,12 @@ function CourseTemplateQuickPick({
       </div>
     </div>
   );
+}
+
+function courseTemplateQuickPickPriority(template: GuideV2CourseTemplate): number {
+  if (template.id === "ai_learning_agents_systems") return 0;
+  if ((template.demo_seed?.task_chain ?? []).length > 0) return 1;
+  return 2;
 }
 
 function DemoQuickStartCard({

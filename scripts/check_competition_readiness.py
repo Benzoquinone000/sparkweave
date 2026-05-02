@@ -132,6 +132,7 @@ def build_report() -> dict[str, object]:
     checks.extend(check_external_video_learning_loop())
     checks.extend(check_effect_assessment_chain())
     checks.extend(check_competition_proof_chain())
+    checks.extend(check_user_facing_settings_diagnostics())
     checks.extend(check_generated_exports())
 
     failed = [item for item in checks if not item.ok]
@@ -308,6 +309,46 @@ def check_competition_proof_chain() -> list[Check]:
             "Competition proof chain: test coverage",
             "tests/services/test_guide_v2.py",
             ["proof_chain", "三步证明链"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_user_facing_settings_diagnostics() -> list[Check]:
+    expectations = [
+        (
+            "User-facing diagnostics: settings status strip",
+            "web/src/pages/SettingsPage.tsx",
+            [
+                "friendlyServiceError",
+                "settings-status-strip",
+                "signature",
+                "upstream",
+                "ServiceStatusStrip",
+            ],
+        ),
+        (
+            "User-facing diagnostics: test coverage",
+            "web/tests/e2e/workbench-smoke.spec.ts",
+            [
+                "settings-status-strip",
+                "HMAC secret key does not match",
+                "The upstream server is timing out",
+                "not.toContainText",
+            ],
         ),
     ]
     checks: list[Check] = []

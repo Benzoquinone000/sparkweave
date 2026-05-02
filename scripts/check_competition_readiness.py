@@ -527,6 +527,7 @@ def check_generated_exports() -> list[Check]:
                 ],
             )
         )
+        checks.append(check_archive_safety(archive_path))
         checks.extend(
             check_generated_files(
                 "Generated package",
@@ -605,6 +606,56 @@ def check_archive_entries(archive_path: Path, expected_entries: list[str]) -> li
             )
         )
     return checks
+
+
+def check_archive_safety(archive_path: Path) -> Check:
+    if not archive_path.exists():
+        return Check("Competition archive safety", False, "archive missing")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            entries = archive.namelist()
+    except zipfile.BadZipFile as exc:
+        return Check("Competition archive safety", False, f"bad zip file: {exc}")
+
+    forbidden_files = {
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.production",
+        ".secrets.baseline",
+    }
+    forbidden_dirs = {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "__pycache__",
+        "node_modules",
+        "data/user",
+        "data/memory",
+        "web/dist",
+    }
+    problems: list[str] = []
+
+    for entry in entries:
+        normalized = entry.replace("\\", "/").strip()
+        parts = [part for part in normalized.split("/") if part]
+        if not normalized or normalized.startswith("/") or (parts and ":" in parts[0]) or ".." in parts:
+            problems.append(entry)
+            continue
+        if not normalized.startswith("competition_package/"):
+            problems.append(entry)
+            continue
+        if parts and parts[-1] in forbidden_files:
+            problems.append(entry)
+            continue
+        joined = "/".join(parts)
+        wrapped = f"/{joined}/"
+        if any(f"/{forbidden}/" in wrapped for forbidden in forbidden_dirs):
+            problems.append(entry)
+
+    if problems:
+        return Check("Competition archive safety", False, "unsafe entries: " + ", ".join(problems[:5]))
+    return Check("Competition archive safety", True, f"{len(entries)} archive entrie(s) checked")
 
 
 def check_generated_content(group: str, root: Path, expectations: list[tuple[str, str]]) -> list[Check]:

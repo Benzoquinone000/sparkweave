@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72" role="img" aria-labelledby="title">
+  <title id="title">Pink paper note</title>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0f0f0f" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="13" y="12" width="68" height="44" rx="8" fill="#fde0ec" filter="url(#shadow)" transform="rotate(8 47 34)"/>
+  <circle cx="34" cy="33" r="5" fill="#ff64c8" opacity="0.45"/>
+  <path d="M47 28h20M47 39h13" stroke="#a02e6d" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
+</svg>

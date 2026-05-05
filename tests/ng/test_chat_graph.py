@@ -34,10 +34,61 @@ class FakeToolRegistry:
 
     async def execute(self, name, **kwargs):
         self.calls.append((name, kwargs))
+        if name == "external_video_search":
+            return ToolResult(
+                content="Found 1 learning video.",
+                sources=[{"type": "external_video", "url": "https://www.youtube.com/watch?v=abc123"}],
+                metadata={
+                    "success": True,
+                    "render_type": "external_video",
+                    "response": "Found 1 learning video.",
+                    "videos": [
+                        {
+                            "title": "Gradient descent explained",
+                            "url": "https://www.youtube.com/watch?v=abc123",
+                            "platform": "YouTube",
+                            "embed_url": "https://www.youtube.com/embed/abc123",
+                            "why_recommended": "Beginner friendly.",
+                        }
+                    ],
+                    "learner_profile_hints": kwargs.get("learner_hints") or {},
+                    "agent_chain": [],
+                    "tool_chain": [{"label": "精选视频工具"}],
+                },
+            )
         return ToolResult(
             content=f"echoed {kwargs['query']}",
             sources=[{"type": "test"}],
             metadata={"ok": True},
+        )
+
+
+class FakeExternalVideoToolRegistry(FakeToolRegistry):
+    def names(self):
+        return ["external_video_search"]
+
+    async def execute(self, name, **kwargs):
+        self.calls.append((name, kwargs))
+        return ToolResult(
+            content="Found 1 learning video.",
+            sources=[{"type": "external_video", "url": "https://www.youtube.com/watch?v=abc123"}],
+            metadata={
+                "success": True,
+                "render_type": "external_video",
+                "response": "Found 1 learning video.",
+                "videos": [
+                    {
+                        "title": "Gradient descent explained",
+                        "url": "https://www.youtube.com/watch?v=abc123",
+                        "platform": "YouTube",
+                        "embed_url": "https://www.youtube.com/embed/abc123",
+                        "why_recommended": "Beginner friendly.",
+                    }
+                ],
+                "learner_profile_hints": kwargs.get("learner_hints") or {},
+                "agent_chain": [],
+                "tool_chain": [{"label": "精选视频工具"}],
+            },
         )
 
 
@@ -240,11 +291,13 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
 
     assert state["final_answer"] == "Found 1 learning video."
     result_events = [event for event in bus._history if event.type == StreamEventType.RESULT]
-    assert result_events[-1].source == "external_video_search"
+    assert result_events[-1].source == "chat"
     assert result_events[-1].metadata["render_type"] == "external_video"
     assert result_events[-1].metadata["videos"][0]["platform"] == "YouTube"
     assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
-    assert result_events[-1].metadata["collaboration_route_version"] == 1
+    assert result_events[-1].metadata["tool_name"] == "external_video_search"
+    assert result_events[-1].metadata["agent_chain"] == []
+    return
     assert any(item["label"] == "视频检索智能体" for item in result_events[-1].metadata["collaboration_route"])
 
 
@@ -270,6 +323,13 @@ async def test_chat_graph_profile_guided_next_step_awakes_preferred_agent():
     )
 
     state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "Found 1 learning video."
+    result_events = [event for event in bus._history if event.type == StreamEventType.RESULT]
+    assert result_events[-1].source == "chat"
+    assert result_events[-1].metadata["tool_name"] == "external_video_search"
+    assert result_events[-1].metadata["agent_chain"] == []
+    return
 
     assert captured["capability"] == "external_video_search"
     assert captured["context"].active_capability == "external_video_search"

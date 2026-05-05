@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FieldShell, TextArea } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { Metric } from "@/components/ui/Metric";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import {
   executePluginTool,
   streamPluginCapabilityExecution,
@@ -181,22 +182,23 @@ export function PlaygroundPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-5">
       <div className="mx-auto max-w-6xl space-y-4">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.24 }}
-        >
-          <p className="dt-page-eyebrow">实验</p>
-          <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold text-ink" aria-label="能力实验室">
-                能力试用
-              </h1>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                试运行工具和能力，查看它们会如何响应。
-              </p>
-            </div>
+        <NotionProductHero
+          eyebrow="实验"
+          title="在不打扰主流程的地方试能力"
+          legacyTitle="能力实验室"
+          description="试运行工具和能力，查看它们会如何响应。这里保留给调试，日常学习不用进来。"
+          accent="purple"
+          imageSrc="/illustrations/notion-lab-console.svg"
+          imageAlt="能力实验室预览"
+          people="music"
+          previewTitle="调试放这里，学习页保持清爽"
+          previewDescription="工具、能力和结果分开看，方便定位问题。"
+          tiles={[
+            { label: "工具", helper: "直接运行", tone: "yellow" },
+            { label: "能力", helper: "编排调用", tone: "sky" },
+            { label: "结果", helper: "即时查看", tone: "lavender" },
+          ]}
+          actions={
             <div className="flex rounded-lg border border-line bg-canvas p-1">
               {(["tool", "capability"] as const).map((item) => (
                 <button
@@ -205,15 +207,15 @@ export function PlaygroundPage() {
                   onClick={() => setMode(item)}
                   data-testid={`playground-mode-${item}`}
                   className={`min-h-9 rounded-md px-3 text-sm transition ${
-                    mode === item ? "bg-white text-brand-teal" : "text-slate-500 hover:text-ink"
+                    mode === item ? "bg-white text-brand-purple shadow-[0_1px_2px_rgba(15,15,15,0.04)]" : "text-slate-500 hover:text-ink"
                   }`}
                 >
                   {item === "tool" ? "工具" : "能力"}
                 </button>
               ))}
             </div>
-          </div>
-        </motion.section>
+          }
+        />
 
         <motion.div
           className="flex flex-wrap gap-x-4 gap-y-1.5"
@@ -257,7 +259,7 @@ export function PlaygroundPage() {
                   {pluginManifests.slice(0, 6).map((plugin) => (
                     <motion.div
                       key={plugin.name}
-                      className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200"
+                      className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
@@ -445,11 +447,11 @@ function RegistryList({
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.99 }}
             className={`dt-interactive rounded-lg border p-3 text-left transition ${
-              active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+              active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="text-brand-teal">{icon}</span>
+              <span className="text-brand-purple">{icon}</span>
               <span className="min-w-0 truncate text-sm font-semibold text-ink">{item.name}</span>
             </div>
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
@@ -606,8 +608,8 @@ function CapabilityRunner({
                   whileTap={{ scale: 0.98 }}
                   className={`rounded-md border px-2 py-1 text-xs transition ${
                     enabledTools.includes(tool.name)
-                      ? "border-teal-200 bg-teal-50 text-brand-teal"
-                      : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      ? "border-brand-purple-300 bg-tint-lavender text-brand-purple"
+                      : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                   }`}
                 >
                   <Code2 size={12} className="mr-1 inline" />
@@ -629,8 +631,8 @@ function CapabilityRunner({
                   whileTap={{ scale: 0.98 }}
                   className={`rounded-md border px-2 py-1 text-xs transition ${
                     selectedKbs.includes(kb.name)
-                      ? "border-teal-200 bg-teal-50 text-brand-teal"
-                      : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      ? "border-brand-purple-300 bg-tint-lavender text-brand-purple"
+                      : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                   }`}
                 >
                   <Database size={12} className="mr-1 inline" />

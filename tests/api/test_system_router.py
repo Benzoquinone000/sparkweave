@@ -126,3 +126,63 @@ def test_system_ocr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch
     assert body["message"] == "OCR not configured"
 
 
+def test_system_tts_probe_uses_iflytek_tts(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(voice="x5_lingxiaoxuan_flow")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: config))
+
+    async def _fake_tts(text: str, **kwargs):
+        calls.append({"text": text, **kwargs})
+        return SimpleNamespace(audio=b"mp3")
+
+    monkeypatch.setattr(system_module, "synthesize_speech_with_iflytek", _fake_tts)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/tts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek:x5_lingxiaoxuan_flow"
+    assert calls == [{"text": system_module.TTS_SMOKE_TEST_TEXT, "config": config}]
+
+
+def test_system_tts_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: None))
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/tts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "TTS not configured"
+
+
+def test_system_tts_preview_returns_audio(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(voice="x5_lingxiaoxuan_flow")
+    monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: config))
+
+    async def _fake_tts(text: str, **kwargs):
+        assert text == "hello"
+        assert kwargs["config"] is config
+        return SimpleNamespace(
+            audio=b"mp3bytes",
+            content_type="audio/mpeg",
+            encoding="lame",
+            sample_rate=24000,
+            voice="x5_lingxiaoxuan_flow",
+            sid="sid-123",
+        )
+
+    monkeypatch.setattr(system_module, "synthesize_speech_with_iflytek", _fake_tts)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/tts-preview", json={"text": "hello"})
+
+    assert response.status_code == 200
+    assert response.content == b"mp3bytes"
+    assert response.headers["content-type"].startswith("audio/mpeg")
+    assert response.headers["x-sparkweave-tts-voice"] == "x5_lingxiaoxuan_flow"
+
+

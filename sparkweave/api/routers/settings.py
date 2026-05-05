@@ -154,7 +154,15 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
         },
         {"value": "disabled", "label": "Disabled", "base_url": ""},
     ]
-    return {"llm": llm, "embedding": embedding, "search": search, "ocr": ocr}
+    tts = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek Super Smart TTS",
+            "base_url": "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6",
+        },
+        {"value": "disabled", "label": "Disabled", "base_url": ""},
+    ]
+    return {"llm": llm, "embedding": embedding, "search": search, "ocr": ocr, "tts": tts}
 
 
 @router.get("")

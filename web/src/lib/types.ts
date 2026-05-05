@@ -240,11 +240,13 @@ export interface QuizResultItem {
   correct_answer: string;
   explanation?: string;
   difficulty?: string;
+  duration_seconds?: number | null;
+  attempt_count?: number;
   is_correct: boolean;
 }
 
 export interface MathAnimatorArtifact {
-  type: "video" | "image";
+  type: "video" | "image" | "audio";
   url: string;
   filename: string;
   content_type?: string;
@@ -275,6 +277,7 @@ export interface MathAnimatorResult {
       reviewed_frames?: number;
     } | null;
   };
+  audio_narration?: AudioNarrationResult;
 }
 
 export interface VisualizeResult {
@@ -526,6 +529,196 @@ export interface LearnerEvidenceListResponse {
   };
 }
 
+export interface LearningEffectConcept {
+  concept_id: string;
+  title: string;
+  score: number;
+  status: string;
+  confidence: number;
+  trend: string;
+  evidence_count: number;
+  scored_event_count: number;
+  correct_count: number;
+  incorrect_count: number;
+  open_mistake_count: number;
+  resource_count: number;
+  last_practiced_at?: number | null;
+  next_review_at?: number | null;
+  evidence_refs: string[];
+  common_mistakes: string[];
+  recommendation: string;
+}
+
+export interface LearningEffectNextAction {
+  id: string;
+  type: string;
+  title: string;
+  reason: string;
+  target_concepts: string[];
+  estimated_minutes: number;
+  priority: number;
+  href: string;
+  capability?: CapabilityId | string;
+  prompt?: string;
+  config?: Record<string, unknown>;
+  writes_back: string[];
+}
+
+export interface LearningEffectReport {
+  success?: boolean;
+  generated_at?: number;
+  course_id?: string;
+  window?: string;
+  overall: {
+    score?: number;
+    label?: string;
+    summary?: string;
+  };
+  dimensions: Array<{
+    id?: string;
+    label?: string;
+    score?: number;
+    status?: string;
+    evidence?: string;
+  }>;
+  concepts: LearningEffectConcept[];
+  open_mistakes: Array<Record<string, unknown>>;
+  remediation_loop?: {
+    total: number;
+    pending_remediation_count: number;
+    ready_for_retest_count: number;
+    closed_count: number;
+    items: Array<{
+      title?: string;
+      concept?: string;
+      target_task_id?: string;
+      resource_type?: string;
+      estimated_minutes?: number;
+      status?: "pending_remediation" | "ready_for_retest" | "closed" | string;
+      status_label?: string;
+      reason?: string;
+      evidence_summary?: string;
+      next_step?: string;
+      progress_label?: string;
+      action_label?: string;
+      action_href?: string;
+      action_capability?: CapabilityId | string;
+      action_prompt?: string;
+      action_config?: Record<string, unknown>;
+      created_at?: number | string | null;
+      completed_at?: number | string | null;
+      closed_at?: number | string | null;
+      evidence_id?: string;
+    }>;
+  };
+  learner_receipt?: {
+    headline?: string;
+    state_label?: string;
+    score?: number;
+    score_label?: string;
+    confidence_label?: string;
+    evidence_summary?: string;
+    profile_update?: string;
+    next_step?: string;
+    reason?: string;
+    action_id?: string;
+    action_label?: string;
+    action_href?: string;
+    writes_back?: string[];
+    focus_concepts?: Array<{
+      concept_id?: string;
+      title?: string;
+      status?: string;
+      status_label?: string;
+      score?: number;
+    }>;
+    loop?: {
+      pending?: number;
+      ready_for_retest?: number;
+      closed?: number;
+    };
+  };
+  visualization?: {
+    summary?: string;
+    nodes?: Array<{
+      id?: string;
+      label?: string;
+      value?: string;
+      detail?: string;
+      tone?: string;
+    }>;
+    edges?: Array<{
+      from?: string;
+      to?: string;
+      label?: string;
+    }>;
+    dimension_bars?: Array<{
+      id?: string;
+      label?: string;
+      score?: number;
+      status?: string;
+      evidence?: string;
+    }>;
+    evidence_timeline?: Array<{
+      id?: string;
+      label?: string;
+      detail?: string;
+      kind?: string;
+      score?: number | null;
+      created_at?: number | string | null;
+      source?: string;
+    }>;
+    weak_points?: Array<{
+      concept_id?: string;
+      title?: string;
+      score?: number;
+      status?: string;
+      recommendation?: string;
+    }>;
+    loop?: {
+      total?: number;
+      pending?: number;
+      ready_for_retest?: number;
+      closed?: number;
+    };
+  };
+  next_actions: LearningEffectNextAction[];
+  evidence_refs: Array<Record<string, unknown>>;
+  summary: {
+    event_count?: number;
+    scored_event_count?: number;
+    quiz_count?: number;
+    resource_count?: number;
+    open_mistake_count?: number;
+    average_score?: number | null;
+    accuracy?: number | null;
+    latest_event_at?: number | null;
+    [key: string]: unknown;
+  };
+}
+
+export interface LearningEffectConceptListResponse {
+  success?: boolean;
+  course_id?: string;
+  window?: string;
+  items: LearningEffectConcept[];
+  total: number;
+  summary?: Record<string, unknown>;
+}
+
+export interface LearningEffectNextActionsResponse {
+  success?: boolean;
+  course_id?: string;
+  window?: string;
+  items: LearningEffectNextAction[];
+  total: number;
+}
+
+export interface CompleteLearningEffectActionResponse {
+  event: LearnerEvidenceEvent;
+  report: LearningEffectReport;
+}
+
 export interface RagProvider {
   id?: string;
   name: string;
@@ -649,7 +842,7 @@ export interface GuidePages {
   [key: string]: unknown;
 }
 
-export type GuideV2ResourceType = "visual" | "video" | "external_video" | "quiz" | "research";
+export type GuideV2ResourceType = "visual" | "video" | "audio" | "external_video" | "quiz" | "research";
 
 export interface ExternalVideoRecommendation {
   title?: string;
@@ -679,6 +872,30 @@ export interface ExternalVideoResult {
   search_errors?: string[];
   fallback_search?: boolean;
   agent_chain?: Array<{ label?: string; detail?: string }>;
+  tool_chain?: Array<{ label?: string; detail?: string; state?: string }>;
+}
+
+export interface AudioNarrationResult {
+  response?: string;
+  script_text?: string;
+  learner_profile_hints?: Record<string, unknown>;
+  style_hint?: string;
+  video?: {
+    asset_url?: string;
+    filename?: string;
+    content_type?: string;
+    label?: string;
+  };
+  audio?: {
+    asset_url?: string;
+    filename?: string;
+    content_type?: string;
+    encoding?: string;
+    sample_rate?: number;
+    voice?: string;
+    byte_length?: number;
+    sid?: string;
+  };
 }
 
 export interface GuideV2Artifact {
@@ -1156,6 +1373,16 @@ export interface GuideV2LearningFeedback {
     concept_status?: string;
     concept_score_percent?: number;
   }>;
+  remediation_task?: {
+    title?: string;
+    reason?: string;
+    concept?: string;
+    target_task_id?: string;
+    resource_action_id?: string;
+    resource_type?: GuideV2ResourceType | string;
+    estimated_minutes?: number;
+    steps?: string[];
+  } | null;
   evidence_quality?: {
     score?: number;
     label?: string;
@@ -1315,7 +1542,10 @@ export interface GuideV2LearningReport {
       label?: string;
       detail?: string;
     }>;
+    learning_effect_report?: Record<string, unknown>;
+    learning_effect_next_actions?: LearningEffectNextAction[];
   };
+  learning_effect_report?: LearningEffectReport;
   action_brief?: {
     title?: string;
     summary?: string;
@@ -1720,6 +1950,11 @@ export interface SystemStatus {
     provider?: string | null;
     error?: string;
   };
+  tts?: {
+    status: string;
+    provider?: string | null;
+    error?: string;
+  };
 }
 
 export interface SystemTestResponse {
@@ -1809,6 +2044,7 @@ export interface ModelCatalog {
     embedding: ServiceCatalog;
     search: ServiceCatalog;
     ocr?: ServiceCatalog;
+    tts?: ServiceCatalog;
   };
 }
 
@@ -1825,6 +2061,7 @@ export interface SettingsResponse {
     embedding: ProviderChoice[];
     search: ProviderChoice[];
     ocr?: ProviderChoice[];
+    tts?: ProviderChoice[];
   };
 }
 

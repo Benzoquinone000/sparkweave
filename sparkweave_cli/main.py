@@ -19,6 +19,7 @@ from .chat import register as register_chat
 from .common import build_turn_request, console, maybe_run
 from .config_cmd import register as register_config
 from .kb import register as register_kb
+from .learning_effect import register as register_learning_effect
 from .memory import register as register_memory
 from .notebook import register as register_notebook
 from .plugin import register as register_plugin
@@ -43,6 +44,7 @@ config_app = typer.Typer(help="Inspect configuration.")
 session_app = typer.Typer(help="Manage shared sessions.")
 notebook_app = typer.Typer(help="Manage notebooks and imported markdown records.")
 provider_app = typer.Typer(help="Manage provider OAuth login.")
+learning_effect_app = typer.Typer(help="Inspect learning-effect closed-loop reports.")
 
 app.add_typer(bot_app, name="bot")
 app.add_typer(bot_app, name="sparkbot")
@@ -54,6 +56,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(session_app, name="session")
 app.add_typer(notebook_app, name="notebook")
 app.add_typer(provider_app, name="provider")
+app.add_typer(learning_effect_app, name="learning-effect")
 
 register_bot(bot_app)
 register_chat(chat_app)
@@ -64,6 +67,7 @@ register_config(config_app)
 register_session(session_app)
 register_notebook(notebook_app)
 register_provider(provider_app)
+register_learning_effect(learning_effect_app)
 
 
 def _repo_root() -> Path:

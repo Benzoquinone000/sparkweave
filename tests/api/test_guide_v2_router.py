@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -401,3 +402,66 @@ def test_guide_v2_router_lists_sessions(tmp_path, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["sessions"][0]["goal"] == "学习卷积神经网络"
+
+
+def test_guide_v2_router_serves_audio_artifact_asset(tmp_path, monkeypatch) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    async def _fake_tts(text: str, **_kwargs):
+        assert "梯度下降" in text
+
+        class _Result:
+            audio = b"mp3bytes"
+            content_type = "audio/mpeg"
+            encoding = "lame"
+            sample_rate = 24000
+            voice = "x5_lingxiaoxuan_flow"
+            sid = "sid-audio"
+
+        return _Result()
+
+    monkeypatch.setattr("sparkweave.services.guide_v2.synthesize_speech_with_iflytek", _fake_tts)
+
+    captured_add_record: dict[str, Any] = {}
+
+    class _NotebookManager:
+        def add_record(self, **kwargs):
+            captured_add_record.update(kwargs)
+            return {"record": {"id": "rec-audio", "title": kwargs["title"]}, "added_to_notebooks": kwargs["notebook_ids"]}
+
+    monkeypatch.setattr(guide_v2, "notebook_manager", _NotebookManager())
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+    client = _client_with_manager(manager, monkeypatch)
+
+    created = client.post(
+        "/api/v1/guide/v2/sessions",
+        json={"goal": "理解梯度下降", "preferences": ["audio"], "weak_points": ["学习率作用"]},
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session"]["session_id"]
+    task_id = created.json()["session"]["tasks"][0]["task_id"]
+
+    generated = client.post(
+        f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/resources",
+        json={"resource_type": "audio", "prompt": "重点解释学习率作用"},
+    )
+    assert generated.status_code == 200
+    artifact = generated.json()["artifact"]
+    assert artifact["result"]["audio"]["asset_url"].endswith(f"/artifacts/{artifact['id']}/asset")
+    assert Path(artifact["result"]["audio"]["asset_path"]).exists()
+
+    asset = client.get(f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact['id']}/asset")
+    assert asset.status_code == 200
+    assert asset.content == b"mp3bytes"
+    assert asset.headers["content-type"].startswith("audio/mpeg")
+
+    saved = client.post(
+        f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact['id']}/save",
+        json={"notebook_ids": ["nb-audio"]},
+    )
+    assert saved.status_code == 200
+    metadata = captured_add_record["metadata"]
+    assert metadata["artifact_type"] == "audio"
+    assert metadata["audio_narration"]["audio"]["asset_url"].endswith(f"/artifacts/{artifact['id']}/asset")

@@ -21,7 +21,7 @@ export function PersonalizationBrief({
 
   return (
     <div
-      className={`rounded-lg border border-teal-100 bg-teal-50 px-3 py-3 ${className}`}
+      className={`rounded-lg border border-line bg-tint-lavender px-3 py-3 ${className}`}
       data-testid="personalization-brief"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -32,11 +32,11 @@ export function PersonalizationBrief({
           </Badge>
         ))}
       </div>
-      <div className="mt-2 flex gap-2 text-sm leading-6 text-teal-950">
-        <Sparkles size={16} className="mt-1 shrink-0 text-brand-teal" />
+      <div className="mt-2 flex gap-2 text-sm leading-6 text-charcoal">
+        <Sparkles size={16} className="mt-1 shrink-0 text-brand-purple" />
         <p>{insight.headline}</p>
       </div>
-      {insight.suggestion ? <p className="mt-2 text-xs leading-5 text-teal-800">{insight.suggestion}</p> : null}
+      {insight.suggestion ? <p className="mt-2 text-xs leading-5 text-steel">{insight.suggestion}</p> : null}
     </div>
   );
 }

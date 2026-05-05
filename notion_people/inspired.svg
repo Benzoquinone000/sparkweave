@@ -1,0 +1,17 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="320" fill="#fff"/>
+  <g fill="none" stroke="#111" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M65 244h190"/>
+    <circle cx="160" cy="107" r="42" fill="#fff"/>
+    <path d="M120 101c5-34 61-48 86-13 7 10 9 21 6 33"/>
+    <path d="M132 77c14 20 42 18 57 2"/>
+    <path d="M147 109v2M175 109v2"/>
+    <path d="M151 135c8 8 19 8 28 0"/>
+    <path d="M111 244v-48c0-27 22-49 49-49s49 22 49 49v48"/>
+    <rect x="63" y="181" width="120" height="70" rx="8" fill="#fff"/>
+    <path d="M109 211l13 13 23-28"/>
+    <path d="M225 151c18-18 46-7 46 17 0 24-27 33-46 56-19-23-46-32-46-56 0-24 28-35 46-17z"/>
+    <path d="M242 65c0-17 14-31 31-31M243 94h34M250 121l22 22M230 121l-22 22"/>
+  </g>
+  <text x="160" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#111">有灵感了</text>
+</svg>

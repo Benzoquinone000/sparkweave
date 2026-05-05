@@ -4,7 +4,8 @@ import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
-import { appendLearnerEvidence } from "@/lib/api";
+import { appendLearningEffectEvent } from "@/lib/api";
+import { invalidateLearningQueries } from "@/lib/queryInvalidation";
 import type { ExternalVideoResult } from "@/lib/types";
 
 function formatDuration(seconds?: number | null) {
@@ -32,7 +33,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
   );
   const embedUrl = safeEmbedUrl(featured?.embed_url);
   const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
-  const chain = (result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
+  const chain = (result.tool_chain ?? result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
   const watchPlan = (result.watch_plan ?? []).filter(Boolean).slice(0, 3);
   const recordedVideoUrls = useRef(new Set<string>());
   const [viewedVideoUrls, setViewedVideoUrls] = useState<Set<string>>(() => new Set());
@@ -42,7 +43,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       if (!video.url || recordedVideoUrls.current.has(video.url)) return;
       recordedVideoUrls.current.add(video.url);
       setViewedVideoUrls((prev) => new Set(prev).add(video.url || ""));
-      void appendLearnerEvidence({
+      void appendLearningEffectEvent({
         source: "resource",
         source_id: `external_video:${video.url}`,
         actor: "learner",
@@ -66,12 +67,11 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
           style_hint: result.style_hint || "",
           learner_profile_hints: result.learner_profile_hints ?? {},
           agent_chain: result.agent_chain ?? [],
+          tool_chain: result.tool_chain ?? [],
         },
       })
         .then(() => {
-          void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
-          void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
-          void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+          invalidateLearningQueries(queryClient);
         })
         .catch(() => {
           recordedVideoUrls.current.delete(video.url || "");
@@ -91,27 +91,28 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
       result.reflection_prompt,
       result.response,
       result.style_hint,
+      result.tool_chain,
       result.watch_plan,
     ],
   );
 
   return (
-    <div className="rounded-lg border border-line bg-canvas p-3" data-testid="external-video-viewer">
+    <div className="rounded-lg border border-line bg-surface p-3" data-testid="external-video-viewer">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">{hasFallbackSearch ? "搜索入口" : "精选视频"}</Badge>
         <Badge tone="neutral">{videos.length ? `${videos.length} 个推荐` : "等待结果"}</Badge>
       </div>
 
-      {result.response ? <p className="mt-3 text-sm leading-6 text-slate-600">{result.response}</p> : null}
+      {result.response ? <p className="mt-3 text-sm leading-6 text-charcoal">{result.response}</p> : null}
       <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
       {featured ? (
-        <div className="mt-3 rounded-lg border border-teal-100 bg-white p-3" data-testid="external-video-watch-plan">
-          <p className="text-xs font-semibold text-brand-teal">建议用法</p>
+        <div className="mt-3 rounded-lg border border-line bg-tint-yellow p-3" data-testid="external-video-watch-plan">
+          <p className="text-xs font-semibold text-ink">建议用法</p>
           {watchPlan.length ? (
-            <ol className="mt-2 grid gap-2 text-sm leading-6 text-slate-700">
+            <ol className="mt-2 grid gap-2 text-sm leading-6 text-charcoal">
               {watchPlan.map((step, index) => (
                 <li key={`${step}-${index}`} className="flex gap-2">
-                  <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-teal-50 text-xs font-semibold text-brand-teal">
+                  <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-brand-purple">
                     {index + 1}
                   </span>
                   <span>{step}</span>
@@ -119,22 +120,22 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
               ))}
             </ol>
           ) : (
-            <p className="mt-1 text-sm leading-6 text-slate-700">
+            <p className="mt-1 text-sm leading-6 text-charcoal">
               {hasFallbackSearch
                 ? "先打开一个平台搜索入口，选 1-2 个短讲解，看完后回到导学提交反思或做一组练习。"
                 : "先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。"}
             </p>
           )}
           {result.reflection_prompt ? (
-            <p className="mt-3 rounded-md border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+            <p className="mt-3 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-charcoal">
               {result.reflection_prompt}
             </p>
           ) : null}
         </div>
       ) : null}
       {chain.length ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500" data-testid="external-video-chain">
-          <span className="font-medium text-slate-600">筛选链路</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-steel" data-testid="external-video-chain">
+          <span className="font-medium text-charcoal">工具处理</span>
           {chain.map((item, index) => (
             <span key={`${item.label || item.detail}-${index}`} className="rounded-md border border-line bg-white px-2 py-1">
               {item.label || item.detail}
@@ -157,13 +158,13 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
           </div>
           {featured?.url ? (
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-              <p className="text-xs leading-5 text-slate-500">可以先在这里预览。看完后点一下，系统会把这种资源偏好写回画像。</p>
+              <p className="text-xs leading-5 text-steel">可以先在这里预览。看完后点一下，系统会把这种资源偏好写回画像。</p>
               <button
                 type="button"
                 data-testid="external-video-mark-viewed"
                 onClick={() => recordVideoViewed(featured, featuredIndex)}
                 disabled={viewedVideoUrls.has(featured.url)}
-                className="inline-flex min-h-8 items-center rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white disabled:cursor-default disabled:border-line disabled:bg-canvas disabled:text-slate-500"
+                className="inline-flex min-h-8 items-center rounded-md border border-line bg-ink px-2 text-xs font-medium text-white transition hover:bg-brand-purple disabled:cursor-default disabled:bg-canvas disabled:text-steel"
               >
                 {viewedVideoUrls.has(featured.url) ? "已记入画像依据" : "我看了这个，记入画像"}
               </button>
@@ -181,11 +182,11 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                   <img
                     src={video.thumbnail}
                     alt=""
-                    className="aspect-video w-full rounded-lg border border-line bg-slate-100 object-cover"
+                    className="aspect-video w-full rounded-lg border border-line bg-surface object-cover"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-teal-50 text-brand-teal">
+                  <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-tint-lavender text-brand-purple">
                     {isFallbackVideo(video) ? <Search size={28} /> : <PlayCircle size={28} />}
                   </div>
                 )}
@@ -196,7 +197,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                     </Badge>
                     {video.platform ? <Badge tone="neutral">{video.platform}</Badge> : null}
                     {formatDuration(video.duration_seconds) ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1 text-xs text-steel">
                         <Timer size={13} />
                         {formatDuration(video.duration_seconds)}
                       </span>
@@ -204,7 +205,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                   </div>
                   <h4 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-ink">{video.title || "学习视频"}</h4>
                   {video.why_recommended || video.summary ? (
-                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-charcoal">
                       {video.why_recommended || video.summary}
                     </p>
                   ) : null}
@@ -216,7 +217,7 @@ export function ExternalVideoViewer({ result }: { result: ExternalVideoResult })
                         rel="noreferrer"
                         data-testid={`external-video-open-${index}`}
                         onClick={() => recordVideoViewed(video, index)}
-                        className="inline-flex min-h-8 items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 text-xs font-medium text-brand-teal transition hover:bg-white"
+                        className="inline-flex min-h-8 items-center gap-1 rounded-md border border-line bg-white px-2 text-xs font-medium text-ink transition hover:border-brand-purple hover:text-brand-purple"
                       >
                         <ExternalLink size={13} />
                         {isFallbackVideo(video) ? "打开搜索" : "打开观看"}

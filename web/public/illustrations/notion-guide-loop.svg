@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">Guide loop</title>
+  <desc id="desc">A simple Notion style loop from learn to practice to feedback.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#111827" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <rect width="720" height="420" rx="8" fill="#f6f5f4"/>
+  <g filter="url(#shadow)">
+    <rect x="80" y="74" width="560" height="272" rx="8" fill="#fff"/>
+    <path d="M214 210c38-72 108-90 166-52 48 31 64 96 124 80" fill="none" stroke="#5645d4" stroke-width="4" stroke-dasharray="10 12" opacity=".6"/>
+    <rect x="118" y="162" width="142" height="86" rx="8" fill="#fef7d6"/>
+    <rect x="296" y="116" width="142" height="86" rx="8" fill="#dcecfa"/>
+    <rect x="474" y="162" width="128" height="86" rx="8" fill="#d9f3e1"/>
+    <circle cx="146" cy="190" r="12" fill="#f5d75e"/>
+    <circle cx="324" cy="144" r="12" fill="#0075de"/>
+    <circle cx="502" cy="190" r="12" fill="#2a9d99"/>
+    <rect x="170" y="184" width="58" height="9" rx="4.5" fill="#37352f"/>
+    <rect x="348" y="138" width="66" height="9" rx="4.5" fill="#37352f"/>
+    <rect x="526" y="184" width="50" height="9" rx="4.5" fill="#37352f"/>
+    <rect x="170" y="207" width="72" height="7" rx="3.5" fill="#787671"/>
+    <rect x="348" y="161" width="58" height="7" rx="3.5" fill="#787671"/>
+    <rect x="526" y="207" width="52" height="7" rx="3.5" fill="#787671"/>
+    <text x="246" y="292" fill="#1a1a1a" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">学一点 · 练一下 · 再调整</text>
+  </g>
+</svg>

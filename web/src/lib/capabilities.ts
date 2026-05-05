@@ -30,16 +30,16 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   {
     id: "chat",
     label: "即时答疑",
-    shortLabel: "Chat",
+    shortLabel: "对话",
     description: "面向日常学习、资料追问和推理解释的轻量模式。",
     icon: MessageSquareText,
-    tools: ["rag", "web_search", "paper_search", "code_execution", "reason"],
+    tools: ["rag", "web_search", "external_video_search", "paper_search", "code_execution", "reason"],
     config: {},
   },
   {
     id: "deep_solve",
     label: "深度求解",
-    shortLabel: "Solve",
+    shortLabel: "求解",
     description: "规划、调用工具、验证并写出结构化解答。",
     icon: BrainCircuit,
     tools: ["rag", "web_search", "code_execution", "reason"],
@@ -48,7 +48,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   {
     id: "deep_question",
     label: "题目生成",
-    shortLabel: "Quiz",
+    shortLabel: "练习",
     description: "围绕知识点生成题目、答案和解析。",
     icon: FileQuestion,
     tools: ["rag", "web_search", "code_execution"],
@@ -64,7 +64,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   {
     id: "deep_research",
     label: "深度研究",
-    shortLabel: "Research",
+    shortLabel: "研究",
     description: "拆解主题、检索证据并生成学习报告。",
     icon: Search,
     tools: ["rag", "web_search", "paper_search", "code_execution"],
@@ -75,20 +75,9 @@ export const CAPABILITIES: CapabilityDefinition[] = [
     },
   },
   {
-    id: "external_video_search",
-    label: "精选视频",
-    shortLabel: "Video",
-    description: "从公开视频中筛选少量适合当前任务的讲解资源。",
-    icon: Video,
-    tools: ["web_search"],
-    config: {
-      max_results: 3,
-    },
-  },
-  {
     id: "visualize",
     label: "知识可视化",
-    shortLabel: "Visualize",
+    shortLabel: "图解",
     description: "把概念转成图表、Mermaid 或 SVG 结构。",
     icon: BarChart3,
     tools: [],
@@ -97,13 +86,14 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   {
     id: "math_animator",
     label: "数学动画",
-    shortLabel: "Animation",
+    shortLabel: "动画",
     description: "生成 Manim 代码与动画渲染结果。",
     icon: SquareFunction,
     tools: [],
     config: {
       output_mode: "video",
       quality: "medium",
+      enable_narration_audio: true,
       style_hint: "clean educational animation",
       max_retries: 4,
     },
@@ -113,6 +103,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
 export const TOOL_OPTIONS = [
   { id: "rag", label: "知识库", icon: BookOpenCheck },
   { id: "web_search", label: "联网检索", icon: Search },
+  { id: "external_video_search", label: "精选视频", icon: Video },
   { id: "paper_search", label: "论文检索", icon: GraduationCap },
   { id: "code_execution", label: "代码执行", icon: FlaskConical },
   { id: "reason", label: "深度推理", icon: Sparkles },
@@ -124,12 +115,13 @@ export function getCapability(id: CapabilityId) {
 }
 
 export function capabilityLabel(id: string | null | undefined) {
+  if (id === "external_video_search") return "精选视频工具";
   const capability = CAPABILITIES.find((item) => item.id === id);
   return capability?.label || id || "聊天";
 }
 
 export function defaultToolsForCapability(id: CapabilityId) {
-  return getCapability(id).tools.slice(0, id === "chat" ? 2 : 3);
+  return getCapability(id).tools.slice(0, id === "chat" ? 3 : 3);
 }
 
 export function defaultConfigForCapability(id: CapabilityId, content: string) {

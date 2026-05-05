@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title">
+  <title id="title">Dotted workspace thread</title>
+  <g fill="none" stroke-linecap="round">
+    <path d="M52 116C128 48 232 58 302 112C384 176 444 150 514 96C552 67 584 56 612 62" stroke="#d6b6f6" stroke-width="2" stroke-dasharray="5 11" opacity="0.55"/>
+    <path d="M34 255C112 224 176 230 238 274C302 319 390 315 454 260C506 215 568 208 620 229" stroke="#dcecfa" stroke-width="2" stroke-dasharray="4 12" opacity="0.52"/>
+    <path d="M120 328C192 286 250 284 318 304C392 327 455 315 520 274" stroke="#f9e79f" stroke-width="2" stroke-dasharray="3 12" opacity="0.36"/>
+  </g>
+  <g>
+    <circle cx="104" cy="82" r="6" fill="#ff64c8"/>
+    <circle cx="302" cy="112" r="5" fill="#f5d75e"/>
+    <circle cx="514" cy="96" r="6" fill="#2a9d99"/>
+    <circle cx="174" cy="242" r="5" fill="#7b3ff2"/>
+    <circle cx="454" cy="260" r="6" fill="#0075de"/>
+    <circle cx="594" cy="225" r="5" fill="#dd5b00"/>
+  </g>
+</svg>

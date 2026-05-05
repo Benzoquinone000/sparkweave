@@ -43,6 +43,7 @@ import type {
   CapabilityId,
   ChatAttachment,
   ChatMessage,
+  LearningEffectNextAction,
   LearnerProfileSnapshot,
   NotebookReference,
   NotebookSummary,
@@ -52,7 +53,15 @@ import type {
 } from "@/lib/types";
 import { buildNotebookAsset, type NotebookAsset } from "@/lib/notebookAssets";
 import { useChatRuntime } from "@/hooks/useChatRuntime";
-import { useLearnerProfile, useLearnerProfileMutations, useNotebookMutations, useNotebooks, useSessionMutations, useSessions } from "@/hooks/useApiQueries";
+import {
+  useLearnerProfile,
+  useLearnerProfileMutations,
+  useLearningEffectNextActions,
+  useNotebookMutations,
+  useNotebooks,
+  useSessionMutations,
+  useSessions,
+} from "@/hooks/useApiQueries";
 
 const CAPABILITY_IDS = new Set<CapabilityId>([
   "chat",
@@ -115,9 +124,11 @@ export function ChatPage() {
   const notebookMutations = useNotebookMutations();
   const learnerProfile = useLearnerProfile();
   const learnerProfileMutations = useLearnerProfileMutations();
+  const learningEffectActions = useLearningEffectNextActions({ limit: 1, window: "14d" });
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const refreshedProfileTurnRef = useRef<string | null>(null);
+  const autoPromptKeyRef = useRef<string | null>(null);
   const activeCapability = getCapability(capability);
   const profileFocus = learnerProfile.data?.overview.current_focus?.trim();
   const saveAsset = useMemo(
@@ -212,11 +223,25 @@ export function ChatPage() {
     [historyReferences, knowledgeBases, language, notebookReferences, runtime],
   );
 
-  const newSession = () => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "1") return;
+    const prompt = cleanText(params.get("prompt"));
+    if (!prompt || runtime.messages.length || runtime.status !== "idle") return;
+    const key = `${window.location.pathname}${window.location.search}`;
+    if (autoPromptKeyRef.current === key) return;
+    autoPromptKeyRef.current = key;
+    const requestedCapability = params.get("capability");
+    const nextCapability = isCapabilityId(requestedCapability) ? requestedCapability : initialCapability;
+    sendQuickAction(prompt, nextCapability);
+  }, [initialCapability, runtime.messages.length, runtime.status, sendQuickAction]);
+
+  const newSession = useCallback(() => {
     runtime.newSession();
     setHistoryReferences([]);
     setNotebookReferences([]);
-  };
+  }, [runtime]);
 
   const handleCapabilityChange = useCallback((next: CapabilityId) => {
     setCapability(next);
@@ -258,6 +283,20 @@ export function ChatPage() {
   };
 
   useEffect(() => {
+    const consumePendingNewChat = () => {
+      if (window.sessionStorage.getItem("sparkweave:new-chat-request")) {
+        window.sessionStorage.removeItem("sparkweave:new-chat-request");
+        newSession();
+      }
+    };
+    const handleNewChat = () => newSession();
+
+    consumePendingNewChat();
+    window.addEventListener("sparkweave:new-chat", handleNewChat);
+    return () => window.removeEventListener("sparkweave:new-chat", handleNewChat);
+  }, [newSession]);
+
+  useEffect(() => {
     if (!routeSessionId || routeSessionId === runtime.sessionId) return;
     let cancelled = false;
     getSession(routeSessionId)
@@ -281,7 +320,7 @@ export function ChatPage() {
             {profileFocus ? (
               <a
                 href="/memory"
-                className="hidden max-w-[220px] truncate rounded-lg border border-teal-100 bg-teal-50 px-2.5 py-1.5 text-xs font-medium text-brand-teal hover:border-teal-200 md:inline-flex"
+                className="hidden max-w-[220px] truncate rounded-lg border border-brand-purple-300 bg-tint-lavender px-2.5 py-1.5 text-xs font-medium text-brand-purple hover:border-brand-purple-300 md:inline-flex"
                 title={`画像当前重点：${profileFocus}`}
               >
                 画像：{profileFocus}
@@ -294,7 +333,7 @@ export function ChatPage() {
               type="button"
               data-testid="chat-history-toggle"
               onClick={() => setHistoryOpen((value) => !value)}
-              className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-teal-200 hover:text-brand-teal lg:hidden"
+              className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple lg:hidden"
               aria-label="历史会话"
             >
               <Clock3 size={16} />
@@ -304,7 +343,7 @@ export function ChatPage() {
               type="button"
               data-testid="chat-context-toggle"
               onClick={() => setContextOpen((value) => !value)}
-              className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-teal-200 hover:text-brand-teal"
+              className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
               aria-label="上下文"
             >
               <PanelRightOpen size={16} />
@@ -316,7 +355,7 @@ export function ChatPage() {
 
       <div className="flex min-h-0 flex-1">
         <aside
-          className={`hidden shrink-0 border-r border-line bg-white/80 transition-[width] duration-200 lg:block ${
+          className={`hidden shrink-0 border-r border-line bg-white/80 transition-[width] duration-200 ${
             historyCollapsed ? "w-14 p-2" : "w-72 p-3"
           }`}
           data-testid="chat-history-sidebar"
@@ -326,7 +365,7 @@ export function ChatPage() {
             <div className="flex h-full flex-col items-center gap-3">
               <button
                 type="button"
-                className="dt-interactive inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-white text-slate-600 hover:border-teal-200 hover:text-brand-teal"
+                className="dt-interactive inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-white text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
                 onClick={() => setHistoryCollapsed(false)}
                 aria-label="展开历史会话"
                 data-testid="chat-history-expand"
@@ -366,6 +405,7 @@ export function ChatPage() {
                 <EmptyState
                   activeCapability={activeCapability.label}
                   profile={learnerProfile.data}
+                  learningEffectAction={learningEffectActions.data?.items?.[0] ?? null}
                   disabled={!canSend}
                   onQuickSend={sendQuickAction}
                 />
@@ -412,7 +452,7 @@ export function ChatPage() {
                 <button
                   type="button"
                   onClick={() => setHistoryOpen(false)}
-                  className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-teal-200 hover:text-brand-teal"
+                  className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
                   aria-label="关闭历史会话"
                 >
                   <X size={17} />
@@ -466,7 +506,7 @@ export function ChatPage() {
                 <button
                   type="button"
                   onClick={() => setContextOpen(false)}
-                  className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-teal-200 hover:text-brand-teal"
+                  className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
                   aria-label="关闭上下文"
                 >
                   <X size={17} />
@@ -591,6 +631,36 @@ function guideHref(profile?: LearnerProfileSnapshot) {
   return `/guide?${params.toString()}`;
 }
 
+function promptFromLearningEffectAction(action?: LearningEffectNextAction | null) {
+  if (!action) return "";
+  const directPrompt = cleanText(action.prompt);
+  if (directPrompt) return directPrompt;
+  const href = cleanText(action.href);
+  if (href) {
+    try {
+      const url = new URL(href, "http://sparkweave.local");
+      const prompt = cleanText(url.searchParams.get("prompt"));
+      if (prompt) return prompt;
+    } catch {
+      // Fall back to the action text below.
+    }
+  }
+  const concepts = (action.target_concepts ?? []).filter(Boolean).join("、");
+  const title = cleanText(action.title);
+  const reason = cleanText(action.reason);
+  if (title && concepts) return `${title}。请重点围绕：${concepts}。${reason}`;
+  if (title && reason) return `${title}。${reason}`;
+  return title || reason;
+}
+
+function capabilityFromLearningEffectAction(action?: LearningEffectNextAction | null): CapabilityId | undefined {
+  return isCapabilityId(action?.capability) ? action.capability : undefined;
+}
+
+function configFromLearningEffectAction(action?: LearningEffectNextAction | null): Record<string, unknown> | undefined {
+  return action?.config && typeof action.config === "object" ? action.config : undefined;
+}
+
 function quickActionsForProfile(profile?: LearnerProfileSnapshot) {
   const topic = profileTopic(profile);
   return [
@@ -640,88 +710,140 @@ function quickActionsForProfile(profile?: LearnerProfileSnapshot) {
 function EmptyState({
   activeCapability,
   profile,
+  learningEffectAction,
   disabled,
   onQuickSend,
 }: {
   activeCapability: string;
   profile?: LearnerProfileSnapshot;
+  learningEffectAction?: LearningEffectNextAction | null;
   disabled: boolean;
   onQuickSend: (content: string, capability?: CapabilityId, config?: Record<string, unknown>) => void;
 }) {
   const action = profile?.next_action;
-  const title = cleanText(action?.title) || `${profileTopic(profile)}：先迈出一步`;
+  const title = cleanText(learningEffectAction?.title) || cleanText(action?.title) || `${profileTopic(profile)}：先迈出一步`;
   const summary =
+    cleanText(learningEffectAction?.reason) ||
     cleanText(action?.summary) ||
     cleanText(profile?.overview.summary) ||
     "我会根据你的画像和当前问题，自动选择答疑、练习、图解、视频或导学路径。你只需要点一下，或者直接输入问题。";
-  const minutes = Number(action?.estimated_minutes || profile?.overview.preferred_time_budget_minutes || 10);
+  const minutes = Number(learningEffectAction?.estimated_minutes || action?.estimated_minutes || profile?.overview.preferred_time_budget_minutes || 10);
   const actions = quickActionsForProfile(profile);
-  const directStartPrompt = profile ? "继续学习" : `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`;
+  const directStartCapability = capabilityFromLearningEffectAction(learningEffectAction);
+  const directStartConfig = configFromLearningEffectAction(learningEffectAction);
+  const directStartPrompt =
+    promptFromLearningEffectAction(learningEffectAction) ||
+    (profile ? "继续学习" : `请根据我的学习画像，安排我下一步学习：${profileTopic(profile)}`);
 
   return (
     <motion.div
-      className="mx-auto w-full max-w-3xl py-10"
+      className="mx-auto w-full max-w-5xl py-5 sm:py-7"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
       data-testid="chat-profile-starter"
     >
-      <div className="rounded-lg border border-line bg-white p-4 text-left shadow-sm sm:p-5">
-        <div className="flex items-start gap-3">
+      <section className="dt-notion-hero p-5 sm:p-6 lg:p-8">
+        <img
+          src="/illustrations/notion-note-yellow.svg"
+          alt=""
+          aria-hidden="true"
+          className="dt-hero-note pointer-events-none absolute left-10 top-8 hidden h-10 w-14 sm:block"
+        />
+        <img
+          src="/illustrations/notion-note-pink.svg"
+          alt=""
+          aria-hidden="true"
+          className="dt-hero-note pointer-events-none absolute right-14 top-10 hidden h-10 w-14 md:block"
+        />
+
+        <div className="relative z-10 mx-auto max-w-3xl text-center">
           <motion.div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 text-brand-teal"
-            animate={{ y: [0, -2, 0] }}
+            className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white shadow-[rgba(255,255,255,0.08)_0_1px_0_inset]"
+            animate={{ y: [0, -3, 0] }}
             transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <Sparkles size={22} />
+            <Sparkles size={24} />
           </motion.div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-teal">今天先做这一步</p>
-            <h2 className="mt-1 text-lg font-semibold leading-7 text-ink">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-              <span className="rounded-md border border-line bg-canvas px-2 py-1">{Math.max(3, minutes)} 分钟</span>
-              <span className="rounded-md border border-line bg-canvas px-2 py-1">默认：{capabilityLabel(activeCapability)}</span>
-              {profile?.confidence ? (
-                <span className="rounded-md border border-line bg-canvas px-2 py-1">
-                  画像可信度 {Math.round(profile.confidence * 100)}%
-                </span>
-              ) : null}
-            </div>
+          <p className="text-sm font-semibold text-brand-purple-300">今天先做这一步</p>
+          <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-semibold leading-tight text-white sm:text-4xl">{title}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/75">{summary}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-white/75">
+            <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">{Math.max(3, minutes)} 分钟</span>
+            <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">默认：{capabilityLabel(activeCapability)}</span>
+            {profile?.confidence ? (
+              <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">
+                画像可信度 {Math.round(profile.confidence * 100)}%
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <motion.a
+              href={learningEffectAction?.href || guideHref(profile)}
+              data-testid="chat-profile-guide"
+              className="dt-interactive inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand-purple px-[18px] text-sm font-medium text-white shadow-[rgba(86,69,212,0.18)_0_1px_2px] hover:bg-brand-purple-800"
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <Route size={16} />
+              进入导学
+            </motion.a>
+            <motion.button
+              type="button"
+              data-testid="chat-profile-start"
+              disabled={disabled}
+              className="dt-interactive inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white px-[18px] text-sm font-medium text-ink hover:border-white disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => onQuickSend(directStartPrompt, directStartCapability, directStartConfig)}
+              whileHover={disabled ? undefined : { y: -1 }}
+              whileTap={disabled ? undefined : { scale: 0.99 }}
+            >
+              <BookOpenCheck size={16} />
+              按画像继续
+            </motion.button>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <motion.a
-            href={guideHref(profile)}
-            data-testid="chat-profile-guide"
-            className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-teal px-4 text-sm font-semibold text-white hover:bg-teal-700"
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <Route size={16} />
-            进入导学
-          </motion.a>
-          <motion.button
-            type="button"
-            data-testid="chat-profile-start"
-            disabled={disabled}
-            className="dt-interactive inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 text-sm font-semibold text-brand-red hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => onQuickSend(directStartPrompt)}
-            whileHover={disabled ? undefined : { y: -1 }}
-            whileTap={disabled ? undefined : { scale: 0.99 }}
-          >
-            <BookOpenCheck size={16} />
-            按画像继续
-          </motion.button>
+        <div className="dt-workspace-mockup relative z-10 mx-auto mt-7 max-w-4xl text-ink">
+          <div className="grid gap-0 md:grid-cols-[210px_minmax(0,1fr)]">
+            <div className="border-b border-line bg-[#fbfbfa] p-4 md:border-b-0 md:border-r">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-navy text-white">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-ink">SparkWeave</p>
+                  <p className="text-xs text-steel">学习空间</p>
+                </div>
+              </div>
+              <div className="mt-5 space-y-2">
+                {["当前对话", "导学路线", "学习画像"].map((item, index) => (
+                  <div key={item} className="dt-editor-line text-sm text-charcoal">
+                    <span
+                      className={`h-2.5 w-2.5 ${index === 0 ? "bg-brand-purple" : index === 1 ? "bg-brand-teal" : "bg-brand-orange"}`}
+                      style={{ borderRadius: "50%" }}
+                    />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="dt-feature-tile dt-feature-tile-yellow flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink">先补齐当前短点</p>
+                  <p className="mt-1 text-xs leading-5 text-charcoal">只围绕这一件事生成讲解、练习和反馈。</p>
+                </div>
+                <span className="rounded-lg bg-brand-yellow px-3 py-2 text-xs font-semibold text-ink">开始学习 →</span>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {actions.map((item) => (
+                  <QuickActionButton key={item.id} action={item} disabled={disabled} onQuickSend={onQuickSend} />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          {actions.map((item) => (
-            <QuickActionButton key={item.id} action={item} disabled={disabled} onQuickSend={onQuickSend} />
-          ))}
-        </div>
-      </div>
+      </section>
     </motion.div>
   );
 }
@@ -736,17 +858,18 @@ function QuickActionButton({
   onQuickSend: (content: string, capability?: CapabilityId, config?: Record<string, unknown>) => void;
 }) {
   const Icon = action.icon as LucideIcon;
+  const tone = quickActionTone(action.id);
   return (
     <motion.button
       type="button"
       disabled={disabled}
       data-testid={`chat-profile-action-${action.id}`}
-      className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left hover:border-teal-200 hover:bg-teal-50/40 disabled:cursor-not-allowed disabled:opacity-50"
+      className={`dt-interactive flex min-h-[54px] items-start gap-3 rounded-lg border p-2.5 text-left text-ink disabled:cursor-not-allowed disabled:opacity-50 ${tone.card}`}
       onClick={() => onQuickSend(action.prompt, action.capability, action.config)}
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.99 }}
     >
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-canvas text-brand-blue">
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone.icon}`}>
         <Icon size={16} />
       </span>
       <span className="min-w-0">
@@ -755,6 +878,28 @@ function QuickActionButton({
       </span>
     </motion.button>
   );
+}
+
+function quickActionTone(actionId: string) {
+  const tones: Record<string, { card: string; icon: string }> = {
+    explain: {
+      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
+      icon: "bg-tint-sky text-brand-blue",
+    },
+    practice: {
+      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
+      icon: "bg-tint-yellow text-brand-orange",
+    },
+    video: {
+      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
+      icon: "bg-tint-rose text-brand-pink",
+    },
+    visual: {
+      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
+      icon: "bg-tint-mint text-brand-teal",
+    },
+  };
+  return tones[actionId] ?? { card: "border-line bg-white hover:border-brand-purple-300", icon: "bg-canvas text-brand-purple" };
 }
 
 function formatRuntimeStatus(status: "idle" | "connecting" | "streaming" | "error") {
@@ -825,7 +970,7 @@ function SessionHistoryPanel({
           {onCollapse ? (
             <button
               type="button"
-              className="dt-interactive inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-canvas hover:text-brand-teal"
+              className="dt-interactive inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-canvas hover:text-brand-purple"
               onClick={onCollapse}
               aria-label="收起历史会话"
               data-testid={`${testIdPrefix}-history-collapse`}
@@ -847,8 +992,8 @@ function SessionHistoryPanel({
             data-testid={`${testIdPrefix}-session-card-${session.session_id}`}
             className={`w-full rounded-lg border px-3 py-2 text-left transition ${
               sessionId === session.session_id
-                ? "border-teal-200 bg-teal-50"
-                : "border-line bg-white hover:border-teal-200"
+                ? "border-brand-purple-300 bg-tint-lavender"
+                : "border-line bg-white hover:border-brand-purple-300"
             }`}
           >
             {renamingId === session.session_id ? (
@@ -898,7 +1043,7 @@ function SessionHistoryPanel({
                       {sessionDisplayTitle(session, index)}
                     </span>
                     {loadingSessionId === session.session_id ? (
-                      <Loader2 size={14} className="animate-spin text-brand-teal" />
+                      <Loader2 size={14} className="animate-spin text-brand-purple" />
                     ) : null}
                   </span>
                   <span className="mt-1 block truncate text-xs text-slate-500">
@@ -908,7 +1053,7 @@ function SessionHistoryPanel({
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-brand-teal"
+                    className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-brand-purple"
                     onClick={() => startRename(session, index)}
                     data-testid={`${testIdPrefix}-session-rename-${session.session_id}`}
                     aria-label="重命名会话"
@@ -1009,7 +1154,7 @@ function ContextPanel({
 
       <section className="border-b border-line p-3">
         <div className="flex items-center gap-2">
-          <BookOpenCheck size={17} className="text-brand-teal" />
+          <BookOpenCheck size={17} className="text-brand-purple" />
           <h2 className="text-sm font-semibold text-ink">资料范围</h2>
         </div>
         <div className="mt-3">
@@ -1041,14 +1186,16 @@ function ContextPanel({
               <option value="en">English</option>
             </select>
           </div>
-          <details className="rounded-lg bg-canvas px-3 py-2 text-sm text-slate-500">
-            <summary className="cursor-pointer select-none text-slate-600">查看当前状态</summary>
+          <div className="rounded-lg border border-line bg-tint-sky px-3 py-2 text-sm text-slate-600">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-ink">当前状态</span>
+              <span className="rounded-md bg-white px-2 py-0.5 text-xs text-slate-600">{stageLabel}</span>
+            </div>
             <div className="mt-2 grid gap-2">
-              <InfoRow label="进度" value={stageLabel} />
               <InfoRow label="学习会话" value={readableSessionState} />
               <InfoRow label="当前回答" value={readableTurnState} />
             </div>
-          </details>
+          </div>
         </div>
       </section>
     </div>
@@ -1060,25 +1207,25 @@ function ProfileMiniCard({ profile, loading }: { profile?: LearnerProfileSnapsho
   const nextAction = profile?.next_action?.title?.trim();
 
   return (
-    <section className="border-b border-line bg-teal-50/70 p-3">
+    <section className="border-b border-line bg-tint-lavender p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-semibold text-brand-teal">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand-purple">
             <Sparkles size={16} />
             学习画像
           </div>
           {loading ? (
-            <p className="mt-2 text-sm text-teal-900">正在读取画像...</p>
+            <p className="mt-2 text-sm text-charcoal">正在读取画像...</p>
           ) : profile ? (
             <>
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-teal-950">
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink">
                 {profile.overview.current_focus || "继续学习后，系统会整理你的当前重点。"}
               </p>
-              {nextAction ? <p className="mt-1 text-xs text-teal-800">下一步：{nextAction}</p> : null}
+              {nextAction ? <p className="mt-1 text-xs text-charcoal">下一步：{nextAction}</p> : null}
               {weakPoints.length ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {weakPoints.map((item) => (
-                    <span key={`${item.label}-${item.source_ids.join("-")}`} className="rounded-md bg-white px-2 py-1 text-xs text-teal-800">
+                    <span key={`${item.label}-${item.source_ids.join("-")}`} className="rounded-md bg-white px-2 py-1 text-xs text-charcoal">
                       {item.label}
                     </span>
                   ))}
@@ -1086,12 +1233,12 @@ function ProfileMiniCard({ profile, loading }: { profile?: LearnerProfileSnapsho
               ) : null}
             </>
           ) : (
-            <p className="mt-2 text-sm leading-6 text-teal-900">完成一次导学或练习后，系统会自动形成画像。</p>
+            <p className="mt-2 text-sm leading-6 text-charcoal">完成一次导学或练习后，系统会自动形成画像。</p>
           )}
         </div>
         <a
           href="/memory"
-          className="dt-interactive shrink-0 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-teal hover:border-brand-teal"
+          className="dt-interactive shrink-0 rounded-lg border border-brand-purple-300 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-purple hover:border-brand-purple"
         >
           修正
         </a>
@@ -1288,7 +1435,7 @@ function CapabilityConfigPanel({
                       type="button"
                       onClick={() => toggleSource(value)}
                       className={`rounded-md border px-2 py-1 text-xs transition ${
-                        active ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-canvas text-slate-600 hover:border-teal-200"
+                        active ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-canvas text-slate-600 hover:border-brand-purple-300"
                       }`}
                     >
                       {label}

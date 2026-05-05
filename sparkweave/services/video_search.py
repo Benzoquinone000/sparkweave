@@ -137,7 +137,12 @@ async def recommend_learning_videos(
         "search_errors": errors,
         "fallback_search": fallback_search,
         "learner_profile_hints": _public_learner_hints(hints),
-        "agent_chain": [
+        "agent_chain": [],
+        "tool_chain": [
+            {"label": "精选视频工具", "detail": "检索公开视频候选并提取可播放链接。"},
+            {"label": "排序筛选", "detail": "按当前学习主题、时长和画像提示筛选。"},
+        ],
+        "_legacy_agent_chain": [
             {"label": "画像智能体", "detail": "读取当前薄弱点、偏好和时间预算。"},
             {"label": "视频检索智能体", "detail": "从公开网页中检索候选视频并提取可播放链接。"},
             {"label": "筛选智能体", "detail": "按学习主题、短时长、入门友好和可嵌入性排序。"},

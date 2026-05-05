@@ -9,10 +9,12 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 
@@ -28,7 +30,13 @@ from sparkweave.graphs._answer_now import (
 from sparkweave.llm import ainvoke_json as llm_ainvoke_json
 from sparkweave.llm import ainvoke_json_with_attachments as llm_ainvoke_json_with_attachments
 from sparkweave.llm import chat_messages, create_chat_model
-from sparkweave.services import math_animator as math_services
+from sparkweave.services import (
+    TtsUnavailable,
+    get_path_service,
+    is_iflytek_tts_configured,
+    math_animator as math_services,
+    synthesize_speech_with_iflytek,
+)
 
 MATH_ANIMATOR_SYSTEM_PROMPT = """\
 You are SparkWeave's math animation graph. Build concise educational Manim
@@ -746,6 +754,14 @@ class MathAnimatorGraph:
             "learner_profile_hints": config["learner_profile_hints"],
             "runtime": "langgraph",
         }
+        narration = await self._maybe_generate_audio_narration(
+            state=state,
+            summary=summary,
+            render_result=render_result,
+            config=config,
+        )
+        if narration is not None:
+            result["audio_narration"] = narration
         if summary.get("answer_now"):
             result["metadata"] = {"answer_now": True}
         await stream.result(result, source=self.source)
@@ -867,6 +883,9 @@ class MathAnimatorGraph:
             "style_hint": str(overrides.get("style_hint") or "").strip()[:500],
             "learner_profile_hints": MathAnimatorGraph._profile_hints(overrides.get("learner_profile_hints")),
             "max_retries": max_retries,
+            "enable_narration_audio": MathAnimatorGraph._truthy_config(
+                overrides.get("enable_narration_audio", True)
+            ),
             "enable_visual_review": MathAnimatorGraph._truthy_config(
                 overrides.get("enable_visual_review", overrides.get("visual_review", False))
             ),
@@ -1017,6 +1036,379 @@ class MathAnimatorGraph:
     def _render(state: TutorState) -> dict[str, Any]:
         config = MathAnimatorGraph._config(state)
         return MathAnimatorGraph._normalize_render_result(state.get("math_render", {}), config)
+
+    async def _maybe_generate_audio_narration(
+        self,
+        *,
+        state: TutorState,
+        summary: dict[str, Any],
+        render_result: dict[str, Any],
+        config: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        if not config.get("enable_narration_audio", True):
+            return None
+        artifacts = render_result.get("artifacts", [])
+        if not any(isinstance(item, dict) and item.get("type") == "video" for item in artifacts):
+            return None
+        if not is_iflytek_tts_configured():
+            return None
+
+        stream = state["stream"]
+        script_text = self._build_narration_script(state, summary)
+        if not script_text:
+            return None
+
+        try:
+            await stream.progress(
+                "Generating narration audio for the animation.",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "call_status", "call_state": "running"},
+            )
+            tts_result = await synthesize_speech_with_iflytek(script_text)
+        except TtsUnavailable as exc:
+            await stream.progress(
+                f"Narration audio skipped: {exc}",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "warning", "reason": "tts_unavailable"},
+            )
+            return None
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            await stream.progress(
+                f"Narration audio failed, keeping the silent animation. {exc}",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "warning", "reason": "tts_failed"},
+            )
+            return None
+
+        path_service = get_path_service()
+        artifacts_dir = path_service.get_agent_dir("math_animator") / state["turn_id"] / "artifacts"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        suffix = ".mp3" if "mpeg" in (tts_result.content_type or "") or tts_result.encoding == "lame" else ".bin"
+        filename = f"narration_{uuid.uuid4().hex[:10]}{suffix}"
+        asset_path = artifacts_dir / filename
+        asset_path.write_bytes(tts_result.audio)
+        rel_path = asset_path.resolve().relative_to(path_service.user_data_dir.resolve())
+        asset_url = f"/api/outputs/{rel_path.as_posix()}"
+
+        await stream.progress(
+            "Attached narration audio to the animation output.",
+            source=self.source,
+            stage="render_output",
+            metadata={"trace_kind": "call_status", "call_state": "complete"},
+        )
+        narration = {
+            "response": self._narration_response_text(state),
+            "script_text": script_text,
+            "learner_profile_hints": config["learner_profile_hints"],
+            "style_hint": config["style_hint"],
+            "audio": {
+                "asset_url": asset_url,
+                "filename": filename,
+                "content_type": tts_result.content_type,
+                "encoding": tts_result.encoding,
+                "sample_rate": tts_result.sample_rate,
+                "voice": tts_result.voice,
+                "byte_length": len(tts_result.audio),
+                "sid": tts_result.sid,
+            },
+        }
+        muxed = await self._maybe_mux_narrated_video(
+            state=state,
+            render_result=render_result,
+            narration=narration,
+        )
+        if muxed is not None:
+            narration["video"] = muxed
+        return narration
+
+    async def _maybe_mux_narrated_video(
+        self,
+        *,
+        state: TutorState,
+        render_result: dict[str, Any],
+        narration: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        video_index = next(
+            (
+                index
+                for index, item in enumerate(render_result.get("artifacts", []))
+                if isinstance(item, dict) and item.get("type") == "video" and item.get("url")
+            ),
+            None,
+        )
+        if video_index is None:
+            return None
+        if shutil.which("ffmpeg") is None:
+            return None
+
+        video_artifact = render_result["artifacts"][video_index]
+        video_path = self._public_output_url_to_path(str(video_artifact.get("url") or ""))
+        audio_url = str(((narration.get("audio") or {}) if isinstance(narration.get("audio"), dict) else {}).get("asset_url") or "")
+        audio_path = self._public_output_url_to_path(audio_url)
+        if video_path is None or audio_path is None or not video_path.exists() or not audio_path.exists():
+            return None
+
+        stream = state["stream"]
+        merged_path = video_path.with_name(f"{video_path.stem}_narrated.mp4")
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-i",
+            str(audio_path),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(merged_path),
+        ]
+        try:
+            await stream.progress(
+                "Muxing narration audio into the rendered video.",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "call_status", "call_state": "running"},
+            )
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            await stream.progress(
+                f"Narrated video merge skipped: {exc}",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "warning", "reason": "ffmpeg_failed"},
+            )
+            return None
+        if completed.returncode != 0 or not merged_path.exists():
+            detail = (completed.stderr or completed.stdout or "").strip().splitlines()
+            note = detail[-1] if detail else "ffmpeg returned a non-zero exit status."
+            await stream.progress(
+                f"Narrated video merge skipped: {note}",
+                source=self.source,
+                stage="render_output",
+                metadata={"trace_kind": "warning", "reason": "ffmpeg_failed"},
+            )
+            return None
+
+        merged_url = self._path_to_public_output_url(merged_path)
+        render_result["artifacts"][video_index] = {
+            **video_artifact,
+            "url": merged_url,
+            "filename": merged_path.name,
+            "label": "Narrated animation video",
+        }
+        await stream.progress(
+            "Narrated video is ready.",
+            source=self.source,
+            stage="render_output",
+            metadata={"trace_kind": "call_status", "call_state": "complete"},
+        )
+        return {
+            "asset_url": merged_url,
+            "filename": merged_path.name,
+            "content_type": "video/mp4",
+            "label": "Narrated animation video",
+        }
+
+    @staticmethod
+    def _build_narration_script(
+        state: TutorState,
+        summary: dict[str, Any],
+    ) -> str:
+        language = str(state.get("language") or "en").strip().lower()
+        analysis = dict(state.get("math_analysis") or {})
+        design = dict(state.get("math_design") or {})
+        user_request = str(summary.get("user_request") or state.get("user_message") or "").strip()
+        key_points = MathAnimatorGraph._list_of_strings(summary.get("key_points"))[:3]
+        math_focus = MathAnimatorGraph._list_of_strings(analysis.get("math_focus"))[:2]
+        steps = MathAnimatorGraph._list_of_strings(analysis.get("narrative_steps"))[:3]
+        scene_outline = MathAnimatorGraph._list_of_strings(design.get("scene_outline"))[:3]
+
+        if language.startswith("zh"):
+            return MathAnimatorGraph._build_chinese_narration_script(
+                user_request=user_request,
+                key_points=key_points,
+                math_focus=math_focus,
+                steps=steps,
+                scene_outline=scene_outline,
+            )
+
+        lines = [
+            f"This short animation explains {user_request or 'the current math idea'}.",
+        ]
+        if math_focus:
+            lines.append(f"Focus on {', '.join(math_focus)}.")
+        if steps:
+            lines.append(f"Watch for these steps: {', '.join(steps)}.")
+        elif scene_outline:
+            lines.append(f"The animation moves through {', '.join(scene_outline)}.")
+        if key_points:
+            lines.append(f"Keep these takeaways in mind: {'; '.join(key_points)}.")
+        lines.append("After watching, pause and restate the idea in your own words before moving on.")
+        return " ".join(item for item in lines if item).strip()
+
+    @staticmethod
+    def _build_chinese_narration_script(
+        *,
+        user_request: str,
+        key_points: list[str],
+        math_focus: list[str],
+        steps: list[str],
+        scene_outline: list[str],
+    ) -> str:
+        topic = MathAnimatorGraph._localize_narration_item(
+            user_request,
+            fallback="当前主题",
+        )
+        focus_items = MathAnimatorGraph._localize_narration_items(
+            math_focus,
+            fallback="核心概念和画面变化",
+        )
+        step_items = MathAnimatorGraph._localize_narration_items(
+            steps or scene_outline,
+            fallback="画面出现、元素变化、结论收束",
+        )
+        takeaway_items = MathAnimatorGraph._localize_narration_items(
+            key_points,
+            fallback="关键关系和最终结论",
+        )
+
+        lines = [f"下面用一个很短的动画，带你理解“{topic}”。"]
+        if focus_items:
+            lines.append(f"你先重点关注：{'；'.join(focus_items)}。")
+        if step_items:
+            lines.append(f"观看时请按这个顺序抓重点：{'；'.join(step_items)}。")
+        if takeaway_items:
+            lines.append(f"最后记住这几点：{'；'.join(takeaway_items)}。")
+        lines.append("看完之后，试着用自己的话复述一遍，再继续下一步练习。")
+        return " ".join(MathAnimatorGraph._clean_chinese_sentence(item) for item in lines if item).strip()
+
+    @staticmethod
+    def _localize_narration_items(values: list[str], *, fallback: str = "") -> list[str]:
+        items: list[str] = []
+        for value in values:
+            text = MathAnimatorGraph._localize_narration_item(value, fallback=fallback)
+            if text and text not in items:
+                items.append(text)
+        if not items and fallback:
+            items.append(fallback)
+        return items[:3]
+
+    @staticmethod
+    def _localize_narration_item(value: str, *, fallback: str = "") -> str:
+        raw = MathAnimatorGraph._clean_chinese_sentence(str(value or ""))
+        if not raw:
+            return fallback
+        normalized = raw.lower().replace("’", "'").replace("‘", "'").replace("“", "\"").replace("”", "\"")
+        phrase_map = (
+            ("fundamental arithmetic or geometric visualization", "基础算术或几何直观，例如数轴、简单图形和计数"),
+            ("start with a blank screen", "先从空白画面和“让我们探索数字”的标题开始"),
+            ("show a number line from 0 to 10", "展示从 0 到 10 的数轴，让圆点一步步移动到 5"),
+            ("dot moving step by step from 0 to 5", "让圆点从 0 一步步移动到 5"),
+            ("pause at each number", "每到一个数字就暂停，并用柔和颜色短暂高亮"),
+            ("starts with a title", "白色背景上出现“让我们探索数字”的标题"),
+            ("let's explore numbers", "让我们探索数字"),
+            ("white background", "白色背景"),
+            ("a blue dot moves", "蓝色圆点沿着数轴一步步移动"),
+            ("five yellow stars appear", "五颗黄色星星随着圆点停顿依次出现"),
+            ("number line from 0 to 5", "从 0 到 5 的数轴变化"),
+            ("number line", "数轴"),
+            ("simple shapes", "简单图形"),
+            ("counting", "计数"),
+            ("explain derivatives visually", "导数的直观理解"),
+            ("derivative as slope", "把导数理解为斜率"),
+            ("tangent line", "切线"),
+            ("show curve", "先展示曲线"),
+            ("move tangent", "再移动切线"),
+            ("draw a curve", "画出曲线"),
+            ("animate a tangent", "让切线运动"),
+            ("avoid latex", "避免堆叠复杂公式"),
+        )
+        for needle, replacement in phrase_map:
+            if needle in normalized:
+                return replacement
+
+        converted = raw
+        replacements = (
+            (r"\bderivatives?\b", "导数"),
+            (r"\btangent\b", "切线"),
+            (r"\bslope\b", "斜率"),
+            (r"\bcurve\b", "曲线"),
+            (r"\bnumber line\b", "数轴"),
+            (r"\bblue dot\b", "蓝色圆点"),
+            (r"\byellow stars?\b", "黄色星星"),
+            (r"\bwhite background\b", "白色背景"),
+            (r"\bformula\b", "公式"),
+            (r"\bvisualization\b", "可视化"),
+            (r"\banimation\b", "动画"),
+            (r"\bcounting\b", "计数"),
+        )
+        for pattern, replacement in replacements:
+            converted = re.sub(pattern, replacement, converted, flags=re.IGNORECASE)
+        converted = MathAnimatorGraph._clean_chinese_sentence(converted)
+
+        if MathAnimatorGraph._has_english_noise(converted):
+            return fallback
+        return converted or fallback
+
+    @staticmethod
+    def _clean_chinese_sentence(text: str) -> str:
+        cleaned = str(text or "").strip()
+        cleaned = re.sub(r"```[a-zA-Z]*", "", cleaned)
+        cleaned = cleaned.replace("```", "")
+        cleaned = cleaned.replace(";", "；").replace(",", "，")
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        cleaned = cleaned.strip(" \t\r\n")
+        return cleaned
+
+    @staticmethod
+    def _has_english_noise(text: str) -> bool:
+        if not text:
+            return False
+        if not re.search(r"[A-Za-z]", text):
+            return False
+        long_words = re.findall(r"[A-Za-z]{3,}", text)
+        if not long_words:
+            return False
+        cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+        english_count = sum(len(item) for item in long_words)
+        return cjk_count == 0 or english_count > max(12, cjk_count)
+
+    @staticmethod
+    def _narration_response_text(state: TutorState) -> str:
+        language = str(state.get("language") or "en").strip().lower()
+        if language.startswith("zh"):
+            return "这段旁白会把动画里的重点顺一遍，适合先听再看，或者看完后再复习一遍。"
+        return "This narration walks through the same animation highlights, so the learner can listen first or replay the explanation after watching."
+
+    @staticmethod
+    def _public_output_url_to_path(url: str) -> Path | None:
+        normalized = url.strip()
+        if not normalized.startswith("/api/outputs/"):
+            return None
+        relative = normalized.removeprefix("/api/outputs/").strip("/")
+        if not relative:
+            return None
+        return (get_path_service().user_data_dir / Path(relative)).resolve()
+
+    @staticmethod
+    def _path_to_public_output_url(path: Path) -> str:
+        relative = path.resolve().relative_to(get_path_service().user_data_dir.resolve())
+        return f"/api/outputs/{relative.as_posix()}"
 
     @staticmethod
     def _extract_generated_code(raw: str) -> str:

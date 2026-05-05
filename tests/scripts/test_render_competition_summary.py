@@ -5,7 +5,6 @@ from pathlib import Path
 import subprocess
 import sys
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -30,8 +29,8 @@ def test_render_competition_summary_success(tmp_path: Path) -> None:
         json.dumps(
             {
                 "success": True,
-                "ready_count": 14,
-                "total_count": 14,
+                "ready_count": 20,
+                "total_count": 20,
                 "failed_count": 0,
                 "summary": "All required competition materials are ready.",
                 "checks": [
@@ -45,6 +44,10 @@ def test_render_competition_summary_success(tmp_path: Path) -> None:
                     {"name": "Effect assessment chain: backend report", "ok": True},
                     {"name": "Effect assessment chain: frontend card", "ok": True},
                     {"name": "Effect assessment chain: test coverage", "ok": True},
+                    {"name": "Learning effect closed loop: backend remediation status", "ok": True},
+                    {"name": "Learning effect closed loop: profile card", "ok": True},
+                    {"name": "Learning effect closed loop: test coverage", "ok": True},
+                    {"name": "Learning effect closed loop: design doc", "ok": True},
                     {"name": "Competition proof chain: backend package", "ok": True},
                     {"name": "Competition proof chain: frontend card", "ok": True},
                     {"name": "Competition proof chain: test coverage", "ok": True},
@@ -63,8 +66,9 @@ def test_render_competition_summary_success(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert "SparkWeave 赛前就绪摘要" in result.stdout
     assert "状态：OK 通过" in result.stdout
-    assert "14/14 通过" in result.stdout
+    assert "20/20 通过" in result.stdout
     assert "多智能体协作" in result.stdout
+    assert "错因补救复测闭环" in result.stdout
     assert "CI artifact" in result.stdout
     assert "competition-preflight --with-build" in result.stdout
 

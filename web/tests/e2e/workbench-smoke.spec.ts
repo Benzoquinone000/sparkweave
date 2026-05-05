@@ -97,6 +97,17 @@ test("learner profile overview confirms current diagnosis", async ({ page }, tes
     }),
   );
   await expect(page.getByText("已确认。系统会更放心地按这个方向安排学习。")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-loop-card")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-learner-receipt")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-learner-receipt-profile")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-learner-receipt-action")).toHaveAttribute("href", /capability=deep_question/);
+  await expect(page.getByTestId("learning-effect-visual-map")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-evidence-timeline")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-prescription-panel")).toBeVisible();
+  await expect(page.getByTestId("learning-effect-map-primary-action")).toHaveAttribute("href", /capability=deep_question/);
+  await expect(page.getByTestId("learning-effect-dimension-bars")).toBeVisible();
+  await page.getByTestId("learning-effect-loop-complete").click();
+  await expect(page.getByText("已写入学习证据，画像和下一步建议会随之更新。")).toBeVisible();
 
   await page.getByTestId("learner-profile-tab-evidence").click();
   await expect(page.getByTestId("learner-evidence-brief")).toContainText("证据结论");
@@ -4041,6 +4052,138 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
       },
     },
   ];
+  const learningEffectAction = {
+    id: "nba_retest_gradient_descent",
+    type: "retest",
+    title: "做 3 道梯度下降复测题",
+    reason: "补基后用小测确认是否真的掌握，系统会把结果写回学习画像。",
+    target_concepts: ["梯度下降"],
+    estimated_minutes: 7,
+    priority: 0.94,
+    href: "/chat?new=1&capability=deep_question&prompt=%E7%94%9F%E6%88%90%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D%E5%A4%8D%E6%B5%8B%E9%A2%98",
+    capability: "deep_question",
+    prompt: "生成 3 道梯度下降复测题，包含选择、判断和简答。",
+    config: { purpose: "retest", concept: "梯度下降" },
+    writes_back: ["mastery", "remediation_loop"],
+  };
+  const learningEffectReport = {
+    success: true,
+    generated_at: 1_700_001_000,
+    course_id: "",
+    window: "14d",
+    overall: {
+      score: 72,
+      label: "正在变稳",
+      summary: "最近练习显示你已经能跟住直觉解释，但还需要一次复测确认概念边界。",
+    },
+    dimensions: [
+      { id: "mastery", label: "知识掌握", score: 72, status: "watch", evidence: "2 次练习，正确率 70%" },
+      { id: "engagement", label: "学习投入", score: 81, status: "good", evidence: "最近主动使用图解和视频" },
+      { id: "transfer", label: "迁移应用", score: 58, status: "watch", evidence: "简答题中公式含义解释偏弱" },
+    ],
+    concepts: [
+      {
+        concept_id: "gradient-descent",
+        title: "梯度下降",
+        score: 64,
+        status: "watch",
+        confidence: 0.82,
+        trend: "up",
+        evidence_count: 4,
+        scored_event_count: 2,
+        correct_count: 1,
+        incorrect_count: 1,
+        open_mistake_count: 1,
+        resource_count: 1,
+        last_practiced_at: 1_700_000_900,
+        next_review_at: 1_700_004_000,
+        evidence_refs: ["ev-quiz", "ev-video"],
+        common_mistakes: ["概念边界不清"],
+        recommendation: "先复测 3 题，再决定是否回到导学。",
+      },
+    ],
+    open_mistakes: [],
+    remediation_loop: {
+      total: 2,
+      pending_remediation_count: 1,
+      ready_for_retest_count: 0,
+      closed_count: 1,
+      items: [
+        {
+          title: "梯度下降的直观理解",
+          concept: "梯度下降",
+          status: "pending_remediation",
+          status_label: "待补救",
+          reason: "概念边界不清",
+          evidence_summary: "练习正确率 50%，简答对目标函数解释不稳。",
+          next_step: "做 3 道复测题",
+          progress_label: "已完成 1/2",
+          action_label: "去复测",
+          action_href: learningEffectAction.href,
+          action_capability: "deep_question",
+          action_prompt: learningEffectAction.prompt,
+          action_config: learningEffectAction.config,
+          created_at: 1_700_000_800,
+        },
+      ],
+    },
+    visualization: {
+      summary: "从证据到评估再到下一步处方，系统把学习效果整理成可执行闭环。",
+      nodes: [
+        { id: "evidence", label: "证据流", value: "4 条", detail: "2 次练习 · 1 个资源", tone: "brand" },
+        { id: "assessment", label: "效果评估", value: "72 分", detail: "正在变稳", tone: "watch" },
+        { id: "dispatch", label: "动态调度", value: "1 个动作", detail: "生成复测任务", tone: "brand" },
+        { id: "closed_loop", label: "闭环进度", value: "1/2", detail: "待补 1 · 待测 0", tone: "warning" },
+      ],
+      edges: [
+        { from: "evidence", to: "assessment", label: "汇总" },
+        { from: "assessment", to: "dispatch", label: "处方" },
+        { from: "dispatch", to: "closed_loop", label: "回写" },
+      ],
+      dimension_bars: [
+        { id: "mastery", label: "知识掌握", score: 72, status: "watch", evidence: "2 次练习" },
+        { id: "engagement", label: "学习投入", score: 81, status: "good", evidence: "主动看视频" },
+        { id: "transfer", label: "迁移应用", score: 58, status: "watch", evidence: "公式解释偏弱" },
+      ],
+      evidence_timeline: [
+        { id: "ev-quiz", label: "梯度下降练习", detail: "练习作答 · 梯度下降", kind: "quiz", score: 72, created_at: 1_700_000_900 },
+        { id: "ev-video", label: "看过精选视频", detail: "资源使用 · 视频", kind: "resource", score: null, created_at: 1_700_000_700 },
+      ],
+      weak_points: [
+        { concept_id: "gradient-descent", title: "梯度下降", score: 64, status: "watch", recommendation: "做一次短复测" },
+      ],
+      loop: { total: 2, pending: 1, ready_for_retest: 0, closed: 1 },
+    },
+    learner_receipt: {
+      headline: "当前先处理「梯度下降」，再继续推进",
+      state_label: "正在变稳",
+      score: 72,
+      score_label: "72 分",
+      confidence_label: "初步可靠",
+      evidence_summary: "基于最近 4 条学习证据，其中包含 2 次作答、1 个资源行为。",
+      profile_update: "画像已把「梯度下降」标记为「需要补基」，置信度约 82%。",
+      next_step: learningEffectAction.title,
+      reason: learningEffectAction.reason,
+      action_id: learningEffectAction.id,
+      action_label: "去复测",
+      action_href: learningEffectAction.href,
+      writes_back: ["mastery", "profile", "remediation_loop"],
+      focus_concepts: [{ concept_id: "gradient-descent", title: "梯度下降", status: "needs_support", status_label: "需要补基", score: 64 }],
+      loop: { pending: 1, ready_for_retest: 0, closed: 1 },
+    },
+    next_actions: [learningEffectAction],
+    evidence_refs: [],
+    summary: {
+      event_count: 4,
+      scored_event_count: 2,
+      quiz_count: 2,
+      resource_count: 1,
+      open_mistake_count: 1,
+      average_score: 72,
+      accuracy: 0.7,
+      latest_event_at: 1_700_000_900,
+    },
+  };
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
       json: {
@@ -4110,6 +4253,22 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
       },
     });
   });
+  await page.route(/\/api\/v1\/learning-effect\/report(?:[?#]|$)/, (route) => route.fulfill({ json: learningEffectReport }));
+  await page.route(/\/api\/v1\/learning-effect\/concepts(?:[?#]|$)/, (route) =>
+    route.fulfill({ json: { success: true, course_id: "", window: "14d", items: learningEffectReport.concepts, total: learningEffectReport.concepts.length } }),
+  );
+  await page.route(/\/api\/v1\/learning-effect\/next-actions(?:[?#]|$)/, (route) =>
+    route.fulfill({ json: { success: true, course_id: "", window: "14d", items: learningEffectReport.next_actions, total: learningEffectReport.next_actions.length } }),
+  );
+  await page.route(/\/api\/v1\/learning-effect\/actions\/([^/?#]+)\/complete$/, (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        event: { id: "learning-effect-action-completed", title: "完成复测任务" },
+        report: learningEffectReport,
+      },
+    }),
+  );
   await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: chatSessions } }));
   await page.route(/\/api\/v1\/sessions\/session-old-a$/, async (route) => {
     const sessionId = decodeURIComponent(route.request().url().match(/\/api\/v1\/sessions\/([^/?#]+)$/)?.[1] ?? "");

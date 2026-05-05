@@ -183,6 +183,7 @@ from sparkweave.api.routers import (
     guide,
     guide_v2,
     knowledge,
+    learning_effect,
     learner_profile,
     memory,
     notebook,
@@ -208,6 +209,7 @@ app.include_router(co_writer.router, prefix="/api/v1/co_writer", tags=["co_write
 app.include_router(notebook.router, prefix="/api/v1/notebook", tags=["notebook"])
 app.include_router(guide.router, prefix="/api/v1/guide", tags=["guide"])
 app.include_router(guide_v2.router, prefix="/api/v1/guide/v2", tags=["guide-v2"])
+app.include_router(learning_effect.router, prefix="/api/v1/learning-effect", tags=["learning-effect"])
 app.include_router(learner_profile.router, prefix="/api/v1/learner-profile", tags=["learner-profile"])
 app.include_router(memory.router, prefix="/api/v1/memory", tags=["memory"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["sessions"])

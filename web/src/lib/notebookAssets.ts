@@ -75,6 +75,7 @@ export function buildNotebookAsset({
     quizCount: quizQuestions?.length ?? 0,
     visualizeType: visualizeResult?.render_type,
     mathArtifactCount: mathResult?.artifacts?.length ?? 0,
+    mathNarratedVideo: Boolean(mathResult?.audio_narration?.video?.asset_url),
     externalVideoCount: externalVideoResult?.videos?.length ?? 0,
     externalVideoFallback: externalVideoResult?.fallback_search === true,
   });
@@ -83,7 +84,12 @@ export function buildNotebookAsset({
   return {
     recordType: getRecordType(capability),
     title: userQuery.slice(0, 48),
-    summary: buildSummary({ displayContent, assetKind, quizCount: quizQuestions?.length ?? 0, visualizeType: visualizeResult?.render_type }),
+    summary: buildSummary({
+      displayContent,
+      assetKind,
+      quizCount: quizQuestions?.length ?? 0,
+      visualizeType: visualizeResult?.render_type,
+    }),
     output,
     userQuery,
     assetKind,
@@ -116,12 +122,14 @@ function getAssetKind(
     quizCount,
     visualizeType,
     mathArtifactCount,
+    mathNarratedVideo,
     externalVideoCount,
     externalVideoFallback,
   }: {
     quizCount: number;
     visualizeType?: string;
     mathArtifactCount: number;
+    mathNarratedVideo: boolean;
     externalVideoCount: number;
     externalVideoFallback: boolean;
   },
@@ -129,6 +137,7 @@ function getAssetKind(
   const capability = getMessageCapability(message);
   if (quizCount) return `题目练习 · ${quizCount} 题`;
   if (visualizeType) return `知识可视化 · ${visualizeType}`;
+  if (mathNarratedVideo) return "数学讲解成片";
   if (mathArtifactCount) return `数学动画 · ${mathArtifactCount} 个产物`;
   if (externalVideoCount) return `${externalVideoFallback ? "视频搜索入口" : "精选视频"} · ${externalVideoCount} 个`;
   if (capability === "deep_solve") return "深度解题";
@@ -176,7 +185,7 @@ function formatQuizSection(questions: NonNullable<ReturnType<typeof extractQuizQ
 function formatVisualizationSection(result: NonNullable<ReturnType<typeof extractVisualizeResult>>) {
   const language = result.code.language || result.render_type;
   return [
-    "## 可视化资产",
+    "## 可视化资源",
     "",
     `- 渲染模式：${result.render_type}`,
     result.analysis?.chart_type ? `- 图表类型：${result.analysis.chart_type}` : "",
@@ -194,10 +203,16 @@ function formatMathAnimatorSection(result: NonNullable<ReturnType<typeof extract
   const artifacts = (result.artifacts ?? [])
     .map((item) => `- ${item.type}: ${item.filename} (${item.url})`)
     .join("\n");
+  const narratedVideo = result.audio_narration?.video?.asset_url
+    ? `- narrated_video: ${result.audio_narration.video.filename || "narrated.mp4"} (${result.audio_narration.video.asset_url})`
+    : "";
+  const narrationAudio = !narratedVideo && result.audio_narration?.audio?.asset_url
+    ? `- narration_audio: ${result.audio_narration.audio.filename || "narration.mp3"} (${result.audio_narration.audio.asset_url})`
+    : "";
   const code = result.code?.content
     ? ["", "```python", result.code.content, "```"].join("\n")
     : "";
-  return ["## 数学动画资产", "", artifacts || "- 暂无渲染产物", code].filter(Boolean).join("\n");
+  return ["## 数学讲解资源", "", narratedVideo, narrationAudio, artifacts || "- 暂无渲染产物", code].filter(Boolean).join("\n");
 }
 
 function formatExternalVideoSection(result: NonNullable<ReturnType<typeof extractExternalVideoResult>>) {

@@ -9,7 +9,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from sparkweave.services.learner_evidence import build_quiz_answer_events, get_learner_evidence_service
+from sparkweave.services.learner_evidence import (
+    build_quiz_answer_events,
+    get_learner_evidence_service,
+)
 from sparkweave.services.session_store import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -77,6 +80,10 @@ class UpsertEntryRequest(BaseModel):
     correct_answer: str = ""
     explanation: str = ""
     difficulty: str = ""
+    concepts: list[str] = Field(default_factory=list)
+    knowledge_points: list[str] = Field(default_factory=list)
+    duration_seconds: float | None = Field(default=None, ge=0)
+    attempt_count: int = Field(default=1, ge=1)
     user_answer: str = ""
     is_correct: bool = False
 

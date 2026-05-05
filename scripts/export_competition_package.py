@@ -23,6 +23,7 @@ from export_demo_materials import (
     build_evaluator_one_pager,
     build_final_pitch_checklist,
     build_index as build_demo_index,
+    build_learning_effect_demo_summary,
     build_recording_script,
 )
 
@@ -212,6 +213,7 @@ def export_demo_materials(target_dir: Path, copied: list[str], missing: list[str
         "sparkweave-demo-fallback-assets.md": build_demo_fallback_assets(template),
         "sparkweave-defense-qa.md": build_defense_qa(template),
         "sparkweave-competition-scorecard.md": build_competition_scorecard(template),
+        "sparkweave-learning-effect-summary.md": build_learning_effect_demo_summary(template),
         "sparkweave-evaluator-one-pager.md": build_evaluator_one_pager(template),
         "sparkweave-final-pitch-checklist.md": build_final_pitch_checklist(template),
     }
@@ -268,7 +270,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "",
         "- `docs/`：项目说明、架构、能力、导学、学习画像、比赛路线图、演示 Runbook 和 AI Coding 说明。",
         "- `course_templates/`：可复现的完整高校课程样例，适合录屏和答辩现场演示。",
-        "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、评委一页说明、7 分钟录屏讲稿、多智能体协作蓝图、稳定兜底素材、评分点证据表、答辩问答预案和最终答辩清单。",
+        "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、评委一页说明、7 分钟录屏讲稿、多智能体协作蓝图、稳定兜底素材、评分点证据表、学习效果闭环摘要、答辩问答预案和最终答辩清单。",
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
@@ -283,7 +285,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`demo_materials/sparkweave-demo-fallback-assets.md`、`docs/competition-demo-runbook.md` 的分镜和兜底动作 |",
         "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板 |",
         "| 多智能体资源生成 | `demo_materials/sparkweave-agent-collaboration-blueprint.md`、`docs/capabilities.md`、`docs/guided-learning.md`、`docs/architecture.md` |",
-        "| 学习效果评估 | `docs/guided-learning.md`、`docs/learner-profile-design.md`、课程产出包 Markdown 导出 |",
+        "| 学习效果评估 | `demo_materials/sparkweave-learning-effect-summary.md`、`docs/guided-learning.md`、`docs/learner-profile-design.md`、课程产出包 Markdown 导出 |",
         "| 答辩问答 | `demo_materials/sparkweave-defense-qa.md`、课程产出包中的答辩问答预案 |",
         "| 科大讯飞工具说明 | `docs/iflytek-integration.md`、`docs/configuration.md`、设置页快速检测 |",
         "| AI Coding 说明 | `docs/ai-coding-statement.md` |",
@@ -320,6 +322,7 @@ def build_start_here(selected_template: dict[str, str]) -> str:
             "",
             "- `demo_materials/sparkweave-evaluator-one-pager.md`：评委一页说明。",
             "- `demo_materials/sparkweave-competition-scorecard.md`：赛题五项要求证据表。",
+            "- `demo_materials/sparkweave-learning-effect-summary.md`：学习效果评估闭环摘要。",
             "- `demo_materials/sparkweave-demo-deck.html`：可直接打开的演示页。",
             "",
             "## 3. 录屏或答辩",
@@ -506,6 +509,7 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
       <a class="card" href="demo_materials/sparkweave-demo-deck.html"><span class="tag">演示页</span><h3>可打开的 PPT 骨架</h3><p>用于快速讲清项目价值、五项赛题对齐和演示路线。</p></a>
       <a class="card" href="demo_materials/sparkweave-evaluator-one-pager.md"><span class="tag">评委一页纸</span><h3>项目速览</h3><p>把定位、证据链、录屏路线和兜底材料压缩到一页。</p></a>
       <a class="card" href="demo_materials/sparkweave-competition-scorecard.md"><span class="tag">评分点</span><h3>赛题证据表</h3><p>逐条映射画像、资源生成、路径规划、智能辅导和学习评估。</p></a>
+      <a class="card" href="demo_materials/sparkweave-learning-effect-summary.md"><span class="tag">评估闭环</span><h3>学习效果摘要</h3><p>单独说明证据、画像、处方和动态调整如何形成闭环。</p></a>
       <a class="card" href="demo_materials/sparkweave-7min-recording-script.md"><span class="tag">录屏</span><h3>7 分钟讲稿</h3><p>按时间段给出画面、讲述词和现场兜底动作。</p></a>
     </section>
 

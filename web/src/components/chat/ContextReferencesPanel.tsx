@@ -84,9 +84,9 @@ export function ContextReferencesPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Link2 size={17} className="text-brand-blue" />
-            <h2 className="text-sm font-semibold text-ink">引用上下文</h2>
+            <h2 className="text-sm font-semibold text-ink">引用素材</h2>
           </div>
-          <p className="mt-1 text-xs leading-5 text-slate-500">选择少量历史或笔记作为本轮素材。</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">给当前问题补充少量旧对话或笔记。</p>
         </div>
         <Badge tone={historyReferences.length || notebookReferenceCount ? "brand" : "neutral"}>
           {historyReferences.length + notebookReferenceCount}
@@ -98,7 +98,7 @@ export function ContextReferencesPanel({
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
               <MessageSquareText size={14} />
-              历史会话
+              引用旧对话
             </p>
             {historyReferences.length ? (
               <Button tone="quiet" className="min-h-7 px-2 text-xs" onClick={() => onHistoryReferencesChange([])}>
@@ -118,19 +118,19 @@ export function ContextReferencesPanel({
                   data-testid={`context-history-${sessionId}`}
                   onClick={() => toggleHistory(sessionId)}
                   className={`flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition ${
-                    active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                    active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
                   }`}
                 >
                   <span
                     className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                      active ? "border-brand-teal bg-brand-teal text-white" : "border-line bg-white text-transparent"
+                      active ? "border-white/15 bg-white/10 text-white" : "border-line bg-white text-transparent"
                     }`}
                   >
                     <Check size={12} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">{sessionDisplayTitle(session, index)}</span>
-                    <span className="mt-1 block truncate text-xs text-slate-500">
+                    <span className={`block truncate text-sm font-medium ${active ? "text-white" : "text-ink"}`}>{sessionDisplayTitle(session, index)}</span>
+                    <span className={`mt-1 block truncate text-xs ${active ? "text-white/65" : "text-steel"}`}>
                       {capabilityLabel(session.preferences?.capability)} · {session.message_count ?? 0} 条消息
                     </span>
                   </span>
@@ -138,7 +138,7 @@ export function ContextReferencesPanel({
               );
             })}
             {!selectableSessions.length ? (
-              <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无可引用的历史会话。</p>
+              <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无可引用的旧对话。</p>
             ) : null}
           </div>
         </div>
@@ -176,13 +176,13 @@ export function ContextReferencesPanel({
                   data-testid={`context-record-${activeNotebookId}-${recordId}`}
                   onClick={() => toggleNotebookRecord(record)}
                   className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                    active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                    active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
                   }`}
                 >
                   <span className="flex items-start gap-2">
                     <span
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                        active ? "border-brand-teal bg-brand-teal text-white" : "border-line bg-white text-transparent"
+                        active ? "border-white/15 bg-white/10 text-white" : "border-line bg-white text-transparent"
                       }`}
                     >
                       <Check size={12} />
@@ -190,9 +190,9 @@ export function ContextReferencesPanel({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <Badge tone="neutral">{recordType}</Badge>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{record.title}</span>
+                        <span className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "text-white" : "text-ink"}`}>{record.title}</span>
                       </span>
-                      <span className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                      <span className={`mt-2 line-clamp-2 text-xs leading-5 ${active ? "text-white/65" : "text-steel"}`}>
                         {record.summary || record.output || "暂无摘要"}
                       </span>
                     </span>

@@ -181,6 +181,17 @@ sparkweave plugin info <name>                     # 查看详情
 sparkweave config show
 ```
 
+### `learning-effect` — 学习效果闭环摘要
+
+```bash
+sparkweave learning-effect summary
+sparkweave learning-effect summary --course-id ml_foundations --window all
+sparkweave learning-effect summary --format json
+sparkweave learning-effect summary --output dist/learning-effect-summary.md
+```
+
+这个命令会把学习证据、画像更新、下一步处方和错因补救复测状态压缩成一页摘要，适合答辩、录屏和赛前自检时说明“学习效果评估如何动态调整学习方案”。
+
 ### `provider` — 提供方认证 / 校验
 
 ```bash

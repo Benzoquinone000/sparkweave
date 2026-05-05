@@ -1,0 +1,39 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">Capability lab engineer</title>
+  <desc id="desc">A refined Notion-inspired capability lab engineer tuning tools and execution cards.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="136%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#111827" flood-opacity=".10"/></filter>
+    <style>.line{fill:none;stroke:#111;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.mid{fill:none;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.thin{fill:none;stroke:#111;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.skin{fill:#fff;stroke:#111;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}.paper{fill:#fff;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.ink{fill:#111}</style>
+  </defs>
+  <rect width="720" height="420" rx="8" fill="#f6f5f4"/>
+  <g filter="url(#shadow)">
+    <rect x="78" y="58" width="432" height="304" rx="8" fill="#fff" stroke="#e5e3df"/>
+    <rect x="108" y="92" width="148" height="236" rx="8" fill="#0a1530"/>
+    <rect x="134" y="124" width="78" height="10" rx="5" fill="#fff"/>
+    <rect x="134" y="166" width="92" height="34" rx="8" fill="#5645d4"/>
+    <rect x="134" y="220" width="94" height="10" rx="5" fill="#a4a097"/>
+    <rect x="134" y="252" width="100" height="10" rx="5" fill="#a4a097"/>
+    <rect x="292" y="92" width="168" height="54" rx="8" fill="#fef7d6"/>
+    <rect x="292" y="170" width="168" height="54" rx="8" fill="#dcecfa"/>
+    <rect x="292" y="248" width="168" height="54" rx="8" fill="#e6e0f5"/>
+    <circle cx="322" cy="119" r="9" fill="#f5d75e"/><circle cx="322" cy="197" r="9" fill="#0075de"/><circle cx="322" cy="275" r="9" fill="#5645d4"/>
+    <rect x="350" y="113" width="78" height="9" rx="4.5" fill="#37352f"/><rect x="350" y="191" width="92" height="9" rx="4.5" fill="#37352f"/><rect x="350" y="269" width="66" height="9" rx="4.5" fill="#37352f"/>
+  </g>
+  <g transform="translate(492 78)">
+    <path class="ink" d="M60 28c14-34 59-42 90-15 29 25 21 74-15 93-35 19-83-1-90-40-3-15 2-28 15-38z"/>
+    <path class="skin" d="M73 34c14-20 48-19 64 1 14 18 8 46-14 57-22 11-52-3-58-27"/>
+    <circle class="ink" cx="98" cy="47" r="3.3"/><circle class="ink" cx="121" cy="48" r="3.3"/>
+    <path class="thin" d="M108 52l-4 9 10 1M97 70c12 7 26 6 37-3"/>
+    <path class="line" d="M67 96c30 19 67 18 96-2l22 90H53z"/>
+    <path class="ink" d="M78 136h96l11 48H53z"/>
+    <path class="thin" d="M88 109l30 30M160 100l-28 38M92 137v46M118 136v47M144 135v48"/>
+    <path class="line" d="M68 102l-50 42M164 98l64-36"/>
+    <path class="line" d="M78 184l-24 52M174 184l34 48"/>
+    <path class="thin" d="M50 238c15 6 29 4 43-4M204 233c15 6 30 5 45 0"/>
+    <path class="paper" d="M210 35l42-12 13 40-44 14z"/>
+    <path class="thin" d="M220 55l26-8"/>
+    <circle cx="236" cy="50" r="24" fill="#fff" stroke="#111" stroke-width="4"/>
+    <path class="thin" d="M236 34v32M220 50h32"/>
+  </g>
+  <rect x="72" y="314" width="42" height="24" rx="7" fill="#2a9d99" opacity=".78"/><rect x="594" y="82" width="48" height="24" rx="7" fill="#ff64c8" opacity=".78"/>
+</svg>

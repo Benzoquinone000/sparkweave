@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from sparkweave.api.utils.task_log_stream import get_task_stream_manager
@@ -101,6 +102,8 @@ class GuideV2QuizResultItem(BaseModel):
     correct_answer: str = ""
     explanation: str | None = ""
     difficulty: str | None = ""
+    duration_seconds: float | None = Field(default=None, ge=0)
+    attempt_count: int = Field(default=1, ge=1)
     is_correct: bool
 
     @field_validator("options", mode="before")
@@ -268,7 +271,7 @@ async def get_session(session_id: str):
         session = get_guide_v2_manager().get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-        return session
+        return _decorate_session_artifacts(session)
     except HTTPException:
         raise
     except Exception as exc:
@@ -498,6 +501,10 @@ async def generate_task_resource(
             error = str(result.get("error") or "Resource generation failed")
             status_code = 404 if "not found" in error.lower() else 400
             raise HTTPException(status_code=status_code, detail=error)
+        if isinstance(result.get("artifact"), dict):
+            result["artifact"] = _decorate_artifact_payload(session_id, task_id, result["artifact"])
+        if isinstance(result.get("session"), dict):
+            result["session"] = _decorate_session_artifacts(result["session"])
         result["learner_evidence"] = _append_resource_generation_evidence(session_id, task_id, result)
         return result
     except HTTPException:
@@ -598,6 +605,9 @@ async def save_artifact(
                 "artifact_id": artifact_id,
                 "artifact_type": artifact.get("type"),
                 "capability": artifact.get("capability"),
+                "audio_narration": _decorate_artifact_payload(session_id, task_id, artifact).get("result")
+                if str(artifact.get("type") or "") == "audio"
+                else None,
             },
             kb_name=None,
         )
@@ -653,6 +663,32 @@ async def save_artifact(
         },
         "question_notebook": question_result,
     }
+
+
+@router.get("/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact_id}/asset")
+async def get_artifact_asset(session_id: str, task_id: str, artifact_id: str):
+    session = get_guide_v2_manager().get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    task = _find_task(session, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    artifact = _find_artifact(task, artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    result = artifact.get("result") if isinstance(artifact.get("result"), dict) else {}
+    audio = result.get("audio") if isinstance(result.get("audio"), dict) else {}
+    asset_path_raw = str(audio.get("asset_path") or "").strip()
+    if not asset_path_raw:
+        raise HTTPException(status_code=404, detail="Artifact asset not found")
+    asset_path = Path(asset_path_raw)
+    if not asset_path.exists() or not asset_path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact file missing")
+    return FileResponse(
+        asset_path,
+        media_type=str(audio.get("content_type") or "application/octet-stream"),
+        filename=str(audio.get("filename") or asset_path.name),
+    )
 
 
 @router.post("/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact_id}/quiz-results")
@@ -873,6 +909,44 @@ def _find_artifact(task: dict, artifact_id: str) -> dict | None:
         (item for item in task.get("artifact_refs", []) if str(item.get("id")) == artifact_id),
         None,
     )
+
+
+def _decorate_artifact_payload(session_id: str, task_id: str, artifact: dict) -> dict:
+    if str(artifact.get("type") or "") != "audio":
+        return artifact
+    result = artifact.get("result") if isinstance(artifact.get("result"), dict) else {}
+    audio = result.get("audio") if isinstance(result.get("audio"), dict) else {}
+    if not audio:
+        return artifact
+    decorated = dict(artifact)
+    decorated_result = dict(result)
+    decorated_audio = dict(audio)
+    decorated_audio["asset_url"] = (
+        f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact.get('id')}/asset"
+    )
+    decorated_result["audio"] = decorated_audio
+    decorated["result"] = decorated_result
+    return decorated
+
+
+def _decorate_session_artifacts(session: dict) -> dict:
+    tasks = []
+    for task in session.get("tasks", []):
+        if not isinstance(task, dict):
+            tasks.append(task)
+            continue
+        decorated_task = dict(task)
+        artifacts = [
+            _decorate_artifact_payload(str(session.get("session_id") or ""), str(task.get("task_id") or ""), artifact)
+            if isinstance(artifact, dict)
+            else artifact
+            for artifact in task.get("artifact_refs", [])
+        ]
+        decorated_task["artifact_refs"] = artifacts
+        tasks.append(decorated_task)
+    decorated = dict(session)
+    decorated["tasks"] = tasks
+    return decorated
 
 
 def _artifact_summary(artifact: dict) -> str:

@@ -1,0 +1,35 @@
+<svg width="420" height="360" viewBox="0 0 420 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="pathDots" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#111" opacity=".16"/>
+    </pattern>
+    <style>
+      .line{stroke:#111;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+      .thin{stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect width="420" height="360" rx="8" fill="#FCFBF8"/>
+  <path d="M57 246c67-47 130-68 187-63 53 5 91 29 122 74" class="line" stroke-dasharray="8 13" opacity=".5"/>
+  <rect x="50" y="72" width="110" height="72" rx="8" fill="#fff" class="line"/>
+  <circle cx="82" cy="108" r="16" fill="#B9A4FF"/>
+  <path d="M111 96h33M111 119h25" class="thin"/>
+  <rect x="263" y="50" width="100" height="70" rx="8" fill="#fff" class="line"/>
+  <rect x="286" y="73" width="28" height="22" rx="4" fill="#F5BC2A"/>
+  <path d="M324 75h21M324 94h15" class="thin"/>
+  <circle cx="69" cy="249" r="13" fill="#57C68B" class="line"/>
+  <circle cx="209" cy="183" r="13" fill="#5C91F5" class="line"/>
+  <circle cx="354" cy="256" r="13" fill="#FF715B" class="line"/>
+  <ellipse cx="224" cy="321" rx="126" ry="10" fill="url(#pathDots)"/>
+  <path d="M183 163c-30 16-47 46-43 82 5 41 34 69 77 73 46 4 88-23 101-64 12-37-4-74-40-91-29-14-67-14-95 0Z" fill="#fff" class="line"/>
+  <path d="M172 196c-11-34 13-65 50-67 12-27 53-31 74-6 34-3 59 31 48 63-31-13-59-15-92-7-30 7-55 11-80 17Z" fill="#111"/>
+  <circle cx="218" cy="230" r="4" fill="#111"/>
+  <circle cx="253" cy="228" r="4" fill="#111"/>
+  <path d="M241 236c-6 9-6 18 2 25" class="thin"/>
+  <path d="M220 268c13 9 29 9 44-2" class="thin"/>
+  <path d="M174 281c-31 28-39 54-22 73 16 19 45 15 72-12l36-36" fill="#fff" class="line"/>
+  <path d="M282 280c32 25 46 50 33 70-13 21-43 21-73-2l-39-31" fill="#fff" class="line"/>
+  <path d="M190 337c-17 13-13 32 13 38 25 6 64 0 78-11 10-9 6-25-12-29l-45-8-34 10Z" fill="#111" class="line"/>
+  <path d="M270 337c-16 13-12 32 14 38 25 6 64 0 78-12 10-9 4-25-13-28l-44-8-35 10Z" fill="#111" class="line"/>
+  <path d="M155 244c-23-6-42 2-55 22-8 13-4 27 11 32 18 6 39-8 58-29" fill="#fff" class="line"/>
+  <path d="M302 244c25-5 45 6 56 29 7 14 1 28-15 31-19 3-38-14-54-38" fill="#fff" class="line"/>
+</svg>

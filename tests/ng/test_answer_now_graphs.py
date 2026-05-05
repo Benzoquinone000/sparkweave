@@ -13,6 +13,14 @@ from sparkweave.graphs.math_animator import MathAnimatorGraph
 from sparkweave.graphs.visualize import VisualizeGraph
 
 
+@pytest.fixture(autouse=True)
+def _disable_math_animator_tts(monkeypatch):
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.is_iflytek_tts_configured",
+        lambda: False,
+    )
+
+
 class FakeModel:
     def __init__(self, responses):
         self.responses = list(responses)

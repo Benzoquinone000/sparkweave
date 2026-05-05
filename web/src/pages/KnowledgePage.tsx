@@ -18,7 +18,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FieldShell, SelectInput, TextInput } from "@/components/ui/Field";
+import { FieldShell, FileInput, SelectInput, TextInput } from "@/components/ui/Field";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { knowledgeProgressSocketUrl, openKnowledgeTaskStream } from "@/lib/api";
 import {
   useDefaultKnowledgeBase,
@@ -354,7 +355,7 @@ export function KnowledgePage() {
                       setView("browse");
                     }}
                     className={`w-full rounded-lg border p-3 text-left transition ${
-                      active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                      active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"
                     }`}
                     data-testid={`knowledge-kb-select-${kb.name}`}
                   >
@@ -391,7 +392,7 @@ export function KnowledgePage() {
               <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-teal">New Library</p>
+                    <p className="text-xs font-semibold text-brand-purple">New Library</p>
                     <h2 className="mt-2 text-xl font-semibold text-ink">新建资料库</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                       这是一个全局动作，不依赖当前选中的资料库。创建完成后会自动切换到新资料库。
@@ -425,11 +426,12 @@ export function KnowledgePage() {
                     </SelectInput>
                   </FieldShell>
                   <FieldShell label="初始资料" hint="支持 PDF、Markdown、文本、代码等资料">
-                    <TextInput
-                      type="file"
+                    <FileInput
                       multiple
                       onChange={(event) => setCreateFiles(Array.from(event.target.files ?? []))}
                       data-testid="knowledge-create-files"
+                      buttonLabel="选择资料"
+                      emptyLabel="未选择资料"
                     />
                   </FieldShell>
                   {createFiles.length ? <FileList files={createFiles} /> : null}
@@ -503,7 +505,7 @@ export function KnowledgePage() {
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-sm bg-white">
                   <motion.div
-                    className="h-full rounded-sm bg-brand-teal"
+                    className="h-full rounded-sm bg-brand-purple"
                     initial={false}
                     animate={{ width: `${progressPercent}%` }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
@@ -536,7 +538,7 @@ export function KnowledgePage() {
             <div className="grid gap-4">
               <section className="rounded-lg border border-line bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <UploadCloud size={18} className="text-brand-teal" />
+                  <UploadCloud size={18} className="text-brand-purple" />
                   <h2 className="text-base font-semibold text-ink">追加资料</h2>
                 </div>
                 <form className="mt-4 grid gap-3" onSubmit={uploadToKb}>
@@ -550,11 +552,12 @@ export function KnowledgePage() {
                     </SelectInput>
                   </FieldShell>
                   <FieldShell label="上传文件">
-                    <TextInput
-                      type="file"
+                    <FileInput
                       multiple
                       onChange={(event) => setUploadFiles(Array.from(event.target.files ?? []))}
                       data-testid="knowledge-upload-files"
+                      buttonLabel="选择文件"
+                      emptyLabel="未选择文件"
                     />
                   </FieldShell>
                   {uploadFiles.length ? <FileList files={uploadFiles} /> : null}
@@ -649,12 +652,12 @@ export function KnowledgePage() {
                     />
                   </FieldShell>
                 </div>
-                <label className="dt-interactive flex items-start gap-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600 hover:border-teal-200">
+                <label className="dt-interactive flex items-start gap-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600 hover:border-brand-purple-300">
                   <input
                     name="needs_reindex"
                     type="checkbox"
                     defaultChecked={Boolean(activeConfig?.needs_reindex)}
-                    className="mt-1 size-4 rounded border-line text-brand-teal focus:ring-brand-teal"
+                    className="mt-1 size-4 rounded border-line text-brand-purple focus:ring-brand-purple"
                   />
                   <span>
                     <span className="block font-medium text-ink">标记为需要重建索引</span>
@@ -694,14 +697,14 @@ export function KnowledgePage() {
           </div>
         </details>
 
-        <details className="order-5 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="knowledge-folder-details">
-          <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="knowledge-folder-toggle">
+        <section className="order-5 rounded-lg border border-line bg-white p-3" data-testid="knowledge-folder-details">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-mint px-3 py-3" data-testid="knowledge-folder-toggle">
             <div>
               <h2 className="text-base font-semibold text-ink">文件夹同步</h2>
               <p className="mt-1 text-sm text-slate-500">链接本地目录，按需同步新增资料。</p>
             </div>
             <Badge tone={activeKb ? "brand" : "neutral"}>{activeKb || "未选择"}</Badge>
-          </summary>
+          </div>
           <div className="mt-4 border-t border-line pt-4">
             <form className="grid gap-3 md:grid-cols-[1fr_auto]" onSubmit={linkFolder}>
               <FieldShell label="本地文件夹路径">
@@ -728,7 +731,7 @@ export function KnowledgePage() {
               {(linkedFolders.data ?? []).map((folder) => (
                 <motion.article
                   key={folder.id}
-                  className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200"
+                  className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300"
                   data-testid={`knowledge-folder-${folder.id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -778,7 +781,7 @@ export function KnowledgePage() {
               </p>
             ) : null}
           </div>
-        </details>
+        </section>
 
         <section className="hidden order-3 rounded-lg border border-line bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -789,7 +792,7 @@ export function KnowledgePage() {
             <button
               type="button"
               onClick={() => void query.refetch()}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm text-slate-600 hover:border-teal-200 hover:text-brand-teal"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
             >
               <RefreshCw size={16} />
               刷新
@@ -800,7 +803,7 @@ export function KnowledgePage() {
             {bases.map((kb) => (
               <motion.div
                 key={kb.name}
-                className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200"
+                className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
@@ -881,10 +884,11 @@ export function KnowledgePage() {
                 </SelectInput>
               </FieldShell>
               <FieldShell label="初始资料" hint="支持 PDF、Markdown、文本等资料">
-                <TextInput
-                  type="file"
+                <FileInput
                   multiple
                   onChange={(event) => setCreateFiles(Array.from(event.target.files ?? []))}
+                  buttonLabel="选择资料"
+                  emptyLabel="未选择资料"
                 />
               </FieldShell>
               {createFiles.length ? <FileList files={createFiles} /> : null}
@@ -915,10 +919,11 @@ export function KnowledgePage() {
                 </SelectInput>
               </FieldShell>
               <FieldShell label="上传文件">
-                <TextInput
-                  type="file"
+                <FileInput
                   multiple
                   onChange={(event) => setUploadFiles(Array.from(event.target.files ?? []))}
+                  buttonLabel="选择文件"
+                  emptyLabel="未选择文件"
                 />
               </FieldShell>
               {uploadFiles.length ? <FileList files={uploadFiles} /> : null}
@@ -934,12 +939,11 @@ export function KnowledgePage() {
           </section>
         </div>
 
-        <details
-          className="order-6 rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden"
-          open={Boolean(taskId || taskLogs.length)}
+        <section
+          className="order-6 rounded-lg border border-line bg-white p-3"
           data-testid="knowledge-progress-details"
         >
-          <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-lg px-1 py-1" data-testid="knowledge-progress-toggle">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-tint-lavender px-3 py-3" data-testid="knowledge-progress-toggle">
             <div>
               <h2 className="text-base font-semibold text-ink">索引进度</h2>
               <p className="mt-1 text-sm text-slate-500">导入资料后查看处理过程。</p>
@@ -950,7 +954,7 @@ export function KnowledgePage() {
                 {formatWsStatus(wsStatus)}
               </Badge>
             </div>
-          </summary>
+          </div>
           <div className="mt-4 border-t border-line pt-4">
             <div className="mb-4 flex justify-end">
               <Button
@@ -971,7 +975,7 @@ export function KnowledgePage() {
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-sm bg-white">
               <motion.div
-                className="h-full rounded-sm bg-brand-teal"
+                className="h-full rounded-sm bg-brand-purple"
                 initial={false}
                 animate={{ width: `${progressPercent}%` }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
@@ -980,7 +984,7 @@ export function KnowledgePage() {
             </div>
           </div>
           {taskMilestones.length ? (
-            <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50/70 p-3" data-testid="knowledge-task-milestones">
+            <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3" data-testid="knowledge-task-milestones">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink">关键进展</p>
                 <Badge tone="brand">{taskMilestones.length} 步</Badge>
@@ -994,7 +998,7 @@ export function KnowledgePage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.16 }}
                   >
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-sm bg-brand-teal" />
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-sm bg-brand-purple" />
                     <span>{line}</span>
                   </motion.div>
                 ))}
@@ -1027,7 +1031,7 @@ export function KnowledgePage() {
               )}
             </div>
           </details>
-        </details>
+        </section>
       </div>
     </div>
   );
@@ -1057,7 +1061,7 @@ function KnowledgeStatusStrip({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {items.map((item) => (
           <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-sm ${item.ok ? "bg-emerald-500" : "bg-slate-300"}`} />
+            <span className={`h-1.5 w-1.5 shrink-0 ${item.ok ? "bg-emerald-500" : "bg-slate-300"}`} style={{ borderRadius: "50%" }} />
             <span className="shrink-0 text-slate-500">{item.label}</span>
             <span className="max-w-[190px] truncate font-medium text-ink">{item.value}</span>
           </div>
@@ -1180,7 +1184,7 @@ function KnowledgeRuntimePanel({
       <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1">
         <div>
           <div className="flex items-center gap-2">
-            <Database size={18} className="text-brand-teal" />
+            <Database size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">知识库运行面板</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -1544,17 +1548,22 @@ function Header({
   description: string;
 }) {
   return (
-    <motion.div
-      className="dt-page-header"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-    >
-      <p className="dt-page-eyebrow">{eyebrow}</p>
-      <h1 className="mt-1 text-xl font-semibold text-ink" aria-label={legacyTitle}>
-        {title}
-      </h1>
-      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
-    </motion.div>
+    <NotionProductHero
+      eyebrow={eyebrow}
+      title={title}
+      legacyTitle={legacyTitle}
+      description={description}
+      accent="blue"
+      imageSrc="/illustrations/sparkweave-workspace.svg"
+      imageAlt="资料库工作台预览"
+      people="notes"
+      previewTitle="资料先放进来"
+      previewDescription="文档会转成可引用的课程上下文，后续问答和导学会优先使用。"
+      tiles={[
+        { label: "导入", helper: "上传材料", tone: "sky" },
+        { label: "索引", helper: "建立引用", tone: "yellow" },
+        { label: "使用", helper: "问答导学共用", tone: "lavender" },
+      ]}
+    />
   );
 }

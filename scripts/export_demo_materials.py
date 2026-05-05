@@ -37,6 +37,7 @@ def main() -> int:
     fallback_assets = build_demo_fallback_assets(template)
     qa = build_defense_qa(template)
     scorecard = build_competition_scorecard(template)
+    learning_effect_summary = build_learning_effect_demo_summary(template)
     one_pager = build_evaluator_one_pager(template)
     checklist = build_final_pitch_checklist(template)
     index = build_index(template, output)
@@ -48,6 +49,7 @@ def main() -> int:
     (output / "sparkweave-demo-fallback-assets.md").write_text(fallback_assets, encoding="utf-8")
     (output / "sparkweave-defense-qa.md").write_text(qa, encoding="utf-8")
     (output / "sparkweave-competition-scorecard.md").write_text(scorecard, encoding="utf-8")
+    (output / "sparkweave-learning-effect-summary.md").write_text(learning_effect_summary, encoding="utf-8")
     (output / "sparkweave-evaluator-one-pager.md").write_text(one_pager, encoding="utf-8")
     (output / "sparkweave-final-pitch-checklist.md").write_text(checklist, encoding="utf-8")
     (output / "README.md").write_text(index, encoding="utf-8")
@@ -582,6 +584,59 @@ def build_competition_scorecard(template: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def build_learning_effect_demo_summary(template: dict[str, Any]) -> str:
+    course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
+    seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
+    persona = seed.get("persona") if isinstance(seed.get("persona"), dict) else {}
+    weak_points = list_of_text(persona.get("weak_points"))[:3] or ["概念边界不清", "证据链表达不足", "缺少复测闭环"]
+    preferences = [resource_preference_label(item) for item in list_of_text(persona.get("preferences"))[:3]]
+    tasks = task_lookup(template)
+    chain = [tasks.get(task_id, {"title": task_id}) for task_id in list_of_text(seed.get("task_chain"))]
+    first_task = text(chain[0].get("title") if chain else "", "当前任务补基")
+    next_task = text(chain[1].get("title") if len(chain) > 1 else "", "生成一组复测练习")
+    lines = [
+        "# SparkWeave 学习效果评估闭环摘要",
+        "",
+        f"- 课程：{course}",
+        f"- 演示学习者卡点：{join_or(weak_points, '概念边界、证据链、效果评估')}",
+        f"- 偏好资源：{join_or(preferences, '图解、练习、短视频')}",
+        "- 摘要用途：单独证明赛题第五项“学习效果评估与动态调整”。",
+        "",
+        "## 一句话结论",
+        "",
+        f"系统不会只显示分数，而是把「{first_task}」中的作答、资源使用和反思压缩成学习处方，再把下一步调整为「{next_task}」。",
+        "",
+        "## 证据 -> 画像 -> 处方 -> 闭环",
+        "",
+        "| 环节 | 演示证据 | 用户看到什么 |",
+        "| --- | --- | --- |",
+        f"| 证据采集 | 练习作答、图解/视频查看、Notebook 保存、学习反思 | “已写入学习证据”与最近证据时间线 |",
+        f"| 画像更新 | 薄弱点：{join_or(weak_points[:2], '当前薄弱点')} | 画像把卡点转成可解释判断 |",
+        f"| 学习处方 | 推荐先做「{next_task}」 | 一个主按钮进入导学或题目生成 |",
+        "| 错因闭环 | 待补救 -> 待复测 -> 已闭环 | 三步状态条说明现在该补、该测还是继续进阶 |",
+        "",
+        "## 赛题第五项对齐",
+        "",
+        "- 实时跟踪：系统记录作答、资源、反思、保存和任务完成行为。",
+        "- 多维评估：报告包含掌握度、稳定性、证据质量、学习推进、资源有效性和错因闭环。",
+        "- 动态调整：`next_actions` 会直接生成图解、练习、复测或间隔复习入口。",
+        "- 持续优化：完成下一步后会再次写回证据，刷新画像和导学路线。",
+        "",
+        "## 可展示入口",
+        "",
+        "- 前端：学习画像页的学习效果地图、导学反馈回执、学习报告。",
+        "- API：`GET /api/v1/learning-effect/demo-summary`。",
+        "- CLI：`sparkweave learning-effect summary --output dist/learning-effect-summary.md`。",
+        "",
+        "## 答辩讲法",
+        "",
+        "- “学习效果评估不是一个静态分数，而是一条可执行闭环。”",
+        "- “每次练习、资源查看和反思都会回到同一个画像证据账本。”",
+        "- “系统会用评估结果改变下一步学习任务，而不是让学生自己在工具里找。”",
+    ]
+    return "\n".join(lines).strip() + "\n"
+
+
 def build_evaluator_one_pager(template: dict[str, Any]) -> str:
     course = text(template.get("course_name") or template.get("title"), "大模型教育智能体系统开发")
     seed = template.get("demo_seed") if isinstance(template.get("demo_seed"), dict) else {}
@@ -751,6 +806,7 @@ def build_index(template: dict[str, Any], output: Path) -> str:
             "- `sparkweave-demo-fallback-assets.md`：稳定兜底素材清单，包含图解节点、预置练习、视频分镜和讲述点。",
             "- `sparkweave-defense-qa.md`：评委追问回答预案。",
             "- `sparkweave-competition-scorecard.md`：赛题评分点、项目证据、演示入口和答辩讲法对齐表。",
+            "- `sparkweave-learning-effect-summary.md`：学习效果评估闭环摘要，单独说明证据、画像、处方和动态调整。",
             "- `sparkweave-evaluator-one-pager.md`：评委一页说明，适合放在提交包首页或答辩前快速阅读。",
             "- `sparkweave-final-pitch-checklist.md`：提交前一页式总览，适合最后排练和材料核对。",
             "",

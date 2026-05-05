@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Metric";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import {
   useCoWriterHistory,
   useCoWriterMutations,
@@ -140,18 +141,34 @@ export function CoWriterPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-5">
       <div className="mx-auto max-w-6xl space-y-4">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-        >
-          <p className="dt-page-eyebrow">写作</p>
-          <h1 className="mt-1 text-xl font-semibold text-ink">写作助手</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            粘贴文本，写下意图，得到一版可继续编辑的结果。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="写作"
+          title="先得到一版，再慢慢打磨"
+          description="粘贴文本，写下意图，得到一版可继续编辑、可追溯修改依据的结果。"
+          accent="orange"
+          imageSrc="/illustrations/notion-thread.svg"
+          imageAlt="写作助手预览"
+          people="working_laptop"
+          previewTitle="编辑也要留下依据"
+          previewDescription="润色、压缩和扩写都会保留工具调用与修改痕迹。"
+          tiles={[
+            { label: "润色", helper: "表达更清楚", tone: "yellow" },
+            { label: "依据", helper: "工具调用可见", tone: "mint" },
+            { label: "沉淀", helper: "保留修改记录", tone: "rose" },
+          ]}
+          actions={
+            <>
+              <Button tone="primary" onClick={() => void runQuickEdit()}>
+                <Wand2 size={16} />
+                快速编辑
+              </Button>
+              <Button tone="secondary" onClick={() => void runAutoMark()}>
+                <Edit3 size={16} />
+                自动批注
+              </Button>
+            </>
+          }
+        />
 
         <motion.div
           className="flex flex-wrap gap-x-4 gap-y-1.5"
@@ -318,7 +335,7 @@ export function CoWriterPage() {
                     onClick={() => operationId && setSelectedOperationId(operationId)}
                     data-testid={operationId ? `co-writer-history-${operationId}` : undefined}
                     className={`rounded-lg border p-4 text-left text-sm text-slate-600 transition ${
-                      selectedOperationId === operationId ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                      selectedOperationId === operationId ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"
                     }`}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.99 }}
@@ -374,7 +391,7 @@ export function CoWriterPage() {
 function AuditBlock({ title, content, code = false }: { title: string; content: string; code?: boolean }) {
   return (
     <div className="border-t border-line pt-3 first:border-t-0 first:pt-0">
-      <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{title}</p>
+      <p className="text-xs font-semibold text-slate-500">{title}</p>
       <pre className={`mt-2 max-h-44 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700 ${code ? "font-mono" : ""}`}>
         {content || "暂无内容"}
       </pre>

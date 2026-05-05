@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PROOF_POINTS = [
     (
         "多智能体协作",
@@ -35,8 +34,12 @@ PROOF_POINTS = [
             "Effect assessment chain: backend report",
             "Effect assessment chain: frontend card",
             "Effect assessment chain: test coverage",
+            "Learning effect closed loop: backend remediation status",
+            "Learning effect closed loop: profile card",
+            "Learning effect closed loop: test coverage",
+            "Learning effect closed loop: design doc",
         ],
-        "学习报告、前端卡片和测试证据已覆盖。",
+        "学习报告、前端卡片、结构化可视化、错因补救复测闭环和测试证据已覆盖。",
     ),
     (
         "比赛证明链",

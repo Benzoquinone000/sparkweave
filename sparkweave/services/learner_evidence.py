@@ -367,6 +367,8 @@ def build_quiz_answer_events(
         score = 1.0 if is_correct is True else (0.0 if is_correct is False else None)
         question_type = _clean(answer.get("question_type") or "", 80)
         difficulty = _clean(answer.get("difficulty") or "", 80)
+        duration_seconds = _as_float(answer.get("duration_seconds"), None)
+        attempt_count = _as_int(answer.get("attempt_count"), 1)
         mistake_types: list[str] = []
         if is_correct is False:
             if primary_concept:
@@ -399,11 +401,14 @@ def build_quiz_answer_events(
                 "resource_type": "quiz",
                 "score": score,
                 "is_correct": is_correct,
+                "duration_seconds": duration_seconds,
                 "confidence": 0.86,
                 "mistake_types": mistake_types,
                 "metadata": {
                     "question_type": question_type,
                     "difficulty": difficulty,
+                    "duration_seconds": duration_seconds,
+                    "attempt_count": attempt_count,
                     "artifact_id": artifact_id,
                     "session_id": session_id,
                     "question_id": question_id,
@@ -475,7 +480,7 @@ def build_notebook_record_event(
     source: str = "notebook",
 ) -> dict[str, Any]:
     record_id = _clean(record.get("id") or uuid.uuid4().hex, 120)
-    record_type = _clean(record.get("type") or "notebook_record", 80)
+    record_type = _normalize_notebook_record_type(record.get("type") or "notebook_record")
     metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
     event_source = _clean(metadata.get("source") or source, 80)
     resource_type = _infer_notebook_resource_type(record_type, metadata)
@@ -484,7 +489,7 @@ def build_notebook_record_event(
         "source": event_source,
         "source_id": record_id,
         "verb": "saved",
-        "object_type": "notebook_record",
+        "object_type": "resource",
         "object_id": record_id,
         "title": record.get("title") or "学习笔记",
         "summary": record.get("summary") or record.get("user_query") or "",
@@ -495,6 +500,7 @@ def build_notebook_record_event(
             **metadata,
             "notebook_ids": notebook_ids,
             "record_type": record_type,
+            "record_object_type": "notebook_record",
             "inferred_resource_type": resource_type,
             "kb_name": record.get("kb_name"),
         },
@@ -502,11 +508,30 @@ def build_notebook_record_event(
 
 
 def _infer_notebook_resource_type(record_type: str, metadata: dict[str, Any]) -> str:
+    artifact_type = _clean(metadata.get("artifact_type") or "", 80)
+    artifact_mapping = {
+        "visual": "visual",
+        "video": "video",
+        "audio": "audio",
+        "external_video": "external_video",
+        "quiz": "quiz",
+        "research": "research",
+    }
+    if artifact_type in artifact_mapping:
+        return artifact_mapping[artifact_type]
     external_video = metadata.get("external_video")
     if isinstance(external_video, dict) and (
         external_video.get("render_type") == "external_video" or isinstance(external_video.get("videos"), list)
     ):
         return "external_video"
+    audio_narration = metadata.get("audio_narration")
+    if isinstance(audio_narration, dict):
+        audio = audio_narration.get("audio")
+        video = audio_narration.get("video")
+        if isinstance(video, dict) and (video.get("asset_url") or video.get("url")):
+            return "video"
+        if isinstance(audio, dict) and (audio.get("asset_url") or audio.get("url")):
+            return "audio"
     if isinstance(metadata.get("math_animator"), dict):
         return "video"
     if isinstance(metadata.get("visualize"), dict):
@@ -517,12 +542,28 @@ def _infer_notebook_resource_type(record_type: str, metadata: dict[str, Any]) ->
     capability = _clean(metadata.get("capability") or "", 80)
     if capability == "math_animator":
         return "video"
+    if capability == "external_video_search":
+        return "external_video"
     if capability == "visualize":
         return "visual"
     if capability == "deep_question" or record_type == "question":
         return "quiz"
     if capability == "deep_research" or record_type == "research":
         return "research"
+    fallback = {
+        "chat": "note",
+        "solve": "solution",
+        "co_writer": "writing",
+        "guided_learning": "guide_report",
+        "notebook_record": "note",
+    }
+    return fallback.get(record_type, record_type or "note")
+
+
+def _normalize_notebook_record_type(value: Any) -> str:
+    record_type = _clean(value, 80).strip().lower()
+    if "." in record_type:
+        record_type = record_type.rsplit(".", 1)[-1]
     return record_type or "notebook_record"
 
 
@@ -800,6 +841,13 @@ def _as_bool_or_none(value: Any) -> bool | None:
 def _as_float(value: Any, default: float | None = 0.0) -> float | None:
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return default
 

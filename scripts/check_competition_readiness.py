@@ -15,7 +15,6 @@ import tempfile
 from urllib.parse import unquote
 import zipfile
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 REQUIRED_DOCS = [
@@ -79,6 +78,7 @@ GENERATED_DEMO_FILES = [
     "sparkweave-demo-fallback-assets.md",
     "sparkweave-defense-qa.md",
     "sparkweave-competition-scorecard.md",
+    "sparkweave-learning-effect-summary.md",
     "sparkweave-evaluator-one-pager.md",
     "sparkweave-final-pitch-checklist.md",
 ]
@@ -137,6 +137,7 @@ def build_report() -> dict[str, object]:
     checks.extend(check_runtime_collaboration_route())
     checks.extend(check_external_video_learning_loop())
     checks.extend(check_effect_assessment_chain())
+    checks.extend(check_learning_effect_closed_loop())
     checks.extend(check_competition_proof_chain())
     checks.extend(check_user_facing_settings_diagnostics())
     checks.extend(check_user_facing_knowledge_progress())
@@ -243,7 +244,7 @@ def check_external_video_learning_loop() -> list[Check]:
         (
             "External video loop: viewer evidence",
             "web/src/components/results/ExternalVideoViewer.tsx",
-            ["external-video-viewer", "external-video-watch-plan", "external-video-mark-viewed", "appendLearnerEvidence"],
+            ["external-video-viewer", "external-video-watch-plan", "external-video-mark-viewed", "appendLearningEffectEvent"],
         ),
         (
             "External video loop: test coverage",
@@ -283,6 +284,166 @@ def check_effect_assessment_chain() -> list[Check]:
             "Effect assessment chain: test coverage",
             "tests/services/test_guide_v2.py",
             ["assessment_chain", "评估链路"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_learning_effect_closed_loop() -> list[Check]:
+    expectations = [
+        (
+            "Learning effect closed loop: backend remediation status",
+            "sparkweave/services/learning_effect.py",
+            [
+                "remediation_loop",
+                "_remediation_loop",
+                "_learning_effect_visualization",
+                "_learner_receipt",
+                "demo_summary",
+                "_learning_effect_demo_markdown",
+                "learner_receipt",
+                "evidence_timeline",
+                "pending_remediation",
+                "ready_for_retest",
+                "closed",
+            ],
+        ),
+        (
+            "Learning effect closed loop: profile card",
+            "web/src/components/profile/LearningEffectLoopCard.tsx",
+            [
+                "RemediationLoopStrip",
+                "LearningEffectVisualMap",
+                "LearningEffectLearnerReceipt",
+                "learning-effect-learner-receipt",
+                "learning-effect-learner-receipt-action",
+                "learning-effect-visual-map",
+                "LearningEvidenceMiniTimeline",
+                "learning-effect-evidence-timeline",
+                "学习效果地图",
+                "证据流",
+                "最近证据",
+                "动态调度",
+                "learning-effect-prescription-panel",
+                "learning-effect-map-primary-action",
+                "learning-effect-remediation-loop",
+                "learning-effect-remediation-explanation",
+                "learning-effect-remediation-stepper",
+                "learning-effect-remediation-action",
+                "待补救",
+                "待复测",
+                "已闭环",
+                "下一步",
+            ],
+        ),
+        (
+            "Learning effect closed loop: test coverage",
+            "tests/services/test_learning_effect.py",
+            [
+                "test_learning_effect_tracks_remediation_loop_status",
+                "pending_remediation",
+                "ready_for_retest",
+                "closed",
+                "evidence_summary",
+                "progress_label",
+                "action_label",
+                "action_href",
+                "learner_receipt",
+                "demo_summary",
+                "visualization",
+                "evidence_timeline",
+            ],
+        ),
+        (
+            "Learning effect closed loop: demo summary API",
+            "sparkweave/api/routers/learning_effect.py",
+            [
+                "demo-summary",
+                "demo_summary",
+                "/report",
+                "/next-actions",
+            ],
+        ),
+        (
+            "Learning effect closed loop: demo summary CLI",
+            "sparkweave_cli/learning_effect.py",
+            [
+                "learning-effect closed-loop",
+                "summary",
+                "demo_summary",
+                "学习效果摘要",
+                "学习效果评估闭环摘要",
+            ],
+        ),
+        (
+            "Learning effect closed loop: demo summary CLI test",
+            "tests/cli/test_chat_cli.py",
+            [
+                "test_learning_effect_summary_command_outputs_demo_proof",
+                "learning-effect",
+                "summary",
+                "学习效果评估闭环摘要",
+            ],
+        ),
+        (
+            "Learning effect closed loop: e2e coverage",
+            "web/tests/e2e/workbench-smoke.spec.ts",
+            [
+                "learning-effect-loop-card",
+                "learning-effect-learner-receipt",
+                "learning-effect-visual-map",
+                "learning-effect-evidence-timeline",
+                "learning-effect-prescription-panel",
+                "learning-effect-map-primary-action",
+                "learning-effect-dimension-bars",
+                "learning-effect-loop-complete",
+                "已写入学习证据",
+            ],
+        ),
+        (
+            "Learning effect closed loop: guide effect-action e2e",
+            "web/tests/e2e/guide-v2-demo.spec.ts",
+            [
+                "guide accepts learning effect next-action links",
+                "effect_action=practice",
+                "learning_effect_practice",
+                "效果评估接力",
+            ],
+        ),
+        (
+            "Learning effect closed loop: guide receipt",
+            "web/src/pages/GuidePage.tsx",
+            [
+                "GuideLearningLoopReceipt",
+                "buildGuideEffectActionSeed",
+                "effect_action",
+                "效果评估接力",
+                "guide-learning-loop-receipt",
+                "guide-learning-loop-open-memory",
+                "guide-learning-loop-receipt-action",
+                "学习闭环回执",
+                "证据写回",
+                "画像判断",
+                "下一步处方",
+            ],
+        ),
+        (
+            "Learning effect closed loop: design doc",
+            "docs/learning-effect-closed-loop-design.md",
+            ["画像页已显示错因闭环状态", "remediation_loop", "待补救", "待复测", "已闭环"],
         ),
     ]
     checks: list[Check] = []
@@ -485,6 +646,7 @@ def check_generated_exports() -> list[Check]:
                     ("sparkweave-demo-fallback-assets.md", "SparkWeave 稳定演示兜底素材"),
                     ("sparkweave-defense-qa.md", "SparkWeave 答辩问答预案"),
                     ("sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("sparkweave-learning-effect-summary.md", "SparkWeave 学习效果评估闭环摘要"),
                     ("sparkweave-evaluator-one-pager.md", "SparkWeave 评委一页说明"),
                     ("sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                 ],
@@ -524,6 +686,7 @@ def check_generated_exports() -> list[Check]:
                     "competition_package/submission_manifest.md",
                     "competition_package/demo_materials/sparkweave-demo-deck.html",
                     "competition_package/demo_materials/sparkweave-competition-scorecard.md",
+                    "competition_package/demo_materials/sparkweave-learning-effect-summary.md",
                     "competition_package/demo_materials/sparkweave-7min-recording-script.md",
                     "competition_package/assets/architecture.svg",
                     "competition_package/runtime/scripts/start_web.py",
@@ -546,6 +709,7 @@ def check_generated_exports() -> list[Check]:
                     "demo_materials/sparkweave-agent-collaboration-blueprint.md",
                     "demo_materials/sparkweave-demo-fallback-assets.md",
                     "demo_materials/sparkweave-competition-scorecard.md",
+                    "demo_materials/sparkweave-learning-effect-summary.md",
                     "demo_materials/sparkweave-evaluator-one-pager.md",
                     "demo_materials/sparkweave-final-pitch-checklist.md",
                     "assets/agent-collaboration-blueprint.svg",
@@ -573,6 +737,7 @@ def check_generated_exports() -> list[Check]:
                     ("demo_materials/sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("demo_materials/sparkweave-demo-fallback-assets.md", "SparkWeave 稳定演示兜底素材"),
                     ("demo_materials/sparkweave-competition-scorecard.md", "SparkWeave 赛题评分点证据表"),
+                    ("demo_materials/sparkweave-learning-effect-summary.md", "SparkWeave 学习效果评估闭环摘要"),
                     ("demo_materials/sparkweave-evaluator-one-pager.md", "SparkWeave 评委一页说明"),
                     ("demo_materials/sparkweave-final-pitch-checklist.md", "SparkWeave 最终答辩材料清单"),
                     ("docs/demo-quickstart.md", "演示者 5 分钟入口"),

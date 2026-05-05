@@ -17,6 +17,27 @@ test("guide start page exposes full course templates", async ({ page }, testInfo
   await expect(page.getByTestId("guide-goal-input")).toHaveValue(/极限|导数|高等数学/i);
 });
 
+test("guide accepts learning effect next-action links as ready-to-start routes", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "effect action handoff runs once");
+
+  await installMockGuideV2ResourceEventSource(page);
+  const guide = await mockGuideV2StableDemoApis(page);
+
+  await page.goto("/guide?new=1&effect_action=practice:%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D");
+
+  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/梯度下降/);
+  await expect(page.getByText("效果评估接力")).toBeVisible();
+  await expect(page.getByText("梯度下降").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "帮我安排学习" }).click();
+
+  await expect.poll(() => guide.createPayload?.goal ?? "").toContain("梯度下降");
+  await expect.poll(() => guide.createPayload?.source_action?.source).toBe("learning_effect");
+  await expect.poll(() => guide.createPayload?.source_action?.kind).toBe("learning_effect_practice");
+  await expect.poll(() => guide.createPayload?.source_action?.source_label).toBe("梯度下降");
+  await expect.poll(() => guide.createPayload?.source_action?.estimated_minutes).toBe(10);
+});
+
 test("guide v2 stable demo runs from seed to wrap-up and course package", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "stable demo flow runs once");
 
@@ -51,6 +72,9 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await page.getByTestId("guide-submit-task-feedback").click();
 
   await expect.poll(() => guide.completePayload?.score ?? -1).toBeCloseTo(0.7, 2);
+  await expect(page.getByTestId("guide-learning-loop-receipt")).toBeVisible();
+  await expect(page.getByTestId("guide-learning-loop-open-memory")).toBeVisible();
+  await expect(page.getByTestId("guide-learning-loop-receipt-action")).toHaveAttribute("href", /capability=deep_question/);
   await expect(page.getByTestId("guide-demo-recording-cue")).toContainText("看产出包");
   await expect(page.getByTestId("guide-demo-wrap-up")).toBeVisible();
 
@@ -242,7 +266,12 @@ async function mockGuideV2StableDemoApis(page: Page) {
     createPayload?: {
       goal?: string;
       course_template_id?: string;
-      source_action?: { source?: string };
+      source_action?: {
+        source?: string;
+        kind?: string;
+        source_label?: string;
+        estimated_minutes?: number;
+      };
     };
     resourcePayload?: { resource_type?: string; prompt?: string };
     completePayload?: { score?: number; reflection?: string };
@@ -592,6 +621,82 @@ async function mockGuideV2StableDemoApis(page: Page) {
         overview: { overall_score: 72, progress: 55, completed_tasks: 1, total_tasks: 2 },
         node_cards: [{ node_id: "N2", title: "Optimization", mastery_score: 62, suggestion: "Do one short retest." }],
         feedback_digest: { count: state.completePayload ? 1 : 0, latest: { title: "Feedback recorded", summary: "Profile updated." } },
+        learning_effect_report: {
+          success: true,
+          generated_at: 1_700_000_200,
+          course_id: "ML101",
+          window: "14d",
+          overall: {
+            score: state.completePayload ? 72 : 58,
+            label: state.completePayload ? "正在变稳" : "等待证据",
+            summary: state.completePayload
+              ? "本次反思已经写入画像，下一步建议用短复测确认梯度下降直觉。"
+              : "完成一次任务后会形成更明确的学习处方。",
+          },
+          dimensions: [
+            { id: "mastery", label: "知识掌握", score: state.completePayload ? 72 : 58, status: "watch", evidence: "导学提交和练习证据" },
+            { id: "engagement", label: "学习投入", score: 80, status: "good", evidence: "已生成图解资源" },
+          ],
+          concepts: [
+            {
+              concept_id: "gradient-descent",
+              title: "Gradient descent intuition",
+              score: 0.72,
+              status: "developing",
+              confidence: 0.82,
+              trend: "up",
+              evidence_count: state.completePayload ? 3 : 1,
+              scored_event_count: state.completePayload ? 2 : 0,
+              correct_count: 1,
+              incorrect_count: 1,
+              open_mistake_count: 1,
+              resource_count: 1,
+              evidence_refs: ["ev-demo"],
+              common_mistakes: ["Direction versus objective"],
+              recommendation: "Do one short retest before moving on.",
+            },
+          ],
+          open_mistakes: [],
+          remediation_loop: {
+            total: 1,
+            pending_remediation_count: state.completePayload ? 1 : 0,
+            ready_for_retest_count: 0,
+            closed_count: 0,
+            items: [],
+          },
+          visualization: {
+            summary: "Evidence flows into profile assessment and then into the next prescription.",
+            evidence_timeline: [
+              { id: "ev-demo", label: "Reflection submitted", detail: "task feedback · gradient descent", kind: "task", score: 70 },
+            ],
+          },
+          next_actions: [
+            {
+              id: "guide-demo-retest-gradient",
+              type: "retest",
+              title: "Do a 3-question gradient descent retest",
+              reason: "Confirm the intuition after this reflection.",
+              target_concepts: ["gradient-descent"],
+              estimated_minutes: 7,
+              priority: 0.95,
+              href: "/chat?new=1&capability=deep_question&prompt=gradient%20descent%20retest",
+              capability: "deep_question",
+              prompt: "Generate a 3-question gradient descent retest.",
+              config: { purpose: "retest" },
+              writes_back: ["mastery"],
+            },
+          ],
+          evidence_refs: [],
+          summary: {
+            event_count: state.completePayload ? 3 : 1,
+            scored_event_count: state.completePayload ? 2 : 0,
+            quiz_count: 1,
+            resource_count: 1,
+            open_mistake_count: 1,
+            average_score: state.completePayload ? 72 : null,
+            accuracy: 0.7,
+          },
+        },
         action_brief: {
           title: "Open the route and course package",
           summary: "Use the route map and package to show the closed loop.",

@@ -5,9 +5,10 @@ import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FieldShell, TextArea, TextInput } from "@/components/ui/Field";
+import { FieldShell, FileInput, TextArea, TextInput } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Metric";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { useNotebookMutations, useNotebooks } from "@/hooks/useApiQueries";
 import { analyzeVisionImage, visionSolveSocketUrl } from "@/lib/api";
 import type { VisionAnalyzeResponse, VisionCommand } from "@/lib/types";
@@ -288,18 +289,31 @@ export function VisionPage() {
   return (
     <div className="h-full overflow-y-auto bg-canvas">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 pb-24 lg:px-5 lg:pb-5">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.24 }}
-        >
-          <p className="dt-page-eyebrow">图像</p>
-          <h1 className="mt-1 text-xl font-semibold text-ink">图像解题</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            上传题目图片，生成图形识别和讲解记录。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="图像"
+          title="把题图变成可复盘的讲解"
+          description="上传题目图片，生成图形识别、GeoGebra 指令和讲解记录。"
+          accent="blue"
+          imageSrc="/illustrations/notion-vision-board.svg"
+          imageAlt="图像解题预览"
+          people="thinking"
+          previewTitle="先看懂图，再讲清楚"
+          previewDescription="图形元素、关系和作图指令会一起沉淀为学习记录。"
+          tiles={[
+            { label: "识别", helper: "题图结构", tone: "sky" },
+            { label: "作图", helper: "GeoGebra 指令", tone: "lavender" },
+            { label: "讲解", helper: "导师式说明", tone: "yellow" },
+          ]}
+          actions={
+            <Button
+              tone="primary"
+              onClick={() => document.querySelector<HTMLInputElement>('[data-testid="vision-file-input"]')?.click()}
+            >
+              <FileImage size={16} />
+              选择题图
+            </Button>
+          }
+        />
 
         <motion.section
           className="flex flex-wrap gap-x-4 gap-y-1.5"
@@ -331,12 +345,12 @@ export function VisionPage() {
                   />
                 </FieldShell>
                 <FieldShell label="上传图片">
-                  <input
-                    type="file"
+                  <FileInput
                     accept="image/*"
                     onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
-                    className="block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-teal"
                     data-testid="vision-file-input"
+                    buttonLabel="选择图片"
+                    emptyLabel="未选择图片"
                   />
                 </FieldShell>
                 <FieldShell label="图片 URL">
@@ -414,7 +428,7 @@ export function VisionPage() {
                 <select
                   value={targetNotebookId}
                   onChange={(event) => setTargetNotebookId(event.target.value)}
-                  className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-teal focus:ring-2 focus:ring-teal-100"
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple-300"
                 >
                   <option value="">{notebookItems.length ? `默认：${notebookItems[0].name}` : "暂无 Notebook"}</option>
                   {notebookItems.map((item) => (

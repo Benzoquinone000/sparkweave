@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
 import json
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -642,6 +644,89 @@ async def test_guide_v2_generates_resource_and_attaches_artifact(tmp_path) -> No
 
 
 @pytest.mark.asyncio
+async def test_guide_v2_generates_audio_resource_and_persists_asset(tmp_path, monkeypatch) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    manager = GuideV2Manager(
+        output_dir=tmp_path,
+        completion_fn=_failing_completion,
+    )
+    created = await manager.create_session(
+        GuideV2CreateInput(
+            goal="理解梯度下降",
+            level="beginner",
+            time_budget_minutes=20,
+            preferences=["audio", "visual"],
+            weak_points=["学习率作用"],
+        )
+    )
+    session_id = created["session"]["session_id"]
+    task_id = created["session"]["tasks"][0]["task_id"]
+
+    async def _fake_tts(text: str, **_kwargs):
+        assert "梯度下降" in text
+        return SimpleNamespace(
+            audio=b"mp3bytes",
+            content_type="audio/mpeg",
+            encoding="lame",
+            sample_rate=24000,
+            voice="x5_lingxiaoxuan_flow",
+            sid="sid-audio",
+        )
+
+    monkeypatch.setattr("sparkweave.services.guide_v2.synthesize_speech_with_iflytek", _fake_tts)
+
+    result = await manager.generate_resource(
+        session_id,
+        task_id,
+        resource_type="audio",
+        prompt="重点解释学习率作用",
+    )
+
+    assert result["success"] is True
+    artifact = result["artifact"]
+    assert artifact["type"] == "audio"
+    assert artifact["capability"] == "tts"
+    audio = artifact["result"]["audio"]
+    assert audio["content_type"] == "audio/mpeg"
+    assert audio["voice"] == "x5_lingxiaoxuan_flow"
+    assert Path(audio["asset_path"]).exists()
+
+
+@pytest.mark.asyncio
+async def test_guide_v2_video_resource_enables_narrated_animation_by_default(tmp_path) -> None:
+    captured: list[Any] = []
+
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    async def _runner(_capability: str, context: Any) -> dict[str, Any]:
+        captured.append(context)
+        return {
+            "response": "video ready",
+            "output_mode": "video",
+            "artifacts": [],
+        }
+
+    manager = GuideV2Manager(
+        output_dir=tmp_path,
+        completion_fn=_failing_completion,
+        capability_runner=_runner,
+    )
+    created = await manager.create_session(GuideV2CreateInput(goal="理解梯度下降"))
+    session_id = created["session"]["session_id"]
+    task_id = created["session"]["tasks"][0]["task_id"]
+
+    result = await manager.generate_resource(session_id, task_id, resource_type="video")
+
+    assert result["success"] is True
+    assert captured
+    assert captured[0].config_overrides["output_mode"] == "video"
+    assert captured[0].config_overrides["enable_narration_audio"] is True
+
+
+@pytest.mark.asyncio
 async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
         raise RuntimeError("llm unavailable")
@@ -729,6 +814,9 @@ async def test_guide_v2_quiz_attempt_updates_learning_evidence(tmp_path) -> None
     remediation_id = result["adjustments"][0]["inserted_task_ids"][0]
     assert result["learning_feedback"]["resource_actions"][0]["target_task_id"] == remediation_id
     assert "labels" in result["learning_feedback"]["resource_actions"][0]["prompt"]
+    assert result["learning_feedback"]["remediation_task"]["concept"] == "labels"
+    assert result["learning_feedback"]["remediation_task"]["target_task_id"] == remediation_id
+    assert result["learning_feedback"]["remediation_task"]["steps"]
     assert result["learning_feedback"]["actions"]
     assert result["learning_feedback"]["evidence_quality"]["score"] > 0
     assert result["evidence"]["metadata"]["evidence_quality"]["label"]
@@ -858,7 +946,13 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     assert report["effect_assessment"]["score"] >= 0
     assert report["effect_assessment"]["dimensions"]
     assert any(item["id"] == "longitudinal_profile" for item in report["effect_assessment"]["dimensions"])
+    assert report["effect_assessment"]["learning_effect_report"]["available"] is True
+    assert report["effect_assessment"]["learning_effect_next_actions"]
     assert report["effect_assessment"]["strategy_adjustments"]
+    assert report["learning_effect_report"]["success"] is True
+    assert report["learning_effect_report"]["summary"]["event_count"] >= 2
+    assert report["learning_effect_report"]["concepts"]
+    assert report["learning_effect_report"]["next_actions"]
     assert [item["step"] for item in report["effect_assessment"]["assessment_chain"]] == [
         "observe",
         "diagnose",

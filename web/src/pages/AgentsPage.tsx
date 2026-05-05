@@ -24,6 +24,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { sparkBotSocketUrl } from "@/lib/api";
 import type { AgentUiConfig, SparkBotChannelSchema, SparkBotFile, SparkBotRecentItem, SparkBotSoul, SparkBotSummary } from "@/lib/types";
 import {
@@ -40,6 +41,8 @@ import {
   useSparkBotSouls,
   useSparkBots,
 } from "@/hooks/useApiQueries";
+
+type AgentWorkspaceView = "assistants" | "capabilities" | "workspace" | "advanced";
 
 export function AgentsPage() {
   const params = useParams({ strict: false }) as { botId?: string };
@@ -61,6 +64,7 @@ export function AgentsPage() {
   const [newFileName, setNewFileName] = useState("");
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [selectedAgentType, setSelectedAgentType] = useState<string | null>(null);
+  const [agentsView, setAgentsView] = useState<AgentWorkspaceView>("assistants");
   const pathBotId = /^\/agents\/([^/?#]+)\/chat/.exec(location.pathname)?.[1];
   const routeBotId = params.botId ? decodeURIComponent(params.botId) : pathBotId ? decodeURIComponent(pathBotId) : null;
   const activeBotId =
@@ -140,20 +144,34 @@ export function AgentsPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-5">
       <div className="mx-auto max-w-[1040px] space-y-4">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-        >
-          <p className="dt-page-eyebrow">
-            SparkBot 学习助教
-          </p>
-          <h1 className="mt-1 text-xl font-semibold text-ink">助教中心</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            管理你的常驻学习助教、对话模板和资料文件。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="SparkBot 学习助教"
+          title="把常用助教收成一个小团队"
+          description="日常只需要选择助教和能力。复杂配置放到下方，需要调试时再打开。"
+          accent="purple"
+          imageSrc="/illustrations/notion-agent-flow.svg"
+          imageAlt="多智能体协作预览"
+          people="working_laptop"
+          previewTitle="助教替你接住重复问题"
+          previewDescription="常驻人格、工具能力和资料文件会一起参与学习任务。"
+          tiles={[
+            { label: "助教", helper: "长期人格技能", tone: "lavender" },
+            { label: "文件", helper: "工作区资料", tone: "sky" },
+            { label: "协作", helper: "多智能体路径", tone: "yellow" },
+          ]}
+          actions={
+            <>
+              <Button tone="primary" onClick={() => setAgentsView("assistants")}>
+                <Bot size={16} />
+                管理助教
+              </Button>
+              <Button tone="secondary" onClick={() => setAgentsView("capabilities")}>
+                <Wand2 size={16} />
+                查看能力
+              </Button>
+            </>
+          }
+        />
 
         <AgentStatusStrip
           bots={items.length}
@@ -170,23 +188,34 @@ export function AgentsPage() {
           onSelect={(nextBotId) => setSelectedBotId(nextBotId)}
         />
 
-        <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-          <summary
-            className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1"
+        <AgentWorkspaceTabs
+          value={agentsView}
+          bots={items.length}
+          capabilities={runtimeAgents.length}
+          files={fileItems.length}
+          onChange={setAgentsView}
+        />
+
+        {agentsView === "capabilities" ? (
+          <motion.section
+            key="agent-capabilities"
+            className="rounded-lg border border-line bg-white p-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             data-testid="agent-capabilities-toggle"
           >
             <div>
               <div className="flex items-center gap-2">
-                <HelpCircle size={18} className="text-brand-teal" />
+                <HelpCircle size={18} className="text-brand-purple" />
                 <h2 className="text-base font-semibold text-ink" aria-label="运行时智能体矩阵">助教能力</h2>
               </div>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                 常用学习能力集中在这里，演示和使用时可以快速进入。
               </p>
             </div>
-            <Badge tone="neutral">{runtimeAgents.length}</Badge>
-          </summary>
-          <div className="mt-4 flex justify-end border-t border-line pt-4">
+            <div className="mt-4 flex justify-end border-t border-line pt-4">
             <Button tone="secondary" onClick={() => void agentConfigs.refetch()} disabled={agentConfigs.isFetching}>
               {agentConfigs.isFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               同步
@@ -214,8 +243,18 @@ export function AgentsPage() {
             loading={agentDetail.isFetching}
             error={agentDetail.error}
           />
-        </details>
+          </motion.section>
+        ) : null}
 
+        {agentsView === "assistants" ? (
+          <motion.div
+            key="agent-assistants"
+            className="space-y-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-lg border border-line bg-white p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -248,17 +287,14 @@ export function AgentsPage() {
             ) : null}
           </section>
 
-          <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary
-              className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1"
-              data-testid="sparkbot-create-toggle"
-            >
+          <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-create-toggle">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-ink">创建助教</h2>
                 <p className="mt-1 text-sm text-slate-500">需要新的常驻助教时再创建。</p>
               </div>
               <Badge tone="neutral">新建</Badge>
-            </summary>
+            </div>
             <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={createBot}>
               <FieldShell label="助教标识">
                 <TextInput value={botId} onChange={(event) => setBotId(event.target.value)} placeholder="math_tutor" />
@@ -298,7 +334,7 @@ export function AgentsPage() {
                 创建并启动
               </Button>
             </form>
-          </details>
+          </section>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -316,6 +352,55 @@ export function AgentsPage() {
           />
         </div>
 
+        <section className="rounded-lg border border-line bg-white p-3">
+          <h2 className="text-base font-semibold text-ink">最近历史</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {(history.data ?? []).slice(0, 8).map((item, index) => {
+              const pieces = sparkBotHistoryPieces(item);
+              const timestamp = sparkBotHistoryTimestamp(item);
+              const channel = sparkBotHistoryChannel(item);
+              return (
+                <article
+                  key={`${index}-${timestamp || JSON.stringify(item).slice(0, 24)}`}
+                  className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300"
+                  data-testid={`sparkbot-history-item-${index}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="neutral">{timestamp || "历史"}</Badge>
+                    {channel ? <Badge tone="brand">{channel}</Badge> : null}
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    {pieces.map((piece, pieceIndex) => (
+                      <div
+                        key={`${piece.role}-${pieceIndex}`}
+                        className="border-t border-line pt-3 first:border-t-0 first:pt-0"
+                        data-testid={`sparkbot-history-piece-${index}-${pieceIndex}`}
+                      >
+                        <p className="text-xs font-semibold tracking-normal text-brand-purple">{formatHistoryRole(piece.role)}</p>
+                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{piece.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {activeBotId && !history.data?.length ? (
+            <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">暂无历史消息。</p>
+          ) : null}
+        </section>
+          </motion.div>
+        ) : null}
+
+        {agentsView === "advanced" ? (
+          <motion.div
+            key="agent-advanced"
+            className="space-y-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
         <BotProfileEditor
           bot={activeBot.data}
           pending={mutations.update.isPending}
@@ -342,16 +427,26 @@ export function AgentsPage() {
             return mutations.update.mutateAsync({ botId: activeBotId, payload });
           }}
         />
+          </motion.div>
+        ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-lg px-1 py-1" data-testid="sparkbot-channel-toggle">
+        {agentsView === "workspace" ? (
+          <motion.div
+            key="agent-workspace"
+            className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+          <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-channel-toggle">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-ink">渠道配置</h2>
                 <p className="mt-1 text-sm text-slate-500">需要连接外部渠道时再配置。</p>
               </div>
               <Badge tone={activeBot.data?.running ? "success" : "neutral"}>{activeBot.data?.running ? "运行中" : "停止"}</Badge>
-            </summary>
+            </div>
             <div className="mt-4 grid gap-3 border-t border-line pt-4">
               <p className="text-sm text-slate-500">{activeBotId || "选择一个助教。"}</p>
               {schemas.data?.global ? (
@@ -384,16 +479,16 @@ export function AgentsPage() {
                 <p className="rounded-lg bg-canvas p-4 text-sm text-slate-500">暂无可用渠道字段。</p>
               )}
             </div>
-          </details>
+          </section>
 
-          <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden">
-            <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="sparkbot-files-toggle">
+          <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-files-toggle">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-ink">工作区文件</h2>
                 <p className="mt-1 text-sm text-slate-500">编辑提示词、笔记和助教工作文件。</p>
               </div>
               <Badge tone="neutral">{fileItems.length}</Badge>
-            </summary>
+            </div>
             <form className="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_auto]" onSubmit={createWorkspaceFile}>
               <TextInput
                 value={newFileName}
@@ -420,7 +515,7 @@ export function AgentsPage() {
                     data-testid={`sparkbot-file-${file.filename}`}
                     onClick={() => setSelectedFile(file.filename)}
                     className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                      activeFileName === file.filename ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      activeFileName === file.filename ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                     }`}
                   >
                     <FileText size={15} className="mr-2 inline" />
@@ -445,46 +540,9 @@ export function AgentsPage() {
                 </div>
               )}
             </div>
-          </details>
-        </div>
-
-        <section className="rounded-lg border border-line bg-white p-3">
-          <h2 className="text-base font-semibold text-ink">最近历史</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {(history.data ?? []).slice(0, 8).map((item, index) => {
-              const pieces = sparkBotHistoryPieces(item);
-              const timestamp = sparkBotHistoryTimestamp(item);
-              const channel = sparkBotHistoryChannel(item);
-              return (
-                <article
-                  key={`${index}-${timestamp || JSON.stringify(item).slice(0, 24)}`}
-                  className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200"
-                  data-testid={`sparkbot-history-item-${index}`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="neutral">{timestamp || "历史"}</Badge>
-                    {channel ? <Badge tone="brand">{channel}</Badge> : null}
-                  </div>
-                  <div className="mt-3 grid gap-3">
-                    {pieces.map((piece, pieceIndex) => (
-                      <div
-                        key={`${piece.role}-${pieceIndex}`}
-                        className="border-t border-line pt-3 first:border-t-0 first:pt-0"
-                        data-testid={`sparkbot-history-piece-${index}-${pieceIndex}`}
-                      >
-                        <p className="text-xs font-semibold tracking-normal text-brand-teal">{formatHistoryRole(piece.role)}</p>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{piece.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {activeBotId && !history.data?.length ? (
-            <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">暂无历史消息。</p>
-          ) : null}
-        </section>
+          </section>
+        </motion.div>
+        ) : null}
       </div>
     </div>
   );
@@ -526,6 +584,57 @@ const AGENT_TARGETS: Record<string, { href: string; title: string; description: 
   },
 };
 
+function AgentWorkspaceTabs({
+  value,
+  bots,
+  capabilities,
+  files,
+  onChange,
+}: {
+  value: AgentWorkspaceView;
+  bots: number;
+  capabilities: number;
+  files: number;
+  onChange: (value: AgentWorkspaceView) => void;
+}) {
+  const tabs: Array<{ id: AgentWorkspaceView; title: string; detail: string; count: number; tint: string }> = [
+    { id: "assistants", title: "助教", detail: "聊天与常驻助教", count: bots, tint: "bg-tint-lavender" },
+    { id: "capabilities", title: "能力", detail: "多智能体入口", count: capabilities, tint: "bg-tint-yellow" },
+    { id: "workspace", title: "工作区", detail: "渠道和文件", count: files, tint: "bg-tint-sky" },
+    { id: "advanced", title: "调优", detail: "人格、工具、运行", count: 3, tint: "bg-tint-mint" },
+  ];
+  return (
+    <section className="rounded-lg border border-line bg-white p-2">
+      <div className="grid gap-2 md:grid-cols-4">
+        {tabs.map((tab) => {
+          const active = value === tab.id;
+          return (
+            <motion.button
+              key={tab.id}
+              type="button"
+              className={`dt-interactive rounded-lg border p-3 text-left transition ${
+                active ? "border-ink bg-ink text-white" : `border-transparent ${tab.tint} text-ink hover:border-brand-purple-300`
+              }`}
+              onClick={() => onChange(tab.id)}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.99 }}
+              data-testid={`agent-workspace-tab-${tab.id}`}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold">{tab.title}</span>
+                <span className={`rounded-md px-2 py-0.5 text-xs ${active ? "bg-white/15 text-white" : "bg-white text-slate-600"}`}>
+                  {tab.count}
+                </span>
+              </span>
+              <span className={`mt-2 block text-xs leading-5 ${active ? "text-white/75" : "text-slate-600"}`}>{tab.detail}</span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function AgentStatusStrip({
   bots,
   running,
@@ -548,7 +657,7 @@ function AgentStatusStrip({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {items.map((item) => (
           <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-sm ${item.ok ? "bg-emerald-500" : "bg-slate-300"}`} />
+            <span className={`h-1.5 w-1.5 shrink-0 ${item.ok ? "bg-emerald-500" : "bg-slate-300"}`} style={{ borderRadius: "50%" }} />
             <span className="shrink-0 text-slate-500">{item.label}</span>
             <span className="truncate font-medium text-ink">{item.value}</span>
           </div>
@@ -572,14 +681,14 @@ function SparkBotRecentPanel({
   onSelect: (botId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-recent-panel">
+    <section className="rounded-lg border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,15,15,0.025)]" data-testid="sparkbot-recent-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Clock3 size={18} className="text-brand-blue" />
-            <h2 className="text-base font-semibold text-ink">最近活跃助教</h2>
+            <h2 className="text-base font-semibold text-ink">最近联系</h2>
           </div>
-            <p className="mt-1 text-sm leading-6 text-slate-500">快速回到最近交流过的学习助教。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">像 Notion 最近页面一样，直接回到上次的助教上下文。</p>
         </div>
         <Button tone="secondary" onClick={onRefresh} disabled={loading} data-testid="sparkbot-recent-refresh">
           {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -589,13 +698,15 @@ function SparkBotRecentPanel({
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         {items.map((item) => {
           const active = activeBotId === item.bot_id;
+          const displayTime = formatSparkBotTime(item.updated_at);
           return (
             <motion.button
               key={item.bot_id}
               type="button"
               onClick={() => onSelect(item.bot_id)}
+              aria-pressed={active}
               className={`dt-interactive min-h-28 rounded-lg border p-3 text-left transition ${
-                active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200 hover:bg-canvas"
+                active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300 hover:bg-canvas"
               }`}
               data-testid={`sparkbot-recent-${item.bot_id}`}
               whileHover={{ y: -2 }}
@@ -608,8 +719,8 @@ function SparkBotRecentPanel({
                 </div>
                 <Badge tone={item.running ? "success" : "neutral"}>{item.running ? "运行中" : "停止"}</Badge>
               </div>
-              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{item.last_message || "暂无最近消息。"}</p>
-              <p className="mt-3 text-xs text-slate-500">{formatSparkBotTime(item.updated_at)}</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{item.last_message || "还没有留下对话摘要。"}</p>
+              <p className="mt-3 text-xs text-slate-500">{displayTime}</p>
             </motion.button>
           );
         })}
@@ -623,11 +734,33 @@ function SparkBotRecentPanel({
   );
 }
 
-function formatSparkBotTime(value?: string) {
-  if (!value) return "未记录时间";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+function formatSparkBotTime(value?: string | number | null) {
+  const timestamp = normalizeSparkBotTimestamp(value);
+  if (!timestamp) return "最近";
+  const date = new Date(timestamp);
+  const now = Date.now();
+  const diff = now - timestamp;
+  if (diff >= 0 && diff < 60_000) return "刚刚";
+  if (diff >= 0 && diff < 60 * 60_000) return `${Math.max(1, Math.floor(diff / 60_000))} 分钟前`;
+  const today = new Date();
+  const sameDay =
+    date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+  if (sameDay) return `今天 ${date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+  return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+function normalizeSparkBotTimestamp(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") return 0;
+  const numericValue = typeof value === "number" ? value : Number(value);
+  const timestamp = Number.isFinite(numericValue)
+    ? numericValue < 1_000_000_000_000
+      ? numericValue * 1000
+      : numericValue
+    : new Date(value).getTime();
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return 0;
+  const date = new Date(timestamp);
+  if (date.getFullYear() < 2023) return 0;
+  return timestamp;
 }
 
 function AgentConfigCard({
@@ -649,12 +782,12 @@ function AgentConfigCard({
   };
   return (
     <motion.article
-      className={`dt-interactive rounded-lg border p-4 transition ${active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"}`}
+      className={`dt-interactive rounded-lg border p-4 transition ${active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"}`}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18 }}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-brand-teal">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-brand-purple">
           <Icon size={18} />
         </span>
         <Badge tone="neutral">{config.color || "默认"}</Badge>
@@ -677,7 +810,7 @@ function AgentConfigCard({
         </Button>
         <a
           href={target.href}
-          className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-line bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-teal-200 hover:text-brand-teal"
+          className="inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-line bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-brand-purple-300 hover:text-brand-purple"
         >
           打开入口
         </a>
@@ -843,7 +976,7 @@ function SparkBotChat({ botId, running }: { botId: string | null; running: boole
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <MessageSquareText size={18} className="text-brand-teal" />
+            <MessageSquareText size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink" aria-label="Bot 对话">助教对话</h2>
           </div>
           <p className="mt-1 text-sm text-slate-500">{botId ? `${botId} · ${running ? "运行中" : "未运行"}` : "选择一个运行中的助教。"}</p>
@@ -856,7 +989,7 @@ function SparkBotChat({ botId, running }: { botId: string | null; running: boole
             <motion.article
               key={message.id}
               className={`rounded-lg border p-3 text-sm leading-6 ${
-                message.role === "user" ? "ml-auto max-w-[82%] border-teal-200 bg-teal-50" : "mr-auto max-w-[82%] border-line bg-white"
+                message.role === "user" ? "ml-auto max-w-[82%] border-brand-purple-300 bg-tint-lavender" : "mr-auto max-w-[82%] border-line bg-white"
               }`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -956,11 +1089,10 @@ function SoulLibrary({
 
   return (
     <section className="rounded-lg border border-line bg-white p-3">
-      <details className="[&>summary::-webkit-details-marker]:hidden">
-        <summary
-          className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1"
-          data-testid="sparkbot-soul-toggle"
-        >
+      <div
+        className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-yellow px-3 py-3"
+        data-testid="sparkbot-soul-toggle"
+      >
           <div>
             <div className="flex items-center gap-2">
               <Wand2 size={18} className="text-brand-blue" />
@@ -969,7 +1101,7 @@ function SoulLibrary({
             <p className="mt-1 text-sm text-slate-500">按需管理助教人格和提示模板。</p>
           </div>
           <Badge tone="neutral">{souls.length}</Badge>
-        </summary>
+        </div>
         <div className="mt-4 border-t border-line pt-4">
           <p className="text-xs text-slate-500" data-testid="sparkbot-soul-detail-source">
             {activeSoul
@@ -1007,7 +1139,7 @@ function SoulLibrary({
                 data-testid={`sparkbot-soul-${soul.id}`}
                 onClick={() => loadSoul(soul)}
                 className={`rounded-lg border px-3 py-2 text-left text-sm ${
-                  selectedSoulId === soul.id ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                  selectedSoulId === soul.id ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                 }`}
               >
                 {soul.name}
@@ -1067,7 +1199,6 @@ function SoulLibrary({
           删除模板
         </Button>
       </form>
-      </details>
     </section>
   );
 }
@@ -1084,11 +1215,11 @@ function BotProfileEditor({
   ) => Promise<unknown>;
 }) {
   return (
-    <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="bot-profile-editor">
-      <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="bot-profile-toggle">
+    <section className="rounded-lg border border-line bg-white p-3" data-testid="bot-profile-editor">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-lavender px-3 py-3" data-testid="bot-profile-toggle">
         <div>
           <div className="flex items-center gap-2">
-            <Bot size={18} className="text-brand-teal" />
+            <Bot size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">助教资料</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -1096,7 +1227,7 @@ function BotProfileEditor({
           </p>
         </div>
         <Badge tone={bot?.running ? "success" : "neutral"}>{bot?.running ? "运行中" : "停止"}</Badge>
-      </summary>
+      </div>
       <div className="mt-4 border-t border-line pt-4">
         {bot ? (
           <BotProfileForm key={bot.bot_id} bot={bot} pending={pending} onSave={onSave} />
@@ -1104,7 +1235,7 @@ function BotProfileEditor({
           <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">选择一个助教后可编辑资料。</p>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -1152,7 +1283,7 @@ function BotProfileForm({
       <FieldShell label="模型">
         <TextInput value={model} onChange={(event) => setModel(event.target.value)} placeholder="继承全局模型" data-testid="bot-profile-model" />
       </FieldShell>
-      <label className="dt-interactive flex items-start gap-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600 hover:border-teal-200 md:col-span-2">
+      <label className="dt-interactive flex items-start gap-3 rounded-lg border border-line bg-white p-3 text-sm text-slate-600 hover:border-brand-purple-300 md:col-span-2">
         <input
           type="checkbox"
           checked={autoStart}
@@ -1191,8 +1322,8 @@ function BotToolsEditor({
   onSave: (tools: Record<string, unknown>) => Promise<unknown>;
 }) {
   return (
-    <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="bot-tools-editor">
-      <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="bot-tools-toggle">
+    <section className="rounded-lg border border-line bg-white p-3" data-testid="bot-tools-editor">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-sky px-3 py-3" data-testid="bot-tools-toggle">
         <div>
           <div className="flex items-center gap-2">
             <Wand2 size={18} className="text-brand-blue" />
@@ -1203,7 +1334,7 @@ function BotToolsEditor({
           </p>
         </div>
         <Badge tone="brand">工具</Badge>
-      </summary>
+      </div>
       <div className="mt-4 border-t border-line pt-4">
         {bot ? (
           <BotToolsForm key={`${bot.bot_id}-${JSON.stringify(bot.tools ?? {})}`} tools={bot.tools} pending={pending} onSave={onSave} />
@@ -1211,7 +1342,7 @@ function BotToolsEditor({
           <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">选择一个助教后可编辑工具配置。</p>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -1283,11 +1414,11 @@ function BotRuntimeEditor({
   onSave: (payload: { agent: Record<string, unknown>; heartbeat: Record<string, unknown> }) => Promise<unknown>;
 }) {
   return (
-    <details className="rounded-lg border border-line bg-white p-3 [&>summary::-webkit-details-marker]:hidden" data-testid="bot-runtime-editor">
-      <summary className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1" data-testid="bot-runtime-toggle">
+    <section className="rounded-lg border border-line bg-white p-3" data-testid="bot-runtime-editor">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-mint px-3 py-3" data-testid="bot-runtime-toggle">
         <div>
           <div className="flex items-center gap-2">
-            <RefreshCw size={18} className="text-brand-teal" />
+            <RefreshCw size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">运行习惯</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -1295,7 +1426,7 @@ function BotRuntimeEditor({
           </p>
         </div>
         <Badge tone="brand">运行设置</Badge>
-      </summary>
+      </div>
       <div className="mt-4 border-t border-line pt-4">
         {bot ? (
           <BotRuntimeForm
@@ -1309,7 +1440,7 @@ function BotRuntimeEditor({
           <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">选择一个助教后可编辑运行设置。</p>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -1428,7 +1559,7 @@ function BotCard({
 }) {
   return (
     <motion.div
-      className={`dt-interactive rounded-lg border p-4 ${active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"}`}
+      className={`dt-interactive rounded-lg border p-4 ${active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"}`}
       data-testid={`sparkbot-card-${bot.bot_id}`}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.18 }}
@@ -1605,7 +1736,7 @@ function ChannelSchemaField({
           type="checkbox"
           checked={Boolean(value)}
           onChange={(event) => onChange(event.target.checked)}
-          className="mt-1 size-4 rounded border-line text-brand-teal focus:ring-brand-teal"
+          className="mt-1 size-4 rounded border-line text-brand-purple focus:ring-brand-purple"
           data-testid={`channel-field-${property.key}`}
         />
         <span>

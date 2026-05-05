@@ -52,6 +52,7 @@ def test_policy_auto_all_is_limited_to_migrated_capabilities(monkeypatch):
     monkeypatch.setenv("SPARKWEAVE_RUNTIME", "auto")
     monkeypatch.setenv("SPARKWEAVE_NG_DEFAULT_CAPABILITIES", "all")
 
+    assert select_runtime(capability="external_video_search") == "legacy"
     assert select_runtime(capability="math_animator") == "langgraph"
     assert select_runtime(capability="custom_plugin") == "legacy"
 

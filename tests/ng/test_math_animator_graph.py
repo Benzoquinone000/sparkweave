@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from sparkweave.core.contracts import Attachment, StreamBus, StreamEventType, UnifiedContext
 from sparkweave.graphs.math_animator import DefaultMathRenderer, MathAnimatorGraph
+
+
+@pytest.fixture(autouse=True)
+def _disable_math_animator_tts(monkeypatch):
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.is_iflytek_tts_configured",
+        lambda: False,
+    )
 
 
 class FakeModel:
@@ -135,6 +145,195 @@ async def test_math_animator_graph_returns_viewer_ready_video_payload():
     assert metadata["artifacts"][0]["type"] == "video"
     assert metadata["render"]["quality"] == "low"
     assert metadata["summary"]["summary_text"] == "Generated a derivative animation."
+
+
+@pytest.mark.asyncio
+async def test_math_animator_graph_attaches_audio_narration_when_tts_is_available(monkeypatch, tmp_path):
+    renderer = FakeRenderer()
+    bus = StreamBus()
+    code = "from manim import *\\n\\nclass MainScene(Scene):\\n    def construct(self):\\n        self.wait(1)\\n"
+
+    class FakeTtsResult:
+        audio = b"FAKEAUDIO"
+        content_type = "audio/mpeg"
+        encoding = "lame"
+        sample_rate = 24000
+        voice = "x5_lingxiaoxuan_flow"
+        sid = "sid-123"
+
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.is_iflytek_tts_configured",
+        lambda: True,
+    )
+    async def _fake_tts(_text):
+        return FakeTtsResult()
+
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.synthesize_speech_with_iflytek",
+        _fake_tts,
+    )
+
+    class FakePathService:
+        def __init__(self, root):
+            self.user_data_dir = root / "data" / "user"
+            self.user_data_dir.mkdir(parents=True, exist_ok=True)
+
+        def get_agent_dir(self, module):
+            return self.user_data_dir / "workspace" / "chat" / module
+
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.get_path_service",
+        lambda: FakePathService(tmp_path),
+    )
+
+    graph = MathAnimatorGraph(
+        model=FakeModel(
+            [
+                '{"learning_goal":"Explain derivatives visually","math_focus":["derivative"],"visual_targets":["tangent line"],"narrative_steps":["show curve","move tangent"],"reference_usage":"","output_intent":"video"}',
+                '{"title":"Derivative as slope","scene_outline":["Draw a curve","Animate a tangent"],"visual_style":"clean","animation_notes":["avoid LaTeX"],"image_plan":[],"code_constraints":["define MainScene"]}',
+                '{"code":"' + code + '","rationale":"Simple Manim scene."}',
+                '{"summary_text":"Generated a derivative animation.","user_request":"Explain derivatives visually","generated_output":"video","key_points":["tangent line"]}',
+            ]
+        ),
+        renderer=renderer,
+    )
+    context = UnifiedContext(
+        session_id="session-1",
+        user_message="Explain derivatives visually",
+        active_capability="math_animator",
+        language="zh",
+        config_overrides={"output_mode": "video", "quality": "low"},
+        metadata={"turn_id": "turn-1"},
+    )
+
+    state = await graph.run(context, bus)
+
+    result_events = [event for event in bus._history if event.type == StreamEventType.RESULT]
+    metadata = result_events[0].metadata
+    narration = metadata["audio_narration"]
+    assert narration["audio"]["asset_url"].endswith(".mp3")
+    assert narration["audio"]["voice"] == "x5_lingxiaoxuan_flow"
+    assert "这段旁白会把动画里的重点顺一遍" in narration["response"]
+    assert "导数的直观理解" in narration["script_text"]
+    assert "Explain derivatives visually" not in narration["script_text"]
+    assert state["artifacts"]["math_animator"]["audio_narration"]["audio"]["content_type"] == "audio/mpeg"
+
+
+def test_math_animator_chinese_narration_localizes_english_scene_terms():
+    script = MathAnimatorGraph._build_narration_script(
+        {
+            "language": "zh",
+            "user_message": "你好",
+            "math_analysis": {
+                "math_focus": [
+                    "Fundamental arithmetic or geometric visualization (e.g., number line, simple shapes, or counting)."
+                ],
+                "narrative_steps": [
+                    "Start with a blank screen and a simple title like 'Let’s Explore Numbers'.",
+                    "Show a number line from 0 to 10, with a dot moving step by step from 0 to 5.",
+                    "Pause at each number, briefly highlighting it with a soft color.",
+                ],
+            },
+            "math_design": {},
+        },
+        {
+            "user_request": "你好",
+            "key_points": [
+                "Starts with a title 'Let’s Explore Numbers' on a white background.",
+                "A blue dot moves step by step along a number line from 0 to 5, with each number highlighted in yellow.",
+                "Five yellow stars appear one by one below the number line, synchronized with the dot's stops.",
+            ],
+        },
+    )
+
+    assert "基础算术或几何直观" in script
+    assert "让我们探索数字" in script
+    assert "蓝色圆点" in script
+    assert "黄色星星" in script
+    assert "Fundamental arithmetic" not in script
+    assert "Start with a blank screen" not in script
+    assert "A blue dot moves" not in script
+
+
+@pytest.mark.asyncio
+async def test_math_animator_graph_muxes_narration_into_video_when_ffmpeg_is_available(monkeypatch, tmp_path):
+    renderer = FakeRenderer()
+    bus = StreamBus()
+    code = "from manim import *\\n\\nclass MainScene(Scene):\\n    def construct(self):\\n        self.wait(1)\\n"
+
+    class FakeTtsResult:
+        audio = b"FAKEAUDIO"
+        content_type = "audio/mpeg"
+        encoding = "lame"
+        sample_rate = 24000
+        voice = "x5_lingxiaoxuan_flow"
+        sid = "sid-456"
+
+    monkeypatch.setattr("sparkweave.graphs.math_animator.is_iflytek_tts_configured", lambda: True)
+
+    async def _fake_tts(_text):
+        return FakeTtsResult()
+
+    monkeypatch.setattr("sparkweave.graphs.math_animator.synthesize_speech_with_iflytek", _fake_tts)
+    monkeypatch.setattr("sparkweave.graphs.math_animator.shutil.which", lambda name: "ffmpeg" if name == "ffmpeg" else None)
+
+    class FakePathService:
+        def __init__(self, root):
+            self.user_data_dir = root / "data" / "user"
+            self.user_data_dir.mkdir(parents=True, exist_ok=True)
+
+        def get_agent_dir(self, module):
+            return self.user_data_dir / "workspace" / "chat" / module
+
+    path_service = FakePathService(tmp_path)
+    video_path = path_service.get_agent_dir("math_animator") / "turn-1" / "artifacts" / "video.mp4"
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    video_path.write_bytes(b"FAKEVIDEO")
+
+    monkeypatch.setattr("sparkweave.graphs.math_animator.get_path_service", lambda: path_service)
+
+    def _fake_run(command, check, capture_output, text, timeout):
+        output_path = Path(command[-1])
+        output_path.write_bytes(b"MUXEDVIDEO")
+
+        class _Completed:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Completed()
+
+    monkeypatch.setattr("sparkweave.graphs.math_animator.subprocess.run", _fake_run)
+
+    graph = MathAnimatorGraph(
+        model=FakeModel(
+            [
+                '{"learning_goal":"Explain derivatives visually","math_focus":["derivative"],"visual_targets":["tangent line"],"narrative_steps":["show curve","move tangent"],"reference_usage":"","output_intent":"video"}',
+                '{"title":"Derivative as slope","scene_outline":["Draw a curve","Animate a tangent"],"visual_style":"clean","animation_notes":["avoid LaTeX"],"image_plan":[],"code_constraints":["define MainScene"]}',
+                '{"code":"' + code + '","rationale":"Simple Manim scene."}',
+                '{"summary_text":"Generated a derivative animation.","user_request":"Explain derivatives visually","generated_output":"video","key_points":["tangent line"]}',
+            ]
+        ),
+        renderer=renderer,
+    )
+    context = UnifiedContext(
+        session_id="session-1",
+        user_message="Explain derivatives visually",
+        active_capability="math_animator",
+        language="zh",
+        config_overrides={"output_mode": "video", "quality": "low"},
+        metadata={"turn_id": "turn-1"},
+    )
+
+    state = await graph.run(context, bus)
+
+    result = state["artifacts"]["math_animator"]
+    assert result["artifacts"][0]["filename"].endswith("_narrated.mp4")
+    assert result["audio_narration"]["video"]["asset_url"].endswith("_narrated.mp4")
+    assert any(
+        event.type == StreamEventType.PROGRESS and "Narrated video is ready." in event.content
+        for event in bus._history
+    )
 
 
 @pytest.mark.asyncio

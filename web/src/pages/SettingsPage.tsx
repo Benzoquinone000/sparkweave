@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import {
   cancelSettingsServiceTest,
   completeSetupTour,
@@ -62,6 +63,14 @@ type ServiceId = (typeof SERVICES)[number]["id"];
 type SystemProbeId = (typeof SYSTEM_PROBES)[number]["id"];
 type TestStatus = "idle" | "running" | "completed" | "failed" | "cancelled";
 type IflytekLlmAuthMode = "api_password" | "ak_sk";
+type ConfigSectionId = "llm" | "embedding" | "search" | "ocr";
+
+const CONFIG_SECTION_ITEMS: Array<{ id: ConfigSectionId; label: string; helper: string; dot: string }> = [
+  { id: "llm", label: "问答模型", helper: "对话、导学、资源生成", dot: "bg-brand-purple" },
+  { id: "embedding", label: "向量模型", helper: "知识库检索和语义理解", dot: "bg-brand-teal" },
+  { id: "search", label: "联网搜索", helper: "外部资料和精选视频", dot: "bg-brand-orange" },
+  { id: "ocr", label: "OCR 识别", helper: "扫描 PDF 与图片文字", dot: "bg-brand-blue" },
+];
 
 type LlmForm = {
   binding: string;
@@ -247,26 +256,29 @@ export function SettingsPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-5">
       <div className="mx-auto max-w-[960px] space-y-5">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-        >
-          <p className="dt-page-eyebrow">设置</p>
-          <h1 className="mt-1 text-xl font-semibold text-ink" aria-label="连接与服务设置">
-            服务设置
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            管理模型、搜索和界面偏好。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="设置"
+          title="把服务连好，学习时就不用管"
+          legacyTitle="连接与服务设置"
+          description="这里保留必要配置：模型、搜索、OCR、语音和工作台偏好。保存后会立即应用到运行时。"
+          accent="pink"
+          imageSrc="/illustrations/notion-settings-panel.svg"
+          imageAlt="服务设置预览"
+          people="coffee"
+          previewTitle="一次配置，全站共用"
+          previewDescription="问答、资料、导学和多模态生成都会读取同一套服务设置。"
+          tiles={[
+            { label: "模型", helper: "问答和向量", tone: "sky" },
+            { label: "服务", helper: "搜索 OCR 语音", tone: "mint" },
+            { label: "界面", helper: "工作台偏好", tone: "lavender" },
+          ]}
+        />
 
         {isTourMode ? (
-          <section className="rounded-lg border border-teal-200 bg-teal-50 p-4">
+          <section className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-brand-teal">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-brand-purple">
                   <Rocket size={19} />
                 </div>
                 <div>
@@ -336,7 +348,7 @@ export function SettingsPage() {
         <AnimatePresence>
           {lastResult ? (
             <motion.p
-              className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-slate-600"
+              className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-sm text-slate-600"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -400,7 +412,7 @@ export function SettingsPage() {
                     onClick={() => void runTest(service.id)}
                     disabled={testStatus === "running"}
                     data-testid={`settings-test-${service.id}`}
-                    className="dt-interactive flex min-h-16 items-center justify-between gap-3 rounded-lg border border-line bg-white p-3 text-left transition hover:border-teal-200 hover:bg-canvas disabled:opacity-60"
+                    className="dt-interactive flex min-h-16 items-center justify-between gap-3 rounded-lg border border-line bg-white p-3 text-left transition hover:border-brand-purple-300 hover:bg-canvas disabled:opacity-60"
                     whileHover={testStatus === "running" ? undefined : { y: -2 }}
                     whileTap={testStatus === "running" ? undefined : { scale: 0.99 }}
                   >
@@ -572,7 +584,7 @@ function ServiceStatusStrip({ status }: { status?: SystemStatus }) {
           const displayValue = item.error ? friendlyServiceError(String(item.error)) : item.value;
           return (
             <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-sm ${item.error ? "bg-brand-red" : item.ok ? "bg-emerald-500" : "bg-slate-300"}`} />
+              <span className={`h-1.5 w-1.5 shrink-0 ${item.error ? "bg-brand-red" : item.ok ? "bg-emerald-500" : "bg-slate-300"}`} style={{ borderRadius: "50%" }} />
               <span className="shrink-0 text-slate-500">{item.label}</span>
               <span className="max-w-[180px] truncate font-medium text-ink">{displayValue}</span>
             </div>
@@ -599,7 +611,7 @@ function SystemProbePanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <PlugZap size={18} className="text-brand-teal" />
+            <PlugZap size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">快速检测</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -616,7 +628,7 @@ function SystemProbePanel({
           return (
             <motion.div
               key={probe.id}
-              className="dt-interactive grid gap-3 rounded-lg border border-line bg-white p-3 hover:border-teal-200 md:grid-cols-[minmax(0,1fr)_auto]"
+              className="dt-interactive grid gap-3 rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300 md:grid-cols-[minmax(0,1fr)_auto]"
               data-testid={`settings-probe-result-${probe.id}`}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.99 }}
@@ -747,6 +759,7 @@ function SettingsCatalogEditor({
   const llmModelOptions = activeLlmProvider?.models ?? [];
   const embeddingModelOptions = activeEmbeddingProvider?.models ?? [];
   const isIflytekLlm = llm.binding === "iflytek_spark_ws";
+  const [activeConfigSection, setActiveConfigSection] = useState<ConfigSectionId>("llm");
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -769,20 +782,21 @@ function SettingsCatalogEditor({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Settings2 size={18} className="text-brand-teal" />
+            <Settings2 size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">模型配置</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">留空密钥会沿用现有配置，保存后立即生效。</p>
         </div>
-        <Button
-          tone="primary"
-          type="submit"
-          disabled={pending || tourPending}
-          data-testid="settings-save-apply"
-        >
-          {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          保存并应用
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            tone="primary"
+            type="submit"
+            disabled={pending || tourPending}
+            data-testid="settings-save-apply"
+          >
+            {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            保存并应用
+          </Button>
           {tourMode ? (
             <Button
               tone="primary"
@@ -796,10 +810,14 @@ function SettingsCatalogEditor({
               {tourCompleted ? "已完成" : "完成并启动"}
             </Button>
           ) : null}
+        </div>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        <ConfigBlock title="问答模型">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[236px_minmax(0,1fr)]">
+        <ConfigSectionRail active={activeConfigSection} onChange={setActiveConfigSection} />
+        <div className="min-w-0">
+          <div className={activeConfigSection === "llm" ? "" : "hidden"}>
+            <ConfigBlock title="问答模型" summary="决定对话、导学和资源生成质量，先把这里配置稳定。">
           <ProviderSelect
             label="服务提供方"
             value={llm.binding}
@@ -894,9 +912,11 @@ function SettingsCatalogEditor({
               />
             </FieldShell>
           )}
-        </ConfigBlock>
+            </ConfigBlock>
+          </div>
 
-        <ConfigBlock title="向量模型">
+          <div className={activeConfigSection === "embedding" ? "" : "hidden"}>
+            <ConfigBlock title="向量模型" summary="负责资料入库、知识库问答和相似内容召回。">
           <ProviderSelect
             label="服务提供方"
             value={embedding.binding}
@@ -977,9 +997,11 @@ function SettingsCatalogEditor({
               data-testid="settings-embedding-api-key"
             />
           </FieldShell>
-        </ConfigBlock>
+            </ConfigBlock>
+          </div>
 
-        <ConfigBlock title="联网搜索">
+          <div className={activeConfigSection === "search" ? "" : "hidden"}>
+            <ConfigBlock title="联网搜索" summary="用于补充外部资料、精选视频和实时信息。">
           <ProviderSelect
             label="服务提供方"
             value={search.provider}
@@ -1004,9 +1026,11 @@ function SettingsCatalogEditor({
               data-testid="settings-search-api-key"
             />
           </FieldShell>
-        </ConfigBlock>
+            </ConfigBlock>
+          </div>
 
-        <ConfigBlock title="OCR / 扫描 PDF">
+          <div className={activeConfigSection === "ocr" ? "" : "hidden"}>
+            <ConfigBlock title="OCR / 扫描 PDF" summary="用于扫描版 PDF、图片文字和导入资料的兜底识别。">
           <ProviderSelect
             label="OCR 提供方"
             value={ocr.provider}
@@ -1095,7 +1119,7 @@ function SettingsCatalogEditor({
             </FieldShell>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FieldShell label="Service ID">
+            <FieldShell label="服务 ID">
               <TextInput
                 value={ocr.serviceId}
                 onChange={(event) => setOcr((current) => ({ ...current, serviceId: event.target.value }))}
@@ -1103,7 +1127,7 @@ function SettingsCatalogEditor({
                 data-testid="settings-ocr-service-id"
               />
             </FieldShell>
-            <FieldShell label="Category">
+            <FieldShell label="分类">
               <TextInput
                 value={ocr.category}
                 onChange={(event) => setOcr((current) => ({ ...current, category: event.target.value }))}
@@ -1112,16 +1136,53 @@ function SettingsCatalogEditor({
               />
             </FieldShell>
           </div>
-        </ConfigBlock>
+            </ConfigBlock>
+          </div>
+        </div>
       </div>
     </form>
   );
 }
 
-function ConfigBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function ConfigSectionRail({ active, onChange }: { active: ConfigSectionId; onChange: (id: ConfigSectionId) => void }) {
   return (
-    <section className="dt-interactive rounded-lg border border-line bg-white p-3 hover:border-teal-200">
-      <h3 className="font-semibold text-ink">{title}</h3>
+    <aside className="dt-interactive rounded-lg border border-line bg-canvas p-2">
+      <p className="px-2 pb-2 text-xs font-semibold text-steel">选择要配置的服务</p>
+      <div className="grid gap-1">
+        {CONFIG_SECTION_ITEMS.map((item) => {
+          const selected = active === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange(item.id)}
+              className={`dt-interactive flex min-h-14 items-center gap-3 rounded-md px-3 text-left transition ${
+                selected
+                  ? "border border-brand-purple-300 bg-tint-lavender text-ink shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
+                  : "border border-transparent text-charcoal hover:border-line hover:bg-white"
+              }`}
+              aria-pressed={selected}
+            >
+              <span className={`h-2.5 w-2.5 shrink-0 ${item.dot}`} style={{ borderRadius: "50%" }} />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">{item.label}</span>
+                <span className="mt-0.5 block truncate text-xs text-steel">{item.helper}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function ConfigBlock({ title, summary, children }: { title: string; summary?: string; children: React.ReactNode }) {
+  return (
+    <section className="dt-interactive rounded-lg border border-line bg-white p-4 hover:border-brand-purple-300">
+      <div>
+        <h3 className="font-semibold text-ink">{title}</h3>
+        {summary ? <p className="mt-1 text-sm leading-6 text-slate-500">{summary}</p> : null}
+      </div>
       <div className="mt-4 grid gap-4">{children}</div>
     </section>
   );
@@ -1194,7 +1255,7 @@ function SetupTourStatusPanel({
       )}
 
       {result ? (
-        <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm leading-6 text-slate-700">
+        <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-4 text-sm leading-6 text-slate-700">
           <p>{result.message}</p>
           <code className="mt-2 block overflow-x-auto rounded-md border border-line bg-white px-3 py-2 font-mono text-xs text-ink">
             {result.command}
@@ -1281,7 +1342,7 @@ function CatalogSnapshotPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Settings2 size={18} className="text-brand-teal" />
+            <Settings2 size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">服务配置概览</h2>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -1396,22 +1457,21 @@ function WorkbenchPreferences({
 
   return (
     <form className="rounded-lg border border-line bg-white p-3" onSubmit={submit}>
-      <details className="[&>summary::-webkit-details-marker]:hidden">
-        <summary
-          className="dt-interactive flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-lg px-1 py-1"
-          data-testid="settings-preferences-toggle"
-        >
-          <div>
-            <div className="flex items-center gap-2">
-              <LayoutList size={18} className="text-brand-blue" />
-              <h2 className="text-base font-semibold text-ink">工作台偏好</h2>
-            </div>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              语言、主题和侧栏顺序，演示前再调整。
-            </p>
+      <div
+        className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-tint-sky px-3 py-3"
+        data-testid="settings-preferences-toggle"
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <LayoutList size={18} className="text-brand-blue" />
+            <h2 className="text-base font-semibold text-ink">工作台偏好</h2>
           </div>
-          <Badge tone="neutral">{parseRouteList(startOrder).length + parseRouteList(learnOrder).length} 个页面</Badge>
-        </summary>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            语言、主题和侧栏顺序，演示前再调整。
+          </p>
+        </div>
+        <Badge tone="neutral">{parseRouteList(startOrder).length + parseRouteList(learnOrder).length} 个页面</Badge>
+      </div>
 
         <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-line pt-4">
           <Button tone="secondary" type="button" onClick={() => void onReset()} disabled={pending}>
@@ -1482,7 +1542,6 @@ function WorkbenchPreferences({
           </div>
         </section>
       </div>
-      </details>
     </form>
   );
 }
@@ -1576,8 +1635,8 @@ function PresetModelInput({
               <button
                 key={model}
                 type="button"
-                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-teal-50 ${
-                  model === value ? "bg-teal-50 text-brand-teal" : "text-ink"
+                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition hover:bg-tint-lavender ${
+                  model === value ? "bg-tint-lavender text-brand-purple" : "text-ink"
                 }`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
@@ -1618,10 +1677,10 @@ function fallbackOcrProviders(): ProviderChoice[] {
   return [
     {
       value: "iflytek",
-      label: "iFlytek OCR for LLM",
+      label: "讯飞 OCR for LLM",
       base_url: "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
     },
-    { value: "disabled", label: "Disabled", base_url: "" },
+    { value: "disabled", label: "停用", base_url: "" },
   ];
 }
 

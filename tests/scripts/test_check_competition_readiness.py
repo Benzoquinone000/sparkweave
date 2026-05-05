@@ -5,7 +5,6 @@ from pathlib import Path
 import subprocess
 import sys
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -33,6 +32,16 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Effect assessment chain: backend report" in result.stdout
     assert "[ok] Effect assessment chain: frontend card" in result.stdout
     assert "[ok] Effect assessment chain: test coverage" in result.stdout
+    assert "[ok] Learning effect closed loop: backend remediation status" in result.stdout
+    assert "[ok] Learning effect closed loop: profile card" in result.stdout
+    assert "[ok] Learning effect closed loop: test coverage" in result.stdout
+    assert "[ok] Learning effect closed loop: demo summary API" in result.stdout
+    assert "[ok] Learning effect closed loop: demo summary CLI" in result.stdout
+    assert "[ok] Learning effect closed loop: demo summary CLI test" in result.stdout
+    assert "[ok] Learning effect closed loop: e2e coverage" in result.stdout
+    assert "[ok] Learning effect closed loop: guide effect-action e2e" in result.stdout
+    assert "[ok] Learning effect closed loop: guide receipt" in result.stdout
+    assert "[ok] Learning effect closed loop: design doc" in result.stdout
     assert "[ok] Competition proof chain: backend package" in result.stdout
     assert "[ok] Competition proof chain: frontend card" in result.stdout
     assert "[ok] Competition proof chain: test coverage" in result.stdout
@@ -48,6 +57,7 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Generated demo content: sparkweave-agent-collaboration-blueprint.md" in result.stdout
     assert "[ok] Generated demo content: sparkweave-demo-fallback-assets.md" in result.stdout
     assert "[ok] Generated demo content: sparkweave-competition-scorecard.md" in result.stdout
+    assert "[ok] Generated demo content: sparkweave-learning-effect-summary.md" in result.stdout
     assert "[ok] Generated demo content: sparkweave-evaluator-one-pager.md" in result.stdout
     assert "[ok] Generated demo content: sparkweave-final-pitch-checklist.md" in result.stdout
     assert "[ok] Generated demo links: sparkweave-demo-deck.html" in result.stdout
@@ -57,6 +67,7 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Competition archive content: competition_package/index.html" in result.stdout
     assert "[ok] Competition archive content: competition_package/checksums.sha256" in result.stdout
     assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in result.stdout
+    assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-learning-effect-summary.md" in result.stdout
     assert "[ok] Competition archive content: competition_package/runtime/scripts/start_web.py" in result.stdout
     assert "[ok] Competition archive safety" in result.stdout
     assert "[ok] Generated package: START_HERE.md" in result.stdout
@@ -100,6 +111,7 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Generated demo content: sparkweave-demo-deck.html" in check_names
     assert "Generated demo content: sparkweave-agent-collaboration-blueprint.md" in check_names
     assert "Generated demo content: sparkweave-demo-fallback-assets.md" in check_names
+    assert "Generated demo content: sparkweave-learning-effect-summary.md" in check_names
     assert "Generated demo content: sparkweave-evaluator-one-pager.md" in check_names
     assert "Generated demo content: sparkweave-final-pitch-checklist.md" in check_names
     assert "Generated demo links: sparkweave-demo-deck.html" in check_names
@@ -113,6 +125,16 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Effect assessment chain: backend report" in check_names
     assert "Effect assessment chain: frontend card" in check_names
     assert "Effect assessment chain: test coverage" in check_names
+    assert "Learning effect closed loop: backend remediation status" in check_names
+    assert "Learning effect closed loop: profile card" in check_names
+    assert "Learning effect closed loop: test coverage" in check_names
+    assert "Learning effect closed loop: demo summary API" in check_names
+    assert "Learning effect closed loop: demo summary CLI" in check_names
+    assert "Learning effect closed loop: demo summary CLI test" in check_names
+    assert "Learning effect closed loop: e2e coverage" in check_names
+    assert "Learning effect closed loop: guide effect-action e2e" in check_names
+    assert "Learning effect closed loop: guide receipt" in check_names
+    assert "Learning effect closed loop: design doc" in check_names
     assert "Competition proof chain: backend package" in check_names
     assert "Competition proof chain: frontend card" in check_names
     assert "Competition proof chain: test coverage" in check_names
@@ -121,6 +143,7 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition archive content: competition_package/index.html" in check_names
     assert "Competition archive content: competition_package/checksums.sha256" in check_names
     assert "Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in check_names
+    assert "Competition archive content: competition_package/demo_materials/sparkweave-learning-effect-summary.md" in check_names
     assert "Competition archive content: competition_package/runtime/scripts/start_web.py" in check_names
     assert "Competition archive safety" in check_names
     assert "Generated package: START_HERE.md" in check_names
@@ -147,4 +170,5 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Generated package content: docs/iflytek-integration.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-demo-fallback-assets.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names
+    assert "Generated package content: demo_materials/sparkweave-learning-effect-summary.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-evaluator-one-pager.md" in check_names

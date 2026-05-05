@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">Settings assistant</title>
+  <desc id="desc">A refined Notion-inspired assistant tuning model, OCR, search, and voice service switches.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#111827" flood-opacity=".10"/>
+    </filter>
+    <style>
+      .line{fill:none;stroke:#111;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+      .mid{fill:none;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+      .thin{fill:none;stroke:#111;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+      .paper{fill:#fff;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+      .ink{fill:#111}
+      .skin{fill:#fff;stroke:#111;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect width="720" height="420" rx="8" fill="#f6f5f4"/>
+  <g filter="url(#shadow)">
+    <rect x="78" y="60" width="390" height="292" rx="8" fill="#fff" stroke="#e5e3df"/>
+    <rect x="78" y="60" width="112" height="292" rx="8" fill="#fbfaf8"/>
+    <path d="M190 60v292" stroke="#e5e3df"/>
+    <rect x="108" y="94" width="56" height="10" rx="5" fill="#111"/>
+    <rect x="108" y="140" width="64" height="30" rx="8" fill="#e6e0f5"/>
+    <rect x="108" y="196" width="72" height="8" rx="4" fill="#a4a097"/>
+    <rect x="108" y="224" width="62" height="8" rx="4" fill="#a4a097"/>
+    <rect x="224" y="96" width="96" height="14" rx="6" fill="#111"/>
+    <rect x="224" y="140" width="194" height="44" rx="8" fill="#dcecfa"/>
+    <rect x="224" y="204" width="194" height="44" rx="8" fill="#d9f3e1"/>
+    <rect x="224" y="268" width="194" height="44" rx="8" fill="#fef7d6"/>
+    <rect x="248" y="158" width="72" height="8" rx="4" fill="#37352f"/>
+    <rect x="248" y="222" width="88" height="8" rx="4" fill="#37352f"/>
+    <rect x="248" y="286" width="64" height="8" rx="4" fill="#37352f"/>
+    <rect x="356" y="152" width="42" height="20" rx="8" fill="#fff"/>
+    <circle cx="383" cy="162" r="7" fill="#5645d4"/>
+    <rect x="356" y="216" width="42" height="20" rx="8" fill="#fff"/>
+    <circle cx="383" cy="226" r="7" fill="#2a9d99"/>
+    <rect x="356" y="280" width="42" height="20" rx="8" fill="#fff"/>
+    <circle cx="383" cy="290" r="7" fill="#dd5b00"/>
+  </g>
+
+  <g transform="translate(448 66)">
+    <path class="ink" d="M65 40c14-38 64-49 99-20 32 26 26 79-11 101-38 22-91 2-100-40-4-17 1-31 12-41z"/>
+    <path class="skin" d="M78 43c15-23 53-23 72 0 15 20 10 51-14 64-24 13-57-3-64-30"/>
+    <circle class="ink" cx="105" cy="56" r="3.6"/>
+    <circle class="ink" cx="130" cy="56" r="3.6"/>
+    <path class="thin" d="M116 60l-4 11 11 1M104 82c13 8 28 7 40-4"/>
+    <path class="line" d="M72 109c31 20 72 19 102-2l25 98H56z"/>
+    <path class="ink" d="M84 150h100l17 55H56z"/>
+    <path class="thin" d="M94 122l30 33M171 111l-30 44M96 152v52M122 151v53M149 150v54"/>
+    <path class="line" d="M74 112l-56 50M174 108l80 18"/>
+    <path class="line" d="M80 205l-26 52M183 205l38 48"/>
+    <path class="thin" d="M50 259c16 6 31 4 46-4M217 254c16 6 32 5 48 0"/>
+    <path class="paper" d="M234 92l64 8-10 78-68-8z"/>
+    <path class="thin" d="M248 116l32 4M246 138l36 5M243 160l26 4"/>
+    <circle cx="254" cy="106" r="8" fill="#e6e0f5" stroke="#111" stroke-width="2"/>
+    <path class="thin" d="M279 94l15-20M296 101l24-8M294 119l21 14"/>
+  </g>
+
+  <g transform="translate(572 270)">
+    <path class="mid" d="M22 86c-3-28 1-54 13-78M58 86c4-27 2-54-6-80M16 48c22-4 39 2 51 19M10 68c25-4 45 2 61 18"/>
+    <path d="M0 86h86l-10 34H10z" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+  <path class="paper" d="M548 42l36-16 15 35-38 17z"/>
+  <rect x="66" y="330" width="44" height="24" rx="7" fill="#ff64c8" opacity=".75"/>
+  <rect x="612" y="72" width="44" height="24" rx="7" fill="#f5d75e"/>
+</svg>

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
 from typing import Any
@@ -160,6 +162,132 @@ class WebSearchTool(_PromptHintsMixin, BaseTool):
             ],
             metadata=result if isinstance(result, dict) else {"raw": answer},
         )
+
+
+class ExternalVideoSearchTool(_PromptHintsMixin, BaseTool):
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="external_video_search",
+            description=(
+                "Find and rank a concise set of public learning videos for the current learning task. "
+                "Use this when the learner asks for recommended videos, video explanations, or short lessons from the web."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="topic",
+                    type="string",
+                    description="The learning topic or question to search videos for.",
+                ),
+                ToolParameter(
+                    name="prompt",
+                    type="string",
+                    description="Optional full learner request for better ranking context.",
+                    required=False,
+                ),
+                ToolParameter(
+                    name="language",
+                    type="string",
+                    description="Preferred result language. Use zh for Chinese learners unless asked otherwise.",
+                    required=False,
+                    enum=["zh", "en"],
+                    default="zh",
+                ),
+                ToolParameter(
+                    name="max_results",
+                    type="integer",
+                    description="Maximum number of video cards to return.",
+                    required=False,
+                    default=3,
+                ),
+                ToolParameter(
+                    name="learner_hints",
+                    type="object",
+                    description="Optional learner profile hints used for ranking and explanations.",
+                    required=False,
+                    default={},
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        from sparkweave.services.video_search import recommend_learning_videos
+
+        topic = str(kwargs.get("topic") or kwargs.get("query") or kwargs.get("prompt") or "").strip()
+        prompt = str(kwargs.get("prompt") or topic).strip()
+        language = str(kwargs.get("language") or "zh").strip() or "zh"
+        learner_hints = kwargs.get("learner_hints")
+        if not isinstance(learner_hints, dict):
+            learner_hints = {}
+        try:
+            max_results = int(kwargs.get("max_results") or 3)
+        except (TypeError, ValueError):
+            max_results = 3
+        max_results = max(1, min(max_results, 6))
+
+        if not topic:
+            return ToolResult(
+                content="请先告诉我要找哪一个学习主题的视频。",
+                success=False,
+                metadata={
+                    "render_type": "external_video",
+                    "videos": [],
+                    "tool_name": "external_video_search",
+                },
+            )
+
+        result = await recommend_learning_videos(
+            topic=topic,
+            learner_hints=learner_hints,
+            prompt=prompt,
+            language=language,
+            max_results=max_results,
+            event_sink=self._bridge_event_sink(kwargs.get("event_sink")),
+        )
+        metadata = dict(result)
+        videos = metadata.get("videos") if isinstance(metadata.get("videos"), list) else []
+        metadata["render_type"] = "external_video"
+        metadata["tool_name"] = "external_video_search"
+        metadata["agent_chain"] = []
+        metadata["tool_chain"] = [
+            {"label": "精选视频工具", "state": "done", "detail": "检索公开视频候选"},
+            {"label": "排序筛选", "state": "done", "detail": "按学习任务和画像提示筛选"},
+        ]
+
+        response = str(metadata.get("response") or "").strip()
+        if not response:
+            response = "我为你筛选了几条适合当前任务的视频。"
+        sources = [
+            {
+                "type": "external_video",
+                "title": str(video.get("title") or "学习视频"),
+                "url": str(video.get("url") or ""),
+                "platform": str(video.get("platform") or ""),
+            }
+            for video in videos
+            if isinstance(video, dict) and video.get("url")
+        ]
+        return ToolResult(
+            content=response,
+            success=bool(metadata.get("success", True)),
+            metadata=metadata,
+            sources=sources,
+        )
+
+    @staticmethod
+    def _bridge_event_sink(raw_event_sink: Any) -> Any:
+        if not callable(raw_event_sink):
+            return None
+
+        def _sink(event_type: str, payload: dict[str, Any]) -> None:
+            message = str(payload.get("message") or payload.get("query") or "")
+            result = raw_event_sink(event_type, message, payload)
+            if inspect.isawaitable(result):
+                try:
+                    asyncio.create_task(result)
+                except RuntimeError:
+                    logger.debug("Skipped async video progress event outside a running loop.")
+
+        return _sink
 
 
 class CodeExecutionTool(_PromptHintsMixin, BaseTool):
@@ -516,6 +644,7 @@ BUILTIN_TOOL_TYPES: tuple[type[BaseTool], ...] = (
     BrainstormTool,
     RAGTool,
     WebSearchTool,
+    ExternalVideoSearchTool,
     CodeExecutionTool,
     ReasonTool,
     PaperSearchToolWrapper,
@@ -530,6 +659,9 @@ TOOL_ALIASES: dict[str, tuple[str, dict[str, Any]]] = {
     "rag_search": ("rag", {}),
     "code_execute": ("code_execution", {}),
     "run_code": ("code_execution", {}),
+    "video_search": ("external_video_search", {}),
+    "learning_video_search": ("external_video_search", {}),
+    "curated_video_search": ("external_video_search", {}),
 }
 
 
@@ -539,6 +671,7 @@ __all__ = [
     "TOOL_ALIASES",
     "BrainstormTool",
     "CodeExecutionTool",
+    "ExternalVideoSearchTool",
     "GeoGebraAnalysisTool",
     "PaperSearchToolWrapper",
     "RAGTool",

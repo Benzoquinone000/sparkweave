@@ -8,6 +8,7 @@ from .math_animator import (
     load_rendering_components,
     load_visual_review_components,
 )
+from .learning_effect import create_learning_effect_service, get_learning_effect_service
 from .memory import create_memory_service, get_memory
 from .notebook import create_notebook_manager, get_notebooks
 from .ocr import (
@@ -37,6 +38,11 @@ from .session import (
     get_runtime_manager,
     get_session_store,
 )
+from .tts import (
+    TtsUnavailable,
+    is_iflytek_tts_configured,
+    synthesize_speech_with_iflytek,
+)
 from .validation import validate_capability_config
 from .vision import analyze_geogebra_image
 from .vision_input import ImageError, resolve_image_input
@@ -64,6 +70,7 @@ __all__ = [
     "brainstorm",
     "clear_llm_config_cache",
     "create_memory_service",
+    "create_learning_effect_service",
     "create_notebook_manager",
     "create_session_store",
     "create_turn_runtime_manager",
@@ -71,6 +78,7 @@ __all__ = [
     "extract_questions_from_paper",
     "get_legacy_turn_runtime_manager",
     "get_llm_config",
+    "get_learning_effect_service",
     "get_memory",
     "get_notebooks",
     "is_iflytek_ocr_configured",
@@ -88,8 +96,11 @@ __all__ = [
     "resolve_image_input",
     "run_python_code",
     "search_arxiv_papers",
+    "synthesize_speech_with_iflytek",
     "parse_pdf_with_mineru",
+    "TtsUnavailable",
     "ocr_pdf_with_iflytek",
+    "is_iflytek_tts_configured",
     "recognize_image_with_iflytek",
     "validate_capability_config",
     "web_search",

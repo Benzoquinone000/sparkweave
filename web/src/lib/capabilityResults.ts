@@ -1,4 +1,4 @@
-import type { ExternalVideoResult, MathAnimatorArtifact, MathAnimatorResult, VisualizeResult } from "@/lib/types";
+import type { AudioNarrationResult, ExternalVideoResult, MathAnimatorArtifact, MathAnimatorResult, VisualizeResult } from "@/lib/types";
 
 function stripCodeFences(source: string) {
   const trimmed = source.trim();
@@ -53,6 +53,42 @@ function extractStyleHint(resultMetadata: Record<string, unknown>) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function extractAudioNarrationResult(resultMetadata: Record<string, unknown>): AudioNarrationResult | undefined {
+  const narration = asRecord(resultMetadata.audio_narration);
+  const audio = asRecord(narration?.audio);
+  if (!narration || !audio || typeof audio.asset_url !== "string" || !audio.asset_url) return undefined;
+  return {
+    response: typeof narration.response === "string" ? narration.response : "",
+    script_text: typeof narration.script_text === "string" ? narration.script_text : "",
+    learner_profile_hints:
+      asRecord(narration.learner_profile_hints) ?? extractLearnerProfileHints(resultMetadata),
+    style_hint:
+      (typeof narration.style_hint === "string" && narration.style_hint.trim()
+        ? narration.style_hint.trim()
+        : extractStyleHint(resultMetadata)),
+    video: (() => {
+      const video = asRecord(narration.video);
+      if (!video || typeof video.asset_url !== "string" || !video.asset_url) return undefined;
+      return {
+        asset_url: video.asset_url,
+        filename: typeof video.filename === "string" ? video.filename : undefined,
+        content_type: typeof video.content_type === "string" ? video.content_type : undefined,
+        label: typeof video.label === "string" ? video.label : undefined,
+      };
+    })(),
+    audio: {
+      asset_url: audio.asset_url as string,
+      filename: typeof audio.filename === "string" ? audio.filename : undefined,
+      content_type: typeof audio.content_type === "string" ? audio.content_type : undefined,
+      encoding: typeof audio.encoding === "string" ? audio.encoding : undefined,
+      sample_rate: typeof audio.sample_rate === "number" ? audio.sample_rate : undefined,
+      voice: typeof audio.voice === "string" ? audio.voice : undefined,
+      byte_length: typeof audio.byte_length === "number" ? audio.byte_length : undefined,
+      sid: typeof audio.sid === "string" ? audio.sid : undefined,
+    },
+  };
+}
+
 export function extractMathAnimatorResult(resultMetadata: Record<string, unknown> | undefined): MathAnimatorResult | null {
   if (!resultMetadata) return null;
   const artifacts = Array.isArray(resultMetadata.artifacts)
@@ -60,7 +96,7 @@ export function extractMathAnimatorResult(resultMetadata: Record<string, unknown
         if (!item || typeof item !== "object") return false;
         const record = item as Record<string, unknown>;
         return (
-          (record.type === "video" || record.type === "image") &&
+          (record.type === "video" || record.type === "image" || record.type === "audio") &&
           typeof record.url === "string" &&
           typeof record.filename === "string"
         );
@@ -75,9 +111,10 @@ export function extractMathAnimatorResult(resultMetadata: Record<string, unknown
     resultMetadata.render && typeof resultMetadata.render === "object"
       ? (resultMetadata.render as MathAnimatorResult["render"])
       : {};
+  const audioNarration = extractAudioNarrationResult(resultMetadata);
   const hasOutputMode = resultMetadata.output_mode === "video" || resultMetadata.output_mode === "image";
 
-  if (!artifacts.length && !code.content && !hasOutputMode && !Object.keys(timings).length && !Object.keys(render ?? {}).length) {
+  if (!artifacts.length && !code.content && !hasOutputMode && !Object.keys(timings).length && !Object.keys(render ?? {}).length && !audioNarration) {
     return null;
   }
 
@@ -93,6 +130,7 @@ export function extractMathAnimatorResult(resultMetadata: Record<string, unknown
     artifacts,
     timings,
     render,
+    audio_narration: audioNarration,
   };
 }
 
@@ -147,6 +185,9 @@ export function extractExternalVideoResult(resultMetadata: Record<string, unknow
     fallback_search: resultMetadata.fallback_search === true,
     agent_chain: Array.isArray(resultMetadata.agent_chain)
       ? (resultMetadata.agent_chain as ExternalVideoResult["agent_chain"])
+      : undefined,
+    tool_chain: Array.isArray(resultMetadata.tool_chain)
+      ? (resultMetadata.tool_chain as ExternalVideoResult["tool_chain"])
       : undefined,
   };
 }

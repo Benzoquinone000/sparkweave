@@ -655,6 +655,8 @@ def strip_provider_prefix(model: str, spec: ProviderSpec | None) -> str:
 DEFAULT_IFLYTEK_OCR_URL = "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
 DEFAULT_IFLYTEK_OCR_SERVICE_ID = "se75ocrbm"
 DEFAULT_IFLYTEK_OCR_CATEGORY = "ch_en_public_cloud"
+DEFAULT_IFLYTEK_TTS_URL = "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6"
+DEFAULT_IFLYTEK_TTS_VOICE = "x5_lingxiaoxuan_flow"
 
 
 ENV_KEY_ORDER = (
@@ -687,6 +689,21 @@ ENV_KEY_ORDER = (
     "IFLYTEK_OCR_URL",
     "IFLYTEK_OCR_SERVICE_ID",
     "IFLYTEK_OCR_CATEGORY",
+    "SPARKWEAVE_TTS_PROVIDER",
+    "SPARKWEAVE_TTS_TIMEOUT",
+    "IFLYTEK_TTS_APPID",
+    "IFLYTEK_TTS_API_KEY",
+    "IFLYTEK_TTS_API_SECRET",
+    "IFLYTEK_TTS_URL",
+    "IFLYTEK_TTS_VOICE",
+    "IFLYTEK_TTS_ENCODING",
+    "IFLYTEK_TTS_SAMPLE_RATE",
+    "IFLYTEK_TTS_CHANNELS",
+    "IFLYTEK_TTS_BIT_DEPTH",
+    "IFLYTEK_TTS_FRAME_SIZE",
+    "IFLYTEK_TTS_SPEED",
+    "IFLYTEK_TTS_VOLUME",
+    "IFLYTEK_TTS_PITCH",
 )
 
 
@@ -716,6 +733,7 @@ class ConfigSummary:
     embedding: dict[str, str]
     search: dict[str, str]
     ocr: dict[str, str]
+    tts: dict[str, str]
 
 
 class EnvStore:
@@ -816,6 +834,62 @@ class EnvStore:
                     os.getenv("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY),
                 ),
             },
+            tts={
+                "provider": values.get(
+                    "SPARKWEAVE_TTS_PROVIDER",
+                    os.getenv("SPARKWEAVE_TTS_PROVIDER", "iflytek"),
+                ),
+                "timeout": values.get(
+                    "SPARKWEAVE_TTS_TIMEOUT",
+                    os.getenv("SPARKWEAVE_TTS_TIMEOUT", "30"),
+                ),
+                "app_id": values.get("IFLYTEK_TTS_APPID", os.getenv("IFLYTEK_TTS_APPID", "")),
+                "api_key": values.get("IFLYTEK_TTS_API_KEY", os.getenv("IFLYTEK_TTS_API_KEY", "")),
+                "api_secret": values.get(
+                    "IFLYTEK_TTS_API_SECRET",
+                    os.getenv("IFLYTEK_TTS_API_SECRET", ""),
+                ),
+                "url": values.get(
+                    "IFLYTEK_TTS_URL",
+                    os.getenv("IFLYTEK_TTS_URL", DEFAULT_IFLYTEK_TTS_URL),
+                ),
+                "voice": values.get(
+                    "IFLYTEK_TTS_VOICE",
+                    os.getenv("IFLYTEK_TTS_VOICE", DEFAULT_IFLYTEK_TTS_VOICE),
+                ),
+                "encoding": values.get(
+                    "IFLYTEK_TTS_ENCODING",
+                    os.getenv("IFLYTEK_TTS_ENCODING", "lame"),
+                ),
+                "sample_rate": values.get(
+                    "IFLYTEK_TTS_SAMPLE_RATE",
+                    os.getenv("IFLYTEK_TTS_SAMPLE_RATE", "24000"),
+                ),
+                "channels": values.get(
+                    "IFLYTEK_TTS_CHANNELS",
+                    os.getenv("IFLYTEK_TTS_CHANNELS", "1"),
+                ),
+                "bit_depth": values.get(
+                    "IFLYTEK_TTS_BIT_DEPTH",
+                    os.getenv("IFLYTEK_TTS_BIT_DEPTH", "16"),
+                ),
+                "frame_size": values.get(
+                    "IFLYTEK_TTS_FRAME_SIZE",
+                    os.getenv("IFLYTEK_TTS_FRAME_SIZE", "0"),
+                ),
+                "speed": values.get(
+                    "IFLYTEK_TTS_SPEED",
+                    os.getenv("IFLYTEK_TTS_SPEED", "50"),
+                ),
+                "volume": values.get(
+                    "IFLYTEK_TTS_VOLUME",
+                    os.getenv("IFLYTEK_TTS_VOLUME", "50"),
+                ),
+                "pitch": values.get(
+                    "IFLYTEK_TTS_PITCH",
+                    os.getenv("IFLYTEK_TTS_PITCH", "50"),
+                ),
+            },
         )
 
     def write(self, values: dict[str, str]) -> None:
@@ -850,6 +924,7 @@ class EnvStore:
         embedding_service = services.get("embedding", {})
         search_service = services.get("search", {})
         ocr_service = services.get("ocr", {})
+        tts_service = services.get("tts", {})
 
         llm_profile = self._get_active_profile(llm_service)
         llm_model = self._get_active_model(llm_service, llm_profile)
@@ -858,6 +933,8 @@ class EnvStore:
         search_profile = self._get_active_profile(search_service)
         ocr_profile = self._get_active_profile(ocr_service)
         ocr_extra = (ocr_profile or {}).get("extra_headers") or {}
+        tts_profile = self._get_active_profile(tts_service)
+        tts_extra = (tts_profile or {}).get("extra_headers") or {}
 
         current = self.load()
         return {
@@ -919,6 +996,51 @@ class EnvStore:
                 ocr_extra.get("category")
                 or current.get("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY)
             ),
+            "SPARKWEAVE_TTS_PROVIDER": str(
+                (tts_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_TTS_PROVIDER", "iflytek")
+            ),
+            "SPARKWEAVE_TTS_TIMEOUT": str(
+                (tts_profile or {}).get("timeout") or current.get("SPARKWEAVE_TTS_TIMEOUT", "30")
+            ),
+            "IFLYTEK_TTS_APPID": str(tts_extra.get("app_id") or current.get("IFLYTEK_TTS_APPID", "")),
+            "IFLYTEK_TTS_API_KEY": str(
+                (tts_profile or {}).get("api_key") or current.get("IFLYTEK_TTS_API_KEY", "")
+            ),
+            "IFLYTEK_TTS_API_SECRET": str(
+                tts_extra.get("api_secret") or current.get("IFLYTEK_TTS_API_SECRET", "")
+            ),
+            "IFLYTEK_TTS_URL": str(
+                (tts_profile or {}).get("base_url")
+                or current.get("IFLYTEK_TTS_URL", DEFAULT_IFLYTEK_TTS_URL)
+            ),
+            "IFLYTEK_TTS_VOICE": str(
+                tts_extra.get("voice") or current.get("IFLYTEK_TTS_VOICE", DEFAULT_IFLYTEK_TTS_VOICE)
+            ),
+            "IFLYTEK_TTS_ENCODING": str(
+                tts_extra.get("encoding") or current.get("IFLYTEK_TTS_ENCODING", "lame")
+            ),
+            "IFLYTEK_TTS_SAMPLE_RATE": str(
+                tts_extra.get("sample_rate") or current.get("IFLYTEK_TTS_SAMPLE_RATE", "24000")
+            ),
+            "IFLYTEK_TTS_CHANNELS": str(
+                tts_extra.get("channels") or current.get("IFLYTEK_TTS_CHANNELS", "1")
+            ),
+            "IFLYTEK_TTS_BIT_DEPTH": str(
+                tts_extra.get("bit_depth") or current.get("IFLYTEK_TTS_BIT_DEPTH", "16")
+            ),
+            "IFLYTEK_TTS_FRAME_SIZE": str(
+                tts_extra.get("frame_size") or current.get("IFLYTEK_TTS_FRAME_SIZE", "0")
+            ),
+            "IFLYTEK_TTS_SPEED": str(
+                tts_extra.get("speed") or current.get("IFLYTEK_TTS_SPEED", "50")
+            ),
+            "IFLYTEK_TTS_VOLUME": str(
+                tts_extra.get("volume") or current.get("IFLYTEK_TTS_VOLUME", "50")
+            ),
+            "IFLYTEK_TTS_PITCH": str(
+                tts_extra.get("pitch") or current.get("IFLYTEK_TTS_PITCH", "50")
+            ),
         }
 
     def _get_active_profile(self, service: dict[str, Any]) -> dict[str, Any] | None:
@@ -967,6 +1089,10 @@ def _ocr_shell() -> dict[str, Any]:
     return {"active_profile_id": None, "profiles": []}
 
 
+def _tts_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
 def _default_catalog() -> dict[str, Any]:
     return {
         "version": 1,
@@ -975,6 +1101,7 @@ def _default_catalog() -> dict[str, Any]:
             "embedding": _service_shell(),
             "search": _search_shell(),
             "ocr": _ocr_shell(),
+            "tts": _tts_shell(),
         },
     }
 
@@ -1141,6 +1268,43 @@ class ModelCatalogService:
             }
             changed = True
 
+        tts_service = services.setdefault("tts", _tts_shell())
+        if not tts_service.get("profiles") and (
+            summary.tts["provider"]
+            or summary.tts["app_id"]
+            or summary.tts["api_key"]
+            or summary.tts["api_secret"]
+        ):
+            profile_id = "tts-profile-default"
+            services["tts"] = {
+                "active_profile_id": profile_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default TTS Provider",
+                        "provider": summary.tts["provider"] or "iflytek",
+                        "base_url": summary.tts["url"],
+                        "api_key": summary.tts["api_key"],
+                        "timeout": summary.tts["timeout"] or "30",
+                        "extra_headers": {
+                            "app_id": summary.tts["app_id"],
+                            "api_secret": summary.tts["api_secret"],
+                            "voice": summary.tts["voice"] or DEFAULT_IFLYTEK_TTS_VOICE,
+                            "encoding": summary.tts["encoding"] or "lame",
+                            "sample_rate": summary.tts["sample_rate"] or "24000",
+                            "channels": summary.tts["channels"] or "1",
+                            "bit_depth": summary.tts["bit_depth"] or "16",
+                            "frame_size": summary.tts["frame_size"] or "0",
+                            "speed": summary.tts["speed"] or "50",
+                            "volume": summary.tts["volume"] or "50",
+                            "pitch": summary.tts["pitch"] or "50",
+                        },
+                        "models": [],
+                    }
+                ],
+            }
+            changed = True
+
         return changed
 
     def _sync_active_services_from_env(self, catalog: dict[str, Any]) -> bool:
@@ -1252,6 +1416,37 @@ class ModelCatalogService:
                 service["profiles"] = [profile]
                 service["active_profile_id"] = profile_id
             return self.get_active_profile(catalog, "ocr") or service["profiles"][0]
+
+        def ensure_tts_profile() -> dict[str, Any]:
+            service = services.setdefault("tts", _tts_shell())
+            profiles = service.setdefault("profiles", [])
+            if not profiles:
+                profile_id = "tts-profile-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default TTS Provider",
+                    "provider": "iflytek",
+                    "base_url": DEFAULT_IFLYTEK_TTS_URL,
+                    "api_key": "",
+                    "timeout": "30",
+                    "extra_headers": {
+                        "app_id": "",
+                        "api_secret": "",
+                        "voice": DEFAULT_IFLYTEK_TTS_VOICE,
+                        "encoding": "lame",
+                        "sample_rate": "24000",
+                        "channels": "1",
+                        "bit_depth": "16",
+                        "frame_size": "0",
+                        "speed": "50",
+                        "volume": "50",
+                        "pitch": "50",
+                    },
+                    "models": [],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+            return self.get_active_profile(catalog, "tts") or service["profiles"][0]
 
         if {"LLM_BINDING", "LLM_MODEL", "LLM_API_KEY", "LLM_HOST", "LLM_API_VERSION"}.intersection(
             env_values
@@ -1367,6 +1562,52 @@ class ModelCatalogService:
                     extra_headers[field_name] = value
                     changed = True
 
+        tts_keys = {
+            "SPARKWEAVE_TTS_PROVIDER",
+            "SPARKWEAVE_TTS_TIMEOUT",
+            "IFLYTEK_TTS_APPID",
+            "IFLYTEK_TTS_API_KEY",
+            "IFLYTEK_TTS_API_SECRET",
+            "IFLYTEK_TTS_URL",
+            "IFLYTEK_TTS_VOICE",
+            "IFLYTEK_TTS_ENCODING",
+            "IFLYTEK_TTS_SAMPLE_RATE",
+            "IFLYTEK_TTS_CHANNELS",
+            "IFLYTEK_TTS_BIT_DEPTH",
+            "IFLYTEK_TTS_FRAME_SIZE",
+            "IFLYTEK_TTS_SPEED",
+            "IFLYTEK_TTS_VOLUME",
+            "IFLYTEK_TTS_PITCH",
+        }
+        if tts_keys.intersection(env_values):
+            profile = ensure_tts_profile()
+            extra_headers = profile.setdefault("extra_headers", {})
+            for env_key, field_name, value in (
+                ("SPARKWEAVE_TTS_PROVIDER", "provider", summary.tts["provider"]),
+                ("SPARKWEAVE_TTS_TIMEOUT", "timeout", summary.tts["timeout"]),
+                ("IFLYTEK_TTS_API_KEY", "api_key", summary.tts["api_key"]),
+                ("IFLYTEK_TTS_URL", "base_url", summary.tts["url"]),
+            ):
+                if env_key in env_values and profile.get(field_name) != value:
+                    profile[field_name] = value
+                    changed = True
+            for env_key, field_name, value in (
+                ("IFLYTEK_TTS_APPID", "app_id", summary.tts["app_id"]),
+                ("IFLYTEK_TTS_API_SECRET", "api_secret", summary.tts["api_secret"]),
+                ("IFLYTEK_TTS_VOICE", "voice", summary.tts["voice"]),
+                ("IFLYTEK_TTS_ENCODING", "encoding", summary.tts["encoding"]),
+                ("IFLYTEK_TTS_SAMPLE_RATE", "sample_rate", summary.tts["sample_rate"]),
+                ("IFLYTEK_TTS_CHANNELS", "channels", summary.tts["channels"]),
+                ("IFLYTEK_TTS_BIT_DEPTH", "bit_depth", summary.tts["bit_depth"]),
+                ("IFLYTEK_TTS_FRAME_SIZE", "frame_size", summary.tts["frame_size"]),
+                ("IFLYTEK_TTS_SPEED", "speed", summary.tts["speed"]),
+                ("IFLYTEK_TTS_VOLUME", "volume", summary.tts["volume"]),
+                ("IFLYTEK_TTS_PITCH", "pitch", summary.tts["pitch"]),
+            ):
+                if env_key in env_values and extra_headers.get(field_name) != value:
+                    extra_headers[field_name] = value
+                    changed = True
+
         return changed
 
     def get_active_profile(self, catalog: dict[str, Any], service_name: str) -> dict[str, Any] | None:
@@ -1398,7 +1639,8 @@ class ModelCatalogService:
         services.setdefault("embedding", _service_shell())
         services.setdefault("search", _search_shell())
         services.setdefault("ocr", _ocr_shell())
-        for service_name in ("llm", "embedding", "search", "ocr"):
+        services.setdefault("tts", _tts_shell())
+        for service_name in ("llm", "embedding", "search", "ocr", "tts"):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
             for profile in profiles:
@@ -1424,6 +1666,23 @@ class ModelCatalogService:
                     extra_headers.setdefault("api_secret", "")
                     extra_headers.setdefault("service_id", DEFAULT_IFLYTEK_OCR_SERVICE_ID)
                     extra_headers.setdefault("category", DEFAULT_IFLYTEK_OCR_CATEGORY)
+                    profile["models"] = []
+                elif service_name == "tts":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_TTS_URL)
+                    profile.setdefault("timeout", "30")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("voice", DEFAULT_IFLYTEK_TTS_VOICE)
+                    extra_headers.setdefault("encoding", "lame")
+                    extra_headers.setdefault("sample_rate", "24000")
+                    extra_headers.setdefault("channels", "1")
+                    extra_headers.setdefault("bit_depth", "16")
+                    extra_headers.setdefault("frame_size", "0")
+                    extra_headers.setdefault("speed", "50")
+                    extra_headers.setdefault("volume", "50")
+                    extra_headers.setdefault("pitch", "50")
                     profile["models"] = []
                 else:
                     profile.setdefault("binding", "openai")

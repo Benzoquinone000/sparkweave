@@ -104,6 +104,8 @@ def test_learner_evidence_builds_quiz_answer_events_with_concepts() -> None:
                 "user_answer": "It always converges faster.",
                 "correct_answer": "It may oscillate or diverge.",
                 "concepts": ["gradient descent", "learning rate"],
+                "duration_seconds": 42,
+                "attempt_count": 2,
             }
         ],
         source="guide_v2",
@@ -115,8 +117,11 @@ def test_learner_evidence_builds_quiz_answer_events_with_concepts() -> None:
     event = events[0]
 
     assert event["object_id"] == "gradient_descent"
+    assert event["duration_seconds"] == 42.0
     assert event["metadata"]["question_id"] == "q1"
     assert event["metadata"]["concepts"] == ["gradient descent", "learning rate"]
+    assert event["metadata"]["duration_seconds"] == 42.0
+    assert event["metadata"]["attempt_count"] == 2
     assert event["metadata"]["primary_concept"] == "gradient descent"
     assert "concept:gradient descent" in event["mistake_types"]
 
@@ -180,9 +185,52 @@ def test_notebook_record_event_infers_saved_external_video_resource() -> None:
 
     assert event["source"] == "chat"
     assert event["verb"] == "saved"
+    assert event["object_type"] == "resource"
     assert event["resource_type"] == "external_video"
     assert event["metadata"]["record_type"] == "chat"
+    assert event["metadata"]["record_object_type"] == "notebook_record"
     assert event["metadata"]["inferred_resource_type"] == "external_video"
+
+
+def test_notebook_record_event_treats_plain_chat_save_as_note_resource() -> None:
+    event = build_notebook_record_event(
+        record={
+            "id": "rec-note",
+            "type": "chat",
+            "title": "Learning reflection",
+            "summary": "Saved a useful explanation for later review.",
+            "metadata": {"source": "chat"},
+        },
+        notebook_ids=["nb1"],
+    )
+
+    assert event["verb"] == "saved"
+    assert event["object_type"] == "resource"
+    assert event["resource_type"] == "note"
+    assert event["metadata"]["record_type"] == "chat"
+    assert event["metadata"]["record_object_type"] == "notebook_record"
+
+
+def test_notebook_record_event_infers_saved_audio_resource() -> None:
+    event = build_notebook_record_event(
+        record={
+            "id": "rec-audio",
+            "type": "guided_learning",
+            "title": "Narrated review",
+            "metadata": {
+                "source": "guide_v2",
+                "artifact_type": "audio",
+                "audio_narration": {
+                    "audio": {"asset_url": "/api/v1/guide/v2/sessions/s1/tasks/t1/artifacts/a1/asset"}
+                },
+            },
+        },
+        notebook_ids=["nb-audio"],
+    )
+
+    assert event["object_type"] == "resource"
+    assert event["resource_type"] == "audio"
+    assert event["metadata"]["inferred_resource_type"] == "audio"
 
 
 def test_learner_evidence_builds_guide_resource_event() -> None:

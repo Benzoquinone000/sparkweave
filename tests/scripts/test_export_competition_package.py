@@ -38,6 +38,7 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert (output / "sparkweave-demo-fallback-assets.md").exists()
     assert (output / "sparkweave-defense-qa.md").exists()
     assert (output / "sparkweave-competition-scorecard.md").exists()
+    assert (output / "sparkweave-learning-effect-summary.md").exists()
     assert (output / "sparkweave-evaluator-one-pager.md").exists()
     assert (output / "sparkweave-final-pitch-checklist.md").exists()
     assert (output.parent / "assets" / "agent-collaboration-blueprint.svg").exists()
@@ -49,6 +50,7 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     fallback_assets = (output / "sparkweave-demo-fallback-assets.md").read_text(encoding="utf-8")
     qa = (output / "sparkweave-defense-qa.md").read_text(encoding="utf-8")
     scorecard = (output / "sparkweave-competition-scorecard.md").read_text(encoding="utf-8")
+    learning_effect = (output / "sparkweave-learning-effect-summary.md").read_text(encoding="utf-8")
     one_pager = (output / "sparkweave-evaluator-one-pager.md").read_text(encoding="utf-8")
     checklist = (output / "sparkweave-final-pitch-checklist.md").read_text(encoding="utf-8")
     assert "SparkWeave 演示 PPT 骨架" in deck
@@ -67,6 +69,8 @@ def test_export_demo_materials(tmp_path: Path) -> None:
     assert "为什么不是普通聊天机器人" in qa
     assert "SparkWeave 赛题评分点证据表" in scorecard
     assert "多智能体协同的资源生成" in scorecard
+    assert "SparkWeave 学习效果评估闭环摘要" in learning_effect
+    assert "GET /api/v1/learning-effect/demo-summary" in learning_effect
     assert "SparkWeave 评委一页说明" in one_pager
     assert "五项赛题对齐" in one_pager
     assert "赛前命令" in one_pager
@@ -103,6 +107,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "demo_materials" / "sparkweave-demo-fallback-assets.md").exists()
     assert (output / "demo_materials" / "sparkweave-defense-qa.md").exists()
     assert (output / "demo_materials" / "sparkweave-competition-scorecard.md").exists()
+    assert (output / "demo_materials" / "sparkweave-learning-effect-summary.md").exists()
     assert (output / "demo_materials" / "sparkweave-evaluator-one-pager.md").exists()
     assert (output / "demo_materials" / "sparkweave-final-pitch-checklist.md").exists()
 
@@ -130,6 +135,7 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "demo_materials/sparkweave-agent-collaboration-blueprint.md" in manifest
     assert "demo_materials/sparkweave-demo-fallback-assets.md" in manifest
     assert "demo_materials/sparkweave-competition-scorecard.md" in manifest
+    assert "demo_materials/sparkweave-learning-effect-summary.md" in manifest
     assert "demo_materials/sparkweave-evaluator-one-pager.md" in manifest
     assert "demo_materials/sparkweave-final-pitch-checklist.md" in manifest
     assert "docs/iflytek-integration.md" in manifest
@@ -166,4 +172,5 @@ def test_export_competition_package_can_write_archive(tmp_path: Path) -> None:
     assert "competition_package/checksums.sha256" in names
     assert "competition_package/submission_manifest.md" in names
     assert "competition_package/demo_materials/sparkweave-competition-scorecard.md" in names
+    assert "competition_package/demo_materials/sparkweave-learning-effect-summary.md" in names
     assert "competition_package/runtime/scripts/start_web.py" in names

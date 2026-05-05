@@ -9,6 +9,7 @@ import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from fastapi.responses import Response
 
 from sparkweave.services.config import clear_llm_config_cache, resolve_search_runtime_config
 from sparkweave.services.diagnostics import explain_provider_error
@@ -18,6 +19,11 @@ from sparkweave.services.llm import get_llm_config, get_token_limit_kwargs
 from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, XfyunOcrConfig, recognize_image_with_iflytek
 from sparkweave.services.rag_support.factory import reset_pipeline_cache
 from sparkweave.services.search import web_search
+from sparkweave.services.tts import (
+    TTS_SMOKE_TEST_TEXT,
+    XfyunTtsConfig,
+    synthesize_speech_with_iflytek,
+)
 
 router = APIRouter()
 
@@ -28,6 +34,10 @@ class TestResponse(BaseModel):
     model: str | None = None
     response_time_ms: float | None = None
     error: str | None = None
+
+
+class TtsPreviewRequest(BaseModel):
+    text: str
 
 
 @router.get("/runtime-topology")
@@ -76,6 +86,7 @@ async def get_system_status():
         "embeddings": {"status": "unknown", "model": None, "testable": True},
         "search": {"status": "optional", "provider": None, "testable": True},
         "ocr": {"status": "optional", "provider": None, "testable": True},
+        "tts": {"status": "optional", "provider": None, "testable": True},
     }
 
     # Check backend status (this endpoint itself proves backend is online)
@@ -146,6 +157,17 @@ async def get_system_status():
     except Exception as e:
         result["ocr"]["status"] = "error"
         result["ocr"]["error"] = str(e)
+
+    try:
+        tts_config = XfyunTtsConfig.from_env()
+        if tts_config is None:
+            result["tts"]["status"] = "not_configured"
+        else:
+            result["tts"]["status"] = "configured"
+            result["tts"]["provider"] = "iflytek"
+    except Exception as e:
+        result["tts"]["status"] = "error"
+        result["tts"]["error"] = str(e)
 
     return result
 
@@ -366,5 +388,64 @@ async def test_ocr_connection():
             response_time_ms=round(response_time, 2),
             error=detail,
         )
+
+
+@router.post("/test/tts", response_model=TestResponse)
+async def test_tts_connection():
+    start_time = time.time()
+
+    try:
+        tts_config = XfyunTtsConfig.from_env()
+        if tts_config is None:
+            return TestResponse(
+                success=False,
+                message="TTS not configured",
+                error="Set iFlytek TTS APPID, APIKey and APISecret.",
+            )
+
+        result = await synthesize_speech_with_iflytek(TTS_SMOKE_TEST_TEXT, config=tts_config)
+        response_time = (time.time() - start_time) * 1000
+        return TestResponse(
+            success=True,
+            message="TTS connection successful" if result.audio else "TTS responded but returned empty audio",
+            model=f"iflytek:{tts_config.voice}",
+            response_time_ms=round(response_time, 2),
+        )
+
+    except ValueError as e:
+        detail = explain_provider_error("tts", e)
+        return TestResponse(success=False, message=f"TTS configuration error: {detail}", error=detail)
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        detail = explain_provider_error("tts", e)
+        return TestResponse(
+            success=False,
+            message=f"TTS connection check failed: {detail}",
+            response_time_ms=round(response_time, 2),
+            error=detail,
+        )
+
+
+@router.post("/tts-preview")
+async def create_tts_preview(payload: TtsPreviewRequest):
+    tts_config = XfyunTtsConfig.from_env()
+    if tts_config is None:
+        return Response(
+            content="TTS not configured",
+            status_code=400,
+            media_type="text/plain; charset=utf-8",
+        )
+
+    result = await synthesize_speech_with_iflytek(payload.text, config=tts_config)
+    extension = "mp3" if result.content_type == "audio/mpeg" else "bin"
+    headers = {
+        "X-SparkWeave-TTS-Voice": result.voice,
+        "X-SparkWeave-TTS-Encoding": result.encoding,
+        "X-SparkWeave-TTS-Sample-Rate": str(result.sample_rate),
+        "Content-Disposition": f'inline; filename="sparkweave-tts-preview.{extension}"',
+    }
+    if result.sid:
+        headers["X-SparkWeave-TTS-SID"] = result.sid
+    return Response(content=result.audio, media_type=result.content_type, headers=headers)
 
 

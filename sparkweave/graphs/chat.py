@@ -28,7 +28,6 @@ DELEGABLE_CAPABILITIES = {
     "deep_question",
     "deep_research",
     "deep_solve",
-    "external_video_search",
     "math_animator",
     "visualize",
 }
@@ -37,7 +36,6 @@ SPECIALIST_LABELS = {
     "deep_question": "Question Generation Agent",
     "deep_research": "Research and Learning Path Agent",
     "deep_solve": "Deep Solve Agent",
-    "external_video_search": "Learning Video Search Agent",
     "math_animator": "Math Animation Agent",
     "visualize": "Knowledge Visualization Agent",
 }
@@ -248,6 +246,8 @@ class ChatGraph:
             return await self._run_answer_now(state, payload)
 
         decision = await self._coordinate(context, stream)
+        if str((decision.config or {}).get("_direct_tool") or "") == "external_video_search":
+            return await self._run_external_video_tool(context, stream, decision)
         if decision.delegates:
             return await self._run_specialist(context, stream, decision)
 
@@ -546,6 +546,67 @@ class ChatGraph:
             "metadata": metadata,
         }
 
+    async def _run_external_video_tool(
+        self,
+        context: UnifiedContext,
+        stream: StreamBus,
+        decision: CoordinatorDecision,
+    ) -> TutorState:
+        config = dict(decision.config or {})
+        try:
+            max_results = int(config.get("max_results") or 3)
+        except (TypeError, ValueError):
+            max_results = 3
+        tool_args = {
+            "topic": str(config.get("topic") or context.user_message).strip(),
+            "prompt": str(config.get("prompt") or context.user_message).strip(),
+            "language": context.language or "zh",
+            "max_results": max_results,
+            "learner_hints": config.get("learner_hints") or self._external_video_config(context),
+        }
+        async with stream.stage(
+            "acting",
+            source=self.source,
+            metadata={
+                "trace_kind": "tool_work",
+                "tool_name": "external_video_search",
+                "capability": "chat",
+            },
+        ):
+            record = await self._execute_tool_call(
+                {
+                    "id": "external-video-search",
+                    "name": "external_video_search",
+                    "args": tool_args,
+                },
+                context,
+                stream,
+                tool_index=0,
+            )
+
+        metadata = dict(record.get("metadata") or {})
+        response = str(record.get("result") or metadata.get("response") or "").strip()
+        if not response:
+            response = "我为你筛选了几条适合当前任务的视频。"
+        final_result = {
+            **metadata,
+            "response": response,
+            "runtime": "langgraph",
+            "capability": "chat",
+            "tool_name": "external_video_search",
+            "tool_traces": [record],
+        }
+        async with stream.stage("responding", source=self.source):
+            if record.get("sources"):
+                await stream.sources(record["sources"], source=self.source, stage="responding")
+            await stream.content(response, source=self.source, stage="responding")
+            await stream.result(final_result, source=self.source)
+        return {
+            "final_answer": response,
+            "tool_results": [record],
+            "external_video_result": final_result,
+        }
+
     @staticmethod
     def _retrieve_metadata(
         *,
@@ -620,6 +681,11 @@ class ChatGraph:
             augmented.setdefault("kb_name", context.knowledge_bases[0])
         if name == "web_search":
             augmented.setdefault("query", context.user_message)
+        if name == "external_video_search":
+            augmented.setdefault("topic", context.user_message)
+            augmented.setdefault("prompt", context.user_message)
+            augmented.setdefault("language", context.language or "zh")
+            augmented.setdefault("learner_hints", ChatGraph._external_video_config(context))
         if name == "code_execution":
             augmented.setdefault("intent", context.user_message)
             augmented.setdefault("session_id", context.session_id)
@@ -743,10 +809,11 @@ class ChatGraph:
 
         if self._looks_like_external_video_request(text):
             return CoordinatorDecision(
-                capability="external_video_search",
+                capability="chat",
                 confidence=0.9,
-                reason="The learner asked to find or recommend public learning videos.",
-                config=self._external_video_config(context),
+                reason="The learner asked to find or recommend public learning videos, so the chat graph will call the curated video tool.",
+                tools=["external_video_search"],
+                config=self._external_video_tool_config(context, context.user_message),
             )
 
         if self._contains_any(text, ANIMATION_TERMS):
@@ -851,8 +918,6 @@ class ChatGraph:
             from sparkweave.graphs.deep_research import DeepResearchGraph
 
             return await DeepResearchGraph().run(context, stream)
-        if capability == "external_video_search":
-            return await ChatGraph._run_external_video_search(context, stream)
         if capability == "visualize":
             from sparkweave.graphs.visualize import VisualizeGraph
 
@@ -1034,6 +1099,14 @@ class ChatGraph:
 
         config = ChatGraph._profile_guided_config(context, capability, target_prompt)
         preferred = ChatGraph._hint_text(hints.get("preferred_resource")) or "current learner profile"
+        if capability == "external_video_search":
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.72,
+                reason=f"The learner asked for a next step; the learner profile prefers {preferred}.",
+                tools=["external_video_search"],
+                config=config,
+            )
         return CoordinatorDecision(
             capability=capability,
             confidence=0.72,
@@ -1103,8 +1176,7 @@ class ChatGraph:
         prompt: str,
     ) -> dict[str, Any]:
         if capability == "external_video_search":
-            config = ChatGraph._external_video_config(context)
-            config.update({"topic": prompt, "prompt": prompt})
+            config = ChatGraph._external_video_tool_config(context, prompt)
         elif capability == "deep_question":
             config = ChatGraph._question_config(context, prompt, "生成 3 道练习题")
         elif capability == "visualize":
@@ -1198,6 +1270,16 @@ class ChatGraph:
         context: UnifiedContext,
         stream: StreamBus,
     ) -> TutorState:
+        graph = ChatGraph()
+        decision = CoordinatorDecision(
+            capability="chat",
+            confidence=0.9,
+            reason="Run curated video search as a tool.",
+            tools=["external_video_search"],
+            config=ChatGraph._external_video_tool_config(context, context.user_message),
+        )
+        return await graph._run_external_video_tool(context, stream, decision)
+
         from sparkweave.services.video_search import recommend_learning_videos
 
         hints = ChatGraph._external_video_config(context)
@@ -1288,6 +1370,22 @@ class ChatGraph:
         if context.knowledge_bases:
             hints["knowledge_bases"] = list(context.knowledge_bases)
         return hints
+
+    @staticmethod
+    def _external_video_tool_config(context: UnifiedContext, prompt: str) -> dict[str, Any]:
+        hints = ChatGraph._external_video_config(context)
+        try:
+            max_results = int(hints.get("max_results") or 3)
+        except (TypeError, ValueError):
+            max_results = 3
+        return {
+            "_direct_tool": "external_video_search",
+            "topic": prompt.strip() or context.user_message,
+            "prompt": prompt.strip() or context.user_message,
+            "language": context.language or "zh",
+            "max_results": max_results,
+            "learner_hints": hints,
+        }
 
     @staticmethod
     def _learner_profile_hints(context: UnifiedContext) -> dict[str, Any]:

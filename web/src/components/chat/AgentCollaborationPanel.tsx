@@ -415,7 +415,7 @@ function AgentStepRow({ step, index }: { step: AgentStep; index: number }) {
       transition={{ duration: 0.18, delay: Math.min(index * 0.03, 0.12) }}
       className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-lg border px-2.5 py-2 ${
         step.status === "running"
-          ? "border-teal-200 bg-teal-50"
+          ? "border-brand-purple-300 bg-tint-lavender"
           : step.status === "complete"
             ? "border-line bg-canvas"
             : step.status === "error"
@@ -766,14 +766,14 @@ function readableStageLabel(event: StreamEvent) {
 }
 
 function iconTone(status: StepStatus) {
-  if (status === "running") return "bg-white text-brand-teal";
-  if (status === "complete") return "bg-teal-50 text-brand-teal";
+  if (status === "running") return "bg-white text-brand-purple";
+  if (status === "complete") return "bg-tint-lavender text-brand-purple";
   if (status === "error") return "bg-white text-brand-red";
   return "bg-canvas text-slate-500";
 }
 
 function routeChipTone(status: StepStatus) {
-  if (status === "running") return "border-teal-200 bg-white text-brand-teal";
+  if (status === "running") return "border-brand-purple-300 bg-white text-brand-purple";
   if (status === "complete") return "border-line bg-white text-ink";
   if (status === "error") return "border-red-200 bg-white text-brand-red";
   return "border-line bg-white text-slate-500";
@@ -781,7 +781,7 @@ function routeChipTone(status: StepStatus) {
 
 function routeDotTone(status: StepStatus) {
   if (status === "running") return "bg-brand-blue animate-pulse";
-  if (status === "complete") return "bg-brand-teal";
+  if (status === "complete") return "bg-brand-purple";
   if (status === "error") return "bg-brand-red";
   return "bg-slate-300";
 }

@@ -86,4 +86,6 @@ def test_notebook_add_record_writes_learner_evidence(tmp_path, monkeypatch) -> N
     assert len(recorder.events) == 1
     assert recorder.events[0]["source"] == "chat"
     assert recorder.events[0]["verb"] == "saved"
-    assert recorder.events[0]["object_type"] == "notebook_record"
+    assert recorder.events[0]["object_type"] == "resource"
+    assert recorder.events[0]["resource_type"] == "note"
+    assert recorder.events[0]["metadata"]["record_object_type"] == "notebook_record"

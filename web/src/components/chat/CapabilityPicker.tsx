@@ -21,14 +21,14 @@ export function CapabilityPicker({
             onClick={() => onChange(capability.id)}
             className={`dt-interactive relative flex min-h-10 items-center gap-2 rounded-lg border bg-white px-2.5 py-2 text-left ${
               active
-                ? "border-teal-300 bg-teal-50/70"
-                : "border-line hover:border-teal-200 hover:bg-canvas"
+                ? "border-ink bg-ink text-white"
+                : "border-line hover:border-brand-purple hover:bg-canvas"
             }`}
           >
-            <div className={`shrink-0 rounded-md p-1.5 ${active ? "bg-brand-teal text-white" : "bg-canvas text-slate-500"}`}>
+            <div className={`shrink-0 rounded-md p-1.5 ${active ? "bg-white/10 text-white" : "bg-canvas text-steel"}`}>
               <capability.icon size={15} />
             </div>
-            <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{capability.label}</p>
+            <p className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "text-white" : "text-ink"}`}>{capability.label}</p>
             <AnimatePresence>
               {active ? (
                 <motion.span

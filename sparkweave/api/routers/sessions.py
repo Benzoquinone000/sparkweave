@@ -9,7 +9,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
-from sparkweave.services.learner_evidence import build_quiz_answer_events, get_learner_evidence_service
+from sparkweave.services.learner_evidence import (
+    build_quiz_answer_events,
+    get_learner_evidence_service,
+)
 from sparkweave.services.session_store import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -26,16 +29,29 @@ class QuizResultItem(BaseModel):
     question: str = Field(..., min_length=1)
     question_type: str = ""
     options: dict[str, str] | None = None
+    concepts: list[str] = Field(default_factory=list)
+    knowledge_points: list[str] = Field(default_factory=list)
     user_answer: str = ""
     correct_answer: str = ""
     explanation: str | None = ""
     difficulty: str | None = ""
+    duration_seconds: float | None = Field(default=None, ge=0)
+    attempt_count: int = Field(default=1, ge=1)
     is_correct: bool
 
     @field_validator("options", mode="before")
     @classmethod
     def _coerce_options(cls, v):
         return v if isinstance(v, dict) else {}
+
+    @field_validator("concepts", "knowledge_points", mode="before")
+    @classmethod
+    def _coerce_string_list(cls, v):
+        if isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()]
+        if isinstance(v, str):
+            return [item.strip() for item in v.replace("；", ",").replace(";", ",").split(",") if item.strip()]
+        return []
 
     @field_validator("explanation", "difficulty", mode="before")
     @classmethod

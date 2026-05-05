@@ -291,6 +291,42 @@ def test_competition_templates_command_lists_course_templates() -> None:
     assert "robotics_ros_foundations" in ids
 
 
+def test_learning_effect_summary_command_outputs_demo_proof(monkeypatch, tmp_path: Path) -> None:
+    class FakeLearningEffectService:
+        def demo_summary(self, *, course_id: str = "", window: str = "14d"):
+            return {
+                "success": True,
+                "course_id": course_id,
+                "window": window,
+                "headline": "先复测梯度下降",
+                "primary_action": {"id": "nba_1", "title": "复测"},
+                "proof_points": [{"label": "证据", "value": "1 条"}],
+                "requirement_alignment": [{"requirement": "学习效果评估", "status": "正在进步"}],
+                "markdown": "# 学习效果评估闭环摘要\n\n- 先复测梯度下降\n",
+            }
+
+    monkeypatch.setattr(
+        "sparkweave_cli.learning_effect.get_learning_effect_service",
+        lambda: FakeLearningEffectService(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["learning-effect", "summary", "--course-id", "ml", "--window", "all", "--format", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["course_id"] == "ml"
+    assert payload["window"] == "all"
+    assert payload["primary_action"]["id"] == "nba_1"
+
+    output = tmp_path / "learning-effect.md"
+    write_result = runner.invoke(app, ["learning-effect", "summary", "--output", str(output)])
+    assert write_result.exit_code == 0, write_result.output
+    assert "学习效果评估闭环摘要" in output.read_text(encoding="utf-8")
+
+
 def test_competition_demo_command_runs_export_script(monkeypatch, tmp_path: Path) -> None:
     calls: list[tuple[list[str], str]] = []
 

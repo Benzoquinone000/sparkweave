@@ -54,6 +54,16 @@ python scripts/render_competition_summary.py dist/competition-readiness.json --o
 `competition-preflight` 会先运行就绪检查，通过后再导出提交包，并自动运行 `competition-verify` 验证最终目录和 zip；带上 `--with-build` 时会在打包前运行 `web` 的生产构建，适合赛前最后一次归档；带上 `--summary` 时会同时写出一页 Markdown 就绪摘要；带上 `--archive` 时会额外生成可上传的 zip 提交包；带上 `--verify-report` 时会为最终提交物额外写出验证报告。
 `render_competition_summary.py` 会把 JSON 就绪报告转换成一页 Markdown 摘要，适合贴到 GitHub Actions summary、答辩材料或赛前核对群。
 
+学习效果闭环摘要：
+
+```powershell
+sparkweave learning-effect summary
+sparkweave learning-effect summary --course-id ml_foundations --window all --output dist/learning-effect-summary.md
+sparkweave learning-effect summary --format json
+```
+
+`learning-effect summary` 会读取统一学习证据账本，输出“证据 -> 画像更新 -> 下一步处方 -> 错因补救复测”的一页摘要。它适合录屏前快速确认第五项“学习效果评估与动态调整”是否已经有可讲证据。
+
 ## 知识库命令
 
 ```powershell

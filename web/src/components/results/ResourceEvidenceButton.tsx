@@ -3,16 +3,23 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { appendLearnerEvidence } from "@/lib/api";
+import { appendLearningEffectEvent } from "@/lib/api";
+import { invalidateLearningQueries } from "@/lib/queryInvalidation";
 import type { LearnerEvidenceEvent } from "@/lib/types";
+
+type ResourceEvidencePayload = Partial<LearnerEvidenceEvent> & {
+  concept_ids?: string[];
+  result?: Record<string, unknown>;
+  signals?: Record<string, unknown>;
+};
 
 export function ResourceEvidenceButton({
   payload,
   label = "有帮助，记入画像",
-  recordedLabel = "已记入画像依据",
+  recordedLabel = "已记入学习证据",
   testId,
 }: {
-  payload: Partial<LearnerEvidenceEvent>;
+  payload: ResourceEvidencePayload;
   label?: string;
   recordedLabel?: string;
   testId?: string;
@@ -27,13 +34,17 @@ export function ResourceEvidenceButton({
     setRecording(true);
     setError("");
     try {
-      await appendLearnerEvidence(payload);
+      await appendLearningEffectEvent({
+        ...payload,
+        source: payload.source || "resource",
+        actor: payload.actor || "learner",
+        verb: payload.verb || "viewed",
+        object_type: payload.object_type || "resource",
+      });
       setRecorded(true);
-      void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
-      void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
-      void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+      invalidateLearningQueries(queryClient);
     } catch (recordError) {
-      setError(recordError instanceof Error ? recordError.message : "画像证据记录失败");
+      setError(recordError instanceof Error ? recordError.message : "学习证据记录失败");
     } finally {
       setRecording(false);
     }
@@ -45,7 +56,7 @@ export function ResourceEvidenceButton({
         className="inline-flex min-h-8 items-center gap-1 rounded-md border border-line bg-canvas px-2 text-xs text-slate-500"
         data-testid={testId ? `${testId}-recorded` : undefined}
       >
-        <CheckCircle2 size={13} className="text-brand-teal" />
+        <CheckCircle2 size={13} className="text-brand-purple" />
         {recordedLabel}
       </span>
     );

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">Vision solver board</title>
+  <desc id="desc">A Notion-inspired abstract image solving board with upload canvas, geometry marks, OCR notes and answer cards.</desc>
+  <defs>
+    <filter id="softShadow" x="-10%" y="-15%" width="120%" height="130%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#111827" flood-opacity=".10"/>
+    </filter>
+    <pattern id="dots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#111827" opacity=".12"/>
+    </pattern>
+    <style>
+      .line{fill:none;stroke:#111827;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+      .thin{fill:none;stroke:#111827;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+      .card{fill:#fff;stroke:#dfddd8;stroke-width:1.4}
+      .ink{fill:#111827}
+      .muted{fill:#78716c}
+    </style>
+  </defs>
+  <rect width="720" height="420" rx="8" fill="#f6f5f1"/>
+  <circle cx="104" cy="78" r="15" fill="#f5d75e"/>
+  <rect x="596" y="72" width="48" height="28" rx="7" fill="#ffb5d5"/>
+  <path d="M90 344h74" class="thin" opacity=".34"/>
+  <rect x="596" y="310" width="36" height="36" rx="8" fill="#b7a4ff"/>
+  <g filter="url(#softShadow)">
+    <rect x="78" y="58" width="564" height="296" rx="8" fill="#fff" stroke="#dfddd8"/>
+    <rect x="104" y="88" width="258" height="228" rx="8" fill="#fbfaf8" stroke="#e7e5e0"/>
+    <rect x="128" y="112" width="210" height="138" rx="8" fill="#dcecfa" stroke="#c6dfef"/>
+    <path d="M150 226l54-74 42 52 28-34 36 56z" fill="#fff" opacity=".96"/>
+    <circle cx="286" cy="142" r="13" fill="#f5d75e"/>
+    <path d="M156 272h160" class="line" stroke="#0075de" opacity=".72"/>
+    <path d="M178 270c28-40 78-42 118-10" class="thin" stroke="#0075de"/>
+    <circle cx="178" cy="270" r="5" fill="#0075de"/>
+    <circle cx="296" cy="260" r="5" fill="#0075de"/>
+    <path d="M164 132l144 96M308 132l-144 96" class="thin" stroke="#2a9d99" opacity=".40"/>
+    <rect x="392" y="92" width="160" height="10" rx="5" class="ink"/>
+    <rect x="392" y="122" width="182" height="8" rx="4" class="muted" opacity=".42"/>
+    <rect x="392" y="142" width="126" height="8" rx="4" class="muted" opacity=".30"/>
+    <g>
+      <rect x="392" y="180" width="170" height="44" rx="8" fill="#fef7d6" stroke="#efe5aa"/>
+      <circle cx="416" cy="202" r="11" fill="#f2b705"/>
+      <rect x="438" y="193" width="70" height="7" rx="3.5" class="ink"/>
+      <rect x="438" y="209" width="94" height="5" rx="2.5" class="muted" opacity=".42"/>
+    </g>
+    <g>
+      <rect x="392" y="242" width="170" height="44" rx="8" fill="#e6e0f5" stroke="#d4cbed"/>
+      <circle cx="416" cy="264" r="11" fill="#6b5cff"/>
+      <rect x="438" y="255" width="82" height="7" rx="3.5" class="ink"/>
+      <rect x="438" y="271" width="72" height="5" rx="2.5" class="muted" opacity=".42"/>
+    </g>
+    <path d="M350 170c28 2 44 12 52 30M350 252c25-1 42 7 52 22" class="thin" opacity=".48"/>
+    <circle cx="354" cy="170" r="15" fill="#fff" stroke="#111827" stroke-width="3"/>
+    <path d="M365 181l24 24" class="line"/>
+    <rect x="578" y="130" width="20" height="126" rx="10" fill="url(#dots)"/>
+  </g>
+  <rect x="44" y="150" width="30" height="96" rx="8" fill="url(#dots)"/>
+  <rect x="650" y="182" width="30" height="96" rx="8" fill="url(#dots)"/>
+</svg>

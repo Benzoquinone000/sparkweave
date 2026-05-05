@@ -15,12 +15,15 @@ type AnswerState = {
   selected: string | null;
   typed: string;
   submitted: boolean;
+  durationSeconds?: number;
+  attemptCount: number;
 };
 
 const EMPTY_ANSWER: AnswerState = {
   selected: null,
   typed: "",
   submitted: false,
+  attemptCount: 0,
 };
 
 function questionKind(question?: QuizQuestion): QuestionKind {
@@ -93,6 +96,33 @@ function typeLabel(question: QuizQuestion) {
   }[questionKind(question)];
 }
 
+function extractQuizConcepts(question: QuizQuestion) {
+  const record = question as QuizQuestion & {
+    concepts?: unknown;
+    knowledge_points?: unknown;
+    tested_concepts?: unknown;
+    tested_concept?: unknown;
+  };
+  const labels: string[] = [];
+  for (const value of [record.concepts, record.knowledge_points, record.tested_concepts, record.tested_concept, question.concentration]) {
+    for (const label of labelsFromUnknown(value)) {
+      if (label && !labels.includes(label)) labels.push(label);
+    }
+  }
+  return labels.slice(0, 8);
+}
+
+function labelsFromUnknown(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(labelsFromUnknown);
+  if (typeof value === "string") {
+    return value
+      .split(/\s*(?:,|;|；|、|\|)\s*/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 export function QuizViewer({
   questions,
   sessionId,
@@ -106,6 +136,7 @@ export function QuizViewer({
   const [recorded, setRecorded] = useState(false);
   const [recordError, setRecordError] = useState("");
   const lastSignature = useRef("");
+  const startedAtByIndex = useRef<Record<number, number>>({});
   const question = questions[index];
   const kind = questionKind(question);
   const answer = answers[index] ?? EMPTY_ANSWER;
@@ -123,10 +154,14 @@ export function QuizViewer({
             question: item.question,
             question_type: questionKind(item),
             options: item.options ?? {},
+            concepts: extractQuizConcepts(item),
+            knowledge_points: extractQuizConcepts(item),
             user_answer: getAnswer(item, state),
             correct_answer: item.correct_answer,
             explanation: item.explanation || "",
             difficulty: item.difficulty || "",
+            duration_seconds: state.durationSeconds,
+            attempt_count: Math.max(1, state.attemptCount || 1),
             is_correct: isCorrect(item, state),
           },
         ];
@@ -153,6 +188,7 @@ export function QuizViewer({
   if (!question) return null;
 
   const updateAnswer = (patch: Partial<AnswerState>) => {
+    startedAtByIndex.current[index] ||= Date.now();
     setAnswers((current) => ({
       ...current,
       [index]: { ...(current[index] ?? EMPTY_ANSWER), ...patch },
@@ -161,11 +197,18 @@ export function QuizViewer({
 
   const submit = () => {
     if (!userAnswer || answer.submitted) return;
-    updateAnswer({ submitted: true });
+    const now = Date.now();
+    const startedAt = startedAtByIndex.current[index] || now;
+    updateAnswer({
+      submitted: true,
+      durationSeconds: Math.max(1, Math.round((now - startedAt) / 1000)),
+      attemptCount: (answer.attemptCount || 0) + 1,
+    });
   };
 
   const reset = () => {
-    updateAnswer({ selected: null, typed: "", submitted: false });
+    startedAtByIndex.current[index] = Date.now();
+    updateAnswer({ selected: null, typed: "", submitted: false, durationSeconds: undefined });
     setRecorded(false);
     setRecordError("");
     lastSignature.current = "";
@@ -312,11 +355,11 @@ function ChoiceAnswer({
                 : wrong
                   ? "border-red-200 bg-red-50 text-brand-red"
                   : selected
-                    ? "border-teal-200 bg-teal-50 text-ink"
-                    : "border-line bg-white text-slate-700 hover:border-teal-200"
+                    ? "border-ink bg-ink text-white"
+                    : "border-line bg-white text-charcoal hover:border-brand-purple"
             }`}
           >
-            <span className="font-semibold text-brand-teal">{key}.</span> {value}
+            <span className={`font-semibold ${selected && !correct && !wrong ? "text-white" : "text-brand-purple"}`}>{key}.</span> {value}
           </button>
         );
       })}
@@ -348,7 +391,7 @@ function TrueFalseAnswer({
             disabled={answer.submitted}
             onClick={() => updateAnswer({ selected: value })}
             className={`dt-interactive rounded-lg border px-3 py-3 text-sm font-medium disabled:transform-none ${
-              selected ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-700 hover:border-teal-200"
+              selected ? "border-ink bg-ink text-white" : "border-line bg-white text-charcoal hover:border-brand-purple"
             }`}
           >
             {label}

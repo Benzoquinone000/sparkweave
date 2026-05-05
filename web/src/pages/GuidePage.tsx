@@ -1,4 +1,5 @@
-﻿import {
+import {
+  ArrowRight,
   BookOpen,
   Brain,
   BarChart3,
@@ -18,6 +19,7 @@
   Target,
   Trash2,
   Video,
+  Volume2,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -26,11 +28,13 @@ import type { FormEvent, ReactNode } from "react";
 
 import { ExternalVideoViewer } from "@/components/results/ExternalVideoViewer";
 import { MathAnimatorViewer } from "@/components/results/MathAnimatorViewer";
+import { AudioNarrationViewer } from "@/components/results/AudioNarrationViewer";
 import { VisualizationViewer } from "@/components/results/VisualizationViewer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { PeopleAccent } from "@/components/ui/PeopleAccent";
 import { openGuideV2ResourceJobEvents } from "@/lib/api";
 import { questionDifficultyLabel } from "@/lib/learningLabels";
 import {
@@ -60,6 +64,7 @@ import type {
   GuideV2Session,
   GuideV2StudyPlan,
   GuideV2Task,
+  AudioNarrationResult,
   ExternalVideoResult,
   LearnerProfileSnapshot,
   MathAnimatorResult,
@@ -135,40 +140,52 @@ export function GuidePage() {
   const hasUrlGuideSeed = useMemo(() => {
     if (typeof window === "undefined") return false;
     const search = new URLSearchParams(window.location.search);
-    return Boolean(search.get("prompt") || search.get("new") === "1");
+    return Boolean(search.get("prompt") || search.get("effect_action") || search.get("new") === "1");
   }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const search = new URLSearchParams(window.location.search);
       const prompt = search.get("prompt")?.trim();
-      const estimatedMinutes = Number(search.get("estimated_minutes") || "") || undefined;
-      const sourceLabel = search.get("source_label")?.trim() || "";
-      const actionKind = search.get("action_kind")?.trim() || "next_action";
-      const targetSection = search.get("target_section")?.trim() || "";
-      if (prompt) {
-        setGoal(prompt);
+      const effectAction = search.get("effect_action")?.trim() || "";
+      const actionTitle = search.get("action_title")?.trim() || "";
+      const rawSourceLabel = search.get("source_label")?.trim() || "";
+      const rawEstimatedMinutes = Number(search.get("estimated_minutes") || "") || undefined;
+      const effectSeed = buildGuideEffectActionSeed({
+        effectAction,
+        prompt: prompt || "",
+        actionTitle,
+        sourceLabel: rawSourceLabel,
+        estimatedMinutes: rawEstimatedMinutes,
+      });
+      const guidePrompt = prompt || effectSeed.prompt;
+      const estimatedMinutes = rawEstimatedMinutes || effectSeed.estimatedMinutes;
+      const sourceLabel = rawSourceLabel || effectSeed.sourceLabel;
+      const actionKind = search.get("action_kind")?.trim() || effectSeed.kind || "next_action";
+      const targetSection = search.get("target_section")?.trim() || effectSeed.targetSection || "";
+      if (guidePrompt) {
+        setGoal(guidePrompt);
         setGoalTouched(true);
       }
       if (estimatedMinutes) {
         setTimeBudget(String(Math.round(estimatedMinutes)));
       }
-      if (actionKind === "weak_point" && sourceLabel) {
+      if ((actionKind === "weak_point" || effectAction) && sourceLabel) {
         setWeakPoints(sourceLabel);
       }
-      if (prompt || search.get("new") === "1") {
+      if (guidePrompt || effectAction || search.get("new") === "1") {
         setForceNewSession(true);
         setSelectedSessionId(null);
         setGuideSubPage(targetSection === "guide-setup-section" ? "setup" : "main");
         setSourceAction({
-          source: "learner_profile",
+          source: effectAction ? "learning_effect" : "learner_profile",
           kind: actionKind,
-          title: search.get("action_title") || "",
-          source_type: search.get("source_type") || "",
+          title: actionTitle || effectSeed.title,
+          source_type: search.get("source_type") || (effectAction ? "learning_effect_next_action" : ""),
           source_label: sourceLabel,
           confidence: Number(search.get("confidence") || "") || undefined,
           estimated_minutes: estimatedMinutes,
-          suggested_prompt: prompt || "",
+          suggested_prompt: guidePrompt || "",
           href: "/guide",
         });
       }
@@ -289,11 +306,11 @@ export function GuidePage() {
             : "完成当前任务";
   const stageMessage =
     guideStage === "create"
-      ? "先不用看复杂面板，只要写下目标和时间，我会把它拆成能执行的学习路线。"
+      ? "写下目标和时间就够了，系统会自动把它拆成能执行的学习路线。"
       : guideStage === "diagnostic"
-        ? "路线已经有了，先用几道问题校准起点，后面的任务才不会太难或太浅。"
+        ? "先用几道问题校准起点，后面的任务才不会太难或太浅。"
         : guideStage === "feedback"
-        ? "刚刚的学习证据已经记录，先看反馈，再决定继续、补救还是复测。"
+        ? "刚刚的学习证据已经记录。先看反馈，再决定继续还是补救。"
         : guideStage === "complete"
           ? "这条路线已经走完，可以查看报告、导出课程包，或者开启新的目标。"
           : "现在只需要盯住这一件事：完成当前任务，并留下能被系统判断的学习证据。";
@@ -485,6 +502,11 @@ export function GuidePage() {
       reflection: reflection.trim(),
     });
     setLearningFeedback(result.learning_feedback ?? null);
+    void learningReport.refetch();
+    void coursePackage.refetch();
+    void studyPlan.refetch();
+    void detail.refetch();
+    void sessions.refetch();
     const profileSyncMessage = await refreshLearnerProfileAfterGuide();
     setSaveMessage([result.learning_feedback?.summary || "学习证据已记录。", profileSyncMessage].filter(Boolean).join(" "));
     setReflection("");
@@ -669,6 +691,10 @@ export function GuidePage() {
       void refetchCoursePackage();
     } else {
       setLearningFeedback(result.learning_feedback ?? null);
+      void refetchLearningReport();
+      void refetchCoursePackage();
+      void refetchStudyPlan();
+      void refetchSessions();
     }
     const profileSyncMessage = await refreshLearnerProfileAfterGuide();
     setSaveMessage(
@@ -720,24 +746,124 @@ export function GuidePage() {
 
   return (
     <div className="h-full overflow-y-auto bg-canvas px-4 py-4 pb-24 lg:px-5 lg:pb-6">
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <motion.section
-          className="rounded-lg border border-line bg-white p-6 shadow-sm"
+          className="dt-notion-hero p-5 sm:p-6 lg:p-7"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-teal">懒人导学</p>
-              <h1 className="mt-2 text-2xl font-semibold text-ink">{primaryActionLabel}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{stageMessage}</p>
+          <img
+            src="/illustrations/notion-thread.svg"
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[76%] object-cover opacity-35 lg:block"
+          />
+          <img
+            src="/illustrations/notion-note-yellow.svg"
+            alt=""
+            aria-hidden="true"
+            className="dt-hero-note pointer-events-none absolute right-10 top-5 hidden h-12 w-16 sm:block"
+          />
+          <img
+            src="/illustrations/notion-note-pink.svg"
+            alt=""
+            aria-hidden="true"
+            className="dt-hero-note pointer-events-none absolute right-28 top-28 hidden h-11 w-14 lg:block"
+          />
+          <div className="relative z-10 mx-auto max-w-4xl text-center">
+            <p className="text-sm font-semibold text-brand-purple-300">今天先做这一小步</p>
+            <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-semibold leading-tight text-white sm:text-4xl">{primaryActionLabel}</h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/75">{stageMessage}</p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-white/75">
+              <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">
+                {currentTask ? `${currentTask.estimated_minutes ?? 8} 分钟` : "懒人式路线"}
+              </span>
+              <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">
+                {guideStage === "create" ? "先写目标" : guideStage === "diagnostic" ? "先前测" : "资源和反馈自动接上"}
+              </span>
+              <span className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5">画像持续校准</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button tone="quiet" className="min-h-9 px-3 text-xs" onClick={() => setSupportOpen(true)}>
-                <CalendarDays size={15} />
-                路线
-              </Button>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                className="dt-interactive inline-flex min-h-10 items-center gap-2 rounded-lg bg-brand-purple px-4 text-sm font-medium text-white shadow-soft"
+                onClick={() => scrollToGuideSection(currentTask ? "guide-current-task-section" : "guide-create-section")}
+              >
+                <Sparkles size={16} />
+                进入当前一步
+              </button>
+              <button
+                type="button"
+                className="dt-interactive inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 bg-white px-4 text-sm font-medium text-ink shadow-soft"
+                onClick={() => setSupportOpen(true)}
+              >
+                <CalendarDays size={16} />
+                查看路线
+              </button>
+            </div>
+          </div>
+
+          <div className="dt-workspace-mockup relative z-10 mx-auto mt-7 max-w-4xl text-ink">
+            <div className="grid min-h-[230px] lg:grid-cols-[210px_minmax(0,1fr)]">
+              <aside className="hidden border-r border-line bg-[#fbfbfa] p-4 lg:block">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-navy text-white">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-ink">SparkWeave</p>
+                    <p className="text-xs text-steel">导学空间</p>
+                  </div>
+                </div>
+                <div className="mt-7 space-y-4 text-sm text-charcoal">
+                  {[
+                    ["当前一步", "bg-brand-purple"],
+                    ["学习画像", "bg-brand-teal"],
+                    ["反馈复盘", "bg-brand-orange"],
+                  ].map(([label, dot]) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className={`h-2.5 w-2.5 ${dot}`} style={{ borderRadius: "50%" }} />
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+              <div className="relative overflow-hidden p-4 sm:p-5">
+                <PeopleAccent name="goodnight" className="pointer-events-none absolute bottom-[-28px] right-[-20px] h-44 w-52 opacity-80" />
+                <div className="relative z-10">
+                  <div className="dt-feature-tile dt-feature-tile-yellow flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-ink">{currentTask ? "当前只做这一件事" : "先生成一条路线"}</p>
+                      <p className="mt-1 text-xs leading-5 text-charcoal">
+                        {currentTask ? currentTask.title : "告诉系统你想学什么，后面会自动拆成可执行的小步。"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="dt-interactive inline-flex min-h-9 items-center gap-2 rounded-lg bg-brand-yellow px-3 text-sm font-semibold text-ink"
+                      onClick={() => scrollToGuideSection(currentTask ? "guide-current-task-section" : "guide-create-section")}
+                    >
+                      开始
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div className="dt-feature-tile dt-feature-tile-sky px-3 py-3">
+                      <p className="text-sm font-semibold text-ink">图解</p>
+                      <p className="mt-1 text-xs leading-5 text-steel">把概念变成一张图。</p>
+                    </div>
+                    <div className="dt-feature-tile dt-feature-tile-rose px-3 py-3">
+                      <p className="text-sm font-semibold text-ink">练习</p>
+                      <p className="mt-1 text-xs leading-5 text-steel">选择、判断、填空。</p>
+                    </div>
+                    <div className="dt-feature-tile dt-feature-tile-mint px-3 py-3">
+                      <p className="text-sm font-semibold text-ink">反馈</p>
+                      <p className="mt-1 text-xs leading-5 text-steel">提交后更新画像。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -745,7 +871,7 @@ export function GuidePage() {
 
         {saveMessage ? (
           <motion.div
-            className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-800"
+            className="rounded-lg border border-line bg-tint-lavender px-4 py-3 text-sm leading-6 text-brand-purple-800"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.16 }}
@@ -754,29 +880,34 @@ export function GuidePage() {
           </motion.div>
         ) : null}
 
-        <DemoRecordingCueCard
-          cue={demoRecordingCue}
-          busy={busy || Boolean(generatingType)}
-          onAction={runDemoRecordingCue}
-        />
+        {isDemoSeedSession ? (
+          <DemoRecordingCueCard
+            cue={demoRecordingCue}
+            busy={busy || Boolean(generatingType)}
+            onAction={runDemoRecordingCue}
+          />
+        ) : null}
 
         <div className="grid gap-4">
           <main className="space-y-4">
             {guideSubPage === "setup" ? (
               <GuideSubPageFrame
-                eyebrow="学习偏好"
-                title="需要时再调这些"
-                description="主流程可以直接开始；这里仅用于补充课程模板、时间、薄弱点和 Notebook 引用。"
+                eyebrow="补充信息"
+                title="只在需要时补充这些"
+                description="主流程已经足够开始学习。这里仅用于补充偏好，好让后面的路线更贴近你。"
                 onBack={() => setGuideSubPage("main")}
               >
                 <form
                   id="guide-setup-section"
                   className={`space-y-4 rounded-lg transition-all duration-500 ${
-                    highlightedSectionId === "guide-setup-section" ? "ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
+                    highlightedSectionId === "guide-setup-section" ? "ring-2 ring-tint-lavender ring-offset-2 ring-offset-canvas" : ""
                   }`}
                   onSubmit={createSession}
                 >
                   <SourceActionNotice action={sourceAction} />
+                  <div className="rounded-lg border border-line bg-tint-yellow px-4 py-3 text-sm leading-6 text-charcoal">
+                    不想填满也没关系。通常只补“时间”和“现在最担心哪一块”就够用了。
+                  </div>
                   <FieldShell label="你想学什么">
                     <TextArea
                       value={goal}
@@ -790,7 +921,7 @@ export function GuidePage() {
                     />
                   </FieldShell>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <FieldShell label="课程模板">
+                    <FieldShell label="想按哪门课学" hint="可选">
                       <SelectInput value={courseTemplateId} onChange={(event) => selectCourseTemplate(event.target.value)}>
                         <option value="">自定义学习目标</option>
                         {courseTemplates.map((template) => (
@@ -800,7 +931,7 @@ export function GuidePage() {
                         ))}
                       </SelectInput>
                     </FieldShell>
-                    <FieldShell label="水平">
+                    <FieldShell label="你现在的基础">
                       <SelectInput value={level} onChange={(event) => setLevel(event.target.value)}>
                         {levelOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -812,10 +943,10 @@ export function GuidePage() {
                   </div>
                   <CourseTemplatePreview template={selectedTemplate} loading={templates.isFetching} />
                   <div className="grid gap-3 md:grid-cols-2">
-                    <FieldShell label="时间">
+                    <FieldShell label="这次准备学多久">
                       <TextInput value={timeBudget} onChange={(event) => setTimeBudget(event.target.value)} inputMode="numeric" />
                     </FieldShell>
-                    <FieldShell label="周期">
+                    <FieldShell label="希望按什么节奏学">
                       <SelectInput value={horizon} onChange={(event) => setHorizon(event.target.value)}>
                         {horizonOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -825,8 +956,8 @@ export function GuidePage() {
                       </SelectInput>
                     </FieldShell>
                   </div>
-                  <FieldShell label="薄弱点" hint="可选">
-                    <TextInput value={weakPoints} onChange={(event) => setWeakPoints(event.target.value)} placeholder="公式推导、代码实现、概念直觉" />
+                  <FieldShell label="你现在最担心哪一块" hint="可选">
+                    <TextInput value={weakPoints} onChange={(event) => setWeakPoints(event.target.value)} placeholder="例如：公式推导、代码实现、概念直觉" />
                   </FieldShell>
                   <ReferencePicker
                     notebooks={notebooks.data ?? []}
@@ -842,7 +973,7 @@ export function GuidePage() {
                   />
                   <Button tone="primary" type="submit" className="min-h-12 w-full text-base" disabled={!goal.trim() || mutations.create.isPending}>
                     {mutations.create.isPending ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                    保存设置并创建路线
+                    保存这些偏好
                   </Button>
                 </form>
               </GuideSubPageFrame>
@@ -858,7 +989,7 @@ export function GuidePage() {
                 <div
                   id="guide-complete-task-section"
                   className={`grid gap-4 transition-all duration-500 lg:grid-cols-[minmax(0,1fr)_280px] ${
-                    highlightedSectionId === "guide-complete-task-section" ? "rounded-lg ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
+                    highlightedSectionId === "guide-complete-task-section" ? "rounded-lg ring-2 ring-brand-purple-300 ring-offset-2 ring-offset-canvas" : ""
                   }`}
                 >
                   <div className="rounded-lg border border-line bg-canvas p-4">
@@ -871,7 +1002,7 @@ export function GuidePage() {
                     <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
                       {(currentTask.success_criteria?.length ? currentTask.success_criteria : ["完成任务并写下一句话总结"]).slice(0, 3).map((item) => (
                         <li key={item} className="flex gap-2">
-                          <CheckCircle2 size={16} className="mt-1 shrink-0 text-brand-teal" />
+                          <CheckCircle2 size={16} className="mt-1 shrink-0 text-brand-purple" />
                           <span>{item}</span>
                         </li>
                       ))}
@@ -895,8 +1026,8 @@ export function GuidePage() {
                               type="button"
                               className={`min-h-12 rounded-md border px-3 text-left transition ${
                                 active
-                                  ? "border-teal-300 bg-teal-50 text-teal-950 shadow-sm"
-                                  : "border-line bg-white text-slate-700 hover:border-teal-200 hover:bg-teal-50"
+                                  ? "border-ink bg-ink text-white shadow-sm"
+                                  : "border-line bg-white text-slate-700 hover:border-brand-purple-300 hover:bg-tint-lavender"
                               }`}
                               onClick={() => setScore(option.value)}
                             >
@@ -927,21 +1058,22 @@ export function GuidePage() {
                     </Button>
                   </div>
                 </div>
+                {learningFeedback ? <LearningImpactSummary feedback={learningFeedback} /> : null}
               </GuideSubPageFrame>
             ) : null}
 
             {guideSubPage === "resourceChoice" && currentTask ? (
               <GuideSubPageFrame
                 eyebrow="学习材料"
-                title="选择一种学习材料"
-                description="系统已经把推荐项放在主流程里；这里仅用于你想换一种学习方式时使用。"
+                title="换一种学法"
+                description="主流程里已经有推荐项。只有当你觉得当前方式不顺时，再来这里换。"
                 onBack={() => setGuideSubPage("main")}
               >
-                <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+                <div className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-4">
                   <Badge tone="brand">当前任务</Badge>
-                  <h3 className="mt-3 text-base font-semibold text-teal-950">{guideTaskTitle(currentTask)}</h3>
-                  <p className="mt-2 text-sm leading-6 text-teal-900">
-                    不确定怎么选就返回主流程，直接使用系统推荐。每次生成的材料都会回到当前任务里分页展示。
+                  <h3 className="mt-3 text-base font-semibold text-ink">{guideTaskTitle(currentTask)}</h3>
+                  <p className="mt-2 text-sm leading-6 text-charcoal">
+                    不确定怎么选，就回到主流程直接开始。你在这里换的材料，也会回到当前任务里按顺序展示。
                   </p>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -955,8 +1087,8 @@ export function GuidePage() {
                         disabled={!activeSessionId || busy || Boolean(generatingType)}
                         className={`min-h-32 rounded-lg border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                           recommended
-                            ? "border-teal-200 bg-teal-50 hover:border-teal-300"
-                            : "border-line bg-white hover:border-blue-200 hover:bg-blue-50"
+                            ? "border-brand-purple-300 bg-tint-lavender hover:border-brand-purple"
+                            : "border-line bg-white hover:border-brand-purple-300 hover:bg-tint-lavender"
                         }`}
                         onClick={() => {
                           setGuideSubPage("main");
@@ -991,7 +1123,7 @@ export function GuidePage() {
                   id="guide-route-map-section"
                   className={`rounded-lg border bg-white p-5 transition-all duration-500 ${
                     highlightedSectionId === "guide-route-map-section"
-                      ? "border-teal-300 ring-2 ring-teal-100"
+                      ? "border-brand-purple ring-2 ring-brand-purple-300"
                       : "border-line"
                   }`}
                 >
@@ -1056,7 +1188,7 @@ export function GuidePage() {
                 <form className="mt-6 space-y-4" onSubmit={createSession}>
                   <SourceActionNotice action={sourceAction} />
                   {!sourceAction && profileSuggestedPrompt && goal.trim() === profileSuggestedPrompt ? (
-                    <p className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs leading-5 text-teal-800">
+                    <p className="rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs leading-5 text-charcoal">
                       已根据学习画像填好目标。你可以直接开始，也可以改成自己的说法。
                     </p>
                   ) : null}
@@ -1092,7 +1224,7 @@ export function GuidePage() {
 
                   <button
                     type="button"
-                    className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-teal"
+                    className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-purple"
                     onClick={() => setGuideSubPage("setup")}
                   >
                     需要更细设置
@@ -1107,16 +1239,16 @@ export function GuidePage() {
                   id="guide-diagnostic-section"
                   className={`rounded-lg border bg-white p-5 shadow-sm transition-all duration-500 ${
                     highlightedSectionId === "guide-diagnostic-section"
-                      ? "border-teal-300 ring-2 ring-teal-100"
-                      : "border-teal-200"
+                      ? "border-brand-purple ring-2 ring-brand-purple-300"
+                      : "border-line"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <Badge tone="brand">先做这一件事</Badge>
-                      <h2 className="mt-3 text-xl font-semibold text-ink">先校准起点，再开始学习</h2>
+                      <h2 className="mt-3 text-xl font-semibold text-ink">先回答几道小题，再开始学习</h2>
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                        这一步会判断你是概念不稳、公式断裂，还是缺练习。后面的路线会因此变得更贴身。
+                        系统会先判断你更像是概念没站稳、步骤断了，还是只是缺一点练习，然后再安排更合适的下一步。
                       </p>
                     </div>
                     <Badge tone="warning">约 2 分钟</Badge>
@@ -1136,11 +1268,12 @@ export function GuidePage() {
               <div
                 id="guide-feedback-section"
                 className={`rounded-lg transition-all duration-500 ${
-                  highlightedSectionId === "guide-feedback-section" ? "ring-2 ring-teal-100 ring-offset-2 ring-offset-canvas" : ""
+                  highlightedSectionId === "guide-feedback-section" ? "ring-2 ring-brand-purple-300 ring-offset-2 ring-offset-canvas" : ""
                 }`}
               >
                 <LearningFeedbackCard
                   feedback={activeLearningFeedback}
+                  learningEffectReport={learningReport.data?.learning_effect_report ?? null}
                   disabled={busy || Boolean(generatingType)}
                   profileRefreshing={learnerProfileMutations.refresh.isPending}
                   onGenerateResource={(type, taskId, prompt) => void generateResource(type, taskId, prompt)}
@@ -1169,7 +1302,7 @@ export function GuidePage() {
                   id="guide-current-task-section"
                   className={`rounded-lg border bg-white p-5 shadow-sm transition-all duration-500 ${
                     highlightedSectionId === "guide-current-task-section"
-                      ? "border-teal-300 ring-2 ring-teal-100"
+                      ? "border-brand-purple ring-2 ring-brand-purple-300"
                       : "border-line"
                   }`}
                 >
@@ -1193,55 +1326,66 @@ export function GuidePage() {
                   </div>
 
                   {currentTask ? (
-                    <div className="mt-5 space-y-4">
-                      <DemoTaskShortcutCard
-                        step={currentDemoStep}
-                        busy={busy || Boolean(generatingType)}
-                        generatingType={generatingType}
-                        onGenerate={(type, prompt) => void generateResource(type, currentTask.task_id, prompt)}
-                      />
-                      <div className="rounded-lg border border-teal-100 bg-teal-50 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-teal-950">系统建议先做这个</p>
-                            <p className="mt-1 text-xs leading-5 text-teal-800">不想纠结资源类型，直接点这个就行。</p>
+                    <div className="mt-5 space-y-3">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                        <div className="space-y-3">
+                          <DemoTaskShortcutCard
+                            step={currentDemoStep}
+                            busy={busy || Boolean(generatingType)}
+                            generatingType={generatingType}
+                            onGenerate={(type, prompt) => void generateResource(type, currentTask.task_id, prompt)}
+                          />
+                          <div className="rounded-lg border border-[#f5d75e] bg-tint-yellow p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-ink">现在先看这个</p>
+                                <p className="mt-1 text-xs leading-5 text-charcoal">不用自己找材料，系统已经替你选好当前最合适的方式。</p>
+                              </div>
+                              <Badge tone="brand">{resourceLabel(primaryResourceAction.type)}</Badge>
+                            </div>
+                            <Button
+                              tone="primary"
+                              className="mt-4 min-h-12 w-full justify-center text-base"
+                              disabled={!activeSessionId || busy || Boolean(generatingType)}
+                              onClick={() => void generateResource(primaryResourceAction.type)}
+                            >
+                              {generatingType === primaryResourceAction.type ? <Loader2 size={18} className="animate-spin" /> : guideResourceIcon(primaryResourceAction.type, 18)}
+                              {primaryResourceAction.label}
+                            </Button>
                           </div>
-                          <Badge tone="brand">{resourceLabel(primaryResourceAction.type)}</Badge>
+                          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
+                            <button
+                              type="button"
+                              data-testid="guide-open-complete-task"
+                              className="rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
+                              onClick={() => setGuideSubPage("completeTask")}
+                            >
+                              <span className="text-sm font-semibold text-ink">学完了，去提交</span>
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">评分、反思，系统再给反馈。</span>
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="guide-open-resource-choice"
+                              className="rounded-lg border border-line bg-white p-4 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
+                              onClick={() => setGuideSubPage("resourceChoice")}
+                            >
+                              <span className="text-sm font-semibold text-ink">换一种学法</span>
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">图解、短视频或练习。</span>
+                            </button>
+                          </div>
                         </div>
-                        <Button
-                          tone="primary"
-                          className="mt-3 min-h-12 w-full justify-center text-base"
-                          disabled={!activeSessionId || busy || Boolean(generatingType)}
-                          onClick={() => void generateResource(primaryResourceAction.type)}
-                        >
-                          {generatingType === primaryResourceAction.type ? <Loader2 size={18} className="animate-spin" /> : guideResourceIcon(primaryResourceAction.type, 18)}
-                          {primaryResourceAction.label}
-                        </Button>
+                        <aside className="dt-workspace-mockup">
+                          <img src="/illustrations/notion-guide-loop.svg" alt="导学闭环预览" className="w-full" />
+                          <div className="border-t border-line bg-[#fbfbfa] p-3 text-xs leading-5 text-steel">
+                            导学只保留一条主线：先学一点，再提交证据，然后自动调整。
+                          </div>
+                        </aside>
                       </div>
                       {adaptiveGuideStrategy.reasons[0]?.detail ? (
-                        <p className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs leading-5 text-teal-800">
+                        <p className="rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs leading-5 text-charcoal">
                           画像依据：{adaptiveGuideStrategy.reasons[0].detail}
                         </p>
                       ) : null}
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          data-testid="guide-open-complete-task"
-                          className="w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
-                          onClick={() => setGuideSubPage("completeTask")}
-                        >
-                          <span className="text-sm font-semibold text-ink">学完了，去提交</span>
-                          <span className="mt-1 block text-xs leading-5 text-slate-500">选一下掌握状态，写一句反思，系统再给反馈。</span>
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="guide-open-resource-choice"
-                          className="ml-auto block rounded-md px-2 py-1 text-xs font-medium text-brand-blue transition hover:bg-blue-50 hover:text-blue-700"
-                          onClick={() => setGuideSubPage("resourceChoice")}
-                        >
-                          不适合？换一种材料
-                        </button>
-                      </div>
                     </div>
                   ) : null}
                 </section>
@@ -1251,26 +1395,26 @@ export function GuidePage() {
                   id="guide-resource-results-section"
                   className={`rounded-lg border bg-white p-5 transition-all duration-500 ${
                     highlightedSectionId === "guide-resource-results-section"
-                      ? "border-teal-300 ring-2 ring-teal-100"
+                      ? "border-brand-purple ring-2 ring-brand-purple-300"
                       : "border-line"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-base font-semibold text-ink">你的学习材料</h2>
+                      <h2 className="text-base font-semibold text-ink">学完看这里</h2>
                       <p className="mt-1 text-sm leading-6 text-slate-500">
-                        按顺序来：先看懂，再验证，最后提交当前任务。
+                        系统生成好的内容会按顺序排在这里。看完后直接去提交这一任务。
                       </p>
                     </div>
-                    <Badge tone={generatingType ? "brand" : currentArtifacts.length ? "brand" : "neutral"}>
-                      {generatingType ? "准备中" : `已准备 ${currentArtifacts.length} 份`}
+                    <Badge tone={currentArtifacts.length ? "brand" : "neutral"}>
+                      {currentArtifacts.length ? `已准备 ${currentArtifacts.length} 份` : "暂未开始"}
                     </Badge>
                   </div>
                   <div className="mt-5 space-y-3">
-                    {generatingType ? (
-                      <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">
+                    {generatingType && !currentArtifacts.length ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-sm text-charcoal">
                         <Loader2 size={16} className="animate-spin" />
-                        正在准备{resourceLabel(generatingType)}，好了会自动出现在这里。
+                        正在准备中，完成后会直接出现在这里。
                       </div>
                     ) : null}
                     {currentArtifacts.length ? (
@@ -1300,7 +1444,7 @@ export function GuidePage() {
                 id="guide-complete-section"
                 className={`rounded-lg border bg-white p-5 shadow-sm transition-all duration-500 ${
                   highlightedSectionId === "guide-complete-section"
-                    ? "border-teal-300 ring-2 ring-teal-100"
+                    ? "border-brand-purple ring-2 ring-brand-purple-300"
                     : "border-line"
                 }`}
               >
@@ -1337,7 +1481,7 @@ export function GuidePage() {
                     id="guide-prescription-results-section"
                     className={`mt-4 rounded-lg border bg-white p-4 transition-all duration-500 ${
                       highlightedSectionId === "guide-prescription-results-section"
-                        ? "border-teal-300 ring-2 ring-teal-100"
+                        ? "border-brand-purple ring-2 ring-brand-purple-300"
                         : "border-line"
                     }`}
                   >
@@ -1350,15 +1494,15 @@ export function GuidePage() {
                             : "围绕学习处方生成，完成后可以保存或提交。"}
                         </p>
                       </div>
-                      <Badge tone={generatingType ? "brand" : prescriptionArtifacts.length ? "success" : "neutral"}>
-                        {generatingType ? "准备中" : `已生成 ${prescriptionArtifacts.length} 份`}
+                      <Badge tone={prescriptionArtifacts.length ? "success" : "neutral"}>
+                        {prescriptionArtifacts.length ? `已生成 ${prescriptionArtifacts.length} 份` : "暂未开始"}
                       </Badge>
                     </div>
                     <div className="mt-3 space-y-3">
-                      {generatingType ? (
-                        <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm text-teal-800">
+                      {generatingType && !prescriptionArtifacts.length ? (
+                        <div className="flex items-center gap-2 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-sm text-charcoal">
                           <Loader2 size={16} className="animate-spin" />
-                          正在准备{resourceLabel(generatingType)}，完成后会出现在这里。
+                          正在准备中，完成后会直接出现在这里。
                         </div>
                       ) : null}
                       {prescriptionArtifacts.length ? (
@@ -1379,7 +1523,7 @@ export function GuidePage() {
                 ) : null}
                 <button
                   type="button"
-                  className="mt-4 w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
+                  className="mt-4 w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
                   onClick={() => setGuideSubPage("coursePackage")}
                 >
                   <span className="text-sm font-semibold text-ink">查看课程产出包</span>
@@ -1391,7 +1535,7 @@ export function GuidePage() {
             {session ? (
               <button
                 type="button"
-                className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-white hover:text-brand-teal"
+                className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-white hover:text-brand-purple"
                 onClick={() => setGuideSubPage("routeMap")}
               >
                 查看完整路线
@@ -1426,8 +1570,8 @@ export function GuidePage() {
               >
                 <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-white p-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-teal">路线</p>
-                    <h2 className="mt-1 text-lg font-semibold text-ink">切换或重新开始</h2>
+                    <p className="text-xs font-semibold text-brand-purple">当前路线</p>
+                    <h2 className="mt-1 text-lg font-semibold text-ink">先确认你现在学到哪一步</h2>
                   </div>
                   <Button tone="quiet" className="min-h-8 px-2" onClick={() => setSupportOpen(false)}>
                     <X size={16} />
@@ -1435,9 +1579,42 @@ export function GuidePage() {
                 </div>
 
                 <div className="space-y-4">
+                  {currentTask ? (
+                    <section className="rounded-lg border border-line bg-white p-4">
+                      <div className="flex items-start gap-3">
+                        <Target size={18} className="mt-0.5 text-brand-purple" />
+                        <div>
+                          <h2 className="text-base font-semibold text-ink">你现在正在这里</h2>
+                          <p className="mt-1 text-sm font-semibold leading-6 text-ink">{currentTask.title}</p>
+                          <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">{currentTask.instruction || "继续完成当前任务。"}</p>
+                        </div>
+                      </div>
+                    </section>
+                  ) : null}
+
                   <section className="rounded-lg border border-line bg-white p-4">
-                    <h2 className="text-base font-semibold text-ink">历史路线</h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">只在想回看或切换时使用。</p>
+                    <div className="flex items-start gap-3">
+                      <Brain size={18} className="mt-0.5 text-brand-purple" />
+                      <div>
+                        <h2 className="text-base font-semibold text-ink">这条路线已经参考了你的画像</h2>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {routeUsesUnifiedProfile
+                            ? "系统已经把你的偏好和薄弱点带进当前路线。"
+                            : "完成前测、练习和反思后，路线会继续跟着画像一起变准。"}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href="/memory"
+                      className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-canvas px-3 text-xs font-medium text-slate-700 transition hover:border-brand-purple-300 hover:text-brand-purple"
+                    >
+                      查看学习画像
+                    </a>
+                  </section>
+
+                  <section className="rounded-lg border border-line bg-white p-4">
+                    <h2 className="text-base font-semibold text-ink">想切换或重新开始时，再看这里</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">主流程不会受影响，只有想换路线时才需要操作。</p>
                     <div className="mt-4 space-y-3">
                       <Button
                         tone="primary"
@@ -1465,7 +1642,7 @@ export function GuidePage() {
                               setSupportOpen(false);
                             }}
                             className={`w-full rounded-lg border p-3 text-left transition ${
-                              activeSessionId === item.session_id ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                              activeSessionId === item.session_id ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple-300 hover:bg-tint-lavender"
                             }`}
                           >
                             <p className="line-clamp-2 text-sm font-semibold text-ink">{item.goal}</p>
@@ -1479,41 +1656,8 @@ export function GuidePage() {
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-line bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      <Brain size={18} className="mt-0.5 text-brand-teal" />
-                      <div>
-                        <h2 className="text-base font-semibold text-ink">画像已参与</h2>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                          {routeUsesUnifiedProfile
-                            ? "这条路线已经参考你的偏好和薄弱点。"
-                            : "完成前测、练习和反思后，画像会继续变准。"}
-                        </p>
-                      </div>
-                    </div>
-                    <a
-                      href="/memory"
-                      className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-canvas px-3 text-xs font-medium text-slate-700 transition hover:border-teal-200 hover:text-brand-teal"
-                    >
-                      查看学习画像
-                    </a>
-                  </section>
-
-                  {currentTask ? (
-                    <section className="rounded-lg border border-line bg-white p-4">
-                      <div className="flex items-start gap-3">
-                        <Target size={18} className="mt-0.5 text-brand-teal" />
-                        <div>
-                          <h2 className="text-base font-semibold text-ink">当前一步</h2>
-                          <p className="mt-1 text-sm font-semibold leading-6 text-ink">{currentTask.title}</p>
-                          <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">{currentTask.instruction || "继续完成当前任务。"}</p>
-                        </div>
-                      </div>
-                    </section>
-                  ) : null}
-
                   <div className="rounded-lg border border-line bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-500">路线管理</p>
+                    <p className="text-xs font-semibold text-slate-500">仅在需要时使用</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button
                         tone="quiet"
@@ -1560,7 +1704,7 @@ function GuideSubPageFrame({
 }) {
   return (
     <motion.section
-      className="rounded-lg border border-line bg-white p-5 shadow-sm"
+      className="dt-notion-card p-5"
       initial={{ opacity: 0, x: 18 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -18 }}
@@ -1568,9 +1712,9 @@ function GuideSubPageFrame({
     >
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-teal">{eyebrow}</p>
+          <p className="dt-page-eyebrow">{eyebrow}</p>
           <h2 className="mt-2 text-xl font-semibold text-ink">{title}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-steel">{description}</p>
         </div>
         <Button tone="secondary" className="min-h-9 px-3 text-xs" onClick={onBack}>
           <ChevronLeft size={15} />
@@ -1580,6 +1724,83 @@ function GuideSubPageFrame({
       <div className="space-y-4">{children}</div>
     </motion.section>
   );
+}
+
+function buildGuideEffectActionSeed({
+  effectAction,
+  prompt,
+  actionTitle,
+  sourceLabel,
+  estimatedMinutes,
+}: {
+  effectAction: string;
+  prompt: string;
+  actionTitle: string;
+  sourceLabel: string;
+  estimatedMinutes?: number;
+}) {
+  const cleanAction = effectAction.trim();
+  if (!cleanAction) {
+    return {
+      prompt,
+      title: actionTitle,
+      sourceLabel,
+      estimatedMinutes,
+      kind: "",
+      targetSection: "",
+    };
+  }
+  const [rawType, ...rest] = cleanAction.split(":");
+  const type = rawType.trim().toLowerCase();
+  const topic = rest.join(":").trim() || sourceLabel.trim() || "当前薄弱点";
+  const targetSection = "guide-create-section";
+  const actionMap: Record<string, { title: string; prompt: string; minutes: number; kind: string }> = {
+    diagnostic: {
+      title: "先做一次诊断",
+      prompt: topic === "当前薄弱点" ? "请帮我做一次 5 题诊断，判断我当前最需要补齐哪里。" : `请围绕「${topic}」做一次 5 题诊断，判断我当前最需要补齐哪里。`,
+      minutes: 8,
+      kind: "learning_effect_diagnostic",
+    },
+    practice: {
+      title: `做「${topic}」小练习`,
+      prompt: `围绕「${topic}」安排一轮短导学：先用最少概念补齐直觉，再做 3 道小练习验证掌握。`,
+      minutes: 10,
+      kind: "learning_effect_practice",
+    },
+    retest: {
+      title: `复测「${topic}」是否还稳`,
+      prompt: `围绕「${topic}」安排一次复测导学，用 3 到 5 道题确认我是否真的掌握。`,
+      minutes: 7,
+      kind: "learning_effect_retest",
+    },
+    mistake_review: {
+      title: "关闭一个反复错因",
+      prompt: topic === "当前薄弱点" ? "帮我找出当前最值得处理的错因，安排一个补救任务和一次复测。" : `围绕「${topic}」帮我关闭一个反复错因，先补救再复测。`,
+      minutes: 9,
+      kind: "learning_effect_mistake_review",
+    },
+    advance: {
+      title: "进入下一节或项目任务",
+      prompt: topic === "当前薄弱点" ? "根据我的学习画像，安排一个下一节或小项目任务来验证迁移能力。" : `围绕「${topic}」安排一个下一节或小项目任务，验证迁移应用能力。`,
+      minutes: 15,
+      kind: "learning_effect_advance",
+    },
+    continue: {
+      title: "继续当前学习节奏",
+      prompt: topic === "当前薄弱点" ? "根据我的学习画像，继续安排一个最合适的下一步学习任务。" : `根据我的学习画像，围绕「${topic}」继续安排一个最合适的下一步学习任务。`,
+      minutes: 10,
+      kind: "learning_effect_continue",
+    },
+  };
+  const seed = actionMap[type] ?? actionMap.continue;
+  return {
+    prompt: prompt || seed.prompt,
+    title: actionTitle || seed.title,
+    sourceLabel: topic === "当前薄弱点" ? sourceLabel : topic,
+    estimatedMinutes: estimatedMinutes || seed.minutes,
+    kind: seed.kind,
+    targetSection,
+  };
 }
 
 function SourceActionNotice({ action }: { action: Record<string, unknown> | null }) {
@@ -1593,12 +1814,14 @@ function SourceActionNotice({ action }: { action: Record<string, unknown> | null
   const kindLabel =
     kind === "weak_point"
       ? "薄弱点接力"
+      : kind.startsWith("learning_effect")
+        ? "效果评估接力"
       : kind === "mastery" || kind === "mastery_check" || kind === "mastery_support"
         ? "掌握度接力"
         : "画像推荐";
   return (
     <motion.div
-      className="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3"
+      className="rounded-lg border border-line bg-tint-lavender px-4 py-3"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
@@ -1609,17 +1832,17 @@ function SourceActionNotice({ action }: { action: Record<string, unknown> | null
         {Number.isFinite(minutes) && minutes > 0 ? <Badge tone="neutral">{Math.round(minutes)} 分钟</Badge> : null}
         {Number.isFinite(confidence) && confidence > 0 ? <Badge tone="neutral">依据 {Math.round(Math.min(confidence, 1) * 100)}%</Badge> : null}
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-teal-950">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-teal-900">
+      <h3 className="mt-3 text-sm font-semibold text-ink">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-charcoal">
         {sourceLabel ? `这次先围绕「${sourceLabel}」安排学习。` : "这次会直接按画像建议安排学习。"}
         你可以直接创建路线，系统会先做前测，再给资源和练习。
       </p>
-      {suggestedPrompt ? <p className="mt-2 rounded-md bg-white/75 px-3 py-2 text-sm leading-6 text-slate-700">{suggestedPrompt}</p> : null}
+      {suggestedPrompt ? <p className="mt-2 rounded-md bg-white/75 px-3 py-2 text-sm leading-6 text-charcoal">{suggestedPrompt}</p> : null}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs leading-5 text-slate-600">不准也没关系，画像页随时能改。</p>
+        <p className="text-xs leading-5 text-steel">不准也没关系，画像页随时能改。</p>
         <a
           href="/memory"
-          className="inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-teal-200 hover:text-brand-teal"
+          className="inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-white px-3 text-xs font-medium text-ink transition hover:border-brand-purple hover:text-brand-purple"
         >
           回到画像页
         </a>
@@ -1670,7 +1893,7 @@ function ReferencePicker({
                 type="button"
                 onClick={() => onToggleRecord(record)}
                 className={`w-full rounded-lg border p-3 text-left transition ${
-                  selected ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"
+                  selected ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple-300 hover:bg-tint-lavender"
                 }`}
               >
                 <p className="truncate text-sm font-semibold text-ink">{record.title || "学习记录"}</p>
@@ -1709,7 +1932,7 @@ function CourseTemplatePreview({
   }
   return (
     <motion.div
-      className="rounded-lg border border-teal-200 bg-teal-50 p-3"
+      className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-3"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16 }}
@@ -1732,7 +1955,7 @@ function CourseTemplatePreview({
         </p>
       ) : null}
       {template.demo_seed?.scenario ? (
-        <p className="mt-3 rounded-lg border border-teal-100 bg-white/80 p-2 text-xs leading-5 text-teal-900">
+        <p className="mt-3 rounded-lg border border-brand-purple-300 bg-white/80 p-2 text-xs leading-5 text-charcoal">
           推荐演示：{template.demo_seed.scenario}
         </p>
       ) : null}
@@ -1789,17 +2012,17 @@ function CourseTemplateQuickPick({
               type="button"
               className={`rounded-lg border bg-white p-3 text-left transition ${
                 selected
-                  ? "border-teal-300 ring-2 ring-teal-100"
+                  ? "border-brand-purple ring-2 ring-brand-purple-300"
                   : competitionTemplate
-                    ? "border-teal-200 hover:border-teal-300 hover:bg-teal-50/60"
-                    : "border-line hover:border-teal-200 hover:bg-teal-50/60"
+                    ? "border-brand-purple-300 hover:border-brand-purple hover:bg-tint-lavender"
+                    : "border-line hover:border-brand-purple-300 hover:bg-tint-lavender"
               }`}
               data-testid={`guide-course-template-${template.id}`}
               disabled={busy}
               onClick={() => onPick(template)}
             >
               <div className="flex items-start justify-between gap-2">
-                <GraduationCap size={16} className={selected ? "mt-0.5 shrink-0 text-brand-teal" : "mt-0.5 shrink-0 text-brand-blue"} />
+                <GraduationCap size={16} className={selected ? "mt-0.5 shrink-0 text-brand-purple" : "mt-0.5 shrink-0 text-brand-blue"} />
                 <Badge tone={selected || competitionTemplate ? "brand" : "neutral"}>{selected ? "已选择" : competitionTemplate ? "赛题主线" : "课程"}</Badge>
               </div>
               <p className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-ink">{title}</p>
@@ -2079,8 +2302,166 @@ function DemoWrapUpCard({
   );
 }
 
+function LearningImpactSummary({
+  feedback,
+  compact = false,
+}: {
+  feedback: GuideV2LearningFeedback;
+  compact?: boolean;
+}) {
+  const concepts = (feedback.concept_feedback ?? []).slice(0, compact ? 2 : 3);
+  const evidenceScore =
+    typeof feedback.evidence_quality?.score === "number" ? Math.round(feedback.evidence_quality.score) : null;
+  const nextAction = feedback.next_task_title || feedback.resource_actions?.[0]?.title || feedback.actions?.[0] || "已更新下一步";
+  const rows = [
+    {
+      label: "证据",
+      value: evidenceScore == null ? "已记录" : `${evidenceScore}/100`,
+      helper: feedback.evidence_quality?.label || "本次学习行为已进入画像证据账本。",
+    },
+    {
+      label: "概念",
+      value: concepts.length ? `${concepts.length} 个` : "待积累",
+      helper: concepts[0]?.summary || "系统会继续收集题目、资源和反思证据。",
+    },
+    {
+      label: "路线",
+      value: feedback.next_task_title ? "已调整" : "已同步",
+      helper: nextAction,
+    },
+  ];
+
+  return (
+    <div className={`mt-4 rounded-lg border border-line bg-canvas p-3 ${compact ? "" : "shadow-sm"}`} data-testid="guide-learning-impact-summary">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-ink">这次提交改变了什么</p>
+        <Badge tone={feedbackTone(feedback.tone)}>画像已同步</Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {rows.map((row) => (
+          <div key={row.label} className="rounded-lg border border-line bg-white p-3">
+            <p className="text-xs text-slate-500">{row.label}</p>
+            <p className="mt-1 text-sm font-semibold text-ink">{row.value}</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{row.helper}</p>
+          </div>
+        ))}
+      </div>
+      {concepts.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {concepts.map((item) => (
+            <Badge key={`${item.concept}-${item.status}`} tone={feedbackConceptTone(item.status, item.score_percent)}>
+              {item.concept || "知识点"} · {item.score_percent == null ? "已更新" : `${Math.round(Number(item.score_percent))}%`}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function GuideLearningLoopReceipt({
+  feedback,
+  report,
+  profileRefreshing,
+}: {
+  feedback: GuideV2LearningFeedback;
+  report: GuideV2LearningReport["learning_effect_report"] | null;
+  profileRefreshing: boolean;
+}) {
+  const primaryAction = [...(report?.next_actions ?? [])].sort((left, right) => Number(right.priority ?? 0) - Number(left.priority ?? 0))[0];
+  const evidenceCount = Number(report?.summary?.event_count ?? 0);
+  const score = typeof report?.overall?.score === "number" ? Math.round(report.overall.score) : null;
+  const conceptCount = report?.concepts?.length || feedback.concept_feedback?.length || 0;
+  const timeline = (report?.visualization?.evidence_timeline ?? []).slice(0, 2);
+  const nextTitle = primaryAction?.title || feedback.next_task_title || feedback.actions?.[0] || "继续当前路线";
+  const receiptRows = [
+    {
+      label: "证据写回",
+      value: evidenceCount ? `${evidenceCount} 条` : "已记录",
+      detail: feedback.evidence_quality?.label || feedback.summary || "这次提交已经进入学习证据账本。",
+      icon: <CheckCircle2 size={15} />,
+    },
+    {
+      label: "画像判断",
+      value: score == null ? "已同步" : `${score} 分`,
+      detail: report?.overall?.summary || `${conceptCount || "多个"} 个知识点正在重新评估。`,
+      icon: <Brain size={15} />,
+    },
+    {
+      label: "下一步处方",
+      value: primaryAction?.estimated_minutes ? `${primaryAction.estimated_minutes} 分钟` : "已生成",
+      detail: nextTitle,
+      icon: <Target size={15} />,
+    },
+  ];
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="guide-learning-loop-receipt">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <RefreshCw size={15} className="text-brand-purple" />
+            <p className="text-sm font-semibold text-ink">学习闭环回执</p>
+            <Badge tone="brand">已同步画像</Badge>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            不用自己查报告：系统已经把这次提交串到证据、画像和下一步处方里。
+          </p>
+        </div>
+        <a
+          href="/memory"
+          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-slate-700 hover:border-brand-purple-300 hover:text-brand-purple"
+          data-testid="guide-learning-loop-open-memory"
+        >
+          <Brain size={14} />
+          {profileRefreshing ? "画像同步中" : "查看画像"}
+        </a>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {receiptRows.map((row) => (
+          <div key={row.label} className="rounded-lg border border-line bg-white p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-brand-purple">
+              {row.icon}
+              {row.label}
+            </div>
+            <p className="mt-2 text-sm font-semibold text-ink">{row.value}</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{row.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      {timeline.length ? (
+        <div className="mt-3 rounded-lg border border-line bg-white p-3" data-testid="guide-learning-loop-evidence">
+          <p className="text-xs font-semibold text-slate-500">最近证据</p>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {timeline.map((item, index) => (
+              <div key={item.id || `${item.label}-${index}`} className="rounded-md bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+                <span className="font-semibold text-ink">{item.label || "学习证据"}</span>
+                {item.detail ? <span className="ml-1">{item.detail}</span> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {primaryAction?.href ? (
+        <a
+          href={primaryAction.href}
+          className="dt-interactive mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-3 text-sm font-medium text-white hover:bg-brand-purple-800"
+          data-testid="guide-learning-loop-receipt-action"
+        >
+          按处方继续
+          <ArrowRight size={15} />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 function LearningFeedbackCard({
   feedback,
+  learningEffectReport,
   disabled,
   profileRefreshing,
   onGenerateResource,
@@ -2088,6 +2469,7 @@ function LearningFeedbackCard({
   onOpenRouteMap,
 }: {
   feedback: GuideV2LearningFeedback | null;
+  learningEffectReport?: GuideV2LearningReport["learning_effect_report"] | null;
   disabled: boolean;
   profileRefreshing: boolean;
   onGenerateResource: (type: GuideV2ResourceType, taskId: string, prompt: string) => void;
@@ -2096,6 +2478,10 @@ function LearningFeedbackCard({
 }) {
   if (!feedback) return null;
   const resourceActions = (feedback.resource_actions ?? []).filter((item) => !isResearchResourceType(item.resource_type || ""));
+  const remediationTask = feedback.remediation_task ?? null;
+  const remediationResourceAction = remediationTask
+    ? resourceActions.find((item) => item.id === remediationTask.resource_action_id) ?? resourceActions[0] ?? null
+    : null;
   const decision = buildFeedbackDecision(feedback, resourceActions);
   const primaryPath =
     decision.paths.find((path) => path.primary) ??
@@ -2108,7 +2494,7 @@ function LearningFeedbackCard({
   const secondaryPaths = decision.paths.filter((path) => path.label !== primaryPath.label).slice(0, 2);
   return (
     <motion.section
-      className="rounded-lg border border-teal-200 bg-white p-5 shadow-sm"
+      className="rounded-lg border border-line bg-white p-5 shadow-sm"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
@@ -2116,24 +2502,40 @@ function LearningFeedbackCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <CheckCircle2 size={18} className="text-brand-teal" />
-            <p className="text-sm font-semibold text-brand-teal">这一步完成了</p>
+            <CheckCircle2 size={18} className="text-brand-purple" />
+            <p className="text-sm font-semibold text-brand-purple">这一步已经完成</p>
             <Badge tone={feedbackTone(feedback.tone)}>{feedback.score_percent == null ? "已记录" : `${Math.round(feedback.score_percent)} 分`}</Badge>
           </div>
           <h2 className="mt-3 text-lg font-semibold text-ink">{feedback.title || "学习证据已记录"}</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {feedback.summary || "系统已经根据这次学习证据更新路线。"}
+            {feedback.summary || "系统已经根据这次学习证据更新了下一步安排。"}
           </p>
         </div>
         {feedback.next_task_title ? <Badge tone="brand">下一步</Badge> : <Badge tone="success">完成</Badge>}
       </div>
 
-      <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-4">
+      <LearningImpactSummary feedback={feedback} compact />
+      <GuideLearningLoopReceipt
+        feedback={feedback}
+        report={learningEffectReport ?? null}
+        profileRefreshing={profileRefreshing}
+      />
+
+      {remediationTask ? (
+        <MinimalRemediationTaskCard
+          task={remediationTask}
+          action={remediationResourceAction}
+          disabled={disabled}
+          onGenerateResource={onGenerateResource}
+        />
+      ) : null}
+
+      <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-sm font-semibold text-brand-teal">接下来只做这个</p>
-            <h3 className="mt-2 text-base font-semibold text-teal-950">{primaryPath.label}</h3>
-            <p className="mt-1 text-sm leading-6 text-teal-800">{primaryPath.description || decision.summary}</p>
+            <p className="text-sm font-semibold text-brand-purple">接下来先做这个</p>
+            <h3 className="mt-2 text-base font-semibold text-ink">{primaryPath.label}</h3>
+            <p className="mt-1 text-sm leading-6 text-charcoal">{primaryPath.description || decision.summary}</p>
           </div>
           <Badge tone={decision.tone}>{decision.badge}</Badge>
         </div>
@@ -2162,12 +2564,65 @@ function LearningFeedbackCard({
         ))}
         <a
           href="/memory"
-          className="inline-flex min-h-9 items-center justify-center rounded-md px-3 text-xs font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-teal"
+          className="inline-flex min-h-9 items-center justify-center rounded-md px-3 text-xs font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-purple"
         >
-          {profileRefreshing ? "画像同步中" : "查看画像变化"}
+          {profileRefreshing ? "画像同步中" : "看看画像怎么变了"}
         </a>
       </div>
     </motion.section>
+  );
+}
+
+function MinimalRemediationTaskCard({
+  task,
+  action,
+  disabled,
+  onGenerateResource,
+}: {
+  task: NonNullable<GuideV2LearningFeedback["remediation_task"]>;
+  action: NonNullable<GuideV2LearningFeedback["resource_actions"]>[number] | null;
+  disabled: boolean;
+  onGenerateResource: (type: GuideV2ResourceType, taskId: string, prompt: string) => void;
+}) {
+  const resourceType = normalizeResourceType(action?.resource_type || task.resource_type || "visual");
+  const targetTaskId = action?.target_task_id || task.target_task_id || "";
+  const prompt = action?.prompt || `围绕「${task.concept || task.title || "当前薄弱点"}」生成一个最小补救资源。`;
+  const canGenerate = Boolean(targetTaskId);
+  return (
+    <div className="mt-4 rounded-lg border border-amber-200 bg-tint-yellow p-4" data-testid="guide-minimal-remediation-task">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="warning">10 分钟补救</Badge>
+            {task.concept ? <Badge tone="neutral">{task.concept}</Badge> : null}
+          </div>
+          <h3 className="mt-2 text-base font-semibold text-ink">{task.title || "先补齐这一小块"}</h3>
+          <p className="mt-1 text-sm leading-6 text-charcoal">{task.reason || "先完成一个很小的补救闭环，再继续下一步。"}</p>
+        </div>
+        <Button
+          tone="secondary"
+          disabled={disabled || !canGenerate}
+          onClick={() => {
+            if (!targetTaskId) return;
+            onGenerateResource(resourceType, targetTaskId, prompt);
+          }}
+          data-testid="guide-minimal-remediation-generate"
+        >
+          {guideResourceIcon(resourceType, 15)}
+          开始补救
+        </Button>
+      </div>
+      {task.steps?.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {task.steps.slice(0, 3).map((step, index) => (
+            <div key={step} className="rounded-lg border border-amber-100 bg-white/80 p-3 text-xs leading-5 text-slate-600">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">Step {index + 1}</span>
+              {step}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -2277,14 +2732,14 @@ function DiagnosticPanel({
             <Brain size={20} />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-ink">学习画像前测</h2>
+            <h2 className="text-base font-semibold text-ink">开始前的小校准</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              {diagnostic?.summary || "创建路线后，用几个问题校准基础、偏好和薄弱点。"}
+              {diagnostic?.summary || "开始前先用几个小问题确认基础、偏好和当前卡点，后面的安排会更贴身。"}
             </p>
           </div>
         </div>
         {loading ? (
-          <Loader2 size={16} className="animate-spin text-brand-teal" />
+          <Loader2 size={16} className="animate-spin text-brand-purple" />
         ) : (
           <Badge tone={diagnostic?.status === "completed" ? "success" : "warning"}>
             {diagnosticStatusLabel(diagnostic?.status || "pending")}
@@ -2295,7 +2750,7 @@ function DiagnosticPanel({
       {diagnostic?.last_result?.recommendations?.length ? (
         <div className="mt-4 rounded-lg border border-line bg-canvas p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-ink">最近诊断建议</p>
+            <p className="text-sm font-semibold text-ink">上一次的小结</p>
             {diagnostic.last_result.readiness_score !== undefined ? (
               <Badge tone={effectStatusTone(Number(diagnostic.last_result.readiness_score) * 100)}>
                 {Math.round(Number(diagnostic.last_result.readiness_score) * 100)}%
@@ -2303,7 +2758,7 @@ function DiagnosticPanel({
             ) : null}
           </div>
           {diagnostic.last_result.bottleneck_label ? (
-            <p className="mt-2 text-xs leading-5 text-brand-teal">
+            <p className="mt-2 text-xs leading-5 text-brand-purple">
               当前卡点：{diagnostic.last_result.bottleneck_label}
             </p>
           ) : null}
@@ -2341,7 +2796,7 @@ function DiagnosticPanel({
                     disabled={disabled || submitting}
                     onClick={() => setAnswer(question.question_id, value)}
                     className={`min-h-9 min-w-9 rounded-lg border px-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
-                      answers[question.question_id] === value ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      answers[question.question_id] === value ? "border-ink bg-ink text-white" : "border-line bg-white text-slate-600 hover:border-brand-purple-300 hover:bg-tint-lavender"
                     }`}
                     title={question.labels?.[String(value)]}
                   >
@@ -2361,7 +2816,7 @@ function DiagnosticPanel({
                       disabled={disabled || submitting}
                       onClick={() => toggleMulti(question.question_id, option.value)}
                       className={`rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed ${
-                        selected ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                        selected ? "border-ink bg-ink text-white" : "border-line bg-white text-slate-600 hover:border-brand-purple-300 hover:bg-tint-lavender"
                       }`}
                     >
                       {option.label}
@@ -2378,7 +2833,7 @@ function DiagnosticPanel({
                     disabled={disabled || submitting}
                     onClick={() => setAnswer(question.question_id, option.value)}
                     className={`rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed ${
-                      answers[question.question_id] === option.value ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      answers[question.question_id] === option.value ? "border-ink bg-ink text-white" : "border-line bg-white text-slate-600 hover:border-brand-purple-300 hover:bg-tint-lavender"
                     }`}
                   >
                     {option.label}
@@ -2471,25 +2926,25 @@ function KnowledgeMapVisualization({
 
   return (
     <div className="mt-4 space-y-4">
-      <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
+      <div className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-teal">Learning Map</p>
+            <p className="text-xs font-semibold text-brand-purple">Learning Map</p>
             <h3 className="mt-1 text-lg font-semibold text-ink">从起点到掌握的路线</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-teal-800">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-charcoal">
               当前在第 {currentIndex + 1} 步。点击任意知识点，可以查看它的目标、掌握度和对应任务。
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg border border-teal-200 bg-white px-3 py-2">
+            <div className="rounded-lg border border-brand-purple-300 bg-white px-3 py-2">
               <p className="text-lg font-semibold text-ink">{items.length}</p>
               <p className="text-xs text-slate-500">知识点</p>
             </div>
-            <div className="rounded-lg border border-teal-200 bg-white px-3 py-2">
+            <div className="rounded-lg border border-brand-purple-300 bg-white px-3 py-2">
               <p className="text-lg font-semibold text-ink">{masteredCount}</p>
               <p className="text-xs text-slate-500">已掌握</p>
             </div>
-            <div className="rounded-lg border border-teal-200 bg-white px-3 py-2">
+            <div className="rounded-lg border border-brand-purple-300 bg-white px-3 py-2">
               <p className="text-lg font-semibold text-ink">{averageMastery}%</p>
               <p className="text-xs text-slate-500">平均</p>
             </div>
@@ -2558,9 +3013,9 @@ function KnowledgeMapVisualization({
           <h3 className="mt-3 text-lg font-semibold text-ink">{selected.title}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">{selected.description}</p>
           {selected.target ? (
-            <div className="mt-4 rounded-lg border border-teal-200 bg-white p-3">
-              <p className="text-xs font-semibold text-brand-teal">掌握目标</p>
-              <p className="mt-1 text-sm leading-6 text-teal-800">{selected.target}</p>
+            <div className="mt-4 rounded-lg border border-brand-purple-300 bg-white p-3">
+              <p className="text-xs font-semibold text-brand-purple">掌握目标</p>
+              <p className="mt-1 text-sm leading-6 text-charcoal">{selected.target}</p>
             </div>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -2637,7 +3092,7 @@ function StudyPlanPanel({
     <section className="rounded-lg border border-line bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="grid size-10 place-items-center rounded-lg border border-teal-200 bg-teal-50 text-brand-teal">
+          <div className="grid size-10 place-items-center rounded-lg border border-brand-purple-300 bg-tint-lavender text-brand-purple">
             <CalendarDays size={20} />
           </div>
           <div>
@@ -2648,7 +3103,7 @@ function StudyPlanPanel({
           </div>
         </div>
         {loading ? (
-          <Loader2 size={16} className="animate-spin text-brand-teal" />
+          <Loader2 size={16} className="animate-spin text-brand-purple" />
         ) : (
           <Badge tone={blocks.length ? "brand" : "neutral"}>{blocks.length || 0} 次学习</Badge>
         )}
@@ -2893,10 +3348,10 @@ function LearningReportPanel({
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-learning-report-panel">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <BarChart3 size={18} className="text-brand-teal" />
+          <BarChart3 size={18} className="text-brand-purple" />
           <h2 className="text-base font-semibold text-ink">学习效果报告</h2>
         </div>
-        {loading ? <Loader2 size={16} className="animate-spin text-brand-teal" /> : <Badge tone={score >= 80 ? "success" : score >= 60 ? "brand" : "warning"}>{score || 0}</Badge>}
+        {loading ? <Loader2 size={16} className="animate-spin text-brand-purple" /> : <Badge tone={score >= 80 ? "success" : score >= 60 ? "brand" : "warning"}>{score || 0}</Badge>}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         {report?.summary || "完成任务后，这里会汇总学习画像、薄弱点、路径调整和下一步计划。"}
@@ -2907,6 +3362,7 @@ function LearningReportPanel({
         <EvalMini label="反馈" value={Number(feedbackDigest?.count ?? 0)} suffix="次" />
       </div>
       <EffectAssessmentCard assessment={effectAssessment} />
+      <LearningEffectReportCard report={report?.learning_effect_report ?? null} />
       <ReportActionBriefCard
         brief={actionBrief}
         canSave={canSave}
@@ -2988,10 +3444,10 @@ function EffectAssessmentCard({
     <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="guide-effect-assessment-chain">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-ink">评估依据</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
-            {assessment.summary || "系统会用学习证据、练习反馈和画像信号调整下一步。"}
-          </p>
+            <p className="text-sm font-semibold text-ink">评估依据与调度理由</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              {assessment.summary || "系统会参考你刚留下的学习证据、练习反馈和画像信号，决定下一步更适合怎么继续。"}
+            </p>
         </div>
         <Badge tone={Number(assessment.score ?? 0) >= 70 ? "success" : "warning"}>
           {assessment.label || "评估中"}
@@ -3000,7 +3456,7 @@ function EffectAssessmentCard({
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         {chain.slice(0, 3).map((item, index) => (
           <div key={`${item.label}-${index}`} className="rounded-lg border border-line bg-white p-3">
-            <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
+            <p className="text-xs font-semibold text-brand-purple">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
             <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "继续留下学习证据。")}</p>
           </div>
         ))}
@@ -3011,6 +3467,69 @@ function EffectAssessmentCard({
             <Badge key={`${item.id}-${item.label}`} tone={Number(item.score ?? 0) >= 70 ? "brand" : "warning"}>
               {guideDisplayText(item.label, "维度")}：{Number(item.score ?? 0)}
             </Badge>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LearningEffectReportCard({
+  report,
+}: {
+  report: GuideV2LearningReport["learning_effect_report"] | null;
+}) {
+  if (!report) return null;
+
+  const score = Math.round(Number(report.overall?.score ?? 0));
+  const primaryAction = [...(report.next_actions ?? [])].sort((left, right) => Number(right.priority ?? 0) - Number(left.priority ?? 0))[0];
+  const concepts = [...(report.concepts ?? [])]
+    .sort((left, right) => {
+      const mistakeGap = Number(right.open_mistake_count ?? 0) - Number(left.open_mistake_count ?? 0);
+      if (mistakeGap) return mistakeGap;
+      return Number(left.score ?? 0) - Number(right.score ?? 0);
+    })
+    .slice(0, 3);
+  const tone = score >= 78 ? "success" : score >= 58 ? "brand" : "warning";
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-white p-3" data-testid="guide-learning-effect-report-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <BarChart3 size={16} className="text-brand-purple" />
+            <p className="text-sm font-semibold text-ink">全局学习效果闭环</p>
+            <Badge tone={tone}>{report.overall?.label || `${score} 分`}</Badge>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            {report.overall?.summary || "这份报告会把导学、练习、资源反馈和画像证据统一汇总，用来决定下一步。"}
+          </p>
+        </div>
+        <Badge tone="neutral">{Number(report.summary?.event_count ?? 0)} 条证据</Badge>
+      </div>
+      {primaryAction ? (
+        <div className="mt-3 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Target size={15} className="text-brand-purple" />
+            <p className="text-sm font-semibold text-brand-purple">系统建议</p>
+            <Badge tone="neutral">{primaryAction.estimated_minutes || 8} 分钟</Badge>
+          </div>
+          <p className="mt-2 text-sm font-semibold text-ink">{primaryAction.title}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{primaryAction.reason}</p>
+        </div>
+      ) : null}
+      {concepts.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {concepts.map((concept) => (
+            <div key={concept.concept_id} className="rounded-lg border border-line bg-canvas p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-semibold text-ink">{concept.title || concept.concept_id}</p>
+                <Badge tone={concept.status === "mastered" ? "success" : concept.status === "needs_support" ? "warning" : "brand"}>
+                  {formatLearningEffectPercent(concept.score)}%
+                </Badge>
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{concept.recommendation || "继续观察这一概念的练习表现。"}</p>
+            </div>
           ))}
         </div>
       ) : null}
@@ -3037,12 +3556,12 @@ function ReportActionBriefCard({
 }) {
   if (!brief) {
     return (
-      <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3">
+      <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-brand-teal">学习处方</p>
+          <p className="text-sm font-semibold text-brand-purple">下一步建议</p>
           <Badge tone="neutral">等待</Badge>
         </div>
-        <p className="mt-3 text-sm leading-6 text-slate-600">完成更多任务后，系统会把下一步整理成一个明确动作。</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">完成更多任务后，系统会把“现在该做什么”整理成一个更明确的动作。</p>
       </div>
     );
   }
@@ -3053,20 +3572,20 @@ function ReportActionBriefCard({
   const steps = brief.steps ?? [];
 
   return (
-    <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3">
+    <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-brand-teal">学习处方</p>
-          <h3 className="mt-2 text-base font-semibold text-teal-950">{brief.title || "先完成下一步"}</h3>
+          <p className="text-sm font-semibold text-brand-purple">下一步建议</p>
+          <h3 className="mt-2 text-base font-semibold text-ink">{brief.title || "现在先做这一件事"}</h3>
         </div>
         <Badge tone="brand">先做</Badge>
       </div>
-      <p className="mt-2 text-sm leading-6 text-teal-800">{brief.summary || primary.detail || "系统已经把下一步压缩成一个明确动作。"}</p>
+      <p className="mt-2 text-sm leading-6 text-charcoal">{brief.summary || primary.detail || "系统已经把下一步压缩成一个更明确、更容易开始的动作。"}</p>
       {steps.length ? (
         <div className="mt-3 grid gap-2 md:grid-cols-3" data-testid="guide-report-action-steps">
           {steps.slice(0, 3).map((item, index) => (
-            <div key={`${item.label}-${item.detail}-${index}`} className="rounded-lg border border-teal-100 bg-white/80 p-3">
-              <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
+            <div key={`${item.label}-${item.detail}-${index}`} className="rounded-lg border border-brand-purple-300 bg-white/80 p-3">
+              <p className="text-xs font-semibold text-brand-purple">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
               <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "按这一步继续推进。")}</p>
             </div>
           ))}
@@ -3096,9 +3615,9 @@ function ReportActionBriefCard({
       {secondary.length ? (
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           {secondary.slice(0, 2).map((item) => (
-            <div key={`${item.label}-${item.detail}`} className="rounded-lg border border-teal-100 bg-white/80 p-3">
+            <div key={`${item.label}-${item.detail}`} className="rounded-lg border border-brand-purple-300 bg-white/80 p-3">
               <p className="text-xs font-semibold text-ink">{item.label || "备选动作"}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-600">{item.detail || "作为下一步的备选安排。"}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">{item.detail || "如果当前方式不顺，可以改走这一条。 "}</p>
               <ReportActionButton
                 action={item}
                 className="mt-3"
@@ -3314,7 +3833,7 @@ function CoursePackagePanel({
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <GraduationCap size={18} className="text-brand-teal" />
+          <GraduationCap size={18} className="text-brand-purple" />
           <div>
             <h2 className="text-base font-semibold text-ink">课程产出包</h2>
             {coursePackage?.title ? (
@@ -3322,7 +3841,7 @@ function CoursePackagePanel({
             ) : null}
           </div>
         </div>
-        {loading ? <Loader2 size={16} className="animate-spin text-brand-teal" /> : <Badge tone="brand">{project.estimated_minutes ?? "-"} 分钟</Badge>}
+        {loading ? <Loader2 size={16} className="animate-spin text-brand-purple" /> : <Badge tone="brand">{project.estimated_minutes ?? "-"} 分钟</Badge>}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         {guideDisplayText(coursePackage?.summary, "系统会把学习路径整理成最终项目、评分标准、复习计划和作品集索引。")}
@@ -3469,7 +3988,7 @@ function CourseCompetitionAlignmentCard({
   const visibleRequirements = requirements.slice(0, 5);
   const proofChain = alignment.proof_chain ?? [];
   return (
-    <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-competition-alignment-card">
+    <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3" data-testid="guide-competition-alignment-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -3477,7 +3996,7 @@ function CourseCompetitionAlignmentCard({
             {alignment.course_name ? <Badge tone="neutral">{guideDisplayText(alignment.course_name)}</Badge> : null}
             {coverage ? <Badge tone={coverage >= 80 ? "success" : "warning"}>覆盖分 {coverage}</Badge> : null}
           </div>
-          <p className="mt-2 text-sm leading-6 text-teal-950">
+          <p className="mt-2 text-sm leading-6 text-ink">
             {guideDisplayText(alignment.summary, "把当前学习闭环映射成比赛可展示证据。")}
           </p>
         </div>
@@ -3495,7 +4014,7 @@ function CourseCompetitionAlignmentCard({
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
               {guideDisplayText((item.evidence ?? []).filter(Boolean)[0], "等待更多学习证据。")}
             </p>
-            <p className="mt-1 line-clamp-1 text-xs leading-5 text-teal-700">
+            <p className="mt-1 line-clamp-1 text-xs leading-5 text-steel">
               录屏：{guideDisplayText(item.demo_action, "指向当前页面证据，用一句话说明这一项已经闭环。")}
             </p>
           </div>
@@ -3505,7 +4024,7 @@ function CourseCompetitionAlignmentCard({
         <div className="mt-3 grid gap-2 md:grid-cols-3" data-testid="guide-competition-proof-chain">
           {proofChain.slice(0, 3).map((item, index) => (
             <div key={`${item.label}-${index}`} className="rounded-lg border border-white/80 bg-white p-2">
-              <p className="text-xs font-semibold text-brand-teal">{guideDisplayText(item.label, `证明 ${index + 1}`)}</p>
+              <p className="text-xs font-semibold text-brand-purple">{guideDisplayText(item.label, `证明 ${index + 1}`)}</p>
               <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">
                 {guideDisplayText(item.detail, "把功能证据、现场动作和答辩讲法串起来。")}
               </p>
@@ -3513,7 +4032,7 @@ function CourseCompetitionAlignmentCard({
           ))}
         </div>
       ) : null}
-      <p className="mt-3 rounded-lg border border-teal-100 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+      <p className="mt-3 rounded-lg border border-brand-purple-300 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
         {gap ? "先补：" : "录屏动作："}
         {guideDisplayText((gap?.demo_action || alignment.next_action), "按画像、路线、资源、练习、报告顺序展示。")}
       </p>
@@ -3550,7 +4069,7 @@ function CourseAgentCollaborationCard({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {leadRoute.map((item, index) => (
             <Fragment key={`${item.from}-${item.to}-${index}`}>
-              <span className="rounded-md border border-teal-100 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-900">
+              <span className="rounded-md border border-brand-purple-300 bg-tint-lavender px-2 py-1 text-xs font-medium text-charcoal">
                 {guideDisplayText(item.to || item.from, "智能体")}
               </span>
               {index < leadRoute.length - 1 ? <span className="text-xs text-slate-400">→</span> : null}
@@ -3563,13 +4082,13 @@ function CourseAgentCollaborationCard({
           <div key={role.id || role.name} className="rounded-lg border border-line bg-canvas p-2">
             <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(role.name, "智能体")}</p>
-              <span className="h-1.5 w-1.5 rounded-sm bg-brand-teal" />
+              <span className="h-1.5 w-1.5 rounded-sm bg-brand-purple" />
             </div>
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
               {guideDisplayText(role.responsibility || role.output, "负责把学习证据转成下一步动作。")}
             </p>
             {role.output ? (
-              <p className="mt-1 line-clamp-1 text-xs leading-5 text-teal-700">
+              <p className="mt-1 line-clamp-1 text-xs leading-5 text-steel">
                 产出：{guideDisplayText(role.output)}
               </p>
             ) : null}
@@ -3693,7 +4212,7 @@ function CoursePresentationOutlineCard({
   const slides = outline?.slides ?? [];
   if (!outline || !slides.length) return null;
   return (
-    <div className="mt-4 rounded-lg border border-teal-100 bg-white p-3" data-testid="guide-presentation-outline-card">
+    <div className="mt-4 rounded-lg border border-brand-purple-300 bg-white p-3" data-testid="guide-presentation-outline-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -3731,19 +4250,19 @@ function CourseLearningStyleCard({ learningStyle }: { learningStyle: GuideV2Cour
   if (!learningStyle?.label && !learningStyle?.summary) return null;
   const signals = learningStyle.signals ?? [];
   return (
-    <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50 p-3" data-testid="guide-course-learning-style">
+    <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3" data-testid="guide-course-learning-style">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">画像驱动产出</Badge>
         {learningStyle.label ? <Badge tone="neutral">{learningStyle.label}</Badge> : null}
       </div>
-      <p className="mt-2 text-sm leading-6 text-teal-950">
+      <p className="mt-2 text-sm leading-6 text-ink">
         {learningStyle.summary || "课程产出包会把画像、资源、练习和报告串成可展示的学习闭环。"}
       </p>
-      {learningStyle.trend ? <p className="mt-1 text-xs leading-5 text-teal-800">{learningStyle.trend}</p> : null}
+      {learningStyle.trend ? <p className="mt-1 text-xs leading-5 text-charcoal">{learningStyle.trend}</p> : null}
       {signals.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {signals.slice(0, 3).map((signal) => (
-            <span key={`${signal.label}-${signal.value}`} className="rounded-md border border-teal-100 bg-white px-2 py-1 text-xs text-slate-600">
+            <span key={`${signal.label}-${signal.value}`} className="rounded-md border border-brand-purple-300 bg-white px-2 py-1 text-xs text-slate-600">
               {signal.label || "信号"}：{signal.value || "-"}
             </span>
           ))}
@@ -3807,7 +4326,7 @@ function CourseDemoRecordingChecklistCard({
     <div className="mt-4 rounded-lg border border-line bg-white p-3" data-testid="guide-demo-recording-checklist">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Video size={16} className="text-brand-teal" />
+          <Video size={16} className="text-brand-purple" />
           <p className="text-sm font-semibold text-ink">录屏检查</p>
         </div>
         <Badge tone={effectStatusTone(Number(blueprint?.readiness_score ?? 0))}>
@@ -3846,7 +4365,7 @@ function CourseDemoRecordingChecklistCard({
         </div>
       ) : null}
       {recordingCue ? (
-        <p className="mt-3 rounded-lg border border-teal-100 bg-teal-50 p-2 text-xs leading-5 text-teal-900" data-testid="guide-recording-script-cue">
+        <p className="mt-3 rounded-lg border border-brand-purple-300 bg-tint-lavender p-2 text-xs leading-5 text-charcoal" data-testid="guide-recording-script-cue">
           讲稿：{guideDisplayText(recordingCue.narration || recordingCue.screen, "先说明学习者目标，再展示当前任务。")}
         </p>
       ) : null}
@@ -3862,7 +4381,7 @@ function CourseDemoRecordingChecklistCard({
 function ProgressBar({ value, className = "" }: { value: number; className?: string }) {
   return (
     <div className={`h-2 overflow-hidden rounded-sm bg-slate-100 ${className}`}>
-      <div className="h-full rounded-sm bg-brand-teal transition-all" style={{ width: `${Math.max(0, Math.min(value, 100))}%` }} />
+      <div className="h-full rounded-sm bg-brand-purple transition-all" style={{ width: `${Math.max(0, Math.min(value, 100))}%` }} />
     </div>
   );
 }
@@ -4020,7 +4539,7 @@ function ResourceLearningSteps({
             type="button"
             onClick={() => onSelect(index)}
             className={`rounded-lg border p-3 text-left transition ${
-              index === activeIndex ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200 hover:bg-canvas"
+              index === activeIndex ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300 hover:bg-canvas"
             }`}
           >
             <Badge tone={index === activeIndex ? "brand" : "neutral"}>第 {index + 1} 步</Badge>
@@ -4031,7 +4550,7 @@ function ResourceLearningSteps({
         <button
           type="button"
           onClick={onCompleteTask}
-          className="rounded-lg border border-line bg-canvas p-3 text-left transition hover:border-teal-200 hover:bg-teal-50"
+          className="rounded-lg border border-line bg-canvas p-3 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
         >
           <Badge tone="success">最后</Badge>
           <p className="mt-2 text-sm font-semibold text-ink">{finalLabel}</p>
@@ -4047,7 +4566,8 @@ function sortGuideArtifactsForLearning(artifacts: GuideV2Artifact[]) {
     visual: 0,
     external_video: 1,
     video: 2,
-    quiz: 3,
+    audio: 3,
+    quiz: 4,
   };
   return [...artifacts].sort((left, right) => {
     const leftOrder = order[String(left.type)] ?? 9;
@@ -4060,10 +4580,11 @@ function sortGuideArtifactsForLearning(artifacts: GuideV2Artifact[]) {
 function resourceStepLabel(type: string, index: number, artifacts: GuideV2Artifact[]) {
   const hasConceptResourceBefore = artifacts
     .slice(0, index)
-    .some((item) => item.type === "visual" || item.type === "video" || item.type === "external_video");
+    .some((item) => item.type === "visual" || item.type === "video" || item.type === "audio" || item.type === "external_video");
   if (type === "visual") return index === 0 ? "先看图解" : "再看图解";
   if (type === "external_video") return index === 0 ? "先看精选视频" : "再看精选视频";
   if (type === "video") return index === 0 ? "先看短视频" : "再看短视频";
+  if (type === "audio") return index === 0 ? "先听讲解" : "再听一遍";
   if (type === "quiz") return hasConceptResourceBefore ? "再做练习" : "先做练习";
   return resourceLabel(type);
 }
@@ -4072,6 +4593,7 @@ function resourceStepHint(type: string) {
   if (type === "visual") return "先建立直觉和结构。";
   if (type === "external_video") return "用外部讲解补充视角。";
   if (type === "video") return "跟着步骤过一遍。";
+  if (type === "audio") return "先听清概念和步骤。";
   if (type === "quiz") return "用题目确认是否掌握。";
   return "看完后继续下一步。";
 }
@@ -4096,9 +4618,12 @@ function ResourceArtifact({
   const renderType = readString(result ?? {}, "render_type");
   const hasVisual = Boolean(artifact.type === "visual" && renderType && asRecord(result?.code)?.content);
   const hasVideo = Boolean(artifact.type === "video" && (Array.isArray(result?.artifacts) || asRecord(result?.code)?.content));
+  const hasAudio = Boolean(artifact.type === "audio" && asRecord(result?.audio)?.asset_url);
   const hasExternalVideo = Boolean(artifact.type === "external_video" && Array.isArray(result?.videos));
   const questions = extractGuideQuizItems(result);
-  const showResponse = Boolean(response && !(artifact.type === "quiz" && questions.length) && artifact.type !== "external_video");
+  const showResponse = Boolean(
+    response && !(artifact.type === "quiz" && questions.length) && artifact.type !== "external_video" && artifact.type !== "audio",
+  );
   const personalization = extractArtifactPersonalization(artifact);
   const specialist = agentRoleForArtifact(artifact);
 
@@ -4134,6 +4659,7 @@ function ResourceArtifact({
 
       {hasVisual ? <div className="mt-4"><VisualizationViewer result={result as unknown as VisualizeResult} /></div> : null}
       {hasVideo ? <div className="mt-4"><MathAnimatorViewer result={result as unknown as MathAnimatorResult} /></div> : null}
+      {hasAudio ? <div className="mt-4"><AudioNarrationViewer result={result as unknown as AudioNarrationResult} /></div> : null}
       {hasExternalVideo ? <div className="mt-4"><ExternalVideoViewer result={result as unknown as ExternalVideoResult} /></div> : null}
       {artifact.type === "quiz" && questions.length ? (
         <QuestionPreview items={questions} submitting={quizSubmitting} onSubmit={onSubmitQuiz} />
@@ -4212,7 +4738,7 @@ function shortGuideAgentName(label: string) {
 }
 
 function agentRouteDotTone(tone: "brand" | "neutral" | "success") {
-  if (tone === "brand") return "bg-brand-teal";
+  if (tone === "brand") return "bg-brand-purple";
   if (tone === "success") return "bg-emerald-500";
   return "bg-brand-blue";
 }
@@ -4232,7 +4758,7 @@ function ArtifactPersonalizationCard({
   };
 }) {
   return (
-    <div className="mt-3 rounded-lg border border-teal-100 bg-teal-50 px-3 py-3">
+    <div className="mt-3 rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">生成依据</Badge>
         {personalization.signals.slice(0, 4).map((item) => (
@@ -4241,9 +4767,9 @@ function ArtifactPersonalizationCard({
           </Badge>
         ))}
       </div>
-      <p className="mt-2 text-sm leading-6 text-teal-900">{personalization.headline}</p>
+      <p className="mt-2 text-sm leading-6 text-charcoal">{personalization.headline}</p>
       {personalization.progressStyle ? (
-        <div className="mt-2 rounded-lg border border-teal-200 bg-white/80 px-3 py-3">
+        <div className="mt-2 rounded-lg border border-brand-purple-300 bg-white/80 px-3 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="brand">按你的学习方式生成</Badge>
             <Badge tone="neutral">{personalization.progressStyle.label}</Badge>
@@ -4272,6 +4798,12 @@ function agentRoleForArtifact(artifact: GuideV2Artifact) {
     return {
       label: "动画智能体",
       detail: "把关键步骤拆成可播放的短视频讲解。",
+    };
+  }
+  if (type === "audio" || capability === "tts") {
+    return {
+      label: "语音讲解智能体",
+      detail: "把当前任务压缩成一段可以直接听的语音讲解。",
     };
   }
   if (type === "external_video" || capability === "external_video_search") {
@@ -4333,6 +4865,8 @@ function QuestionPreview({
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const [checked, setChecked] = useState<Record<number, boolean>>({});
+  const [startedAt, setStartedAt] = useState<Record<number, number>>({});
+  const [checkedAt, setCheckedAt] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const records = items.slice(0, 8).map((item) => {
     const record = asRecord(item) ?? {};
@@ -4341,6 +4875,9 @@ function QuestionPreview({
   });
   const checkedCount = records.filter((_item, index) => checked[index]).length;
   const allChecked = records.length > 0 && checkedCount === records.length;
+  const markStarted = (itemIndex: number) => {
+    setStartedAt((current) => (current[itemIndex] ? current : { ...current, [itemIndex]: Date.now() }));
+  };
 
   const buildResults = (): QuizResultItem[] =>
     records.map(({ record, qa, options }, index) => {
@@ -4348,6 +4885,8 @@ function QuestionPreview({
       const correctAnswer = readString(qa, "correct_answer") || readString(qa, "answer");
       const kind = normalizeGuideQuestionType(readString(qa, "question_type"), options);
       const concepts = extractGuideQuestionConcepts(qa, record);
+      const finishedAt = checkedAt[index] || Date.now();
+      const started = startedAt[index] || finishedAt;
       return {
         question_id: readString(qa, "question_id") || `guide-q-${index + 1}`,
         question: readString(qa, "question") || readString(qa, "prompt") || readString(qa, "title") || "已生成练习题",
@@ -4359,6 +4898,8 @@ function QuestionPreview({
         correct_answer: correctAnswer,
         explanation: readString(qa, "explanation"),
         difficulty: readString(qa, "difficulty"),
+        duration_seconds: Math.max(1, Math.round((finishedAt - started) / 1000)),
+        attempt_count: 1,
         is_correct: isGuideQuizCorrect(answer, correctAnswer, options),
       };
     });
@@ -4406,9 +4947,12 @@ function QuestionPreview({
                     type="button"
                     data-testid={`guide-quiz-option-${index}-${key}`}
                     disabled={submitted || submitting || isChecked}
-                    onClick={() => setAnswers((current) => ({ ...current, [index]: key }))}
+                    onClick={() => {
+                      markStarted(index);
+                      setAnswers((current) => ({ ...current, [index]: key }));
+                    }}
                     className={`rounded-lg border px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed ${
-                      answer === key ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      answer === key ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                     }`}
                   >
                     <span className="font-semibold">{key}.</span> {String(value)}
@@ -4426,9 +4970,12 @@ function QuestionPreview({
                     type="button"
                     data-testid={`guide-quiz-true-false-${index}-${value}`}
                     disabled={submitted || submitting || isChecked}
-                    onClick={() => setAnswers((current) => ({ ...current, [index]: value }))}
+                    onClick={() => {
+                      markStarted(index);
+                      setAnswers((current) => ({ ...current, [index]: value }));
+                    }}
                     className={`rounded-lg border px-3 py-2 text-center text-sm font-semibold transition disabled:cursor-not-allowed ${
-                      answer === value ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                      answer === value ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                     }`}
                   >
                     {label}
@@ -4441,7 +4988,10 @@ function QuestionPreview({
                 data-testid={`guide-quiz-input-${index}`}
                 value={answer}
                 disabled={submitted || submitting || isChecked}
-                onChange={(event) => setAnswers((current) => ({ ...current, [index]: event.target.value }))}
+                onChange={(event) => {
+                  markStarted(index);
+                  setAnswers((current) => ({ ...current, [index]: event.target.value }));
+                }}
                 placeholder={kind === "written" || kind === "coding" ? "写下你的答案或思路" : "输入你的答案"}
               />
             )}
@@ -4453,6 +5003,9 @@ function QuestionPreview({
                   data-testid={`guide-quiz-submit-${index}`}
                   disabled={!answer.trim() || submitted || submitting}
                   onClick={() => {
+                    const now = Date.now();
+                    setStartedAt((current) => (current[index] ? current : { ...current, [index]: now }));
+                    setCheckedAt((current) => ({ ...current, [index]: now }));
                     setChecked((current) => ({ ...current, [index]: true }));
                     setRevealed((current) => ({ ...current, [index]: true }));
                   }}
@@ -4475,6 +5028,12 @@ function QuestionPreview({
                       className="min-h-8 px-2 text-xs"
                       onClick={() => {
                         setChecked((current) => ({ ...current, [index]: false }));
+                        setCheckedAt((current) => {
+                          const next = { ...current };
+                          delete next[index];
+                          return next;
+                        });
+                        setStartedAt((current) => ({ ...current, [index]: Date.now() }));
                         setRevealed((current) => ({ ...current, [index]: false }));
                       }}
                     >
@@ -4490,7 +5049,7 @@ function QuestionPreview({
                   ? isCorrect
                     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                     : "border-red-200 bg-red-50 text-red-800"
-                  : "border-teal-200 bg-teal-50 text-teal-800"
+                  : "border-brand-purple-300 bg-tint-lavender text-charcoal"
               }`}>
                 <p className="font-semibold">
                   {correctAnswer ? (isCorrect ? "回答正确。" : "回答不对，建议看一下解析再复盘。") : "答案已提交，请对照参考解析。"}
@@ -4538,7 +5097,7 @@ function QuestionPreview({
 }
 function TaskRow({ task, active }: { task: GuideV2Task; active: boolean }) {
   return (
-    <div className={`flex items-start gap-3 rounded-lg border p-3 ${active ? "border-teal-200 bg-teal-50" : "border-line bg-white"}`}>
+    <div className={`flex items-start gap-3 rounded-lg border p-3 ${active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white"}`}>
       <div className="flex shrink-0 flex-wrap gap-2">
         <Badge tone={task.status === "completed" ? "success" : task.status === "skipped" ? "neutral" : active ? "brand" : "neutral"}>{taskTypeLabel(task.type)}</Badge>
         {task.origin && task.origin !== "planned" ? <Badge tone={originTone(task.origin)}>{originLabel(task.origin)}</Badge> : null}
@@ -4546,7 +5105,7 @@ function TaskRow({ task, active }: { task: GuideV2Task; active: boolean }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-ink">{guideTaskTitle(task)}</p>
         <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{guideDisplayText(task.instruction, "完成当前小任务，系统会继续安排下一步。")}</p>
-        {task.artifact_refs?.length ? <p className="mt-1 text-xs text-brand-teal">{task.artifact_refs.length} 个资源已生成</p> : null}
+        {task.artifact_refs?.length ? <p className="mt-1 text-xs text-brand-purple">{task.artifact_refs.length} 个资源已生成</p> : null}
       </div>
       <span className="shrink-0 text-xs text-slate-500">{task.estimated_minutes ?? 8}m</span>
     </div>
@@ -4558,6 +5117,7 @@ function taskTypeLabel(type: string) {
     explain: "讲解",
     visualize: "图解",
     video: "视频",
+    audio: "语音",
     external_video: "精选视频",
     practice: "练习",
     remediation: "补救",
@@ -4572,18 +5132,19 @@ function resourceLabel(type: string) {
   const labels: Record<string, string> = {
     visual: "图解",
     video: "短视频",
+    audio: "语音讲解",
     external_video: "精选视频",
     quiz: "练习",
   };
   return labels[type] || type || "资源";
 }
 
-type GuideActionResourceType = "visual" | "quiz" | "video" | "external_video";
+type GuideActionResourceType = "visual" | "quiz" | "video" | "audio" | "external_video";
 
-const guideActionResourceTypes: GuideActionResourceType[] = ["visual", "external_video", "quiz", "video"];
+const guideActionResourceTypes: GuideActionResourceType[] = ["visual", "audio", "external_video", "quiz", "video"];
 
 function normalizeGuideActionResourceType(type: GuideV2ResourceType): GuideActionResourceType {
-  if (type === "quiz" || type === "video" || type === "external_video") return type;
+  if (type === "quiz" || type === "video" || type === "audio" || type === "external_video") return type;
   return "visual";
 }
 
@@ -4601,6 +5162,7 @@ function buildGuideResourceActions(
 function guideResourceIcon(type: GuideActionResourceType, size = 16) {
   if (type === "quiz") return <ListChecks size={size} />;
   if (type === "video") return <Video size={size} />;
+  if (type === "audio") return <Volume2 size={size} />;
   if (type === "external_video") return <Video size={size} />;
   return <Map size={size} />;
 }
@@ -4609,7 +5171,8 @@ function guideResourceDescription(type: GuideActionResourceType) {
   const descriptions: Record<GuideActionResourceType, string> = {
     visual: "把概念关系画出来，适合先建立直觉。",
     quiz: "用选择、判断、填空和简答验证理解，做完可获得反馈。",
-    video: "生成一段短讲解，适合需要步骤演示时使用。",
+    video: "生成一段默认带旁白的短视频讲解，适合按步骤跟着看。",
+    audio: "生成一段可直接播放的语音讲解，适合先听一遍再继续。",
     external_video: "从公开网络里找少量讲解视频，看完后回到导学提交反思。",
   };
   return descriptions[type];
@@ -4619,7 +5182,8 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
   const copy = {
     visual: "看图解",
     quiz: "做练习",
-    video: "看短视频",
+    video: "看讲解视频",
+    audio: "听讲解",
     external_video: "找精选视频",
   };
 
@@ -4627,6 +5191,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "先看补救图解" : "看补救图解";
     copy.quiz = recommended === "quiz" ? "先做复测题" : "做复测题";
     copy.video = recommended === "video" ? "看纠错讲解" : "看纠错讲解";
+    copy.audio = recommended === "audio" ? "先听纠错讲解" : "听纠错讲解";
     copy.external_video = recommended === "external_video" ? "先找讲解视频" : "找讲解视频";
     return copy;
   }
@@ -4635,6 +5200,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "先看关键图解" : "看关键图解";
     copy.quiz = recommended === "quiz" ? "直接做验证题" : "做验证题";
     copy.video = recommended === "video" ? "看步骤串讲" : "看步骤串讲";
+    copy.audio = recommended === "audio" ? "先听步骤讲解" : "听步骤讲解";
     copy.external_video = recommended === "external_video" ? "找参考视频" : "找参考视频";
     return copy;
   }
@@ -4642,7 +5208,8 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
   if (trendLabel.includes("提速")) {
     copy.visual = recommended === "visual" ? "快速看图解" : "看图解";
     copy.quiz = recommended === "quiz" ? "直接做这组题" : "做这组题";
-    copy.video = recommended === "video" ? "快速看短视频" : "看短视频";
+    copy.video = recommended === "video" ? "快速看讲解视频" : "看讲解视频";
+    copy.audio = recommended === "audio" ? "快速听讲解" : "听讲解";
     copy.external_video = recommended === "external_video" ? "快速找视频" : "找精选视频";
     return copy;
   }
@@ -4651,6 +5218,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
     copy.visual = recommended === "visual" ? "先看这张图解" : "看这张图解";
     copy.quiz = recommended === "quiz" ? "做这组补强题" : "做补强题";
     copy.video = recommended === "video" ? "看补强短视频" : "看补强短视频";
+    copy.audio = recommended === "audio" ? "先听补强讲解" : "听补强讲解";
     copy.external_video = recommended === "external_video" ? "先找公开视频" : "找公开视频";
     return copy;
   }
@@ -4658,6 +5226,7 @@ function buildGuideResourceButtonCopy(recommended: GuideV2ResourceType, trendLab
   if (recommended === "visual") copy.visual = "先看这张图解";
   if (recommended === "quiz") copy.quiz = "先做这组题";
   if (recommended === "video") copy.video = "先看这段短视频";
+  if (recommended === "audio") copy.audio = "先听这段讲解";
   if (recommended === "external_video") copy.external_video = "先找精选视频";
   return copy;
 }
@@ -4668,7 +5237,7 @@ function isResearchResourceType(type: string) {
 }
 
 function normalizeResourceType(type: unknown): GuideActionResourceType {
-  if (type === "visual" || type === "video" || type === "quiz" || type === "external_video") {
+  if (type === "visual" || type === "video" || type === "audio" || type === "quiz" || type === "external_video") {
     return type;
   }
   return "visual";
@@ -4801,6 +5370,9 @@ function inferDemoSeedResourceType(type: unknown, prompt = ""): GuideActionResou
   if (text.includes("quiz") || text.includes("exercise") || text.includes("练习") || text.includes("题")) {
     return "quiz";
   }
+  if (text.includes("audio") || text.includes("speech") || text.includes("tts") || text.includes("语音") || text.includes("音频")) {
+    return "audio";
+  }
   if (text.includes("video") || text.includes("manim") || text.includes("animation") || text.includes("短视频") || text.includes("动画")) {
     return "video";
   }
@@ -4843,6 +5415,13 @@ function feedbackTone(tone?: string): "neutral" | "success" | "warning" | "dange
   return "neutral";
 }
 
+function feedbackConceptTone(status?: string, score?: number): "neutral" | "success" | "warning" | "danger" | "brand" {
+  if (status === "stable") return "success";
+  if (status === "developing") return "brand";
+  if (status === "needs_support") return "warning";
+  return effectStatusTone(score);
+}
+
 function effectStatusTone(score?: number): "neutral" | "success" | "warning" | "danger" | "brand" {
   const value = Number(score ?? 0);
   if (value >= 85) return "success";
@@ -4850,6 +5429,12 @@ function effectStatusTone(score?: number): "neutral" | "success" | "warning" | "
   if (value >= 50) return "warning";
   if (value > 0) return "danger";
   return "neutral";
+}
+
+function formatLearningEffectPercent(score?: number | null) {
+  const value = Number(score ?? 0);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.round(value <= 1 ? value * 100 : value);
 }
 
 function safeBadgeTone(tone?: string): "neutral" | "success" | "warning" | "danger" | "brand" {
@@ -5028,6 +5613,7 @@ function guideStageLabel(value: unknown, fallback = "步骤") {
   if (normalized.includes("profile")) return "画像校准";
   if (normalized.includes("route")) return "路线创建";
   if (normalized.includes("visual")) return "图解演示";
+  if (normalized.includes("audio") || normalized.includes("speech") || normalized.includes("tts")) return "语音讲解";
   if (normalized.includes("video")) return "短视频讲解";
   if (normalized.includes("quiz") || normalized.includes("practice")) return "练习验证";
   if (normalized.includes("feedback")) return "反馈回写";
@@ -5191,9 +5777,9 @@ function masteryTone(status: string): "neutral" | "success" | "warning" | "dange
 function knowledgeNodeStyle(status: string, active: boolean, current: boolean, done: boolean) {
   if (active) {
     return {
-      card: "border-teal-300 bg-teal-50 shadow-sm",
-      dot: "border-brand-teal bg-brand-teal text-white",
-      bar: "bg-brand-teal",
+      card: "border-brand-purple bg-tint-lavender shadow-sm",
+      dot: "border-brand-purple bg-brand-purple text-white",
+      bar: "bg-brand-purple",
     };
   }
   if (current) {
@@ -5517,6 +6103,7 @@ function buildAdaptiveGuideStrategy(
     : 0;
   const prefersExternalVideo = preferences.some((item) => /公开视频|公开课|网课|网络视频|精选视频|外部视频|B站|bilibili|youtube/i.test(item));
   const prefersVideo = preferences.some((item) => item.includes("视频") || /video|youtube|bilibili/i.test(item));
+  const prefersAudio = preferences.some((item) => item.includes("语音") || item.includes("音频") || /audio|speech|tts|podcast/i.test(item));
   const prefersPractice = preferences.some((item) => item.includes("练习"));
   const prefersVisual = preferences.some((item) => item.includes("图解"));
   const progressStyle = deriveGuideProgressStyle(preferences, weakPointCount, confidence, accuracy, masteryAverage);
@@ -5557,7 +6144,7 @@ function buildAdaptiveGuideStrategy(
       detail: `最近正确率约 ${Math.round(accuracy * 100)}%，掌握度均值约 ${Math.round(masteryAverage * 100)}%，现在更适合做迁移验证。`,
     });
   } else if (confidence < 0.45) {
-    recommendedResource = prefersPractice ? "quiz" : "visual";
+    recommendedResource = prefersPractice ? "quiz" : prefersAudio ? "audio" : "visual";
     title = "先补证据，让系统判断更稳";
     summary = "系统对你当前状态还不够确定，最好先补一轮短资源和可评分证据，避免路线过深或过浅。";
     recommendations.push("优先选择能留下判断依据的资源，再提交一次明确反思。");
@@ -5579,6 +6166,16 @@ function buildAdaptiveGuideStrategy(
       detail: prefersExternalVideo
         ? "当前没有明显薄弱点堆积，而且画像里记录到你偏好公开视频、公开课或外部视频资源。"
         : "当前没有明显薄弱点堆积，而且画像里记录到你更愿意通过短视频快速建立整体感。",
+    });
+  } else if (prefersAudio && accuracy < 0.72) {
+    recommendedResource = "audio";
+    title = "先听一遍讲解，把关键步骤串起来";
+    summary = "你当前更适合先用一段短语音把概念和步骤听顺，再回到图解或练习确认掌握。";
+    recommendations.push("先听 1 到 2 分钟的讲解，抓住概念、步骤和下一步动作。");
+    recommendations.push("听完后立刻去做一组短练习或回到提交页，别只停在听懂。");
+    reasons.push({
+      label: "你适合先听后做",
+      detail: "画像里已经出现音频或语音偏好，所以这里优先用更轻的讲解方式降低进入门槛。",
     });
   } else if (prefersPractice && accuracy >= 0.45) {
     recommendedResource = "quiz";
@@ -5635,7 +6232,7 @@ function buildAdaptiveGuideStrategy(
   }
 
   if (preferences.length) {
-    const preferredMode = prefersPractice ? "练习" : prefersVideo ? "短视频" : prefersVisual ? "图解" : preferences[0];
+    const preferredMode = prefersPractice ? "练习" : prefersVideo ? "短视频" : prefersAudio ? "语音讲解" : prefersVisual ? "图解" : preferences[0];
     signals.push({
       label: "学习偏好",
       value: preferredMode,
@@ -5695,7 +6292,7 @@ function buildGuideTrendNotice(
   const recentText = recentEvidence.map((item) => `${item.source_label} ${item.title} ${item.summary || ""}`).join(" ");
   const hasCalibration = /校准|画像|profile/i.test(recentText);
   const hasQuiz = /练习|答题|quiz|题目/i.test(recentText);
-  const hasResource = /图解|视频|资源|visual|video/i.test(recentText);
+  const hasResource = /图解|视频|语音|音频|资源|visual|video|audio|speech/i.test(recentText);
   const stageVerb =
     stage === "create"
       ? "这次导学会先按这个节奏起步。"
@@ -5860,6 +6457,7 @@ function deriveGuideProgressStyle(
   masteryAverage: number,
 ) {
   const prefersVideo = preferences.some((item) => item.includes("视频"));
+  const prefersAudio = preferences.some((item) => item.includes("语音") || item.includes("音频"));
   const prefersPractice = preferences.some((item) => item.includes("练习"));
   const prefersVisual = preferences.some((item) => item.includes("图解"));
 
@@ -5879,6 +6477,12 @@ function deriveGuideProgressStyle(
     return {
       label: "快速串联型",
       detail: "当基础已经够用时，你更适合先用短视频把流程串起来，再回到任务区完成验证。",
+    };
+  }
+  if (prefersAudio && confidence < 0.75) {
+    return {
+      label: "先听后做型",
+      detail: "你更适合先用一段简洁语音把概念和步骤听顺，再回到图解或练习完成验证。",
     };
   }
   if (confidence < 0.5) {
@@ -6159,6 +6763,7 @@ function deriveArtifactProgressStyle({
   const prefersPractice = normalizedPreferences.some((item) => /练|题|quiz|practice|刷题/.test(item));
   const prefersVisual = normalizedPreferences.some((item) => /图|visual|diagram|结构|示意/.test(item));
   const prefersVideo = normalizedPreferences.some((item) => /视频|video|动画|manim/.test(item));
+  const prefersAudio = normalizedPreferences.some((item) => /语音|音频|audio|speech|tts|podcast/.test(item));
   const hasWeakPoints = weakPoints.length > 0 || masteryTopics.length > 0;
   const hasMistakes = mistakes.length > 0;
   const compactTime = Number.parseInt(String(timeBudget).replace(/[^\d]/g, ""), 10);
@@ -6177,6 +6782,14 @@ function deriveArtifactProgressStyle({
       label: "外部补充型",
       explanation: "系统判断你适合先参考公开视频，用另一个讲解视角降低理解门槛，再回到当前任务做反馈。",
       recommendation: "建议只看一到两个精选视频，不要陷入搜索；看完立刻回到导学提交一句反思。",
+    };
+  }
+
+  if (prefersAudio || artifactType === "audio") {
+    return {
+      label: "先听后做型",
+      explanation: "系统判断你更适合先用一段简洁讲解把概念和步骤听顺，再回到当前任务完成验证。",
+      recommendation: "先完整听一遍，再立刻做题、看图或写一句反思，效果会比反复被动播放更好。",
     };
   }
 

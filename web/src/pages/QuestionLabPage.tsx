@@ -6,9 +6,10 @@ import { QuizViewer } from "@/components/quiz/QuizViewer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
+import { FieldShell, FileInput, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Metric";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { useKnowledgeBases, useNotebookMutations, useNotebooks } from "@/hooks/useApiQueries";
 import { questionGenerateSocketUrl, questionMimicSocketUrl } from "@/lib/api";
 import type { QuestionGenerationSummary, QuizQuestion } from "@/lib/types";
@@ -282,18 +283,28 @@ export function QuestionLabPage() {
   return (
     <div className="h-full overflow-y-auto bg-canvas">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 pb-24 lg:px-5 lg:pb-5">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.24 }}
-        >
-          <p className="dt-page-eyebrow">题库</p>
-          <h1 className="mt-1 text-xl font-semibold text-ink">题目生成</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            从知识点生成练习，或根据试卷生成仿题。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="题库"
+          title="生成一组能立刻作答的练习"
+          description="从知识点生成练习，或根据试卷生成仿题。题目会直接整理成可提交、可反馈的练习。"
+          accent="pink"
+          imageSrc="/illustrations/notion-note-pink.svg"
+          imageAlt="题目生成预览"
+          people="inspired"
+          previewTitle="练习要能提交"
+          previewDescription="选择、判断、填空和主观题都可以在页面内完成反馈。"
+          tiles={[
+            { label: "混合", helper: "选择判断填空", tone: "yellow" },
+            { label: "仿题", helper: "提取试卷风格", tone: "sky" },
+            { label: "反馈", helper: "提交后复盘", tone: "rose" },
+          ]}
+          actions={
+            <>
+              <Button tone={mode === "topic" ? "primary" : "secondary"} onClick={() => setMode("topic")}>按知识点</Button>
+              <Button tone={mode === "mimic" ? "primary" : "secondary"} onClick={() => setMode("mimic")}>试卷仿题</Button>
+            </>
+          }
+        />
 
         <motion.section
           className="flex flex-wrap gap-x-4 gap-y-1.5"
@@ -339,7 +350,7 @@ export function QuestionLabPage() {
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   className={`dt-interactive rounded-lg border px-3 py-3 text-left text-sm transition ${
-                    mode === "topic" ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-white text-slate-600 hover:border-teal-200"
+                    mode === "topic" ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
                   }`}
                 >
                   <span className="block font-semibold">知识点出题</span>
@@ -448,11 +459,11 @@ export function QuestionLabPage() {
                       />
                     </FieldShell>
                     <FieldShell label="上传 PDF">
-                      <input
-                        type="file"
+                      <FileInput
                         accept="application/pdf,.pdf"
                         onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
-                        className="block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-teal"
+                        buttonLabel="选择 PDF"
+                        emptyLabel="未选择 PDF"
                       />
                     </FieldShell>
                     <Button

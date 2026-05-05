@@ -26,8 +26,8 @@ export function ToolSelector({
             onClick={() => toggle(tool.id)}
             className={`dt-interactive flex min-h-9 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${
               active
-                ? "border-teal-300 bg-teal-50 text-brand-teal"
-                : "border-line bg-white text-slate-600 hover:border-teal-200"
+                ? "border-ink bg-ink text-white"
+                : "border-line bg-white text-steel hover:border-brand-purple hover:text-ink"
             }`}
           >
             <tool.icon size={16} />

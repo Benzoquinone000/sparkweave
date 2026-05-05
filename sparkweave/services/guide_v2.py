@@ -16,8 +16,10 @@ from typing import Any, Awaitable, Callable
 import uuid
 
 from sparkweave.logging import get_logger
+from sparkweave.services.learning_effect import LearningEffectService, get_learning_effect_service
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.paths import get_path_service
+from sparkweave.services.tts import synthesize_speech_with_iflytek
 from sparkweave.services.video_search import recommend_learning_videos
 
 CompletionFn = Callable[..., Awaitable[str]]
@@ -205,6 +207,7 @@ class GuideV2Manager:
         completion_fn: CompletionFn | None = None,
         capability_runner: CapabilityRunnerFn | None = None,
         learner_profile_service: Any | None = None,
+        learning_effect_service: LearningEffectService | None = None,
         llm_options: dict[str, Any] | None = None,
     ) -> None:
         base_dir = Path(output_dir) if output_dir else get_path_service().get_guide_dir() / "v2"
@@ -218,6 +221,7 @@ class GuideV2Manager:
         self.completion_fn = completion_fn or llm_complete
         self.capability_runner = capability_runner or _run_langgraph_capability
         self.learner_profile_service = learner_profile_service
+        self.learning_effect_service = learning_effect_service or get_learning_effect_service()
         self.llm_options = dict(llm_options or {})
         self.logger = get_logger("GuideV2")
         self._sessions: dict[str, GuideSessionV2] = {}
@@ -635,7 +639,7 @@ class GuideV2Manager:
         if bottleneck_label:
             recommendations.append(f"当前主要卡点是「{bottleneck_label}」，后续任务会优先围绕它安排资源和验证。")
         if preferred_resource:
-            labels = {"visual": "图解", "practice": "练习", "video": "短视频", "external_video": "公开视频", "research": "资料"}
+            labels = {"visual": "图解", "practice": "练习", "video": "短视频", "audio": "语音讲解", "external_video": "公开视频", "research": "资料"}
             recommendations.append(f"遇到阻塞时，优先生成{labels.get(preferred_resource, preferred_resource)}资源。")
         return recommendations[:4]
 
@@ -649,8 +653,8 @@ class GuideV2Manager:
         bottleneck_label: str,
     ) -> list[dict[str, Any]]:
         focus = weak_points[0] if weak_points else bottleneck_label or "当前目标"
-        resource_labels = {"visual": "图解", "practice": "练习", "video": "短视频", "external_video": "公开视频", "research": "资料"}
-        preferred_label = resource_labels.get(preferred_resource, "图解或练习")
+        resource_labels = {"visual": "图解", "practice": "练习", "video": "短视频", "audio": "语音讲解", "external_video": "公开视频", "research": "资料"}
+        preferred_label = resource_labels.get(preferred_resource, "图解、语音或练习")
         strategy: list[dict[str, Any]] = []
         if readiness_label == "needs_foundation":
             strategy.append(
@@ -888,6 +892,8 @@ class GuideV2Manager:
             preferences.append("external_video")
         if any(token in lowered for token in ("视频", "动画", "manim", "video", "animation")):
             preferences.append("video")
+        if any(token in lowered for token in ("语音", "音频", "播客", "朗读", "tts", "audio", "speech", "narration")):
+            preferences.append("audio")
         if any(token in lowered for token in ("题", "练习", "测试", "quiz", "exercise", "practice")):
             preferences.append("practice")
         if any(token in lowered for token in ("资料", "论文", "搜索", "文献", "research", "paper")):
@@ -1822,6 +1828,16 @@ class GuideV2Manager:
                 prompt="制作 60 秒以内的分步讲解动画，公式逐步出现，画面留白充分，最后给一个小结。",
             )
 
+        if ("audio" in preferences or "speech" in preferences or "tts" in preferences) and resource_counts.get("audio", 0) == 0:
+            add(
+                resource_type="audio",
+                task=target_task,
+                priority="medium",
+                title="先生成一段语音讲解",
+                reason="学习画像显示你适合先听一遍简洁讲解，再回到图解或练习完成当前任务。",
+                prompt="生成 1 到 2 分钟内可听完的讲解，先解释概念，再说步骤，最后提醒下一步做什么。",
+            )
+
         if resource_counts.get("research", 0) == 0 and progress >= 20:
             add(
                 resource_type="research",
@@ -1912,6 +1928,11 @@ class GuideV2Manager:
             feedback_digest=feedback_digest,
             profile_context=evaluation.get("learner_profile_context"),
         )
+        learning_effect_report = self._build_learning_effect_report(session)
+        effect_assessment = self._merge_learning_effect_assessment(
+            effect_assessment,
+            learning_effect_report,
+        )
         node_cards = self._report_node_cards(session)
         action_brief = self._report_action_brief(
             session=session,
@@ -1946,6 +1967,7 @@ class GuideV2Manager:
             "behavior_tags": behavior_tags,
             "feedback_digest": feedback_digest,
             "effect_assessment": effect_assessment,
+            "learning_effect_report": learning_effect_report,
             "action_brief": action_brief,
             "demo_readiness": demo_readiness,
             "learner_profile_context": evaluation.get("learner_profile_context", {}),
@@ -1958,7 +1980,7 @@ class GuideV2Manager:
             "interventions": [asdict(item) for item in session.plan_events[-8:]],
             "risks": evaluation.get("risk_signals", []),
             "strengths": evaluation.get("strengths", []),
-            "next_plan": evaluation.get("next_actions", []),
+            "next_plan": learning_effect_report.get("next_actions") or evaluation.get("next_actions", []),
             "demo_script": self._report_demo_script(session, evaluation),
         }
         report["markdown"] = self._report_markdown(report)
@@ -2155,6 +2177,37 @@ class GuideV2Manager:
                     max_results=3,
                     event_sink=event_sink,
                 )
+            elif normalized_type == "audio":
+                script_text = self._build_audio_resource_script(
+                    session=session,
+                    task=task,
+                    node=node,
+                    prompt=prompt,
+                    learner_profile_hints=learner_profile_hints,
+                )
+                tts_result = await synthesize_speech_with_iflytek(script_text)
+                assets_dir = self.output_dir / "artifacts" / session_id / task_id
+                assets_dir.mkdir(parents=True, exist_ok=True)
+                suffix = ".mp3" if "mpeg" in (tts_result.content_type or "") or tts_result.encoding == "lame" else ".bin"
+                filename = f"audio_{uuid.uuid4().hex[:10]}{suffix}"
+                asset_path = assets_dir / filename
+                asset_path.write_bytes(tts_result.audio)
+                result = {
+                    "response": "已生成一段语音讲解，适合先听一遍再回到当前任务继续学习。",
+                    "script_text": script_text,
+                    "learner_profile_hints": learner_profile_hints,
+                    "style_hint": "简洁、面向学生、先解释概念再给步骤。",
+                    "audio": {
+                        "filename": filename,
+                        "content_type": tts_result.content_type,
+                        "encoding": tts_result.encoding,
+                        "sample_rate": tts_result.sample_rate,
+                        "voice": tts_result.voice,
+                        "byte_length": len(tts_result.audio),
+                        "sid": tts_result.sid,
+                        "asset_path": str(asset_path),
+                    },
+                }
             else:
                 context = self._build_resource_context(
                     session=session,
@@ -2390,6 +2443,14 @@ class GuideV2Manager:
             "questions": "quiz",
             "练习": "quiz",
             "题目": "quiz",
+            "audio": "audio",
+            "tts": "audio",
+            "speech": "audio",
+            "narration": "audio",
+            "voice": "audio",
+            "音频": "audio",
+            "语音": "audio",
+            "语音讲解": "audio",
             "research": "research",
             "resource": "research",
             "materials": "research",
@@ -2413,6 +2474,7 @@ class GuideV2Manager:
                 {
                     "output_mode": "video",
                     "quality": safe_quality,
+                    "enable_narration_audio": True,
                     "max_retries": 2,
                     "style_hint": "简洁课堂板书风格，公式分步出现，避免拥挤排版。",
                 },
@@ -2439,6 +2501,15 @@ class GuideV2Manager:
                     "response_schema_hint": "Each question must include concepts: string[] and knowledge_points: string[] so learner profile mastery can be updated by concept.",
                 },
             )
+        if resource_type == "audio":
+            return (
+                "tts",
+                {
+                    "mode": "narration",
+                    "provider": "iflytek",
+                    "format": "audio/mpeg",
+                },
+            )
         return (
             "deep_research",
             {
@@ -2456,6 +2527,7 @@ class GuideV2Manager:
             "video": "短视频讲解",
             "external_video": "精选视频",
             "quiz": "交互练习",
+            "audio": "语音讲解",
             "research": "拓展资料",
         }
         return f"{labels.get(resource_type, '学习资源')}：{task.title}"
@@ -2568,11 +2640,101 @@ class GuideV2Manager:
         guidance = {
             "visual": "Make the diagram resolve the listed weak points first; prefer comparison, flow, formula meaning, and one small example over dense text.",
             "video": "Write a short step-by-step script and Manim plan; keep formulas LaTeX-safe, introduce symbols before using them, and avoid oversized formula blocks.",
+            "audio": "Write a short narration that sounds natural when spoken aloud; use short sentences, explain one idea at a time, and end with the immediate next action.",
             "quiz": "Generate mixed interactive questions: choice, true/false, fill-in, and short-answer when appropriate; each question must include concepts:string[] and knowledge_points:string[] plus answers, explanations, difficulty, and tested concept.",
             "research": "Keep resources practical and sequenced; recommend only materials directly useful for the current task.",
         }
         lines.append(f"- generation rule: {guidance.get(resource_type, 'Adapt the resource to the learner profile and current task.')}")
         return "\n".join(lines) + "\n"
+
+    @staticmethod
+    def _build_audio_resource_script(
+        *,
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+        prompt: str,
+        learner_profile_hints: dict[str, Any],
+    ) -> str:
+        weak_points = [str(item).strip() for item in learner_profile_hints.get("weak_points") or [] if str(item).strip()]
+        preferences = [str(item).strip() for item in learner_profile_hints.get("preferences") or [] if str(item).strip()]
+        criteria = [str(item).strip() for item in task.success_criteria or [] if str(item).strip()]
+        return GuideV2Manager._build_chinese_audio_resource_script(
+            session=session,
+            task=task,
+            node=node,
+            prompt=prompt,
+            weak_points=weak_points,
+            preferences=preferences,
+            criteria=criteria,
+        )
+    @staticmethod
+    def _build_chinese_audio_resource_script(
+        *,
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+        prompt: str,
+        weak_points: list[str],
+        preferences: list[str],
+        criteria: list[str],
+    ) -> str:
+        title = GuideV2Manager._spoken_chinese_text(task.title, "当前任务")
+        instruction = GuideV2Manager._spoken_chinese_text(task.instruction, "先补齐当前任务所需的关键概念")
+        goal = GuideV2Manager._spoken_chinese_text(session.goal, "本次学习目标")
+        lines = [
+            f"我们现在只解决一个任务：{title}。",
+            f"目标是：{instruction}。",
+        ]
+        if node and node.description:
+            node_title = GuideV2Manager._spoken_chinese_text(node.title, "当前知识点")
+            node_description = GuideV2Manager._spoken_chinese_text(node.description, "理解它的含义和使用条件")
+            lines.append(f"它对应的知识点是：{node_title}。先抓住这句话：{node_description}。")
+        clean_weak_points = GuideV2Manager._spoken_chinese_list(weak_points, limit=3)
+        if clean_weak_points:
+            lines.append(f"这次要优先补清的卡点是：{'；'.join(clean_weak_points)}。")
+        prompt_text = GuideV2Manager._spoken_chinese_text(prompt, "")
+        if prompt_text:
+            lines.append(f"这段讲解会特别强调：{prompt_text}。")
+        lines.append(f"它服务于你的总目标：{goal}。")
+        clean_criteria = GuideV2Manager._spoken_chinese_list(criteria, limit=3)
+        if clean_criteria:
+            lines.append(f"听完后，至少确认这些要点：{'；'.join(clean_criteria)}。")
+        clean_preferences = GuideV2Manager._spoken_chinese_list(preferences, limit=2)
+        if clean_preferences:
+            lines.append(f"我会尽量贴近你偏好的学习方式：{'；'.join(clean_preferences)}。")
+        lines.append("听的时候先记概念关系，再记下一步该怎么做。")
+        lines.append("如果听完还是不稳，就回到导学页继续看图解，或者做一组练习。")
+        return "".join(lines)
+
+    @staticmethod
+    def _spoken_chinese_list(values: list[str], *, limit: int) -> list[str]:
+        items: list[str] = []
+        for value in values:
+            text = GuideV2Manager._spoken_chinese_text(value, "")
+            if text and text not in items:
+                items.append(text)
+        return items[:limit]
+
+    @staticmethod
+    def _spoken_chinese_text(value: Any, fallback: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return fallback
+        text = re.sub(r"```[a-zA-Z]*", "", text).replace("```", "")
+        text = re.sub(r"\s+", " ", text).strip(" \t\r\n。；，")
+        if GuideV2Manager._has_spoken_english_noise(text):
+            return fallback
+        return text
+
+    @staticmethod
+    def _has_spoken_english_noise(text: str) -> bool:
+        long_words = re.findall(r"[A-Za-z]{3,}", text or "")
+        if not long_words:
+            return False
+        cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+        english_count = sum(len(item) for item in long_words)
+        return cjk_count == 0 or english_count > max(12, cjk_count)
 
     def _session_path(self, session_id: str) -> Path:
         safe_id = re.sub(r"[^A-Za-z0-9_-]", "", session_id)
@@ -4144,6 +4306,246 @@ class GuideV2Manager:
             "learner_profile_context": evaluation_payload.get("learner_profile_context", {}),
         }
 
+    def _build_learning_effect_report(self, session: GuideSessionV2) -> dict[str, Any]:
+        events = self._session_learning_effect_events(session)
+        course_id = self._learning_effect_course_id(session)
+        try:
+            return self.learning_effect_service.build_report_from_events(
+                events,
+                course_id=course_id,
+                window="guide_session",
+            )
+        except Exception:
+            self.logger.warning("Failed to build guide learning-effect report", exc_info=True)
+            return {
+                "success": False,
+                "course_id": course_id,
+                "window": "guide_session",
+                "overall": {"score": 0, "label": "暂不可用", "summary": "学习效果服务暂时不可用。"},
+                "dimensions": [],
+                "concepts": [],
+                "next_actions": [],
+                "summary": {"event_count": len(events)},
+            }
+
+    def _session_learning_effect_events(self, session: GuideSessionV2) -> list[dict[str, Any]]:
+        events: list[dict[str, Any]] = []
+        course_id = self._learning_effect_course_id(session)
+        task_lookup = {task.task_id: task for task in session.tasks}
+        node_lookup = {node.node_id: node for node in session.course_map.nodes}
+
+        events.append(
+            {
+                "id": f"guide_session_{session.session_id}_created",
+                "source": "guide_v2",
+                "source_id": session.session_id,
+                "verb": "planned",
+                "object_type": "guide_session",
+                "object_id": session.session_id,
+                "title": session.goal,
+                "summary": session.learning_path.rationale,
+                "course_id": course_id,
+                "created_at": session.created_at,
+                "confidence": 0.55,
+            }
+        )
+
+        for task in session.tasks:
+            node = node_lookup.get(task.node_id)
+            concepts = self._learning_effect_task_concepts(task, node)
+            for artifact in task.artifact_refs:
+                artifact_id = str(artifact.get("id") or uuid.uuid4().hex[:8])
+                resource_type = str(artifact.get("type") or artifact.get("capability") or "resource")
+                events.append(
+                    {
+                        "id": f"guide_resource_{session.session_id}_{task.task_id}_{artifact_id}",
+                        "source": "guide_v2",
+                        "source_id": f"{session.session_id}:{task.task_id}:{artifact_id}",
+                        "verb": "generated",
+                        "object_type": "resource",
+                        "object_id": artifact_id,
+                        "title": artifact.get("title") or task.title,
+                        "summary": task.instruction,
+                        "course_id": course_id,
+                        "node_id": task.node_id,
+                        "task_id": task.task_id,
+                        "resource_type": resource_type,
+                        "created_at": artifact.get("created_at") or session.updated_at,
+                        "weight": 0.35,
+                        "confidence": 0.46,
+                        "metadata": {
+                            "concepts": concepts,
+                            "concept_id": task.node_id,
+                            "difficulty": node.difficulty if node else "",
+                            "artifact_id": artifact_id,
+                            "capability": artifact.get("capability") or "",
+                        },
+                    }
+                )
+                for event in self._learning_effect_quiz_answer_events(
+                    session=session,
+                    task=task,
+                    node=node,
+                    artifact=artifact,
+                    concepts=concepts,
+                    course_id=course_id,
+                ):
+                    events.append(event)
+
+        for evidence in session.evidence:
+            task = task_lookup.get(evidence.task_id)
+            node = node_lookup.get(task.node_id) if task else None
+            concepts = self._learning_effect_task_concepts(task, node) if task else []
+            metadata = dict(evidence.metadata or {})
+            if isinstance(metadata.get("concepts"), list):
+                for concept in metadata["concepts"]:
+                    text = str(concept or "").strip()
+                    if text and text not in concepts:
+                        concepts.append(text)
+            events.append(
+                {
+                    "id": f"guide_evidence_{session.session_id}_{evidence.evidence_id}",
+                    "source": "guide_v2",
+                    "source_id": f"{session.session_id}:{evidence.task_id}:{evidence.evidence_id}",
+                    "verb": "answered" if evidence.type == "quiz" else "completed",
+                    "object_type": "quiz" if evidence.type == "quiz" else "guide_task",
+                    "object_id": task.node_id if task else evidence.task_id,
+                    "title": task.title if task else evidence.task_id,
+                    "summary": evidence.reflection,
+                    "course_id": course_id,
+                    "node_id": task.node_id if task else "",
+                    "task_id": evidence.task_id,
+                    "score": evidence.score,
+                    "is_correct": evidence.score >= 0.65 if evidence.score is not None else None,
+                    "created_at": evidence.created_at,
+                    "confidence": 0.86 if evidence.type == "quiz" else 0.78,
+                    "reflection": evidence.reflection,
+                    "mistake_types": evidence.mistake_types,
+                    "metadata": {
+                        **metadata,
+                        "concepts": concepts,
+                        "concept_id": task.node_id if task else "",
+                        "difficulty": node.difficulty if node else "",
+                        "guide_session_id": session.session_id,
+                    },
+                }
+            )
+        return events
+
+    def _learning_effect_quiz_answer_events(
+        self,
+        *,
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+        artifact: dict[str, Any],
+        concepts: list[str],
+        course_id: str,
+    ) -> list[dict[str, Any]]:
+        if str(artifact.get("type") or "") != "quiz":
+            return []
+        artifact_id = str(artifact.get("id") or "")
+        events: list[dict[str, Any]] = []
+        for attempt in artifact.get("quiz_attempts") or []:
+            if not isinstance(attempt, dict):
+                continue
+            attempt_id = str(attempt.get("attempt_id") or uuid.uuid4().hex[:8])
+            for index, answer in enumerate(attempt.get("answers") or [], start=1):
+                if not isinstance(answer, dict):
+                    continue
+                answer_concepts = self._quiz_concept_labels([answer]) or concepts
+                question_id = str(answer.get("question_id") or f"q{index}")
+                is_correct = bool(answer.get("is_correct"))
+                events.append(
+                    {
+                        "id": (
+                            f"guide_quiz_answer_{session.session_id}_{task.task_id}_"
+                            f"{artifact_id}_{attempt_id}_{question_id}"
+                        ),
+                        "source": "guide_v2",
+                        "source_id": f"{session.session_id}:{task.task_id}:{artifact_id}:{question_id}",
+                        "verb": "answered",
+                        "object_type": "quiz",
+                        "object_id": task.node_id,
+                        "title": answer.get("question") or task.title,
+                        "summary": answer.get("explanation") or task.instruction,
+                        "course_id": course_id,
+                        "node_id": task.node_id,
+                        "task_id": task.task_id,
+                        "score": 1.0 if is_correct else 0.0,
+                        "is_correct": is_correct,
+                        "created_at": attempt.get("created_at") or session.updated_at,
+                        "confidence": 0.9,
+                        "mistake_types": [] if is_correct else self._quiz_mistake_types([answer]),
+                        "metadata": {
+                            "concepts": answer_concepts,
+                            "concept_id": task.node_id,
+                            "question_id": question_id,
+                            "question_type": answer.get("question_type") or "",
+                            "difficulty": answer.get("difficulty") or (node.difficulty if node else ""),
+                            "attempt_id": attempt_id,
+                            "artifact_id": artifact_id,
+                        },
+                    }
+                )
+        return events
+
+    @staticmethod
+    def _learning_effect_task_concepts(task: LearningTask | None, node: CourseNode | None) -> list[str]:
+        concepts: list[str] = []
+        if node:
+            concepts.extend([node.title, *node.tags])
+        if task:
+            concepts.extend([task.title, task.node_id])
+        deduped: list[str] = []
+        for item in concepts:
+            text = str(item or "").strip()
+            if text and text not in deduped:
+                deduped.append(text)
+        return deduped[:8]
+
+    @staticmethod
+    def _learning_effect_course_id(session: GuideSessionV2) -> str:
+        metadata = session.course_map.metadata if isinstance(session.course_map.metadata, dict) else {}
+        return str(
+            metadata.get("course_id")
+            or metadata.get("template_id")
+            or session.course_map.generated_by
+            or session.goal
+        ).strip()
+
+    @staticmethod
+    def _merge_learning_effect_assessment(
+        effect_assessment: dict[str, Any],
+        learning_effect_report: dict[str, Any],
+    ) -> dict[str, Any]:
+        merged = dict(effect_assessment or {})
+        if not learning_effect_report.get("success"):
+            merged["learning_effect_report"] = {"available": False}
+            return merged
+        overall = dict(learning_effect_report.get("overall") or {})
+        next_actions = list(learning_effect_report.get("next_actions") or [])
+        dimensions = list(learning_effect_report.get("dimensions") or [])
+        strategy = list(merged.get("strategy_adjustments") or [])
+        if next_actions:
+            first = dict(next_actions[0])
+            title = str(first.get("title") or "").strip()
+            reason = str(first.get("reason") or "").strip()
+            if title:
+                strategy.insert(0, f"全局学习效果建议：{title}" + (f"。{reason}" if reason else "。"))
+        merged["learning_effect_report"] = {
+            "available": True,
+            "score": overall.get("score", 0),
+            "label": overall.get("label") or "",
+            "summary": overall.get("summary") or "",
+            "dimension_count": len(dimensions),
+            "concept_count": len(learning_effect_report.get("concepts") or []),
+            "event_count": dict(learning_effect_report.get("summary") or {}).get("event_count", 0),
+        }
+        merged["learning_effect_next_actions"] = next_actions[:4]
+        merged["strategy_adjustments"] = GuideV2Manager._dedupe_strings(strategy)[:4]
+        return merged
+
     @staticmethod
     def _effect_assessment(
         *,
@@ -4666,6 +5068,13 @@ class GuideV2Manager:
             next_task=next_task,
             adjustment_types=adjustment_types,
         )
+        remediation_task = GuideV2Manager._minimal_remediation_task(
+            task,
+            evidence,
+            concept_feedback,
+            resource_actions,
+            next_task=next_task,
+        )
         actions: list[str] = []
         tone = "brand"
 
@@ -4737,9 +5146,55 @@ class GuideV2Manager:
             "adjustment_types": adjustment_types,
             "evidence_quality": evidence_quality,
             "concept_feedback": concept_feedback,
+            "remediation_task": remediation_task,
             "resource_actions": resource_actions,
             "actions": actions[:4],
             "session_status": session.status,
+        }
+
+    @staticmethod
+    def _minimal_remediation_task(
+        task: LearningTask,
+        evidence: LearningEvidence,
+        concept_feedback: list[Any],
+        resource_actions: list[dict[str, Any]],
+        *,
+        next_task: LearningTask | None = None,
+    ) -> dict[str, Any] | None:
+        rows = [item for item in concept_feedback if isinstance(item, dict)]
+        weak_rows = [
+            item
+            for item in rows
+            if str(item.get("status") or "") == "needs_support" or float(item.get("score") or 0) < 0.65
+        ]
+        score = float(evidence.score) if evidence.score is not None else None
+        if score is not None and score >= 0.75 and not weak_rows and not evidence.mistake_types:
+            return None
+        if score is None and not weak_rows and not evidence.mistake_types:
+            return None
+
+        weakest = weak_rows[0] if weak_rows else (rows[0] if rows else {})
+        concept = " ".join(str(weakest.get("concept") or "").split()).strip()
+        if not concept and evidence.mistake_types:
+            concept = " ".join(str(evidence.mistake_types[0]).split()).strip()
+        concept = concept or task.title
+        primary_action = resource_actions[0] if resource_actions else {}
+        target_task_id = str(primary_action.get("target_task_id") or (next_task.task_id if next_task else task.task_id))
+        resource_action_id = str(primary_action.get("id") or "")
+        resource_type = str(primary_action.get("resource_type") or "visual")
+        return {
+            "title": f"先补齐「{concept}」这一小块",
+            "reason": "本次证据显示这里还不稳，先做一个 10 分钟补救闭环，再继续推进。",
+            "concept": concept,
+            "target_task_id": target_task_id,
+            "resource_action_id": resource_action_id,
+            "resource_type": resource_type,
+            "estimated_minutes": 10,
+            "steps": [
+                "先看一张图解或一个极小例子，只理解关键边界。",
+                "做 3 道低门槛题，必须看到答案解析和错因提示。",
+                "用一句话写下这次错因，提交后让画像重新计算下一步。",
+            ],
         }
 
     @staticmethod
@@ -4882,7 +5337,7 @@ class GuideV2Manager:
                     resource_type = str(item.get("resource_type") or "").strip()
                     if resource_type == "practice":
                         resource_type = "quiz"
-                    if resource_type not in {"visual", "video", "external_video", "quiz", "research"}:
+                    if resource_type not in {"visual", "video", "audio", "external_video", "quiz", "research"}:
                         continue
                     phase = str(item.get("phase") or "前测策略").strip()
                     action_text = str(item.get("action") or "").strip()
@@ -5320,6 +5775,7 @@ class GuideV2Manager:
         labels = {
             "visual": "图解",
             "video": "短视频",
+            "audio": "语音讲解",
             "external_video": "精选视频",
             "quiz": "练习",
             "research": "资料",
@@ -6799,7 +7255,7 @@ class GuideV2Manager:
         seed_prompts = [item for item in demo_seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
         seed_types = {str(item.get("type") or "") for item in seed_prompts}
         resource_types = {key for key, value in resource_counts.items() if value} | portfolio_types | seed_types
-        multimodal_ready = bool(resource_types & {"visual", "video", "quiz", "external_video"})
+        multimodal_ready = bool(resource_types & {"visual", "video", "audio", "quiz", "external_video"})
         has_seed = bool(demo_seed_pack.get("task_chain") or seed_prompts)
         current_task = GuideV2Manager._current_task(session)
         completed_tasks = int(evaluation.get("completed_tasks") or 0)
@@ -7139,7 +7595,7 @@ class GuideV2Manager:
         demo_checks = dict(report.get("demo_readiness") or {})
         demo_score = float(demo_checks.get("score") or demo_blueprint.get("readiness_score") or 0)
         has_artifacts = bool(portfolio)
-        has_multimodal = any(item.get("type") in {"visual", "video", "quiz", "external_video"} for item in portfolio)
+        has_multimodal = any(item.get("type") in {"visual", "video", "audio", "quiz", "external_video"} for item in portfolio)
         has_seed = bool(demo_seed_pack.get("task_chain") or demo_seed_pack.get("resource_prompts"))
         has_report = bool(report.get("action_brief") or report.get("effect_assessment"))
         has_template = bool(metadata.get("course_id") or metadata.get("learning_outcomes"))
@@ -7825,6 +8281,8 @@ class GuideV2Manager:
             append_unique(session.profile.preferences, "visual")
         if "video" in artifact_types:
             append_unique(session.profile.preferences, "video")
+        if "audio" in artifact_types:
+            append_unique(session.profile.preferences, "audio")
         if "quiz" in artifact_types:
             append_unique(session.profile.preferences, "practice")
 
@@ -8281,7 +8739,7 @@ class GuideV2Manager:
 
     @staticmethod
     def _resource_counts(session: GuideSessionV2) -> dict[str, int]:
-        counts = {"visual": 0, "video": 0, "external_video": 0, "quiz": 0, "research": 0, "other": 0}
+        counts = {"visual": 0, "video": 0, "audio": 0, "external_video": 0, "quiz": 0, "research": 0, "other": 0}
         for task in session.tasks:
             for artifact in task.artifact_refs:
                 artifact_type = str(artifact.get("type") or "").strip() or "other"
@@ -8367,7 +8825,7 @@ class GuideV2Manager:
         if completed:
             strengths.append(f"已完成 {completed} 个学习任务，形成了可评估学习证据。")
         counts = GuideV2Manager._resource_counts(session)
-        if counts.get("visual", 0) or counts.get("video", 0):
+        if counts.get("visual", 0) or counts.get("video", 0) or counts.get("audio", 0):
             strengths.append("已经使用多模态资源辅助理解。")
         return strengths[:3]
 
@@ -8544,8 +9002,8 @@ class GuideV2Manager:
             "code_snippet": "代码片段",
             "latex_focus": "公式重点",
         }
-        for field, label in field_labels.items():
-            value = item.get(field)
+        for field_name, label in field_labels.items():
+            value = item.get(field_name)
             if value in (None, "", [], {}):
                 continue
             details.append(f"  - {label}：{GuideV2Manager._compact_demo_seed_detail(value)}")

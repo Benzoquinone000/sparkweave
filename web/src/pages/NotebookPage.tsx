@@ -33,6 +33,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FieldShell, SelectInput, TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { Metric } from "@/components/ui/Metric";
+import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { questionDifficultyLabel } from "@/lib/learningLabels";
 import type {
   ExternalVideoResult,
@@ -230,18 +231,34 @@ export function NotebookPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-5">
       <div className="mx-auto max-w-6xl space-y-4">
-        <motion.section
-          className="dt-page-header"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-        >
-          <p className="dt-page-eyebrow">笔记</p>
-          <h1 className="mt-1 text-xl font-semibold text-ink">学习笔记</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            保存回答、题目和复盘材料，需要时再引用回学习台。
-          </p>
-        </motion.section>
+        <NotionProductHero
+          eyebrow="笔记"
+          title="把好内容沉淀成自己的资料夹"
+          description="答案、错题、视频和图解都可以回到这里，复习时不用翻聊天记录。"
+          accent="teal"
+          imageSrc="/illustrations/notion-thread.svg"
+          imageAlt="学习笔记预览"
+          people="reading"
+          previewTitle="保存一次，下次继续用"
+          previewDescription="笔记和题目会按学习任务整理，方便复盘。"
+          tiles={[
+            { label: "沉淀", helper: "答案和复盘", tone: "yellow" },
+            { label: "题目", helper: "错题与收藏", tone: "rose" },
+            { label: "引用", helper: "回到学习台", tone: "mint" },
+          ]}
+          actions={
+            <>
+              <Button tone="primary" onClick={() => setView("create")}>
+                <Plus size={16} />
+                新建笔记本
+              </Button>
+              <Button tone="secondary" onClick={() => setView("questions")}>
+                <ListChecks size={16} />
+                查看错题
+              </Button>
+            </>
+          }
+        />
 
         <motion.div
           className="flex flex-wrap gap-x-4 gap-y-1.5"
@@ -288,7 +305,7 @@ export function NotebookPage() {
                     setView("browse");
                   }}
                   className={`dt-interactive w-full rounded-lg border px-3 py-3 text-left transition ${
-                    activeNotebookId === item.id && view !== "questions" ? "border-teal-200 bg-teal-50" : "border-transparent bg-white hover:border-teal-200 hover:bg-canvas"
+                    activeNotebookId === item.id && view !== "questions" ? "border-brand-purple-300 bg-tint-lavender" : "border-transparent bg-white hover:border-brand-purple-300 hover:bg-canvas"
                   }`}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.99 }}
@@ -434,7 +451,7 @@ export function NotebookPage() {
                   <AnimatePresence>
                     {manualSummaryPreview ? (
                       <motion.p
-                        className="rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm leading-6 text-slate-600"
+                        className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-sm leading-6 text-slate-600"
                         data-testid="notebook-summary-preview"
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -749,7 +766,7 @@ function RecordCard({
 
   return (
     <article
-      className={`dt-interactive rounded-lg border px-4 py-3 ${active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"}`}
+      className={`dt-interactive rounded-lg border px-4 py-3 ${active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"}`}
       data-testid={recordKey ? `notebook-record-${recordKey}` : undefined}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -824,7 +841,7 @@ function RecordAssetPreview({ record, asset }: { record: NotebookRecord; asset: 
     return (
       <div className="mt-4 border-t border-line pt-4">
         <h4 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <ListChecks size={16} className="text-brand-teal" />
+          <ListChecks size={16} className="text-brand-purple" />
           题目资产预览
         </h4>
         <div className="mt-3 grid gap-3">
@@ -837,7 +854,7 @@ function RecordAssetPreview({ record, asset }: { record: NotebookRecord; asset: 
                 <div className="mt-2 grid gap-1">
                   {Object.entries(question.options).map(([key, value]) => (
                     <p key={key} className="text-sm leading-6 text-slate-600">
-                      <span className="font-semibold text-brand-teal">{key}.</span> {value}
+                      <span className="font-semibold text-brand-purple">{key}.</span> {value}
                     </p>
                   ))}
                 </div>
@@ -882,7 +899,7 @@ function RecordAssetPreview({ record, asset }: { record: NotebookRecord; asset: 
     return (
       <div className="mt-4 border-t border-line pt-4">
         <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-          <GraduationCap size={16} className="text-brand-teal" />
+          <GraduationCap size={16} className="text-brand-purple" />
           导学页面预览
         </h4>
         <div className="h-96 overflow-hidden rounded-lg border border-line bg-canvas">
@@ -1100,12 +1117,12 @@ function CategoryManager({
             </Button>
           </form>
         ) : (
-          <div key={category.id} className="dt-interactive flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm hover:border-teal-200">
+          <div key={category.id} className="dt-interactive flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm hover:border-brand-purple-300">
             <span className="font-medium text-ink">{category.name}</span>
             <Badge tone="neutral">{category.entry_count ?? 0}</Badge>
             <button
               type="button"
-              className="text-slate-500 hover:text-brand-teal"
+              className="text-slate-500 hover:text-brand-purple"
               onClick={() => onStartRename(category)}
               data-testid={`question-category-rename-${category.id}`}
             >
@@ -1237,7 +1254,7 @@ function QuestionCard({
 }) {
   return (
     <article
-      className={`dt-interactive rounded-lg border px-4 py-3 ${active ? "border-teal-200 bg-teal-50" : "border-line bg-white hover:border-teal-200"}`}
+      className={`dt-interactive rounded-lg border px-4 py-3 ${active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"}`}
       data-testid={`question-entry-${entry.id}`}
     >
       <button type="button" className="w-full text-left" onClick={onSelect} data-testid={`question-entry-select-${entry.id}`}>
@@ -1301,7 +1318,7 @@ function QuestionDetail({
         <div className="mt-4 grid gap-2">
           {Object.entries(entry.options).map(([key, value]) => (
             <p key={key} className="rounded-lg bg-canvas p-3 text-sm">
-              <span className="font-semibold text-brand-teal">{key}.</span> {value}
+              <span className="font-semibold text-brand-purple">{key}.</span> {value}
             </p>
           ))}
         </div>

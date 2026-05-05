@@ -9,6 +9,14 @@ import pytest
 
 from sparkweave.core.contracts import StreamBus, StreamEventType, UnifiedContext
 from sparkweave.graphs.math_animator import MathAnimatorGraph
+
+
+@pytest.fixture(autouse=True)
+def _disable_math_animator_tts(monkeypatch):
+    monkeypatch.setattr(
+        "sparkweave.graphs.math_animator.is_iflytek_tts_configured",
+        lambda: False,
+    )
 from sparkweave.services.paths import PathService
 
 

@@ -8,6 +8,7 @@ import {
   chatGuideSession,
   completeGuideSession,
   completeGuideV2Task,
+  completeLearningEffectAction,
   createGuideSession,
   createGuideV2Session,
   createKnowledgeBase,
@@ -65,6 +66,7 @@ import {
   getKnowledgeProgress,
   getLearnerProfile,
   getLearnerProfileEvidencePreview,
+  getLearningEffectReport,
   getMemory,
   getNotebook,
   getNotebookHealth,
@@ -77,6 +79,8 @@ import {
   listDashboardActivities,
   listKnowledgeConfigs,
   listLearnerEvidence,
+  listLearningEffectConcepts,
+  listLearningEffectNextActions,
   listGuideSessions,
   listGuideV2Sessions,
   listGuideV2Templates,
@@ -361,6 +365,35 @@ export function useLearnerEvidence(source?: string | null, limit = 100) {
   return useQuery({
     queryKey: ["learner-evidence-ledger", source || "all", limit],
     queryFn: () => listLearnerEvidence({ source: source || null, limit }),
+  });
+}
+
+export function useLearningEffectReport(input?: { courseId?: string | null; window?: string }) {
+  const courseId = input?.courseId || "";
+  const window = input?.window || "14d";
+  return useQuery({
+    queryKey: ["learning-effect-report", courseId, window],
+    queryFn: () => getLearningEffectReport({ courseId, window }),
+  });
+}
+
+export function useLearningEffectConcepts(input?: { courseId?: string | null; window?: string; limit?: number }) {
+  const courseId = input?.courseId || "";
+  const window = input?.window || "all";
+  const limit = input?.limit ?? 100;
+  return useQuery({
+    queryKey: ["learning-effect-concepts", courseId, window, limit],
+    queryFn: () => listLearningEffectConcepts({ courseId, window, limit }),
+  });
+}
+
+export function useLearningEffectNextActions(input?: { courseId?: string | null; window?: string; limit?: number }) {
+  const courseId = input?.courseId || "";
+  const window = input?.window || "14d";
+  const limit = input?.limit ?? 6;
+  return useQuery({
+    queryKey: ["learning-effect-next-actions", courseId, window, limit],
+    queryFn: () => listLearningEffectNextActions({ courseId, window, limit }),
   });
 }
 
@@ -815,6 +848,9 @@ export function useLearnerProfileMutations() {
     void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
     void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
     void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-report"] });
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-concepts"] });
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-next-actions"] });
   };
   return {
     refresh: useMutation({
@@ -827,6 +863,24 @@ export function useLearnerProfileMutations() {
     }),
     rebuildEvidence: useMutation({
       mutationFn: rebuildLearnerEvidence,
+      onSettled: settle,
+    }),
+  };
+}
+
+export function useLearningEffectMutations() {
+  const queryClient = useQueryClient();
+  const settle = () => {
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-report"] });
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-concepts"] });
+    void queryClient.invalidateQueries({ queryKey: ["learning-effect-next-actions"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
+    void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
+  };
+  return {
+    completeAction: useMutation({
+      mutationFn: completeLearningEffectAction,
       onSettled: settle,
     }),
   };

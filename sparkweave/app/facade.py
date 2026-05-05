@@ -104,6 +104,7 @@ def _builtins() -> list[CapabilityManifest]:
             tools_used=[
                 "rag",
                 "web_search",
+                "external_video_search",
                 "code_execution",
                 "paper_search",
                 "geogebra_analysis",

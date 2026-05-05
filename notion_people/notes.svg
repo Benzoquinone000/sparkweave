@@ -1,0 +1,17 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="320" fill="#fff"/>
+  <g fill="none" stroke="#111" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M70 242h180"/>
+    <circle cx="162" cy="88" r="39" fill="#fff"/>
+    <path d="M125 83c6-30 55-44 80-13"/>
+    <path d="M137 66c12 17 38 16 52 3"/>
+    <path d="M148 91v2M174 91v2"/>
+    <path d="M151 115c8 7 18 7 26 0"/>
+    <path d="M112 238v-50c0-27 22-48 50-48s50 21 50 48v50"/>
+    <rect x="97" y="171" width="126" height="72" rx="8" fill="#fff"/>
+    <path d="M118 194h60M118 217h40"/>
+    <path d="M206 152l27-27 17 17-27 27-24 7z"/>
+    <path d="M233 125l17 17"/>
+  </g>
+  <text x="160" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#111">做笔记</text>
+</svg>

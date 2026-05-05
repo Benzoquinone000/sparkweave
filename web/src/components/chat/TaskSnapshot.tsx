@@ -73,7 +73,7 @@ export function TaskSnapshot({
                 <div key={`${event.seq ?? index}-${event.type}`} className="flex gap-2 text-xs leading-5 text-slate-600">
                   <span
                     className={`mt-1 h-2 w-2 shrink-0 rounded-sm ${
-                      trace.tone === "success" ? "bg-brand-teal" : trace.tone === "danger" ? "bg-brand-red" : "bg-brand-blue"
+                      trace.tone === "success" ? "bg-brand-purple" : trace.tone === "danger" ? "bg-brand-red" : "bg-brand-blue"
                     }`}
                   />
                   <span className="min-w-0">
@@ -111,7 +111,7 @@ function SnapshotRow({ icon, label, value }: { icon: ReactNode; label: string; v
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg bg-canvas px-2.5 py-1.5 text-sm">
       <span className="flex items-center gap-2 text-slate-500">
-        <span className="text-brand-teal">{icon}</span>
+        <span className="text-brand-purple">{icon}</span>
         {label}
       </span>
       <span className="min-w-0 truncate font-medium text-ink">{value}</span>

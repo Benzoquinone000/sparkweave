@@ -404,6 +404,52 @@ def test_env_store_renders_ocr_catalog_settings(tmp_path: Path) -> None:
     assert rendered["IFLYTEK_OCR_API_SECRET"] == "ocr-secret"
 
 
+def test_env_store_renders_tts_catalog_settings(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["services"]["tts"] = {
+        "active_profile_id": "tts-p",
+        "profiles": [
+            {
+                "id": "tts-p",
+                "name": "TTS",
+                "provider": "iflytek",
+                "base_url": "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6",
+                "api_key": "tts-key",
+                "timeout": "35",
+                "extra_headers": {
+                    "app_id": "tts-app",
+                    "api_secret": "tts-secret",
+                    "voice": "x5_lingxiaoxuan_flow",
+                    "encoding": "lame",
+                    "sample_rate": "24000",
+                    "channels": "1",
+                    "bit_depth": "16",
+                    "frame_size": "0",
+                    "speed": "55",
+                    "volume": "60",
+                    "pitch": "45",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_TTS_PROVIDER"] == "iflytek"
+    assert rendered["SPARKWEAVE_TTS_TIMEOUT"] == "35"
+    assert rendered["IFLYTEK_TTS_APPID"] == "tts-app"
+    assert rendered["IFLYTEK_TTS_API_KEY"] == "tts-key"
+    assert rendered["IFLYTEK_TTS_API_SECRET"] == "tts-secret"
+    assert rendered["IFLYTEK_TTS_URL"] == "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6"
+    assert rendered["IFLYTEK_TTS_VOICE"] == "x5_lingxiaoxuan_flow"
+    assert rendered["IFLYTEK_TTS_SAMPLE_RATE"] == "24000"
+    assert rendered["IFLYTEK_TTS_SPEED"] == "55"
+    assert rendered["IFLYTEK_TTS_VOLUME"] == "60"
+    assert rendered["IFLYTEK_TTS_PITCH"] == "45"
+
+
 def test_search_serper_missing_credentials(tmp_path: Path) -> None:
     catalog = _build_catalog(
         search_profile={

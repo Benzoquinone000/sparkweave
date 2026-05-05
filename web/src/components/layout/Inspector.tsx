@@ -33,7 +33,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
         </div>
         <button
           type="button"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 transition hover:border-teal-200 hover:text-brand-teal"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 transition hover:border-brand-purple-300 hover:text-brand-purple"
           onClick={onClose}
           aria-label="关闭学习动态"
         >
@@ -73,7 +73,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
           <section className="dt-soft-enter rounded-lg border border-line bg-canvas p-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">上下文</h2>
-              <BookOpenCheck size={17} className="text-brand-teal" />
+              <BookOpenCheck size={17} className="text-brand-purple" />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <ContextMetric label="知识库" value={knowledge.data?.length ?? 0} />
@@ -93,8 +93,8 @@ export function Inspector({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => setSelectedActivityId(activity.id)}
                   data-testid={`dashboard-activity-${activity.id}`}
-                  className={`dt-interactive w-full rounded-lg border p-3 text-left hover:border-teal-200 hover:bg-white ${
-                    selectedActivityId === activity.id ? "border-teal-200 bg-white" : "border-line bg-white/70"
+                  className={`dt-interactive w-full rounded-lg border p-3 text-left hover:border-brand-purple-300 hover:bg-white ${
+                    selectedActivityId === activity.id ? "border-brand-purple-300 bg-white" : "border-line bg-white/70"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -146,9 +146,9 @@ function ActivityDetail({ detail, loading }: { detail?: DashboardActivityDetail;
   if (!detail) return null;
 
   return (
-    <div className="rounded-lg border border-teal-200 bg-white p-3" data-testid="dashboard-activity-detail">
+    <div className="rounded-lg border border-brand-purple-300 bg-white p-3" data-testid="dashboard-activity-detail">
       <div className="flex items-center gap-2">
-        <MessageSquareText size={16} className="text-brand-teal" />
+        <MessageSquareText size={16} className="text-brand-purple" />
         <h3 className="text-sm font-semibold text-ink">任务详情</h3>
         <Badge tone="brand">{formatStatusLabel(detail.content?.status || detail.type || "ready")}</Badge>
       </div>

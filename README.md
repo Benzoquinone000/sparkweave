@@ -133,6 +133,7 @@ python -m sparkweave_cli competition-verify dist/sparkweave_competition_package.
 python -m sparkweave_cli competition-verify dist/sparkweave_competition_package.zip --format json --output dist/competition-package-verify.json
 python -m sparkweave_cli competition-preflight
 python -m sparkweave_cli competition-preflight --with-build --report dist/competition-readiness.json --summary dist/competition-readiness.md --archive dist/sparkweave_competition_package.zip --verify-report dist/competition-package-verify.json
+python -m sparkweave_cli learning-effect summary --output dist/learning-effect-summary.md
 python scripts/render_competition_summary.py dist/competition-readiness.json --output dist/competition-readiness.md
 cd web
 npm run lint
@@ -146,6 +147,7 @@ cd ..
 `scripts/check_competition_readiness.py` 会在临时目录中生成演示材料和提交包，并检查文档、截图、课程模板、运行脚本等关键交付物是否齐全；需要归档时可运行 `python -m sparkweave_cli competition-check --format json --output dist/competition-readiness.json` 生成结构化报告。
 `scripts/render_competition_summary.py` 会把结构化就绪报告压缩成一页 Markdown 摘要；GitHub Actions 也会把这份摘要写到运行页面，并上传 `competition-readiness` artifact。
 CLI 也提供赛前入口：`python -m sparkweave_cli competition-templates` 列出课程模板，`python -m sparkweave_cli competition-demo` 导出演示材料，`python -m sparkweave_cli competition-package` 导出提交包；想少记命令时直接运行 `python -m sparkweave_cli competition-preflight`，它会先检查再打包并自动验证最终提交包。正式录屏或提交前建议使用 `python -m sparkweave_cli competition-preflight --with-build --report dist/competition-readiness.json --summary dist/competition-readiness.md --archive dist/sparkweave_competition_package.zip --verify-report dist/competition-package-verify.json`，它会在打包前额外运行前端生产构建，同时生成一页式就绪摘要、最终提交包验证报告和可直接上传的 zip 提交包。
+学习效果评估可用 `python -m sparkweave_cli learning-effect summary --output dist/learning-effect-summary.md` 单独导出一页证据摘要，用于说明“证据如何写回画像、系统如何生成下一步处方、错因如何补救复测闭环”。
 
 上传前请确认 `.env`、`data/user/`、`data/memory/`、`web/node_modules/`、`web/dist/` 等本地配置、运行数据和构建产物没有进入暂存区。
 

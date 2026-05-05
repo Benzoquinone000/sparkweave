@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TextArea, TextInput } from "@/components/ui/Field";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { PeopleAccent } from "@/components/ui/PeopleAccent";
+import { LearningEffectLoopCard } from "@/components/profile/LearningEffectLoopCard";
 import {
   useLearnerProfile,
   useLearnerProfileEvidencePreview,
@@ -128,6 +130,10 @@ function statusLabel(value: string) {
   return map[value] || value || "待观察";
 }
 
+function profileSourceIds(item: { source_ids?: string[] | null }) {
+  return Array.isArray(item.source_ids) ? item.source_ids.filter(Boolean) : [];
+}
+
 export function MemoryPage() {
   const [activeTab, setActiveTab] = useState<PageTab>("profile");
   const [changeSummary, setChangeSummary] = useState<ProfileChangeSummary | null>(null);
@@ -172,33 +178,72 @@ export function MemoryPage() {
       }),
     );
   };
+  const heroFocus = profile.data?.overview.current_focus?.trim() || "先完成一次导学，系统会生成第一版画像。";
+  const heroWeakPoint = profile.data?.learning_state.weak_points?.[0]?.label || "薄弱点会随练习证据自动浮现";
+  const heroEvidenceCount = profile.data?.data_quality.evidence_count ?? 0;
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 pb-24 lg:px-5 lg:pb-6">
       <div className="mx-auto max-w-6xl space-y-4">
         <motion.section
-          className="dt-page-header"
+          className="dt-page-header dt-page-header-accent-orange"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
         >
-          <p className="dt-page-eyebrow">学习画像</p>
-          <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
             <div>
-              <h1 className="text-xl font-semibold text-ink">系统现在怎么理解你</h1>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                先看概览，不准就改。后续导学、练习和推荐都会参考这份画像。
-              </p>
+              <p className="dt-page-eyebrow">学习画像</p>
+              <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl font-semibold leading-tight text-ink">一页看懂系统怎么理解你</h1>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                    画像只回答三个问题：你现在卡在哪、适合怎么学、下一步做什么。不准就直接修正。
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <a
+                      href="/guide"
+                      className="dt-interactive inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-4 text-sm font-medium text-white hover:bg-brand-purple-800"
+                    >
+                      进入导学
+                      <ArrowRight size={16} />
+                    </a>
+                    <Button
+                      tone="secondary"
+                      onClick={() => void refreshProfile()}
+                      disabled={profileMutations.refresh.isPending}
+                      data-testid="learner-profile-refresh"
+                    >
+                      {profileMutations.refresh.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                      重新整理
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Button
-              tone="secondary"
-              onClick={() => void refreshProfile()}
-              disabled={profileMutations.refresh.isPending}
-              data-testid="learner-profile-refresh"
-            >
-              {profileMutations.refresh.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              重新整理
-            </Button>
+            <div className="dt-workspace-mockup">
+              <div className="relative min-h-[150px] overflow-hidden border-b border-line bg-[#fbfbfa] p-4">
+                <div className="relative z-10 max-w-[230px]">
+                  <p className="text-sm font-semibold text-ink">画像会跟着你更新</p>
+                  <p className="mt-1 text-xs leading-5 text-steel">偏好、薄弱点和证据都会沉淀下来。</p>
+                </div>
+                <PeopleAccent name="thinking" className="absolute bottom-[-24px] right-[-18px] h-44 w-52 opacity-90" />
+              </div>
+              <div className="grid gap-2 bg-white p-3 sm:grid-cols-3">
+                <div className="dt-feature-tile dt-feature-tile-lavender px-3 py-2">
+                  <p className="text-xs font-semibold text-steel">当前重点</p>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-ink">{heroFocus}</p>
+                </div>
+                <div className="dt-feature-tile dt-feature-tile-yellow px-3 py-2">
+                  <p className="text-xs font-semibold text-steel">主要卡点</p>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-ink">{heroWeakPoint}</p>
+                </div>
+                <div className="dt-feature-tile dt-feature-tile-sky px-3 py-2">
+                  <p className="text-xs font-semibold text-steel">证据数</p>
+                  <p className="mt-1 text-sm font-semibold leading-5 text-ink">{heroEvidenceCount} 条学习证据</p>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.section>
 
@@ -221,7 +266,7 @@ export function MemoryPage() {
                 aria-selected={active}
                 data-testid={`learner-profile-tab-${tab.key}`}
                 className={`min-h-10 flex-1 rounded-md px-3 py-2 text-left transition sm:min-w-32 ${
-                  active ? "bg-teal-50 text-brand-teal" : "text-slate-500 hover:bg-canvas hover:text-slate-700"
+                  active ? "bg-tint-lavender text-brand-purple" : "text-slate-500 hover:bg-canvas hover:text-slate-700"
                 }`}
               >
                 <span className="flex items-center gap-2 text-sm font-semibold">
@@ -288,7 +333,7 @@ function ProfilePanel({
   if (isLoading) {
     return (
       <motion.section className="rounded-lg border border-line bg-white p-8 text-center text-slate-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <Loader2 className="mx-auto animate-spin text-brand-teal" />
+        <Loader2 className="mx-auto animate-spin text-brand-purple" />
         <p className="mt-3 text-sm">正在读取学习画像...</p>
       </motion.section>
     );
@@ -390,7 +435,7 @@ function ProfilePanel({
       <section className="rounded-lg border border-line bg-white p-5 shadow-sm" data-testid="learner-profile-overview">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.9fr)]">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase text-brand-teal">现在只做这一件事</p>
+            <p className="text-xs font-semibold uppercase text-brand-purple">现在只做这一件事</p>
             <h2 className="mt-2 text-2xl font-semibold leading-tight text-ink">{primaryTitle}</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{primarySummary}</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -404,7 +449,7 @@ function ProfilePanel({
             <a
               href={primaryActionHref}
               data-testid="learner-profile-primary-action"
-              className="dt-interactive mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-teal bg-brand-teal px-4 text-sm font-medium text-white hover:bg-teal-700"
+              className="dt-interactive mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-4 text-sm font-medium text-white hover:bg-brand-purple-800"
             >
               {primaryActionLabel}
               <ArrowRight size={16} />
@@ -414,7 +459,7 @@ function ProfilePanel({
               onClick={() => void confirmOverview()}
               disabled={calibrating || !overviewClaimValue}
               data-testid="learner-profile-confirm-overview"
-              className="dt-interactive ml-2 mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-teal-200 hover:text-brand-teal disabled:cursor-not-allowed disabled:opacity-60"
+              className="dt-interactive ml-2 mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-brand-purple-300 hover:text-brand-purple disabled:cursor-not-allowed disabled:opacity-60"
             >
               {calibrating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
               判断准确
@@ -422,7 +467,7 @@ function ProfilePanel({
           </div>
           <div className="min-w-0 lg:border-l lg:border-line lg:pl-5">
             <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <Target size={16} className="text-brand-teal" />
+              <Target size={16} className="text-brand-purple" />
               为什么这样安排
             </p>
             <div className="mt-3 space-y-3">
@@ -444,6 +489,8 @@ function ProfilePanel({
 
       {changeSummary ? <ProfileChangeCard summary={changeSummary} /> : null}
 
+      <LearningEffectLoopCard />
+
       <LearningStyleCard progressStyle={progressStyle} actionHref={primaryActionHref} actionLabel={primaryActionLabel} />
 
       <section className="grid gap-3 lg:grid-cols-2">
@@ -451,7 +498,7 @@ function ProfilePanel({
           {topWeakPoints.length ? (
             <div className="space-y-2">
               {topWeakPoints.map((item) => (
-                <WeakPointItem key={`${item.label}-${item.source_ids.join("-")}`} item={item} onCalibrate={onCalibrate} calibrating={calibrating} />
+                <WeakPointItem key={`${item.label}-${profileSourceIds(item).join("-")}`} item={item} onCalibrate={onCalibrate} calibrating={calibrating} />
               ))}
             </div>
           ) : (
@@ -504,7 +551,7 @@ function ProfilePanel({
               保存
             </Button>
           </div>
-          {quickNotice ? <p className="text-xs font-medium text-brand-teal">{quickNotice}</p> : null}
+          {quickNotice ? <p className="text-xs font-medium text-brand-purple">{quickNotice}</p> : null}
         </form>
       </section>
     </motion.div>
@@ -533,7 +580,7 @@ function LearningStyleCard({
     <section className="rounded-lg border border-line bg-white p-4 shadow-sm" data-testid="learner-progress-style-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-brand-teal">你的学习推进方式</p>
+          <p className="text-xs font-semibold uppercase text-brand-purple">你的学习推进方式</p>
           <h2 className="mt-2 text-lg font-semibold text-ink">系统会按“{progressStyle.label}”带你走</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{progressStyle.summary}</p>
         </div>
@@ -541,7 +588,7 @@ function LearningStyleCard({
           <Tag>{progressStyle.confidenceText}</Tag>
           <a
             href={actionHref}
-            className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3 text-xs font-medium text-brand-teal hover:bg-white"
+            className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-brand-purple-300 bg-tint-lavender px-3 text-xs font-medium text-brand-purple hover:bg-white"
           >
             {actionLabel}
             <ArrowRight size={14} />
@@ -559,7 +606,7 @@ function LearningStyleCard({
             transition={{ delay: index * 0.04, duration: 0.18 }}
           >
             <div className="flex items-center gap-2">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-brand-teal">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-brand-purple">
                 {index + 1}
               </span>
               <Badge tone={signal.tone}>{signal.label}</Badge>
@@ -690,7 +737,7 @@ function buildGuidePromptHref({
 }
 
 function ProfileChangeCard({ summary }: { summary: ProfileChangeSummary }) {
-  const toneClass = summary.tone === "calibration" ? "border-amber-200 bg-amber-50" : "border-teal-100 bg-teal-50";
+  const toneClass = summary.tone === "calibration" ? "border-amber-200 bg-amber-50" : "border-brand-purple-300 bg-tint-lavender";
   return (
     <motion.section
       className={`rounded-lg border p-4 ${toneClass}`}
@@ -700,7 +747,7 @@ function ProfileChangeCard({ summary }: { summary: ProfileChangeSummary }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-teal">最近变化</p>
+          <p className="text-xs font-semibold text-brand-purple">最近变化</p>
           <h2 className="mt-2 text-lg font-semibold text-ink">{summary.title}</h2>
         </div>
         <span className="text-xs text-slate-500">{formatDate(summary.updatedAt)}</span>
@@ -716,14 +763,14 @@ function ProfileChangeCard({ summary }: { summary: ProfileChangeSummary }) {
         <div className="mt-4 grid gap-2">
           {summary.details.map((detail) => (
             <div key={`${detail.label}-${detail.previous}-${detail.current}`} className="rounded-lg border border-white/70 bg-white/70 p-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">{detail.label}</div>
+              <div className="text-xs font-semibold text-slate-500">{detail.label}</div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 <div className="rounded-md border border-line bg-white px-3 py-2">
                   <div className="text-[11px] font-medium text-slate-400">之前</div>
                   <div className="mt-1 text-sm leading-6 text-slate-600">{detail.previous}</div>
                 </div>
-                <div className="rounded-md border border-teal-100 bg-teal-50/70 px-3 py-2">
-                  <div className="text-[11px] font-medium text-brand-teal">现在</div>
+                <div className="rounded-md border border-brand-purple-300 bg-tint-lavender px-3 py-2">
+                  <div className="text-[11px] font-medium text-brand-purple">现在</div>
                   <div className="mt-1 text-sm leading-6 text-ink">{detail.current}</div>
                 </div>
               </div>
@@ -764,7 +811,7 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
           <h2 className="text-base font-semibold text-ink">画像证据</h2>
           <p className="mt-1 text-sm text-slate-500">每条画像判断都应该能回到真实学习记录。</p>
         </div>
-        {evidence.isFetching ? <Loader2 size={18} className="animate-spin text-brand-teal" /> : null}
+        {evidence.isFetching ? <Loader2 size={18} className="animate-spin text-brand-purple" /> : null}
       </div>
 
       {brief ? <EvidenceBriefCard brief={brief} /> : null}
@@ -799,17 +846,17 @@ function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot }) {
 
 function EvidenceBriefCard({ brief }: { brief: EvidenceBrief }) {
   return (
-    <div className="rounded-lg border border-teal-100 bg-teal-50 p-4" data-testid="learner-evidence-brief">
+    <div className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-4" data-testid="learner-evidence-brief">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Badge tone="brand">证据结论</Badge>
-          <h3 className="mt-2 text-base font-semibold text-teal-950">{brief.title}</h3>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-teal-900">{brief.summary}</p>
+          <h3 className="mt-2 text-base font-semibold text-ink">{brief.title}</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-charcoal">{brief.summary}</p>
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {brief.stats.map((item) => (
-          <div key={`${item.label}-${item.value}`} className="rounded-md border border-teal-100 bg-white/80 px-3 py-2">
+          <div key={`${item.label}-${item.value}`} className="rounded-md border border-brand-purple-300 bg-white/80 px-3 py-2">
             <p className="text-[11px] font-medium text-slate-500">{item.label}</p>
             <p className="mt-1 truncate text-sm font-semibold text-ink">{item.value}</p>
           </div>
@@ -818,7 +865,7 @@ function EvidenceBriefCard({ brief }: { brief: EvidenceBrief }) {
       {brief.cues.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {brief.cues.map((cue) => (
-            <span key={cue} className="rounded-md border border-teal-100 bg-white/80 px-2 py-1 text-xs text-teal-800">
+            <span key={cue} className="rounded-md border border-brand-purple-300 bg-white/80 px-2 py-1 text-xs text-charcoal">
               {cue}
             </span>
           ))}
@@ -940,7 +987,7 @@ function MemoryEditor({
                 type="button"
                 onClick={() => setActiveFile(tab.key)}
                 className={`rounded-lg border p-3 text-left transition ${
-                  active ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-canvas text-slate-600 hover:border-teal-200"
+                  active ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-canvas text-slate-600 hover:border-brand-purple-300"
                 }`}
               >
                 <span className="flex items-center gap-2 font-semibold">
@@ -988,7 +1035,7 @@ function MemoryEditor({
                 type="button"
                 onClick={() => setViewMode(mode)}
                 className={`min-h-8 rounded-md px-3 text-sm transition ${
-                  viewMode === mode ? "bg-white text-brand-teal" : "text-slate-500 hover:text-ink"
+                  viewMode === mode ? "bg-white text-brand-purple" : "text-slate-500 hover:text-ink"
                 }`}
               >
                 {mode === "edit" ? "编辑" : "预览"}
@@ -1046,7 +1093,7 @@ function Panel({ title, icon, children }: { title: string; icon?: ReactNode; chi
   return (
     <section className="rounded-lg border border-line bg-white p-4">
       <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
-        <span className="text-brand-teal">{icon}</span>
+        <span className="text-brand-purple">{icon}</span>
         {title}
       </h2>
       <div className="mt-3">{children}</div>
@@ -1064,7 +1111,7 @@ function MiniStat({ label, value }: { label: string; value: ReactNode }) {
 }
 
 function Tag({ children }: { children: ReactNode }) {
-  return <span className="rounded-md border border-teal-100 bg-teal-50 px-2 py-1 text-xs font-medium text-brand-teal">{children}</span>;
+  return <span className="rounded-md border border-brand-purple-300 bg-tint-lavender px-2 py-1 text-xs font-medium text-brand-purple">{children}</span>;
 }
 
 function WeakPointItem({
@@ -1108,12 +1155,12 @@ function WeakPointItem({
       </div>
       <a
         href={guideHref}
-        className="dt-interactive mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-brand-teal bg-brand-teal px-3 text-xs font-medium text-white hover:bg-teal-700"
+        className="dt-interactive mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-brand-purple bg-brand-purple px-3 text-xs font-medium text-white hover:bg-brand-purple-800"
       >
         去补这个
         <ArrowRight size={14} />
       </a>
-      <CalibrationActions claimType="weak_point" value={item.label} sourceId={item.source_ids[0] || ""} onCalibrate={onCalibrate} calibrating={calibrating} />
+      <CalibrationActions claimType="weak_point" value={item.label} sourceId={profileSourceIds(item)[0] || ""} onCalibrate={onCalibrate} calibrating={calibrating} />
     </div>
   );
 }
@@ -1135,7 +1182,7 @@ function MasteryItem({
       : boundedScore >= 0.55
         ? "这块有基础，但还不够稳，建议用短练习再确认一次。"
         : "这块还需要补底层概念，先别直接上复杂任务。";
-  const toneClass = boundedScore >= 0.8 ? "bg-emerald-500" : boundedScore >= 0.55 ? "bg-brand-teal" : "bg-amber-500";
+  const toneClass = boundedScore >= 0.8 ? "bg-emerald-500" : boundedScore >= 0.55 ? "bg-brand-purple" : "bg-amber-500";
   const guideHref = buildGuidePromptHref({
     prompt:
       boundedScore >= 0.8
@@ -1164,12 +1211,12 @@ function MasteryItem({
       </p>
       <a
         href={guideHref}
-        className="dt-interactive mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-canvas px-3 text-xs font-medium text-slate-700 hover:border-teal-200 hover:bg-teal-50"
+        className="dt-interactive mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-canvas px-3 text-xs font-medium text-slate-700 hover:border-brand-purple-300 hover:bg-tint-lavender"
       >
         {boundedScore >= 0.8 ? "复测一下" : "巩固一下"}
         <ArrowRight size={14} />
       </a>
-      <CalibrationActions claimType="mastery" value={item.title} sourceId={item.source_ids[0] || ""} onCalibrate={onCalibrate} calibrating={calibrating} />
+      <CalibrationActions claimType="mastery" value={item.title} sourceId={profileSourceIds(item)[0] || ""} onCalibrate={onCalibrate} calibrating={calibrating} />
     </div>
   );
 }
@@ -1223,7 +1270,7 @@ function CalibrationActions({
           type="button"
           disabled={calibrating}
           onClick={() => submit("confirm")}
-          className="rounded-md border border-teal-100 bg-white px-2 py-1 font-medium text-brand-teal transition hover:border-teal-200 disabled:opacity-50"
+          className="rounded-md border border-brand-purple-300 bg-white px-2 py-1 font-medium text-brand-purple transition hover:border-brand-purple-300 disabled:opacity-50"
         >
           准确
         </button>
@@ -1231,7 +1278,7 @@ function CalibrationActions({
           type="button"
           disabled={calibrating}
           onClick={() => setEditing((current) => !current)}
-          className="rounded-md border border-line bg-white px-2 py-1 font-medium text-slate-600 transition hover:border-teal-200 disabled:opacity-50"
+          className="rounded-md border border-line bg-white px-2 py-1 font-medium text-slate-600 transition hover:border-brand-purple-300 disabled:opacity-50"
         >
           修改
         </button>
@@ -1286,7 +1333,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
       type="button"
       onClick={onClick}
       className={`rounded-md border px-3 py-2 text-sm transition ${
-        active ? "border-teal-200 bg-teal-50 text-brand-teal" : "border-line bg-canvas text-slate-600 hover:border-teal-200"
+        active ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-canvas text-slate-600 hover:border-brand-purple-300"
       }`}
     >
       {children}
@@ -1377,7 +1424,7 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
     <article className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium text-brand-teal">{sourceLabel}</p>
+          <p className="text-xs font-medium text-brand-purple">{sourceLabel}</p>
           <h3 className="mt-1 font-semibold text-ink">{item.title}</h3>
         </div>
         <span className="text-xs text-slate-500">{formatDate(item.created_at)}</span>
@@ -1390,8 +1437,8 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
       ) : null}
       {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-600">{item.summary}</p> : null}
       {watchPlan.length ? (
-        <div className="mt-3 rounded-md border border-teal-100 bg-white px-3 py-2">
-          <p className="text-xs font-medium text-brand-teal">观看计划</p>
+        <div className="mt-3 rounded-md border border-brand-purple-300 bg-white px-3 py-2">
+          <p className="text-xs font-medium text-brand-purple">观看计划</p>
           <ol className="mt-1 grid gap-1 text-xs leading-5 text-slate-600">
             {watchPlan.map((step, index) => (
               <li key={`${step}-${index}`}>
@@ -1448,7 +1495,7 @@ function buildProfileChangeSummary({
   if (addedWeak.length) {
     const relatedWeakSources = currentWeakItems
       .filter((item) => addedWeak.includes(item.label))
-      .flatMap((item) => item.source_ids)
+      .flatMap((item) => profileSourceIds(item))
       .map((sourceId) => sourceLabelById.get(sourceId) || sourceId)
       .filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index)
       .slice(0, 3);

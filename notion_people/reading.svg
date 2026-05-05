@@ -1,0 +1,17 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="320" fill="#fff"/>
+  <g fill="none" stroke="#111" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M73 246h174"/>
+    <circle cx="160" cy="86" r="38" fill="#fff"/>
+    <path d="M124 76c10-30 60-38 78-6"/>
+    <path d="M135 62c13 18 39 16 52 2"/>
+    <path d="M148 90v2M174 90v2"/>
+    <path d="M151 113c8 7 17 7 25 0"/>
+    <path d="M105 230v-55c0-24 22-43 55-43s55 19 55 43v55"/>
+    <path d="M91 154c36-10 58 1 69 18v78c-20-22-43-26-69-17z" fill="#fff"/>
+    <path d="M229 154c-36-10-58 1-69 18v78c20-22 43-26 69-17z" fill="#fff"/>
+    <path d="M160 172v78"/>
+    <path d="M107 184h34M107 205h34M179 184h34M179 205h34"/>
+  </g>
+  <text x="160" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#111">阅读</text>
+</svg>

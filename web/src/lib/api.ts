@@ -41,6 +41,10 @@ import type {
   LinkedFolder,
   LearnerEvidenceEvent,
   LearnerEvidenceListResponse,
+  LearningEffectConceptListResponse,
+  LearningEffectNextActionsResponse,
+  LearningEffectReport,
+  CompleteLearningEffectActionResponse,
   LearnerProfileCalibrationRequest,
   LearnerProfileCalibrationResponse,
   LearnerProfileEvidencePreviewResponse,
@@ -677,6 +681,60 @@ export function rebuildLearnerEvidence(input?: { clear?: boolean }) {
   return fetchJson<{ added: number; skipped: number; events: LearnerEvidenceEvent[] }>(
     "/api/v1/learner-profile/evidence/rebuild",
     jsonBody({ clear: input?.clear ?? false }),
+  );
+}
+
+export type LearningEffectEventInput = Partial<LearnerEvidenceEvent> & {
+  concept_ids?: string[];
+  result?: Record<string, unknown>;
+  signals?: Record<string, unknown>;
+};
+
+export function getLearningEffectReport(input?: { courseId?: string | null; window?: string }) {
+  const params = new URLSearchParams();
+  if (input?.courseId) params.set("course_id", input.courseId);
+  if (input?.window) params.set("window", input.window);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<LearningEffectReport>(`/api/v1/learning-effect/report${suffix}`);
+}
+
+export function listLearningEffectConcepts(input?: { courseId?: string | null; window?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (input?.courseId) params.set("course_id", input.courseId);
+  if (input?.window) params.set("window", input.window);
+  if (input?.limit) params.set("limit", String(input.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<LearningEffectConceptListResponse>(`/api/v1/learning-effect/concepts${suffix}`);
+}
+
+export function listLearningEffectNextActions(input?: { courseId?: string | null; window?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (input?.courseId) params.set("course_id", input.courseId);
+  if (input?.window) params.set("window", input.window);
+  if (input?.limit) params.set("limit", String(input.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<LearningEffectNextActionsResponse>(`/api/v1/learning-effect/next-actions${suffix}`);
+}
+
+export function appendLearningEffectEvent(input: LearningEffectEventInput) {
+  return fetchJson<{ event: LearnerEvidenceEvent }>("/api/v1/learning-effect/events", jsonBody(input));
+}
+
+export function completeLearningEffectAction(input: {
+  actionId: string;
+  note?: string;
+  score?: number | null;
+  courseId?: string | null;
+  conceptIds?: string[];
+}) {
+  return fetchJson<CompleteLearningEffectActionResponse>(
+    `/api/v1/learning-effect/actions/${encodeURIComponent(input.actionId)}/complete`,
+    jsonBody({
+      note: input.note || "",
+      score: input.score ?? null,
+      course_id: input.courseId || "",
+      concept_ids: input.conceptIds || [],
+    }),
   );
 }
 
@@ -1502,7 +1560,23 @@ export function autoMarkText(text: string) {
   return fetchJson<CoWriterResult>("/api/v1/co_writer/automark", jsonBody({ text }));
 }
 
-export async function testService(service: "llm" | "embeddings" | "search" | "ocr") {
+export async function testService(service: "llm" | "embeddings" | "search" | "ocr" | "tts") {
   return fetchJson<SystemTestResponse>(`/api/v1/system/test/${service}`, { method: "POST" });
+}
+
+export async function previewTts(text: string) {
+  const response = await fetch(apiUrl("/api/v1/system/tts-preview"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) {
+    throw new ApiError((await response.text()) || "TTS preview failed", response.status);
+  }
+  return {
+    blob: await response.blob(),
+    contentType: response.headers.get("content-type") || "audio/mpeg",
+    voice: response.headers.get("x-sparkweave-tts-voice") || "",
+  };
 }
 

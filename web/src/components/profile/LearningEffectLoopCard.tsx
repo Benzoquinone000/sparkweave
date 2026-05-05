@@ -331,11 +331,11 @@ function LearningEffectVisualMap({
           <MapNodeHeader node={assessmentNode} emphasized />
           <div className="mt-3 grid place-items-center rounded-lg border border-line bg-canvas px-4 py-5 text-center">
             <div
-              className="grid size-24 place-items-center rounded-full p-2"
+              className="grid size-24 place-items-center rounded-lg p-2"
               style={{ background: `conic-gradient(#5645D4 ${Math.max(0, Math.min(100, score)) * 3.6}deg, #E5E3DF 0deg)` }}
               aria-label={`学习效果分 ${score || 0}`}
             >
-              <div className="grid h-full w-full place-items-center rounded-full border border-line bg-white">
+              <div className="grid h-full w-full place-items-center rounded-lg border border-line bg-white">
                 <span className="text-2xl font-semibold text-ink">{score || "待评"}</span>
               </div>
             </div>
@@ -373,8 +373,8 @@ function LearningEffectVisualMap({
           </div>
           <div className="mt-3 rounded-lg border border-line bg-canvas p-3">
             <MapNodeHeader node={loopNode} compact />
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-              <div className="h-full rounded-full bg-brand-purple transition-all" style={{ width: `${Math.max(totalLoop ? 8 : 0, loopPercent)}%` }} />
+            <div className="mt-3 h-2 overflow-hidden rounded-md bg-white">
+              <div className="h-full rounded-md bg-brand-purple transition-all" style={{ width: `${Math.max(totalLoop ? 8 : 0, loopPercent)}%` }} />
             </div>
             <p className="mt-2 text-xs leading-5 text-slate-500">
               {totalLoop ? `已闭环 ${closedLoop} 个，待补救 ${pendingLoop} 个，待复测 ${readyLoop} 个。` : "暂无错因任务，继续留下练习证据即可。"}
@@ -414,7 +414,7 @@ function LearningEvidenceMiniTimeline({
       <div className={compact ? "mt-3 space-y-2" : "mt-3 grid gap-2 md:grid-cols-3"}>
         {items.map((item) => (
           <div key={item.id || item.label} className="relative rounded-lg border border-line bg-canvas px-3 py-2">
-            {compact ? <span className="absolute -left-1 top-3 size-2 rounded-full bg-brand-purple" /> : null}
+            {compact ? <span className="absolute -left-1 top-3 size-2 rounded-sm bg-brand-purple" /> : null}
             <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 truncate text-xs font-semibold text-charcoal">{item.label || "学习证据"}</p>
               {typeof item.score === "number" ? <Badge tone={item.score >= 80 ? "success" : item.score >= 50 ? "brand" : "warning"}>{item.score}%</Badge> : null}
@@ -457,8 +457,8 @@ function DimensionMiniBars({
               <p className="text-xs font-semibold text-charcoal">{learningDimensionLabel(dimension.id, dimension.label)}</p>
               <span className="text-xs text-slate-500">{value}%</span>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-canvas">
-              <div className="h-full rounded-full bg-brand-purple transition-all" style={{ width: `${Math.max(4, value)}%` }} />
+            <div className="mt-2 h-1.5 overflow-hidden rounded-sm bg-canvas">
+              <div className="h-full rounded-sm bg-brand-purple transition-all" style={{ width: `${Math.max(4, value)}%` }} />
             </div>
           </div>
         );
@@ -548,7 +548,7 @@ function RemediationStepper({ status }: { status: string }) {
             aria-current={active ? "step" : undefined}
           >
             <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${done ? "bg-emerald-500" : active ? "bg-brand-purple" : "bg-slate-300"}`} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${done ? "bg-emerald-500" : active ? "bg-brand-purple" : "bg-slate-300"}`} />
               <p className="text-xs font-semibold">{step.label}</p>
             </div>
             <p className="mt-1 text-xs leading-5 opacity-80">{step.hint}</p>

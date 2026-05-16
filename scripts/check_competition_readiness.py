@@ -111,6 +111,23 @@ class Check:
         }
 
 
+def _check_text_needles(name: str, relatives: str | list[str], needles: list[str]) -> Check:
+    """Check that all marker strings exist across one or more text files."""
+    paths = [relatives] if isinstance(relatives, str) else list(relatives)
+    chunks: list[str] = []
+    for relative in paths:
+        path = ROOT / relative
+        if not path.exists():
+            return Check(name, False, f"missing {relative}")
+        try:
+            chunks.append(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError as exc:
+            return Check(name, False, f"{relative} not utf-8 text: {exc}")
+    content = "\n".join(chunks)
+    missing = [needle for needle in needles if needle not in content]
+    return Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -616,7 +633,7 @@ def check_sparkbot_teaching_assistant_demo() -> list[Check]:
         ),
         (
             "SparkBot teaching assistant: frontend readiness panel",
-            "web/src/pages/agents/AssistantEvidencePanels.tsx",
+            "web/src/pages/agents/AssistantDemoReadinessPanel.tsx",
             [
                 "AssistantDemoReadinessPanel",
                 "assistant-demo-readiness",
@@ -688,17 +705,7 @@ def check_sparkbot_teaching_assistant_demo() -> list[Check]:
     ]
     checks: list[Check] = []
     for name, relative, needles in expectations:
-        path = ROOT / relative
-        if not path.exists():
-            checks.append(Check(name, False, f"missing {relative}"))
-            continue
-        try:
-            content = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError as exc:
-            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
-            continue
-        missing = [needle for needle in needles if needle not in content]
-        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+        checks.append(_check_text_needles(name, relative, needles))
     return checks
 
 
@@ -706,7 +713,11 @@ def check_user_facing_settings_diagnostics() -> list[Check]:
     expectations = [
         (
             "User-facing diagnostics: settings status strip",
-            "web/src/pages/SettingsPage.tsx",
+            [
+                "web/src/pages/SettingsPage.tsx",
+                "web/src/pages/settings/SettingsStatusStrip.tsx",
+                "web/src/pages/settings/settingsDiagnosticsUtils.ts",
+            ],
             [
                 "friendlyServiceError",
                 "settings-status-strip",
@@ -728,17 +739,7 @@ def check_user_facing_settings_diagnostics() -> list[Check]:
     ]
     checks: list[Check] = []
     for name, relative, needles in expectations:
-        path = ROOT / relative
-        if not path.exists():
-            checks.append(Check(name, False, f"missing {relative}"))
-            continue
-        try:
-            content = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError as exc:
-            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
-            continue
-        missing = [needle for needle in needles if needle not in content]
-        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+        checks.append(_check_text_needles(name, relative, needles))
     return checks
 
 
@@ -746,7 +747,12 @@ def check_user_facing_knowledge_progress() -> list[Check]:
     expectations = [
         (
             "User-facing knowledge progress: milestone view",
-            "web/src/pages/knowledge/KnowledgeProgressPanel.tsx",
+            [
+                "web/src/pages/knowledge/KnowledgeProgressPanel.tsx",
+                "web/src/pages/knowledge/KnowledgeProgressMeterPanel.tsx",
+                "web/src/pages/knowledge/KnowledgeProgressLogsPanel.tsx",
+                "web/src/pages/knowledge/progressFormat.ts",
+            ],
             [
                 "knowledge-task-milestones",
                 "knowledge-task-log-details",
@@ -768,17 +774,7 @@ def check_user_facing_knowledge_progress() -> list[Check]:
     ]
     checks: list[Check] = []
     for name, relative, needles in expectations:
-        path = ROOT / relative
-        if not path.exists():
-            checks.append(Check(name, False, f"missing {relative}"))
-            continue
-        try:
-            content = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError as exc:
-            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
-            continue
-        missing = [needle for needle in needles if needle not in content]
-        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+        checks.append(_check_text_needles(name, relative, needles))
     return checks
 
 

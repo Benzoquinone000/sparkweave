@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Playground lab</title>
+  <desc id="desc">A compact AI playground with tool blocks and an execution timeline.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .line{fill:none;stroke:#37352f;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="18" y="24" width="284" height="172" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)">
+    <rect x="50" y="44" width="220" height="130" rx="10" class="paper"/>
+    <rect x="50" y="44" width="220" height="30" rx="10" fill="#fbfaf8" stroke="#e5e3df" stroke-width="1.2"/>
+    <circle cx="66" cy="59" r="3.5" fill="#dd5b00"/>
+    <circle cx="79" cy="59" r="3.5" fill="#f5d75e"/>
+    <circle cx="92" cy="59" r="3.5" fill="#2a9d99"/>
+    <rect x="72" y="96" width="48" height="34" rx="8" fill="#e6e0f5" stroke="#d6cbed"/>
+    <rect x="136" y="96" width="48" height="34" rx="8" fill="#dcecfa" stroke="#bddbea"/>
+    <rect x="200" y="96" width="48" height="34" rx="8" fill="#d9f3e1" stroke="#c1e2cb"/>
+    <path d="M88 113h16M152 113h16M216 113h16M120 113h16M184 113h16" class="line" opacity=".55"/>
+    <rect x="72" y="146" width="176" height="10" rx="5" fill="#ede9e4"/>
+    <rect x="72" y="146" width="96" height="10" rx="5" fill="#5645d4" opacity=".72"/>
+  </g>
+</svg>

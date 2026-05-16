@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Knowledge notes</title>
+  <desc id="desc">Layered study notes and a knowledge search card.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .ink{fill:#37352f}
+      .muted{fill:#787671}
+      .line{fill:none;stroke:#37352f;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="18" y="24" width="284" height="172" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)" transform="rotate(-4 108 112)">
+    <rect x="58" y="54" width="122" height="122" rx="9" fill="#fef7d6" stroke="#eadfbf"/>
+    <rect x="78" y="78" width="58" height="9" rx="4.5" class="ink"/>
+    <path d="M78 105h76M78 121h54M78 137h64" class="line" opacity=".34"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="104" y="42" width="130" height="138" rx="10" class="paper"/>
+    <rect x="124" y="65" width="66" height="10" rx="5" class="ink"/>
+    <rect x="124" y="90" width="78" height="7" rx="3.5" class="muted" opacity=".42"/>
+    <rect x="124" y="106" width="62" height="7" rx="3.5" class="muted" opacity=".3"/>
+    <rect x="124" y="132" width="82" height="26" rx="7" fill="#e6e0f5" stroke="#d6cbed"/>
+    <path d="M138 145h50" class="line" opacity=".35"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="206" y="102" width="64" height="54" rx="9" fill="#dcecfa" stroke="#bddbea"/>
+    <circle cx="234" cy="126" r="12" fill="#fff" stroke="#37352f" stroke-width="2"/>
+    <path d="M243 135l11 11M218 146h33" class="line"/>
+  </g>
+</svg>

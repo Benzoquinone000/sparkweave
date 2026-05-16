@@ -14,6 +14,17 @@ def test_validate_upload_allows_python_text_mime_for_supported_rag_extension():
     )
 
 
+def test_validate_upload_allows_image_mime_for_supported_rag_extension():
+    assert (
+        DocumentValidator.validate_upload_safety(
+            "ocr_smoke.png",
+            128,
+            allowed_extensions={".png"},
+        )
+        == "ocr_smoke.png"
+    )
+
+
 def test_validate_upload_still_rejects_unsupported_extension():
     with pytest.raises(ValueError, match="Unsupported file type"):
         DocumentValidator.validate_upload_safety(

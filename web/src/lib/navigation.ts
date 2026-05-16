@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   PenLine,
   Settings,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -79,6 +80,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "学习",
     items: [
       { to: "/chat", label: "当前对话", shortLabel: "对话", icon: MessageSquareText, accent: "purple" },
+      { to: "/demo", label: "比赛演示", shortLabel: "演示", icon: Trophy, accent: "purple" },
       { to: "/guide", label: "导学路线", shortLabel: "导学", icon: GraduationCap, accent: "teal" },
       { to: "/memory", label: "学习画像", shortLabel: "画像", icon: DatabaseZap, accent: "orange" },
       { to: "/knowledge", label: "知识库", shortLabel: "知识", icon: BookOpen, accent: "blue" },

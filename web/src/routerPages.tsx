@@ -3,6 +3,7 @@ import { lazy } from "react";
 const AgentsPageView = lazy(() => import("@/pages/AgentsPage").then((module) => ({ default: module.AgentsPage })));
 const ChatPageView = lazy(() => import("@/pages/ChatPage").then((module) => ({ default: module.ChatPage })));
 const CoWriterPageView = lazy(() => import("@/pages/CoWriterPage").then((module) => ({ default: module.CoWriterPage })));
+const DemoPageView = lazy(() => import("@/pages/DemoPage").then((module) => ({ default: module.DemoPage })));
 const GuidePageView = lazy(() => import("@/pages/GuidePage").then((module) => ({ default: module.GuidePage })));
 const KnowledgePageView = lazy(() =>
   import("@/pages/KnowledgePage").then((module) => ({ default: module.KnowledgePage })),
@@ -28,6 +29,10 @@ export function ChatRoute() {
 
 export function CoWriterRoute() {
   return <CoWriterPageView />;
+}
+
+export function DemoRoute() {
+  return <DemoPageView />;
 }
 
 export function GuideRoute() {

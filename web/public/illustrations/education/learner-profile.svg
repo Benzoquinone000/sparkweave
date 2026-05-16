@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Learner profile</title>
+  <desc id="desc">A learner profile board with evidence cards, mastery bars, and a next action note.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .soft{fill:#fbfaf8;stroke:#e5e3df;stroke-width:1.1}
+      .ink{fill:#37352f}
+      .muted{fill:#787671}
+      .line{fill:none;stroke:#37352f;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="20" y="26" width="280" height="168" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)">
+    <rect x="44" y="40" width="232" height="138" rx="10" class="paper"/>
+    <rect x="62" y="62" width="72" height="92" rx="8" class="soft"/>
+    <circle cx="98" cy="87" r="16" fill="#e6e0f5" stroke="#d6cbed" stroke-width="1.2"/>
+    <path d="M87 90c6 5 16 5 22 0M98 72v14" class="line" opacity=".55"/>
+    <rect x="77" y="120" width="43" height="8" rx="4" class="ink"/>
+    <rect x="72" y="137" width="52" height="6" rx="3" class="muted" opacity=".38"/>
+    <rect x="154" y="62" width="92" height="34" rx="8" fill="#fef7d6" stroke="#eadfbf"/>
+    <rect x="154" y="108" width="92" height="46" rx="8" fill="#d9f3e1" stroke="#c1e2cb"/>
+    <path d="M170 78h46M170 85h31M170 125h56M170 140h39" class="line" opacity=".36"/>
+    <rect x="170" y="113" width="54" height="5" rx="2.5" fill="#2a9d99"/>
+    <rect x="170" y="132" width="68" height="5" rx="2.5" fill="#5645d4" opacity=".76"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="214" y="136" width="70" height="40" rx="8" fill="#dcecfa" stroke="#bddbea"/>
+    <path d="M230 152h32M230 162h21" class="line" opacity=".42"/>
+    <circle cx="268" cy="154" r="7" fill="#0075de" opacity=".82"/>
+  </g>
+</svg>

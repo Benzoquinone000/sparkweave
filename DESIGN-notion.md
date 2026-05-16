@@ -813,6 +813,28 @@ Notion's geometry is sober-editorial — `{rounded.md}` (8px) buttons distinguis
 6. Keep `{colors.primary}` (purple) as the primary CTA — distinct from `{colors.link-blue}` for inline links
 7. Use `{rounded.md}` for buttons (rectangles), `{rounded.lg}` for cards, `{rounded.full}` for pill tabs/badges only
 
+## SparkWeave Product Adaptation
+
+SparkWeave is not a marketing site. It is a learner-facing workspace. When applying this Notion reference, prefer the product-workspace feeling over a dense landing-page composition.
+
+### Non-Negotiables
+
+- Every page must answer the learner's first question: "What should I do now?"
+- Use user-facing learning language, not backend, agent, JSON, event, route, SSE, or debug terminology.
+- Keep the default view sparse. Show one primary action, one short reason, and only the most useful supporting evidence.
+- Put advanced tools, raw logs, configuration, and secondary capabilities behind explicit secondary entrances.
+- Prefer page transitions and simple steps over large dropdown stacks or all-in-one panels.
+- Keep the Notion feeling: white canvas, hairline borders, sober rectangular geometry, small editorial illustrations, pastel note-like accents, and calm typography.
+- SparkWeave's local visual contract overrides the original Notion token when needed: button, card, badge, and control radius must stay at 8px or below, so do not use `rounded-full` or pill geometry in product UI.
+
+### Learning-Effect And Profile UI
+
+- Learning effect should never feel like a grade sheet. It should explain: evidence used, why the system judged this way, and what the learner should do next.
+- Default explanation should fit in a compact card. Avoid full dashboards unless the learner explicitly opens details.
+- Use wording like "这不是低分，而是证据还不够" when confidence is low.
+- The profile page should feel like a personal learning desk: current focus, today’s step, why this step, and the minimum evidence needed to update the profile.
+- Keep `study_brief` and `explainability` visually aligned with Notion: white cards, light grey surfaces, pastel callouts, no dark technical panels.
+
 ## Known Gaps
 
 - Specific dark-mode token values not surfaced beyond hero bands

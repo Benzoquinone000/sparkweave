@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Vision tutor board</title>
+  <desc id="desc">A visual tutoring board with geometry, an image card, and explanation notes.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .soft{fill:#fbfaf8;stroke:#e5e3df;stroke-width:1.1}
+      .ink{fill:#37352f}
+      .line{fill:none;stroke:#37352f;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="18" y="24" width="284" height="172" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)">
+    <rect x="48" y="44" width="170" height="126" rx="10" class="paper"/>
+    <rect x="68" y="66" width="128" height="76" rx="8" class="soft"/>
+    <path d="M82 126h96M94 78v52" class="line" opacity=".28"/>
+    <path d="M94 126l72-46 18 46H94Z" fill="#dcecfa" stroke="#37352f" stroke-width="2.1" stroke-linejoin="round"/>
+    <path d="M166 80v46M118 111h49" class="line" opacity=".7"/>
+    <circle cx="166" cy="80" r="5" fill="#5645d4"/>
+    <circle cx="94" cy="126" r="5" fill="#dd5b00"/>
+    <circle cx="184" cy="126" r="5" fill="#2a9d99"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="194" y="74" width="74" height="42" rx="8" fill="#fef7d6" stroke="#eadfbf"/>
+    <path d="M210 92h36M210 102h24" class="line" opacity=".34"/>
+    <rect x="204" y="130" width="66" height="42" rx="8" fill="#e6e0f5" stroke="#d6cbed"/>
+    <path d="M220 149h28M220 159h18" class="line" opacity=".4"/>
+  </g>
+</svg>

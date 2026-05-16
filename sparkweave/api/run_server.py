@@ -49,6 +49,8 @@ def main() -> None:
         str(project_root / "node_modules"),  # Node modules (if any at root)
         str(project_root / "web" / "node_modules"),  # Vite frontend dependencies
         str(project_root / "web" / "dist"),  # Vite production build
+        str(project_root / "dist"),  # Generated reports and acceptance artifacts
+        str(project_root / "tests"),  # Test edits/runs should not restart the dev API
         str(project_root / ".git"),  # Git directory
         str(project_root / "scripts"),  # Scripts directory - don't reload on launcher changes
     ]

@@ -13,12 +13,14 @@ class FakeModel:
     def __init__(self, responses):
         self.responses = list(responses)
         self.bound_tools = None
+        self.seen_messages = []
 
     def bind_tools(self, tools):
         self.bound_tools = tools
         return self
 
     async def ainvoke(self, _messages):
+        self.seen_messages.append(list(_messages))
         return self.responses.pop(0)
 
 
@@ -165,6 +167,117 @@ async def test_chat_graph_executes_model_tool_call():
     assert registry.calls == [("echo", {"query": "langgraph"})]
     assert any(event.type == StreamEventType.TOOL_CALL for event in bus._history)
     assert any(event.type == StreamEventType.TOOL_RESULT for event in bus._history)
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_prefetches_rag_context_before_model(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    captured = {}
+
+    async def fake_rag_search(**kwargs):
+        captured.update(kwargs)
+        event_sink = kwargs.get("event_sink")
+        if event_sink is not None:
+            await event_sink("status", "Retrieval policy: auto", {"retrieval_profile": "auto"})
+        return {
+            "success": True,
+            "content": "MP model evidence: Warren McCulloch and Walter Pitts.",
+            "sources": [{"title": "Deep Learning Chapter 1", "chunk_id": "chunk-1"}],
+        }
+
+    monkeypatch.setattr("sparkweave.services.rag.rag_search", fake_rag_search)
+    model = FakeModel([AIMessage(content="Grounded answer.")])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=FakeToolRegistry())
+    context = UnifiedContext(
+        session_id="session-1",
+        user_message="What is the MP model?",
+        enabled_tools=["rag"],
+        knowledge_bases=["course"],
+        config_overrides={
+            "retrieval_profile": "auto",
+            "retrieval_mode": "hybrid",
+            "top_k": 5,
+            "candidate_top_k": 15,
+            "reranker": "keyword",
+            "max_context_chars": 1200,
+            "agentic_rag": "auto",
+            "query_transform": "hyde",
+            "agentic_max_subqueries": 2,
+            "agentic_max_context_chars": 5000,
+            "agentic_max_sources": 8,
+            "agentic_min_relevant_coverage_ratio": 0.67,
+        },
+        metadata={"turn_id": "turn-1"},
+    )
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "Grounded answer."
+    assert captured["query"] == "What is the MP model?"
+    assert captured["kb_name"] == "course"
+    assert captured["retrieval_profile"] == "auto"
+    assert captured["retrieval_mode"] == "hybrid"
+    assert captured["top_k"] == 5
+    assert captured["candidate_top_k"] == 15
+    assert captured["reranker"] == "keyword"
+    assert captured["agentic_rag"] == "auto"
+    assert captured["query_transform"] == "hyde"
+    assert captured["agentic_max_subqueries"] == 2
+    assert captured["agentic_max_context_chars"] == 5000
+    assert captured["agentic_max_sources"] == 8
+    assert captured["agentic_min_relevant_coverage_ratio"] == 0.67
+
+    system_prompt = model.seen_messages[0][0].content
+    assert "Retrieved knowledge base context from `course`" in system_prompt
+    assert "Warren McCulloch and Walter Pitts" in system_prompt
+
+    source_events = [event for event in bus._history if event.type == StreamEventType.SOURCES]
+    assert source_events
+    assert source_events[0].metadata["sources"][0]["type"] == "rag"
+    assert source_events[0].metadata["sources"][0]["kb_name"] == "course"
+    result = [event for event in bus._history if event.type == StreamEventType.RESULT][-1]
+    assert result.metadata["tool_traces"][0]["id"] == "rag-prefetch"
+    assert result.metadata["tool_traces"][0]["metadata"]["prefetch"] is True
+    tool_result = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.TOOL_RESULT
+        and event.metadata.get("tool_call_id") == "rag-prefetch"
+    ][0]
+    assert tool_result.metadata["result_metadata"]["prefetch"] is True
+    assert tool_result.metadata["result_metadata"]["kb_name"] == "course"
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_prefetch_rag_can_be_disabled(monkeypatch):
+    from langchain_core.messages import AIMessage
+
+    called = False
+
+    async def fake_rag_search(**_kwargs):
+        nonlocal called
+        called = True
+        return {"content": "should not be used", "sources": []}
+
+    monkeypatch.setattr("sparkweave.services.rag.rag_search", fake_rag_search)
+    model = FakeModel([AIMessage(content="No prefetch.")])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=FakeToolRegistry())
+    context = UnifiedContext(
+        user_message="What is in the KB?",
+        enabled_tools=["rag"],
+        knowledge_bases=["course"],
+        config_overrides={"prefetch_rag": False},
+    )
+
+    await graph.run(context, bus)
+
+    assert called is False
+    system_prompt = model.seen_messages[0][0].content
+    assert "Retrieved knowledge base context" not in system_prompt
+    assert not any(event.metadata.get("prefetch") is True for event in bus._history)
 
 
 @pytest.mark.asyncio

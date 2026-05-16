@@ -4,33 +4,39 @@
 from __future__ import annotations
 
 import argparse
+import ast
 from datetime import datetime
 import hashlib
 from html import escape
 import json
 from pathlib import Path
 import shutil
+import sys
 from typing import Iterable
 
 from export_demo_materials import (
     DEFAULT_TEMPLATE_ID,
     build_agent_collaboration_blueprint,
+    build_competition_scorecard,
     build_deck_html,
     build_deck_outline,
-    build_competition_scorecard,
     build_defense_qa,
     build_demo_fallback_assets,
     build_evaluator_one_pager,
     build_final_pitch_checklist,
-    build_index as build_demo_index,
     build_learning_effect_demo_summary,
     build_recording_script,
 )
-
+from export_demo_materials import (
+    build_index as build_demo_index,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DEFAULT_OUTPUT = ROOT / "dist" / "competition_package"
 DEFAULT_ARCHIVE = ROOT / "dist" / "sparkweave_competition_package.zip"
+DEFAULT_TEAM_NAME = "SparkWeave 参赛团队"
 
 DOCS = [
     ("README.md", "project-readme.md"),
@@ -38,6 +44,13 @@ DOCS = [
     ("docs/architecture.md", "architecture.md"),
     ("docs/capabilities.md", "capabilities.md"),
     ("docs/competition-demo-runbook.md", "competition-demo-runbook.md"),
+    ("docs/competition-demo-connectivity-check.md", "competition-demo-connectivity-check.md"),
+    ("docs/competition-demo-visual-runbook.md", "competition-demo-visual-runbook.md"),
+    ("docs/competition-visualization-wow-plan.md", "competition-visualization-wow-plan.md"),
+    ("docs/competition-visualization-completion-report.md", "competition-visualization-completion-report.md"),
+    ("docs/sparkbot-demo-runbook.md", "sparkbot-demo-runbook.md"),
+    ("docs/sparkbot-teaching-assistant-ux-plan.md", "sparkbot-teaching-assistant-ux-plan.md"),
+    ("docs/sparkbot-plan-completion-report.md", "sparkbot-plan-completion-report.md"),
     ("docs/competition-roadmap.md", "competition-roadmap.md"),
     ("docs/demo-quickstart.md", "demo-quickstart.md"),
     ("docs/demo-course-templates.md", "demo-course-templates.md"),
@@ -48,6 +61,7 @@ DOCS = [
     ("docs/iflytek-integration.md", "iflytek-integration.md"),
     ("docs/configuration.md", "configuration.md"),
     ("docs/getting-started.md", "getting-started.md"),
+    ("docs/sparkweave-execution-plan.md", "sparkweave-execution-plan.md"),
 ]
 
 RUNTIME_FILES = [
@@ -58,11 +72,13 @@ RUNTIME_FILES = [
     ("requirements/dev.txt", "requirements/dev.txt"),
     ("requirements/math-animator.txt", "requirements/math-animator.txt"),
     ("requirements/sparkbot.txt", "requirements/sparkbot.txt"),
+    ("scripts/start_docker.py", "scripts/start_docker.py"),
     ("scripts/start_web.py", "scripts/start_web.py"),
     ("scripts/check_install.py", "scripts/check_install.py"),
     ("scripts/check_course_templates.py", "scripts/check_course_templates.py"),
     ("scripts/check_release_safety.py", "scripts/check_release_safety.py"),
     ("scripts/check_competition_readiness.py", "scripts/check_competition_readiness.py"),
+    ("scripts/check_competition_visuals.py", "scripts/check_competition_visuals.py"),
     ("scripts/render_competition_summary.py", "scripts/render_competition_summary.py"),
     ("scripts/verify_competition_package.py", "scripts/verify_competition_package.py"),
     ("scripts/export_competition_package.py", "scripts/export_competition_package.py"),
@@ -78,12 +94,15 @@ ASSETS = [
 
 SCREENSHOT_PATTERNS = [
     "screenshots-refined-chat.png",
+    "screenshots-competition-demo.png",
+    "screenshots-competition-demo-mobile.png",
     "screenshots-simplified-guide.png",
     "screenshots-simplified-final-knowledge.png",
     "screenshots-simplified-final-question.png",
     "screenshots-simplified-final-vision.png",
     "screenshots-simplified-notebook.png",
     "screenshots-finalcheck-agents.png",
+    "screenshots-sparkbot-demo-readiness.png",
     "screenshots-simplified-final-settings.png",
 ]
 
@@ -117,6 +136,7 @@ def main() -> int:
     copy_many(RUNTIME_FILES, output / "runtime", copied, missing)
     copy_many(ASSETS, output / "assets", copied, missing)
     copy_course_templates(output / "course_templates", copied, missing)
+    copy_sparkbot_demo_workspace(output / "sparkbot_demo_workspace", copied, missing)
     copy_screenshots(output / "screenshots", copied, missing)
     selected_template = export_demo_materials(output / "demo_materials", copied, missing, template_id=args.template)
 
@@ -182,6 +202,89 @@ def copy_course_templates(target_dir: Path, copied: list[str], missing: list[str
         return
     for source in sorted(template_dir.glob("*.json")):
         copy_file(source, target_dir / source.name, copied)
+
+
+def copy_sparkbot_demo_workspace(target_dir: Path, copied: list[str], missing: list[str]) -> None:
+    try:
+        COMPETITION_DEMO_BOT_ID, COMPETITION_DEMO_WORKSPACE_FILES = load_sparkbot_demo_workspace_defaults()
+    except Exception as exc:  # pragma: no cover - defensive for partial source packages.
+        missing.append(f"sparkbot demo workspace files ({exc})")
+        return
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "README.md").write_text(
+        "\n".join(
+            [
+                "# AI 助教中心演示工作区",
+                "",
+                f"默认助教 ID：`{COMPETITION_DEMO_BOT_ID}`",
+                "",
+                "这些文件会由 `python -m sparkweave_cli sparkbot seed-demo` 写入 SparkBot 工作区，用于 `/agents` AI 助教中心录屏和答辩。",
+                "",
+                "其中 `COURSE.md`、`LESSONS.md`、`QUESTION_BANK.md`、`RUBRIC.md`、`RESOURCES.md` 构成一门完整高校课程的可读资料包。",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    copied.append("sparkbot_demo_workspace/README.md")
+    for filename, content in sorted(COMPETITION_DEMO_WORKSPACE_FILES.items()):
+        (target_dir / filename).write_text(content, encoding="utf-8")
+        copied.append(f"sparkbot_demo_workspace/{filename}")
+
+
+def load_sparkbot_demo_workspace_defaults() -> tuple[str, dict[str, str]]:
+    """Read SparkBot demo defaults without importing runtime dependencies."""
+
+    support_root = ROOT / "sparkweave" / "services" / "sparkbot_support"
+    constants = literal_constants_from_python(
+        support_root / "config_models.py",
+        {"COMPETITION_DEMO_BOT_ID", "_COMPETITION_DEMO_SOUL"},
+    )
+    workspace_files = dict_from_python_assignment(
+        support_root / "defaults.py",
+        "COMPETITION_DEMO_WORKSPACE_FILES",
+        constants,
+    )
+    return str(constants["COMPETITION_DEMO_BOT_ID"]), workspace_files
+
+
+def literal_constants_from_python(path: Path, names: set[str]) -> dict[str, str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    values: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id in names:
+                values[target.id] = str(ast.literal_eval(node.value))
+    missing = names.difference(values)
+    if missing:
+        raise RuntimeError(f"Missing constants in {path}: {', '.join(sorted(missing))}")
+    return values
+
+
+def dict_from_python_assignment(path: Path, name: str, constants: dict[str, str]) -> dict[str, str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
+            continue
+        if not isinstance(node.value, ast.Dict):
+            raise RuntimeError(f"{name} in {path} is not a dict")
+        result: dict[str, str] = {}
+        for raw_key, raw_value in zip(node.value.keys, node.value.values):
+            if raw_key is None:
+                continue
+            key = str(ast.literal_eval(raw_key))
+            if isinstance(raw_value, ast.Name) and raw_value.id in constants:
+                value = constants[raw_value.id]
+            else:
+                value = str(ast.literal_eval(raw_value))
+            result[key] = value
+        return result
+    raise RuntimeError(f"Missing assignment {name} in {path}")
 
 
 def copy_screenshots(target_dir: Path, copied: list[str], missing: list[str]) -> None:
@@ -265,12 +368,17 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         f"- 页面截图：{screenshot_count}",
         f"- 离线演示材料：{demo_material_count}",
         f"- 演示课程：{selected_template.get('course_name', selected_template.get('id', '未指定'))}",
+        f"- 默认提交品牌：{DEFAULT_TEAM_NAME}",
         "",
         "## 文件夹说明",
         "",
         "- `docs/`：项目说明、架构、能力、导学、学习画像、比赛路线图、演示 Runbook 和 AI Coding 说明。",
         "- `course_templates/`：可复现的完整高校课程样例，适合录屏和答辩现场演示。",
+        "- `sparkbot_demo_workspace/`：`/agents` AI 助教中心的一键 seed 工作区文件，包含课程资料、题库、rubric、资源索引和助教提示词。",
         "- `demo_materials/`：离线生成的 PPT 骨架、可打印演示页、评委一页说明、7 分钟录屏讲稿、多智能体协作蓝图、稳定兜底素材、评分点证据表、学习效果闭环摘要、答辩问答预案和最终答辩清单。",
+        "- `docs/competition-demo-visual-runbook.md`：`/demo` 评委演示台、PPT 截图位和可视化兜底路线。",
+        "- `docs/competition-visualization-completion-report.md`：可视化专项完成结论、完成矩阵、前端落点和验证命令。",
+        "- `docs/sparkweave-execution-plan.md`：后续开发阶段、质量门、执行记录和可视化专项最终完成状态。",
         "- `screenshots/`：当前前端关键页面截图，可直接放入 PPT 或项目展示页。",
         "- `assets/`：Logo、系统架构图和导学闭环图。",
         "- `runtime/`：环境样例、依赖清单、启动脚本和安装检查脚本。",
@@ -280,10 +388,14 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "",
         "| 提交物 | 本包对应材料 |",
         "| --- | --- |",
-        "| 演示 PPT | `demo_materials/sparkweave-evaluator-one-pager.md`、`demo_materials/sparkweave-demo-deck-outline.md`、`demo_materials/sparkweave-demo-deck.html`、`demo_materials/sparkweave-agent-collaboration-blueprint.md`、`demo_materials/sparkweave-demo-fallback-assets.md`、`demo_materials/sparkweave-competition-scorecard.md`、`demo_materials/sparkweave-final-pitch-checklist.md`、`docs/competition-demo-runbook.md`、`screenshots/` |",
-        "| 可运行源码与配置 | GitHub 仓库源码、`runtime/.env.example`、`runtime/requirements*.txt`、`runtime/scripts/start_web.py` |",
-        "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`demo_materials/sparkweave-demo-fallback-assets.md`、`docs/competition-demo-runbook.md` 的分镜和兜底动作 |",
-        "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板 |",
+        "| 演示 PPT | `demo_materials/sparkweave-evaluator-one-pager.md`、`demo_materials/sparkweave-demo-deck-outline.md`、`demo_materials/sparkweave-demo-deck.html`、`demo_materials/sparkweave-agent-collaboration-blueprint.md`、`demo_materials/sparkweave-demo-fallback-assets.md`、`demo_materials/sparkweave-competition-scorecard.md`、`demo_materials/sparkweave-final-pitch-checklist.md`、`docs/competition-demo-runbook.md`、`docs/sparkbot-demo-runbook.md`、`screenshots/` |",
+        "| 可视化评委入口 | `docs/competition-demo-visual-runbook.md`、`docs/competition-visualization-wow-plan.md`、`screenshots/screenshots-competition-demo.png`、`screenshots/screenshots-competition-demo-mobile.png` |",
+        "| 可视化完成证据 | `docs/competition-visualization-completion-report.md`、`docs/competition-demo-connectivity-check.md`、`scripts/check_competition_visuals.py`、`dist/competition_readiness_latest.json` |",
+        "| 总执行计划 | `docs/sparkweave-execution-plan.md`，包含 2026-05-15 可视化专项最终收口记录 |",
+        "| 可运行源码与配置 | GitHub 仓库源码、`runtime/.env.example`、`runtime/requirements*.txt`、`runtime/scripts/start_docker.py`、`runtime/scripts/start_web.py` |",
+        "| 7 分钟演示视频 | `demo_materials/sparkweave-7min-recording-script.md`、`demo_materials/sparkweave-demo-fallback-assets.md`、`docs/competition-demo-runbook.md`、`docs/sparkbot-demo-runbook.md` 的分镜和兜底动作 |",
+        "| AI 助教计划完成证据 | `docs/sparkbot-teaching-assistant-ux-plan.md`、`docs/sparkbot-plan-completion-report.md`、`screenshots/screenshots-sparkbot-demo-readiness.png` |",
+        "| 完整高校课程 | `course_templates/` 中的 ROS、高数、大模型教育智能体课程模板；`sparkbot_demo_workspace/COURSE.md`、`sparkbot_demo_workspace/LESSONS.md`、`sparkbot_demo_workspace/QUESTION_BANK.md`、`sparkbot_demo_workspace/RUBRIC.md`、`sparkbot_demo_workspace/RESOURCES.md` 可直接展示课程资料包 |",
         "| 多智能体资源生成 | `demo_materials/sparkweave-agent-collaboration-blueprint.md`、`docs/capabilities.md`、`docs/guided-learning.md`、`docs/architecture.md` |",
         "| 学习效果评估 | `demo_materials/sparkweave-learning-effect-summary.md`、`docs/guided-learning.md`、`docs/learner-profile-design.md`、课程产出包 Markdown 导出 |",
         "| 答辩问答 | `demo_materials/sparkweave-defense-qa.md`、课程产出包中的答辩问答预案 |",
@@ -295,7 +407,7 @@ def build_manifest(output: Path, copied: list[str], missing: list[str], *, selec
         "1. 先按 `docs/getting-started.md` 和 `runtime/scripts/check_install.py` 确认环境。",
         "2. 先用 `demo_materials/` 离线材料搭 PPT、视频脚本和答辩问答骨架。",
         f"3. 运行 Web 后打开 `/guide`，优先选择“{selected_template.get('course_name', '大模型教育智能体系统开发')}”课程。",
-        "4. 按 `docs/competition-demo-runbook.md` 录制 7 分钟演示视频。",
+        "4. 按 `docs/competition-demo-runbook.md` 录制主线视频；如演示 `/agents` 助教中心，按 `docs/sparkbot-demo-runbook.md` seed 固定助教。",
         "5. 使用导学页的课程产出包和学习报告 Markdown 下载按钮，把真实 session 证据补入 PPT 和提交文档。",
         "6. 赛前再次运行 `python scripts/check_course_templates.py`、`cd web && npm run build`。",
     ]
@@ -313,6 +425,8 @@ def build_start_here(selected_template: dict[str, str]) -> str:
             "",
             "这是一份 SparkWeave 星火织学比赛提交包。解压后不需要从一堆文件里找入口，按下面顺序看即可。",
             "",
+            f"- 默认提交品牌：{DEFAULT_TEAM_NAME}",
+            "",
             "## 1. 先打开入口页",
             "",
             "- 打开 `index.html`。",
@@ -324,6 +438,7 @@ def build_start_here(selected_template: dict[str, str]) -> str:
             "- `demo_materials/sparkweave-competition-scorecard.md`：赛题五项要求证据表。",
             "- `demo_materials/sparkweave-learning-effect-summary.md`：学习效果评估闭环摘要。",
             "- `demo_materials/sparkweave-demo-deck.html`：可直接打开的演示页。",
+            "- `docs/competition-visualization-completion-report.md`：可视化专项完成证据。",
             "",
             "## 3. 录屏或答辩",
             "",
@@ -334,7 +449,8 @@ def build_start_here(selected_template: dict[str, str]) -> str:
             "## 4. 运行和复核",
             "",
             "- `docs/getting-started.md`：从安装到启动。",
-            "- `runtime/scripts/start_web.py`：本地启动入口。",
+            "- `runtime/scripts/start_docker.py`：Docker 启动入口，推荐使用。",
+            "- `runtime/scripts/start_web.py`：本地源码开发备用入口。",
             "- `checksums.sha256`：文件完整性校验清单。",
             "- 如需复核提交包，请运行：`python runtime/scripts/verify_competition_package.py .`。",
             "",
@@ -344,6 +460,7 @@ def build_start_here(selected_template: dict[str, str]) -> str:
 
 def build_submission_index(selected_template: dict[str, str], missing: list[str]) -> str:
     course_name = escape(selected_template.get("course_name", selected_template.get("id", "大模型教育智能体系统开发")))
+    team_name = escape(DEFAULT_TEAM_NAME)
     missing_note = (
         "<p class=\"warning\">当前提交包存在缺失文件，请先查看 <a href=\"submission_manifest.md\">提交包索引</a>。</p>"
         if missing
@@ -496,7 +613,7 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
       <img class="logo" src="assets/logo-ver2.png" alt="SparkWeave logo" />
       <div>
         <h1>SparkWeave 星火织学提交包</h1>
-        <p class="lead">面向高校课程学习的多智能体个性化学习系统。当前演示课程：{course_name}。</p>
+        <p class="lead">面向高校课程学习的多智能体个性化学习系统。默认提交品牌：{team_name}。当前演示课程：{course_name}。</p>
         <span class="badge">A3 基于大模型的个性化资源生成与学习多智能体系统开发</span>
       </div>
     </header>
@@ -524,8 +641,11 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
 
     <h2>关键截图</h2>
     <section class="screens" aria-label="页面截图">
+      <figure><img src="screenshots/screenshots-competition-demo.png" alt="评委演示台桌面截图" /><figcaption>评委演示台：赛题五项证明</figcaption></figure>
+      <figure><img src="screenshots/screenshots-competition-demo-mobile.png" alt="评委演示台移动端截图" /><figcaption>评委演示台：移动端适配</figcaption></figure>
       <figure><img src="screenshots/screenshots-refined-chat.png" alt="学习工作台截图" /><figcaption>学习工作台</figcaption></figure>
       <figure><img src="screenshots/screenshots-simplified-guide.png" alt="导学页面截图" /><figcaption>懒人式导学</figcaption></figure>
+      <figure><img src="screenshots/screenshots-sparkbot-demo-readiness.png" alt="AI 助教中心演示检查截图" /><figcaption>AI 助教中心</figcaption></figure>
       <figure><img src="screenshots/screenshots-simplified-final-knowledge.png" alt="知识库页面截图" /><figcaption>资料与知识库</figcaption></figure>
       <figure><img src="screenshots/screenshots-simplified-final-settings.png" alt="设置页面截图" /><figcaption>服务配置检测</figcaption></figure>
     </section>
@@ -533,6 +653,7 @@ def build_submission_index(selected_template: dict[str, str], missing: list[str]
     <h2>更多材料</h2>
     <section class="grid" aria-label="更多材料">
       <a class="card" href="submission_manifest.md"><span class="tag">索引</span><h3>提交包清单</h3><p>查看目录说明、材料映射、建议使用顺序和缺失项。</p></a>
+      <a class="card" href="docs/competition-visualization-completion-report.md"><span class="tag">完成证据</span><h3>可视化专项完成报告</h3><p>集中查看完成矩阵、前端落点、连通性和最终验证命令。</p></a>
       <a class="card" href="docs/architecture.md"><span class="tag">架构</span><h3>系统架构说明</h3><p>后端、前端、多智能体和运行时能力的整体说明。</p></a>
       <a class="card" href="assets/architecture.svg"><span class="tag">图示</span><h3>系统架构图</h3><p>可直接放入 PPT 或答辩材料。</p></a>
       <a class="card" href="docs/getting-started.md"><span class="tag">运行</span><h3>启动与配置</h3><p>从依赖安装、环境变量到本地启动的最短路径。</p></a>

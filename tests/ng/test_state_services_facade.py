@@ -179,6 +179,22 @@ def test_context_and_runtime_facades_are_importable():
     assert QuestionParsingUnavailable.__name__ == "QuestionParsingUnavailable"
     assert validate_capability_config("chat", {}) == {}
     assert validate_capability_config("deep_solve", {}) == {"detailed_answer": True}
+    assert validate_capability_config("chat", {"purpose": "next_action", "topic": "梯度下降"}) == {
+        "purpose": "next_action",
+        "topic": "梯度下降",
+    }
+    assert validate_capability_config(
+        "deep_question",
+        {"mode": "custom", "topic": "梯度下降", "purpose": "diagnostic", "num_questions": 3},
+    )["purpose"] == "diagnostic"
+    assert validate_capability_config(
+        "visualize",
+        {"render_mode": "auto", "topic": "梯度下降", "purpose": "remediation_visual"},
+    ) == {
+        "render_mode": "auto",
+        "topic": "梯度下降",
+        "purpose": "remediation_visual",
+    }
     assert validate_capability_config(
         "math_animator",
         {"output_mode": "video", "max_retries": 0, "enable_visual_review": True},

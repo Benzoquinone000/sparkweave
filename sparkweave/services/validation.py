@@ -17,21 +17,84 @@ _RUNTIME_ONLY_KEYS = {
 class ChatRequestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    purpose: str | None = None
+    topic: str | None = None
     auto_delegate: bool | None = None
     delegate_capability: str | None = None
     coordinator_capability: str | None = None
+    prefetch_rag: bool | str | None = None
+    retrieval_profile: str | None = None
+    retrieval_mode: str | None = None
+    top_k: int | None = Field(default=None, ge=1, le=50)
+    candidate_top_k: int | None = Field(default=None, ge=1, le=100)
+    reranker: str | None = None
+    rerank_top_n: int | None = Field(default=None, ge=1, le=50)
+    max_context_chars: int | None = Field(default=None, ge=500, le=30000)
+    score_threshold: float | None = Field(default=None, ge=0, le=1)
+    agentic_rag: bool | str | None = None
+    agentic_mode: str | None = None
+    query_planning: str | bool | None = None
+    agentic_max_subqueries: int | None = Field(default=None, ge=1, le=8)
+    agentic_timeout_seconds: float | None = Field(default=None, gt=0, le=60)
+    agentic_max_concurrency: int | None = Field(default=None, ge=1, le=8)
+    agentic_fallback_to_single: bool | str | None = None
+    agentic_max_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_max_sources: int | None = Field(default=None, ge=0, le=80)
+    agentic_min_sources: int | None = Field(default=None, ge=0, le=20)
+    agentic_min_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_relevant_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_min_score: float | None = Field(default=None, ge=0, le=1)
+    query_transform: str | None = None
+    hyde_max_chars: int | None = Field(default=None, ge=100, le=8000)
+    hyde_timeout_seconds: float | None = Field(default=None, gt=0, le=60)
+    hybrid_ranker: str | None = None
+    dense_weight: float | None = Field(default=None, ge=0, le=5)
+    sparse_weight: float | None = Field(default=None, ge=0, le=5)
+    rrf_k: int | None = Field(default=None, ge=1, le=200)
 
 
 class DeepSolveRequestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     detailed_answer: bool = True
+    prefetch_rag: bool | str | None = None
+    retrieval_profile: str | None = None
+    retrieval_mode: str | None = None
+    top_k: int | None = Field(default=None, ge=1, le=50)
+    candidate_top_k: int | None = Field(default=None, ge=1, le=100)
+    reranker: str | None = None
+    rerank_top_n: int | None = Field(default=None, ge=1, le=50)
+    max_context_chars: int | None = Field(default=None, ge=500, le=30000)
+    score_threshold: float | None = Field(default=None, ge=0, le=1)
+    agentic_rag: bool | str | None = None
+    agentic_mode: str | None = None
+    query_planning: str | bool | None = None
+    agentic_max_subqueries: int | None = Field(default=None, ge=1, le=8)
+    agentic_timeout_seconds: float | None = Field(default=None, gt=0, le=60)
+    agentic_max_concurrency: int | None = Field(default=None, ge=1, le=8)
+    agentic_fallback_to_single: bool | str | None = None
+    agentic_max_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_max_sources: int | None = Field(default=None, ge=0, le=80)
+    agentic_min_sources: int | None = Field(default=None, ge=0, le=20)
+    agentic_min_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_relevant_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_min_score: float | None = Field(default=None, ge=0, le=1)
+    query_transform: str | None = None
+    hyde_max_chars: int | None = Field(default=None, ge=100, le=8000)
+    hyde_timeout_seconds: float | None = Field(default=None, gt=0, le=60)
+    hybrid_ranker: str | None = None
+    dense_weight: float | None = Field(default=None, ge=0, le=5)
+    sparse_weight: float | None = Field(default=None, ge=0, le=5)
+    rrf_k: int | None = Field(default=None, ge=1, le=200)
 
 
 class DeepQuestionRequestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["custom", "mimic"] = "custom"
+    purpose: str | None = None
     topic: str = ""
     num_questions: int = Field(default=1, ge=1, le=50)
     difficulty: str = ""
@@ -39,6 +102,22 @@ class DeepQuestionRequestConfig(BaseModel):
     preference: str = ""
     paper_path: str = ""
     max_questions: int = Field(default=10, ge=1, le=100)
+    retrieval_profile: str | None = None
+    retrieval_mode: str | None = None
+    top_k: int | None = Field(default=None, ge=1, le=50)
+    candidate_top_k: int | None = Field(default=None, ge=1, le=100)
+    reranker: str | None = None
+    max_context_chars: int | None = Field(default=None, ge=500, le=30000)
+    agentic_rag: bool | str | None = None
+    query_transform: str | None = None
+    agentic_max_subqueries: int | None = Field(default=None, ge=1, le=8)
+    agentic_max_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_max_sources: int | None = Field(default=None, ge=0, le=80)
+    agentic_min_sources: int | None = Field(default=None, ge=0, le=20)
+    agentic_min_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_relevant_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_min_score: float | None = Field(default=None, ge=0, le=1)
 
 
 class DeepResearchOutlineItem(BaseModel):
@@ -59,6 +138,22 @@ class DeepResearchRequestConfig(BaseModel):
     checkpoint_id: str | None = None
     checkpoint_thread_id: str | None = None
     use_code: bool | None = None
+    retrieval_profile: str | None = None
+    retrieval_mode: str | None = None
+    top_k: int | None = Field(default=None, ge=1, le=50)
+    candidate_top_k: int | None = Field(default=None, ge=1, le=100)
+    reranker: str | None = None
+    max_context_chars: int | None = Field(default=None, ge=500, le=30000)
+    agentic_rag: bool | str | None = None
+    query_transform: str | None = None
+    agentic_max_subqueries: int | None = Field(default=None, ge=1, le=8)
+    agentic_max_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_max_sources: int | None = Field(default=None, ge=0, le=80)
+    agentic_min_sources: int | None = Field(default=None, ge=0, le=20)
+    agentic_min_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_relevant_coverage_ratio: float | None = Field(default=None, ge=0, le=1)
+    agentic_min_context_chars: int | None = Field(default=None, ge=0, le=30000)
+    agentic_min_score: float | None = Field(default=None, ge=0, le=1)
 
     @field_validator("sources")
     @classmethod
@@ -86,6 +181,8 @@ class VisualizeRequestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     render_mode: Literal["auto", "svg", "chartjs", "mermaid"] = "auto"
+    topic: str | None = None
+    purpose: str | None = None
 
 
 class MathAnimatorRequestConfig(BaseModel):

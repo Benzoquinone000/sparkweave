@@ -41,6 +41,8 @@ Entry Points: CLI | WebSocket /api/v1/ws | Python facade
 
 SparkBot/Agents 是一条并行的长期实例链路：`/api/v1/sparkbot` 会启动 `SparkBotInstance`、渠道监听、heartbeat、cron 和专用 Agent loop，不进入 `UnifiedContext` turn runtime。完整说明见 [SparkBot 与 Agents 工作台](./sparkbot-agents.md)。
 
+如果需要把智能体调度、RAG 和学习画像整理成面试/答辩可用的代码事实口径，先看 [智能体、RAG 与学习画像代码事实说明](./core-ai-code-facts.md)。那份文档专门标注了已实现边界和不应夸大的部分。
+
 ## 运行时层
 
 运行时负责把请求转成 `UnifiedContext`、执行图、持久化事件和刷新记忆。
@@ -167,7 +169,8 @@ SparkWeave 的长期数据通常放在 `data/` 下，包括：
 - `data/user/settings/`：UI 设置和模型 catalog。
 - `data/user/workspace/`：聊天、解题、研究、动画、Notebook、Guide、Co-Writer 产物。
 - `data/memory/`：`SUMMARY.md` 和 `PROFILE.md`。
-- `data/knowledge_bases/`：知识库原始文件、索引和配置。
+- `data/knowledge_bases/`：知识库原始文件、索引元数据和配置。
+- `data/milvus/`：默认 Milvus Lite 向量数据库文件。
 
 这些内容通常不应提交到 Git。
 

@@ -1,0 +1,31 @@
+import type { RagTestHandoff } from "@/lib/ragHandoff";
+import type { RagSearchTestResult } from "@/lib/types";
+
+export type RagSearchTestPanelProps = {
+  activeKb: string;
+  query: string;
+  profile: string;
+  mode: string;
+  agentic: string;
+  topK: number;
+  agenticMaxContextChars: number;
+  agenticMaxSources: number;
+  agenticMinRelevantCoverage: number;
+  presetId: string;
+  result: RagSearchTestResult | null;
+  error: unknown;
+  running: boolean;
+  handoff?: RagTestHandoff | null;
+  onQueryChange: (value: string) => void;
+  onProfileChange: (value: string) => void;
+  onModeChange: (value: string) => void;
+  onAgenticChange: (value: string) => void;
+  onTopKChange: (value: number) => void;
+  onAgenticMaxContextCharsChange: (value: number) => void;
+  onAgenticMaxSourcesChange: (value: number) => void;
+  onAgenticMinRelevantCoverageChange: (value: number) => void;
+  onPresetApply: (presetId: string) => void;
+  onRun: () => void;
+  onHandoffDismiss?: () => void;
+  onOpenDiagnostics?: () => void;
+};

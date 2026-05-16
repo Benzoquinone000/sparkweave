@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Knowledge base initialization (llamaindex-only)."""
+"""Knowledge base initialization."""
 
 from __future__ import annotations
 
@@ -8,14 +8,12 @@ import asyncio
 from datetime import datetime
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
-from typing import Optional
 
 from sparkweave.knowledge.progress_tracker import ProgressStage, ProgressTracker
 from sparkweave.logging import get_logger
-from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
+from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER, normalize_provider_name
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
 from sparkweave.services.rag_support.service import RAGService
 
@@ -29,8 +27,6 @@ class KnowledgeBaseInitializer:
         self,
         kb_name: str,
         base_dir: str = "./data/knowledge_bases",
-        api_key: str | None = None,
-        base_url: str | None = None,
         progress_tracker: ProgressTracker | None = None,
         rag_provider: str | None = None,
     ):
@@ -40,11 +36,15 @@ class KnowledgeBaseInitializer:
 
         self.raw_dir = self.kb_dir / "raw"
         self.llamaindex_storage_dir = self.kb_dir / "llamaindex_storage"
+        self.milvus_storage_dir = self.kb_dir / "milvus_storage"
 
-        self.api_key = api_key
-        self.base_url = base_url
         self.progress_tracker = progress_tracker or ProgressTracker(kb_name, self.base_dir)
-        self.rag_provider = DEFAULT_PROVIDER
+        self.rag_provider = normalize_provider_name(rag_provider or DEFAULT_PROVIDER)
+
+    def _storage_dir(self) -> Path:
+        if self.rag_provider == "llamaindex":
+            return self.llamaindex_storage_dir
+        return self.milvus_storage_dir
 
     def _register_to_config(self) -> None:
         """Register KB in kb_config.json with initializing state."""
@@ -70,12 +70,13 @@ class KnowledgeBaseInitializer:
             manager.config = manager._load_config()
             manager.config.setdefault("knowledge_bases", {}).setdefault(self.kb_name, {})[
                 "rag_provider"
-            ] = DEFAULT_PROVIDER
+            ] = self.rag_provider
             manager._save_config()
         except Exception as e:
             logger.warning(f"Failed to register KB to config: {e}")
 
     def _update_metadata_with_provider(self, provider: str) -> None:
+        provider = normalize_provider_name(provider)
         metadata_file = self.kb_dir / "metadata.json"
         metadata: dict = {}
         if metadata_file.exists():
@@ -85,7 +86,7 @@ class KnowledgeBaseInitializer:
             except Exception:
                 metadata = {}
 
-        metadata["rag_provider"] = DEFAULT_PROVIDER
+        metadata["rag_provider"] = provider
         metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         with open(metadata_file, "w", encoding="utf-8") as f:
@@ -95,7 +96,7 @@ class KnowledgeBaseInitializer:
             from sparkweave.services.config import get_kb_config_service
 
             service = get_kb_config_service()
-            service.set_rag_provider(self.kb_name, DEFAULT_PROVIDER)
+            service.set_rag_provider(self.kb_name, provider)
             service.set_kb_config(self.kb_name, {"needs_reindex": False})
         except Exception as config_err:
             logger.warning(f"Failed to persist provider in centralized config: {config_err}")
@@ -106,7 +107,7 @@ class KnowledgeBaseInitializer:
 
         for dir_path in [
             self.raw_dir,
-            self.llamaindex_storage_dir,
+            self._storage_dir(),
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -115,7 +116,7 @@ class KnowledgeBaseInitializer:
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "description": f"Knowledge base: {self.kb_name}",
             "version": "1.0",
-            "rag_provider": DEFAULT_PROVIDER,
+            "rag_provider": self.rag_provider,
             "needs_reindex": False,
         }
 
@@ -170,9 +171,8 @@ class KnowledgeBaseInitializer:
     async def process_documents(
         self,
     ) -> bool:
-        """Process documents with llamaindex provider.
-        """
-        provider = DEFAULT_PROVIDER
+        """Process documents with the configured RAG provider."""
+        provider = self.rag_provider
 
         self.progress_tracker.update(
             ProgressStage.PROCESSING_DOCUMENTS,
@@ -246,18 +246,8 @@ class KnowledgeBaseInitializer:
             )
             raise
 
-        await self.fix_structure()
         await self.display_statistics_generic()
         return True
-
-    async def fix_structure(self) -> None:
-        """No-op retained for compatibility with previous pipelines."""
-        logger.info("Skipping legacy structure cleanup (llamaindex-only mode)")
-
-    def extract_numbered_items(self, batch_size: int = 20) -> None:
-        """Compatibility no-op: numbered-item extraction is deprecated."""
-        _ = batch_size
-        logger.info("Skipping numbered items extraction (deprecated feature removed)")
 
     async def display_statistics_generic(self) -> None:
         """Display basic statistics."""
@@ -267,8 +257,8 @@ class KnowledgeBaseInitializer:
         logger.info("Knowledge Base Statistics")
         logger.info("=" * 50)
         logger.info(f"Raw documents: {len(raw_files)}")
-        logger.info(f"LlamaIndex storage exists: {self.llamaindex_storage_dir.exists()}")
-        logger.info(f"Provider used: {DEFAULT_PROVIDER}")
+        logger.info(f"RAG storage exists: {self._storage_dir().exists()}")
+        logger.info(f"Provider used: {self.rag_provider}")
         logger.info("=" * 50)
 
 
@@ -276,9 +266,6 @@ async def initialize_knowledge_base(
     kb_name: str,
     source_files: list[str],
     base_dir: str = "./data/knowledge_bases",
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    skip_extract: bool = False,
 ) -> bool:
     """Convenience initializer used by CLI wrappers."""
     from sparkweave.knowledge.manager import KnowledgeBaseManager
@@ -287,16 +274,12 @@ async def initialize_knowledge_base(
     initializer = KnowledgeBaseInitializer(
         kb_name=kb_name,
         base_dir=base_dir,
-        api_key=api_key,
-        base_url=base_url,
         rag_provider=DEFAULT_PROVIDER,
     )
     try:
         initializer.create_directory_structure()
         initializer.copy_documents(source_files)
         await initializer.process_documents()
-        if not skip_extract:
-            initializer.extract_numbered_items()
         manager.update_kb_status(
             name=kb_name,
             status="ready",
@@ -336,11 +319,7 @@ async def main() -> None:
     parser.add_argument("--docs", nargs="+", help="Document files to process")
     parser.add_argument("--docs-dir", help="Directory containing documents to process")
     parser.add_argument("--base-dir", default="./knowledge_bases")
-    parser.add_argument("--api-key", default=os.getenv("LLM_API_KEY"))
-    parser.add_argument("--base-url", default=os.getenv("LLM_HOST"))
     parser.add_argument("--skip-processing", action="store_true")
-    parser.add_argument("--skip-extract", action="store_true")
-    parser.add_argument("--batch-size", type=int, default=20)
 
     args = parser.parse_args()
 
@@ -356,8 +335,6 @@ async def main() -> None:
     initializer = KnowledgeBaseInitializer(
         kb_name=args.name,
         base_dir=args.base_dir,
-        api_key=args.api_key,
-        base_url=args.base_url,
     )
     initializer.create_directory_structure()
 
@@ -366,8 +343,6 @@ async def main() -> None:
 
     if not args.skip_processing:
         await initializer.process_documents()
-    if not args.skip_processing and not args.skip_extract:
-        initializer.extract_numbered_items(batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

@@ -30,26 +30,83 @@ import sys
 import threading
 import time
 from typing import Any, Awaitable, Callable, Literal
-import unicodedata
 from urllib.parse import unquote, urlparse
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
+from pydantic import BaseModel
 import yaml
 
 from sparkweave.core.tool_protocol import BaseTool, ToolDefinition, ToolParameter, ToolResult
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.paths import get_path_service
-from sparkweave.tools.registry import ToolRegistry, get_tool_registry
+from sparkweave.services.sparkbot_support.config_models import (
+    COMPETITION_DEMO_BOT_ID,
+    BotConfig,
+    ChannelConfigModel,
+    ChannelsConfig,
+    DingTalkConfig,
+    DiscordConfig,
+    EmailConfig,
+    FeishuConfig,
+    MatrixConfig,
+    MochatConfig,
+    MochatGroupRule,
+    MochatMentionConfig,
+    QQConfig,
+    SlackConfig,
+    SlackDMConfig,
+    SparkBotAgentConfig,
+    SparkBotHeartbeatConfig,
+    SparkBotMCPServerConfig,
+    SparkBotToolsConfig,
+    TelegramConfig,
+    WecomConfig,
+    WhatsAppConfig,
+    _is_secret_field,
+    build_competition_demo_bot_config,
+    mask_channel_secrets,
+)
+from sparkweave.services.sparkbot_support.defaults import (
+    COMPETITION_DEMO_WORKSPACE_FILES as _COMPETITION_DEMO_WORKSPACE_FILES,
+)
+from sparkweave.services.sparkbot_support.defaults import (
+    DEFAULT_SOULS as _DEFAULT_SOULS,
+)
+from sparkweave.services.sparkbot_support.defaults import (
+    DEFAULT_TEMPLATES as _DEFAULT_TEMPLATES,
+)
+from sparkweave.services.sparkbot_support.formatting import (
+    markdown_to_telegram_html as _markdown_to_telegram_html,
+)
+from sparkweave.services.sparkbot_support.formatting import (
+    split_message as _split_message,
+)
+from sparkweave.services.sparkbot_support.messages import (
+    SparkBotInboundMessage,
+    SparkBotMessageBus,
+    SparkBotOutboundMessage,
+)
 from sparkweave.sparkbot.mcp import connect_mcp_servers
 from sparkweave.sparkbot.media import build_image_content_blocks
 from sparkweave.sparkbot.tools import build_sparkbot_agent_tool_registry
+from sparkweave.tools.registry import ToolRegistry, get_tool_registry
 from sparkweave.utils.json_parser import extract_json_from_text
 
 logger = logging.getLogger(__name__)
 
-_EDITABLE_WORKSPACE_FILES = ("SOUL.md", "USER.md", "TOOLS.md", "AGENTS.md", "HEARTBEAT.md")
+_EDITABLE_WORKSPACE_FILES = (
+    "SOUL.md",
+    "USER.md",
+    "TOOLS.md",
+    "AGENTS.md",
+    "HEARTBEAT.md",
+    "NOTES.md",
+    "COURSE.md",
+    "LESSONS.md",
+    "QUESTION_BANK.md",
+    "RUBRIC.md",
+    "RESOURCES.md",
+)
 _RESERVED_BOT_DIRS = {"souls", "_souls", "workspace", "media", "cron", "logs", "sessions"}
 _BUILTIN_SKILLS_DIR = Path(__file__).resolve().parents[1] / "sparkbot" / "skills"
 _PROMPT_FILE_MAX_CHARS = 12_000
@@ -59,370 +116,6 @@ DISCORD_MAX_MESSAGE_LEN = 2000
 TELEGRAM_MAX_MESSAGE_LEN = 4000
 TELEGRAM_REPLY_CONTEXT_MAX_LEN = TELEGRAM_MAX_MESSAGE_LEN
 
-_DEFAULT_TEMPLATES = {
-    "SOUL.md": "# Soul\n\nI am SparkBot, a personal learning companion.\n",
-    "USER.md": "# User\n\nKeep track of the learner's preferences, goals, and context here.\n",
-    "TOOLS.md": "# Tools\n\nUse SparkWeave capabilities, knowledge bases, and local files responsibly.\n",
-    "AGENTS.md": "# Agent Notes\n\nWork carefully, explain clearly, and preserve user privacy.\n",
-    "HEARTBEAT.md": "# Heartbeat\n\nReview reminders and proactive learning opportunities here.\n",
-}
-
-_DEFAULT_SOULS = [
-    {
-        "id": "default-sparkbot",
-        "name": "Default SparkBot",
-        "content": (
-            "# Soul\n\nI am SparkBot, a personal learning companion.\n\n"
-            "I explain clearly, remember useful context, and adapt to the learner."
-        ),
-    },
-    {
-        "id": "math-tutor",
-        "name": "Math Tutor",
-        "content": (
-            "# Soul\n\nI am a patient math tutor.\n\n"
-            "I break problems into steps, ask good questions, and verify final answers."
-        ),
-    },
-    {
-        "id": "research-helper",
-        "name": "Research Helper",
-        "content": (
-            "# Soul\n\nI help explore research topics in depth.\n\n"
-            "I decompose broad questions, compare evidence, and cite sources when possible."
-        ),
-    },
-]
-
-
-def _is_secret_field(name: str) -> bool:
-    lowered = name.lower()
-    return any(
-        hint in lowered
-        for hint in ("token", "password", "secret", "api_key", "apikey", "encrypt_key")
-    )
-
-
-def mask_channel_secrets(value: Any) -> Any:
-    if isinstance(value, dict):
-        masked: dict[str, Any] = {}
-        for key, item in value.items():
-            if _is_secret_field(str(key)) and isinstance(item, str) and item:
-                masked[key] = "***"
-            else:
-                masked[key] = mask_channel_secrets(item)
-        return masked
-    if isinstance(value, list):
-        return [mask_channel_secrets(item) for item in value]
-    return value
-
-
-class SparkBotConfigModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-class SparkBotMCPServerConfig(SparkBotConfigModel):
-    """MCP server connection config accepted from old and NG bot configs."""
-
-    type: Literal["stdio", "sse", "streamableHttp"] | None = None
-    command: str = ""
-    args: list[str] = Field(default_factory=list)
-    env: dict[str, str] = Field(default_factory=dict)
-    url: str = ""
-    headers: dict[str, str] = Field(default_factory=dict)
-    tool_timeout: int = 30
-    enabled_tools: list[str] = Field(default_factory=lambda: ["*"])
-
-
-class SparkBotWebSearchConfig(SparkBotConfigModel):
-    """Web search config accepted from old SparkBot configs."""
-
-    provider: str = "brave"
-    api_key: str = ""
-    base_url: str = ""
-    max_results: int = 5
-
-
-class SparkBotWebToolsConfig(SparkBotConfigModel):
-    """Web tool config accepted from old SparkBot configs."""
-
-    proxy: str | None = None
-    search: SparkBotWebSearchConfig = Field(default_factory=SparkBotWebSearchConfig)
-    fetch_max_chars: int = 50_000
-
-
-class SparkBotExecToolConfig(SparkBotConfigModel):
-    """Shell exec config accepted from old SparkBot configs."""
-
-    timeout: int = 60
-    path_append: str = ""
-
-
-class SparkBotToolsConfig(SparkBotConfigModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        serialize_by_alias=True,
-    )
-
-    web: SparkBotWebToolsConfig = Field(default_factory=SparkBotWebToolsConfig)
-    exec_config: SparkBotExecToolConfig = Field(
-        default_factory=SparkBotExecToolConfig,
-        alias="exec",
-        serialization_alias="exec",
-    )
-    restrict_to_workspace: bool = True
-    mcp_servers: dict[str, SparkBotMCPServerConfig] = Field(default_factory=dict)
-
-
-class SparkBotAgentConfig(SparkBotConfigModel):
-    max_tool_iterations: int = 4
-    tool_call_limit: int = 5
-    max_tokens: int = 8192
-    context_window_tokens: int = 65_536
-    temperature: float = 0.1
-    reasoning_effort: str | None = None
-    memory_window: int | None = Field(default=None, exclude=True)
-    team_max_workers: int = 5
-    team_worker_max_iterations: int = 25
-
-
-class SparkBotHeartbeatConfig(SparkBotConfigModel):
-    enabled: bool = True
-    interval_s: int = 30 * 60
-
-
-class BotConfig(SparkBotConfigModel):
-    name: str
-    description: str = ""
-    persona: str = ""
-    channels: dict[str, Any] = Field(default_factory=dict)
-    model: str | None = None
-    auto_start: bool = False
-    tools: SparkBotToolsConfig = Field(default_factory=SparkBotToolsConfig)
-    agent: SparkBotAgentConfig = Field(default_factory=SparkBotAgentConfig)
-    heartbeat: SparkBotHeartbeatConfig = Field(default_factory=SparkBotHeartbeatConfig)
-
-
-class ChannelConfigModel(SparkBotConfigModel):
-    pass
-
-
-class TelegramConfig(ChannelConfigModel):
-    enabled: bool = False
-    token: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-    proxy: str | None = None
-    reply_to_message: bool = False
-    group_policy: Literal["open", "mention"] = "mention"
-
-
-class SlackDMConfig(ChannelConfigModel):
-    enabled: bool = True
-    policy: str = "open"
-    allow_from: list[str] = Field(default_factory=list)
-    webhook_url: str = ""
-
-
-class SlackConfig(ChannelConfigModel):
-    enabled: bool = False
-    mode: str = "socket"
-    webhook_path: str = "/slack/events"
-    bot_token: str = ""
-    app_token: str = ""
-    user_token_read_only: bool = True
-    reply_in_thread: bool = True
-    react_emoji: str = "eyes"
-    allow_from: list[str] = Field(default_factory=list)
-    group_policy: str = "mention"
-    group_allow_from: list[str] = Field(default_factory=list)
-    dm: SlackDMConfig = Field(default_factory=SlackDMConfig)
-
-
-class DiscordConfig(ChannelConfigModel):
-    enabled: bool = False
-    token: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-    guild_id: str = ""
-    gateway_url: str = "wss://gateway.discord.gg/?v=10&encoding=json"
-    intents: int = 37377
-    group_policy: Literal["mention", "open"] = "mention"
-
-
-class DingTalkConfig(ChannelConfigModel):
-    enabled: bool = False
-    client_id: str = ""
-    client_secret: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-
-
-class EmailConfig(ChannelConfigModel):
-    enabled: bool = False
-    consent_granted: bool = False
-    imap_host: str = ""
-    imap_port: int = 993
-    imap_username: str = ""
-    imap_password: str = ""
-    imap_mailbox: str = "INBOX"
-    imap_use_ssl: bool = True
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_use_tls: bool = True
-    smtp_use_ssl: bool = False
-    from_address: str = ""
-    auto_reply_enabled: bool = True
-    poll_interval_seconds: int = 30
-    mark_seen: bool = True
-    max_body_chars: int = 12000
-    subject_prefix: str = "Re: "
-    allow_from: list[str] = Field(default_factory=list)
-
-
-class FeishuConfig(ChannelConfigModel):
-    enabled: bool = False
-    app_id: str = ""
-    app_secret: str = ""
-    encrypt_key: str = ""
-    verification_token: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-    react_emoji: str = "THUMBSUP"
-    group_policy: Literal["open", "mention"] = "mention"
-
-
-class MatrixConfig(ChannelConfigModel):
-    enabled: bool = False
-    homeserver: str = "https://matrix.org"
-    access_token: str = ""
-    user_id: str = ""
-    device_id: str = ""
-    e2ee_enabled: bool = True
-    sync_stop_grace_seconds: int = 2
-    max_media_bytes: int = 20 * 1024 * 1024
-    allow_from: list[str] = Field(default_factory=list)
-    group_policy: Literal["open", "mention", "allowlist"] = "open"
-    group_allow_from: list[str] = Field(default_factory=list)
-    allow_room_mentions: bool = False
-
-
-class MochatMentionConfig(ChannelConfigModel):
-    require_in_groups: bool = False
-
-
-class MochatGroupRule(ChannelConfigModel):
-    require_mention: bool = False
-
-
-class MochatConfig(ChannelConfigModel):
-    enabled: bool = False
-    base_url: str = "https://mochat.io"
-    socket_url: str = ""
-    socket_path: str = "/socket.io"
-    socket_disable_msgpack: bool = False
-    socket_reconnect_delay_ms: int = 1000
-    socket_max_reconnect_delay_ms: int = 10000
-    socket_connect_timeout_ms: int = 10000
-    refresh_interval_ms: int = 30000
-    watch_timeout_ms: int = 25000
-    watch_limit: int = 100
-    retry_delay_ms: int = 500
-    max_retry_attempts: int = 0
-    claw_token: str = ""
-    agent_user_id: str = ""
-    sessions: list[str] = Field(default_factory=list)
-    panels: list[str] = Field(default_factory=list)
-    allow_from: list[str] = Field(default_factory=list)
-    mention: MochatMentionConfig = Field(default_factory=MochatMentionConfig)
-    groups: dict[str, MochatGroupRule] = Field(default_factory=dict)
-    reply_delay_mode: str = "non-mention"
-    reply_delay_ms: int = 120000
-
-
-class QQConfig(ChannelConfigModel):
-    enabled: bool = False
-    app_id: str = ""
-    secret: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-    msg_format: Literal["plain", "markdown"] = "plain"
-
-
-class WecomConfig(ChannelConfigModel):
-    enabled: bool = False
-    bot_id: str = ""
-    secret: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-    welcome_message: str = ""
-
-
-class WhatsAppConfig(ChannelConfigModel):
-    enabled: bool = False
-    bridge_url: str = "ws://localhost:3001"
-    bridge_token: str = ""
-    allow_from: list[str] = Field(default_factory=list)
-
-
-class ChannelsConfig(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="allow")
-
-    send_progress: bool = True
-    send_tool_hints: bool = False
-    transcription_api_key: str = ""
-    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
-    slack: SlackConfig = Field(default_factory=SlackConfig)
-    discord: DiscordConfig = Field(default_factory=DiscordConfig)
-    dingtalk: DingTalkConfig = Field(default_factory=DingTalkConfig)
-    email: EmailConfig = Field(default_factory=EmailConfig)
-    feishu: FeishuConfig = Field(default_factory=FeishuConfig)
-    matrix: MatrixConfig = Field(default_factory=MatrixConfig)
-    mochat: MochatConfig = Field(default_factory=MochatConfig)
-    qq: QQConfig = Field(default_factory=QQConfig)
-    wecom: WecomConfig = Field(default_factory=WecomConfig)
-    whatsapp: WhatsAppConfig = Field(default_factory=WhatsAppConfig)
-
-
-@dataclass(slots=True)
-class SparkBotInboundMessage:
-    channel: str
-    sender_id: str
-    chat_id: str
-    content: str
-    media: list[str] = field(default_factory=list)
-    attachments: list[dict[str, Any]] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    session_key: str | None = None
-
-
-@dataclass(slots=True)
-class SparkBotOutboundMessage:
-    channel: str
-    chat_id: str
-    content: str
-    reply_to: str | None = None
-    media: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-class SparkBotMessageBus:
-    """Small NG-owned bus that mirrors the old SparkBot inbound/outbound queues."""
-
-    def __init__(self) -> None:
-        self.inbound: asyncio.Queue[SparkBotInboundMessage] = asyncio.Queue()
-        self.outbound: asyncio.Queue[SparkBotOutboundMessage] = asyncio.Queue()
-
-    async def publish_inbound(self, msg: SparkBotInboundMessage) -> None:
-        await self.inbound.put(msg)
-
-    async def consume_inbound(self) -> SparkBotInboundMessage:
-        return await self.inbound.get()
-
-    async def publish_outbound(self, msg: SparkBotOutboundMessage) -> None:
-        await self.outbound.put(msg)
-
-    async def consume_outbound(self) -> SparkBotOutboundMessage:
-        return await self.outbound.get()
-
-
 def _channel_config_model(channel_cls: type) -> type[BaseModel] | None:
     expected = channel_cls.__name__.replace("Channel", "") + "Config"
     candidate = globals().get(expected)
@@ -431,129 +124,10 @@ def _channel_config_model(channel_cls: type) -> type[BaseModel] | None:
     return None
 
 
-def _split_message(content: str, max_len: int) -> list[str]:
-    if not content:
-        return []
-    if len(content) <= max_len:
-        return [content]
-    chunks: list[str] = []
-    remaining = content
-    while remaining:
-        if len(remaining) <= max_len:
-            chunks.append(remaining)
-            break
-        candidate = remaining[:max_len]
-        split_at = candidate.rfind("\n")
-        if split_at <= 0:
-            split_at = candidate.rfind(" ")
-        if split_at <= 0:
-            split_at = max_len
-        chunks.append(remaining[:split_at])
-        remaining = remaining[split_at:].lstrip()
-    return chunks
-
-
 def _sparkbot_media_dir(channel: str) -> Path:
     path = get_path_service().project_root / "data" / "sparkbot" / "media" / channel
     path.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def _strip_markdown_inline(text: str) -> str:
-    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
-    text = re.sub(r"__(.+?)__", r"\1", text)
-    text = re.sub(r"~~(.+?)~~", r"\1", text)
-    text = re.sub(r"`([^`]+)`", r"\1", text)
-    return text.strip()
-
-
-def _render_markdown_table_box(table_lines: list[str]) -> str:
-    def display_width(value: str) -> int:
-        return sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in value)
-
-    rows: list[list[str]] = []
-    has_separator = False
-    for line in table_lines:
-        cells = [_strip_markdown_inline(cell) for cell in line.strip().strip("|").split("|")]
-        if all(re.match(r"^:?-+:?$", cell) for cell in cells if cell):
-            has_separator = True
-            continue
-        rows.append(cells)
-    if not rows or not has_separator:
-        return "\n".join(table_lines)
-
-    columns = max(len(row) for row in rows)
-    for row in rows:
-        row.extend([""] * (columns - len(row)))
-    widths = [max(display_width(row[column]) for row in rows) for column in range(columns)]
-
-    def render_row(cells: list[str]) -> str:
-        return "  ".join(
-            f"{cell}{' ' * (width - display_width(cell))}"
-            for cell, width in zip(cells, widths)
-        )
-
-    output = [render_row(rows[0]), "  ".join("-" * width for width in widths)]
-    output.extend(render_row(row) for row in rows[1:])
-    return "\n".join(output)
-
-
-def _markdown_to_telegram_html(text: str) -> str:
-    if not text:
-        return ""
-
-    code_blocks: list[str] = []
-
-    def save_code_block(match: re.Match) -> str:
-        code_blocks.append(match.group(1))
-        return f"\x00CB{len(code_blocks) - 1}\x00"
-
-    text = re.sub(r"```[\w]*\n?([\s\S]*?)```", save_code_block, text)
-
-    lines = text.split("\n")
-    rebuilt: list[str] = []
-    index = 0
-    while index < len(lines):
-        if re.match(r"^\s*\|.+\|", lines[index]):
-            table: list[str] = []
-            while index < len(lines) and re.match(r"^\s*\|.+\|", lines[index]):
-                table.append(lines[index])
-                index += 1
-            box = _render_markdown_table_box(table)
-            if box != "\n".join(table):
-                code_blocks.append(box)
-                rebuilt.append(f"\x00CB{len(code_blocks) - 1}\x00")
-            else:
-                rebuilt.extend(table)
-            continue
-        rebuilt.append(lines[index])
-        index += 1
-    text = "\n".join(rebuilt)
-
-    inline_codes: list[str] = []
-
-    def save_inline_code(match: re.Match) -> str:
-        inline_codes.append(match.group(1))
-        return f"\x00IC{len(inline_codes) - 1}\x00"
-
-    text = re.sub(r"`([^`]+)`", save_inline_code, text)
-    text = re.sub(r"^#{1,6}\s+(.+)$", r"\1", text, flags=re.MULTILINE)
-    text = re.sub(r"^>\s*(.*)$", r"\1", text, flags=re.MULTILINE)
-    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
-    text = re.sub(r"(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])", r"<i>\1</i>", text)
-    text = re.sub(r"~~(.+?)~~", r"<s>\1</s>", text)
-    text = re.sub(r"^[-*]\s+", "- ", text, flags=re.MULTILINE)
-
-    for index, code in enumerate(inline_codes):
-        escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        text = text.replace(f"\x00IC{index}\x00", f"<code>{escaped}</code>")
-    for index, code in enumerate(code_blocks):
-        escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        text = text.replace(f"\x00CB{index}\x00", f"<pre><code>{escaped}</code></pre>")
-    return text
 
 
 class SparkBotChannel:
@@ -10177,6 +9751,46 @@ class SparkBotManager:
                 setattr(base, key, value)
         return base
 
+    def seed_competition_demo_bot(
+        self,
+        bot_id: str = COMPETITION_DEMO_BOT_ID,
+        *,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """Create or refresh the stable SparkBot used for the competition demo."""
+
+        safe_bot_id = self._safe_bot_id(bot_id)
+        existing = self.load_bot_config(safe_bot_id)
+        created = existing is None
+        if created or overwrite:
+            self.save_bot_config(
+                safe_bot_id,
+                build_competition_demo_bot_config(),
+                auto_start=False,
+            )
+        else:
+            self._ensure_bot_workspace(safe_bot_id, existing)
+
+        written: list[str] = []
+        skipped: list[str] = []
+        for filename, content in _COMPETITION_DEMO_WORKSPACE_FILES.items():
+            current = self.read_bot_file(safe_bot_id, filename)
+            default = _DEFAULT_TEMPLATES.get(filename, "")
+            should_write = created or overwrite or current in {None, "", default}
+            if should_write:
+                self.write_bot_file(safe_bot_id, filename, content)
+                written.append(filename)
+            else:
+                skipped.append(filename)
+
+        return {
+            "bot_id": safe_bot_id,
+            "created": created,
+            "overwritten": overwrite,
+            "workspace_files": written,
+            "skipped_files": skipped,
+        }
+
     @staticmethod
     def _apply_agent_tool_runtime_defaults(config: BotConfig) -> None:
         exec_config = config.tools.exec_config
@@ -10867,10 +10481,11 @@ class SparkBotManager:
 
     def _seed_default_souls(self) -> None:
         souls_dir = self._souls_dir()
-        if any(souls_dir.glob("*.json")):
-            return
         for soul in _DEFAULT_SOULS:
-            (souls_dir / f"{soul['id']}.json").write_text(
+            path = souls_dir / f"{soul['id']}.json"
+            if path.exists():
+                continue
+            path.write_text(
                 json.dumps(soul, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
@@ -10890,6 +10505,7 @@ __all__ = [
     "BotConfig",
     "ChannelConfigModel",
     "ChannelsConfig",
+    "COMPETITION_DEMO_BOT_ID",
     "DiscordChannel",
     "DiscordConfig",
     "DingTalkChannel",
@@ -10948,6 +10564,7 @@ __all__ = [
     "WhatsAppChannel",
     "WhatsAppConfig",
     "_is_secret_field",
+    "build_competition_demo_bot_config",
     "discover_builtin_channels",
     "get_sparkbot_manager",
     "mask_channel_secrets",

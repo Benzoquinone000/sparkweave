@@ -32,13 +32,14 @@ export function CoWriterPage() {
   const [result, setResult] = useState("");
   const [streamLogs, setStreamLogs] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const knowledge = useKnowledgeBases();
-  const notebooks = useNotebooks();
+  const notebooks = useNotebooks({ enabled: Boolean(result || notebookId) });
   const history = useCoWriterHistory();
-  const operation = useCoWriterOperation(selectedOperationId);
-  const toolCalls = useCoWriterToolCalls(selectedOperationId);
+  const operation = useCoWriterOperation(selectedOperationId, { enabled: auditOpen });
+  const toolCalls = useCoWriterToolCalls(selectedOperationId, { enabled: auditOpen });
   const mutations = useCoWriterMutations();
 
   const runEdit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -148,7 +149,7 @@ export function CoWriterPage() {
           accent="orange"
           imageSrc="/illustrations/notion-thread.svg"
           imageAlt="写作助手预览"
-          people="working_laptop"
+          people="writing_board"
           previewTitle="编辑也要留下依据"
           previewDescription="润色、压缩和扩写都会保留工具调用与修改痕迹。"
           tiles={[
@@ -302,7 +303,9 @@ export function CoWriterPage() {
             </details>
             <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
               <SelectInput value={notebookId} onChange={(event) => setNotebookId(event.target.value)}>
-                <option value="">选择笔记本</option>
+                <option value="">
+                  {notebooks.isLoading || notebooks.isFetching ? "正在读取笔记本..." : "选择笔记本"}
+                </option>
                 {(notebooks.data ?? []).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -354,7 +357,10 @@ export function CoWriterPage() {
           </section>
 
           <section className="rounded-lg border border-line bg-white p-3">
-            <details className="[&>summary::-webkit-details-marker]:hidden">
+            <details
+              className="[&>summary::-webkit-details-marker]:hidden"
+              onToggle={(event) => setAuditOpen(event.currentTarget.open)}
+            >
               <summary
                 className="dt-interactive flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-lg px-1 py-1"
                 data-testid="co-writer-audit-toggle"

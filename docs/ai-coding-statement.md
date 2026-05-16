@@ -12,6 +12,17 @@ AI Coding 工具主要参与以下工作：
 - 测试与排错：辅助编写和维护 Pytest、Playwright、前端 lint/build、课程模板校验和 CI 工作流。
 - 文档整理：辅助撰写 README、架构文档、导学说明、画像设计、演示脚本和比赛路线图。
 
+## 本赛题助教功能中的使用说明
+
+本轮 AI 助教中心优化中，AI Coding 工具主要用于：
+
+- 对照赛题要求和 `docs/sparkbot-teaching-assistant-ux-plan.md` 梳理助教体验主线。
+- 在 `/agents` 页面中辅助实现学习工作台、创建向导、资料与产物区、学习协作路线、TTS/OCR 多模态预览和反馈回写。
+- 辅助补充 SparkBot 演示 seed、Runbook、E2E mock 和自动化检查。
+- 协助生成测试命令清单，验证前端构建、设计约束、后端接口和 Playwright 演示路径。
+
+这些改动均以人工确认的产品目标为准：服务高校个性化学习、突出科大讯飞工具链、保证演示路径稳定，并避免在公开材料中暴露真实密钥。
+
 ## 人工控制与审查
 
 项目没有把 AI 输出直接当作最终结果。每次重要改动都会经过以下检查：
@@ -51,4 +62,3 @@ AI Coding 工具可以提高开发速度，但不能替代以下工作：
 - 画像设计：`docs/learner-profile-design.md`。
 - 导学设计：`docs/guided-learning.md`。
 - 演示脚本：`docs/demo-script-profile-guide-loop.md`。
-

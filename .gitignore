@@ -17,6 +17,7 @@ dist/
 *.egg-info/
 .eggs/
 .pytest_cache/
+.pytest_tmp/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -44,7 +45,9 @@ pnpm-debug.log*
 
 # Runtime data
 data/user/
+data/eval_corpora/
 data/knowledge_bases/
+data/milvus/
 data/memory/
 run_code_workspace/
 logs/

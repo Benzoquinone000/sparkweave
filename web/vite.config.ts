@@ -27,14 +27,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
           const normalized = id.replaceAll("\\", "/");
+          if (normalized.includes("vite/preload-helper")) return "vendor";
+          if (!id.includes("node_modules")) return undefined;
           if (normalized.includes("/node_modules/react-dom") || normalized.includes("/node_modules/scheduler")) {
             return "react-dom";
           }
           if (normalized.includes("/node_modules/react/") || normalized.includes("/node_modules/react/jsx")) {
             return "react";
           }
+          if (normalized.includes("/node_modules/katex")) return "math-typesetting";
           if (
             normalized.includes("/node_modules/mermaid") ||
             normalized.includes("/node_modules/@mermaid-js") ||
@@ -47,7 +49,6 @@ export default defineConfig({
             normalized.includes("/node_modules/dagre-d3-es") ||
             normalized.includes("/node_modules/dompurify") ||
             normalized.includes("/node_modules/elkjs") ||
-            normalized.includes("/node_modules/katex") ||
             normalized.includes("/node_modules/khroma") ||
             normalized.includes("/node_modules/langium") ||
             normalized.includes("/node_modules/layout-base") ||
@@ -55,7 +56,7 @@ export default defineConfig({
             normalized.includes("/node_modules/marked") ||
             normalized.includes("/node_modules/roughjs")
           ) {
-            return "visualization";
+            return "diagrams";
           }
           if (normalized.includes("/node_modules/chart.js") || normalized.includes("/node_modules/@kurkle")) {
             return "charts";

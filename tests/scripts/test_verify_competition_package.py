@@ -62,6 +62,9 @@ def test_verify_competition_package_can_write_json_report(tmp_path: Path) -> Non
     assert stdout_report["file_count"] > 0
     assert stdout_report["checksum_count"] > 0
     assert "START_HERE.md" in stdout_report["required_files"]
+    assert "docs/competition-visualization-completion-report.md" in stdout_report["required_files"]
+    assert "docs/sparkweave-execution-plan.md" in stdout_report["required_files"]
+    assert "screenshots/screenshots-sparkbot-demo-readiness.png" in stdout_report["required_files"]
 
 
 def test_verify_competition_package_detects_checksum_mismatch(tmp_path: Path) -> None:

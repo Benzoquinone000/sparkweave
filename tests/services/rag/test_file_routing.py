@@ -44,7 +44,7 @@ class TestUnknownExtensionFallback:
 
 
 class TestClassifyFiles:
-    def test_routes_pdf_to_parser_text_to_text(self, tmp_path: Path) -> None:
+    def test_routes_pdf_and_image_to_parser_text_to_text(self, tmp_path: Path) -> None:
         pdf = tmp_path / "a.pdf"
         pdf.write_bytes(b"%PDF-1.4")
         txt = tmp_path / "a.txt"
@@ -53,9 +53,9 @@ class TestClassifyFiles:
         png.write_bytes(b"\x89PNG\r\n")
 
         cls = FileTypeRouter.classify_files([str(pdf), str(txt), str(png)])
-        assert cls.parser_files == [str(pdf)]
+        assert cls.parser_files == [str(pdf), str(png)]
         assert cls.text_files == [str(txt)]
-        assert cls.unsupported == [str(png)]
+        assert cls.unsupported == []
 
     def test_empty_input_yields_empty_groups(self) -> None:
         cls = FileTypeRouter.classify_files([])
@@ -70,6 +70,7 @@ class TestSupportedExtensionsAndGlobs:
         assert ".pdf" in exts
         assert ".md" in exts
         assert ".txt" in exts
+        assert ".png" in exts
 
     def test_glob_patterns_match_supported_extensions(self) -> None:
         exts = FileTypeRouter.get_supported_extensions()
@@ -80,8 +81,9 @@ class TestSupportedExtensionsAndGlobs:
 
 
 class TestQuickHelpers:
-    def test_needs_parser_for_pdf(self) -> None:
-        assert FileTypeRouter.needs_parser("paper.pdf") is True
+    @pytest.mark.parametrize("filename", ["paper.pdf", "diagram.png", "scan.jpeg"])
+    def test_needs_parser_for_pdf_and_images(self, filename: str) -> None:
+        assert FileTypeRouter.needs_parser(filename) is True
 
     def test_needs_parser_false_for_text(self) -> None:
         assert FileTypeRouter.needs_parser("notes.md") is False

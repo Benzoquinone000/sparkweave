@@ -2,6 +2,8 @@
 
 本文档从代码目录角度说明 SparkWeave 的模块分工，适合第一次接手项目时快速定位。
 
+如果要从“用户功能”而不是“目录结构”反查前端页面、API、服务和数据落点，请看 [功能级代码地图](./feature-code-map.md)。
+
 ## 顶层目录
 
 | 路径 | 作用 |
@@ -117,6 +119,7 @@ FastAPI 应用在 `sparkweave/api/main.py` 中组装。主要路由：
 | `data/user/workspace/notebook/` | Notebook JSON 文件和索引 |
 | `data/memory/` | `SUMMARY.md` 和 `PROFILE.md` |
 | `data/memory/SparkBots/` | SparkBot 配置、工作区、session、cron、日志和私有记忆 |
-| `data/knowledge_bases/` | 知识库 raw 文件、索引、metadata、配置 |
+| `data/knowledge_bases/` | 知识库 raw 文件、索引元数据、metadata、配置 |
+| `data/milvus/` | 默认 Milvus Lite 向量数据库文件 |
 
 这些目录保存本地运行状态，通常不应提交到 Git。

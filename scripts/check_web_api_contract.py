@@ -69,7 +69,7 @@ def join_route(prefix: str, suffix: str) -> str:
 def normalize_route(path: str) -> str:
     path = path.replace("\\n", "")
     path = "".join(line.strip() for line in path.splitlines())
-    path = re.sub(r"\$\{\s*query\s*\}", "", path)
+    path = re.sub(r"\$\{\s*(?:query|suffix)\s*\}", "", path)
     path = re.sub(r"\$\{[^}]+\}", "{}", path)
     path = re.sub(r"\{[^/{}]+\}", "{}", path)
     path = path.split("?", 1)[0]

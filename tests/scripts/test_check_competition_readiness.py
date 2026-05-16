@@ -45,6 +45,17 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Competition proof chain: backend package" in result.stdout
     assert "[ok] Competition proof chain: frontend card" in result.stdout
     assert "[ok] Competition proof chain: test coverage" in result.stdout
+    assert "[ok] Competition visualization: completion report" in result.stdout
+    assert "[ok] Competition visualization: execution plan sync" in result.stdout
+    assert "[ok] SparkBot teaching assistant: demo workspace defaults" in result.stdout
+    assert "[ok] SparkBot teaching assistant: seed demo CLI" in result.stdout
+    assert "[ok] SparkBot teaching assistant: frontend readiness panel" in result.stdout
+    assert "[ok] SparkBot teaching assistant: course-first workspace" in result.stdout
+    assert "[ok] SparkBot teaching assistant: e2e coverage" in result.stdout
+    assert "[ok] SparkBot teaching assistant: runbook" in result.stdout
+    assert "[ok] SparkBot teaching assistant: plan completion record" in result.stdout
+    assert "[ok] SparkBot teaching assistant: completion report" in result.stdout
+    assert "[ok] SparkBot teaching assistant: package export" in result.stdout
     assert "[ok] User-facing diagnostics: settings status strip" in result.stdout
     assert "[ok] User-facing diagnostics: test coverage" in result.stdout
     assert "[ok] User-facing knowledge progress: milestone view" in result.stdout
@@ -69,6 +80,7 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in result.stdout
     assert "[ok] Competition archive content: competition_package/demo_materials/sparkweave-learning-effect-summary.md" in result.stdout
     assert "[ok] Competition archive content: competition_package/runtime/scripts/start_web.py" in result.stdout
+    assert "[ok] Competition archive content: competition_package/screenshots/screenshots-sparkbot-demo-readiness.png" in result.stdout
     assert "[ok] Competition archive safety" in result.stdout
     assert "[ok] Generated package: START_HERE.md" in result.stdout
     assert "[ok] Generated package: index.html" in result.stdout
@@ -78,6 +90,11 @@ def test_check_competition_readiness() -> None:
     assert "[ok] Generated package checksums" in result.stdout
     assert "[ok] Generated package content: docs/demo-quickstart.md" in result.stdout
     assert "[ok] Generated package content: docs/iflytek-integration.md" in result.stdout
+    assert "[ok] Generated package content: docs/sparkbot-demo-runbook.md" in result.stdout
+    assert "[ok] Generated package content: docs/sparkbot-teaching-assistant-ux-plan.md" in result.stdout
+    assert "[ok] Generated package content: docs/sparkbot-plan-completion-report.md" in result.stdout
+    assert "[ok] Generated package content: docs/competition-visualization-completion-report.md" in result.stdout
+    assert "[ok] Generated package content: docs/sparkweave-execution-plan.md" in result.stdout
     assert "All required competition materials are ready." in result.stdout
 
 
@@ -138,6 +155,17 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition proof chain: backend package" in check_names
     assert "Competition proof chain: frontend card" in check_names
     assert "Competition proof chain: test coverage" in check_names
+    assert "Competition visualization: completion report" in check_names
+    assert "Competition visualization: execution plan sync" in check_names
+    assert "SparkBot teaching assistant: demo workspace defaults" in check_names
+    assert "SparkBot teaching assistant: seed demo CLI" in check_names
+    assert "SparkBot teaching assistant: frontend readiness panel" in check_names
+    assert "SparkBot teaching assistant: course-first workspace" in check_names
+    assert "SparkBot teaching assistant: e2e coverage" in check_names
+    assert "SparkBot teaching assistant: runbook" in check_names
+    assert "SparkBot teaching assistant: plan completion record" in check_names
+    assert "SparkBot teaching assistant: completion report" in check_names
+    assert "SparkBot teaching assistant: package export" in check_names
     assert "Competition package archive" in check_names
     assert "Competition archive content: competition_package/START_HERE.md" in check_names
     assert "Competition archive content: competition_package/index.html" in check_names
@@ -145,6 +173,7 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Competition archive content: competition_package/demo_materials/sparkweave-competition-scorecard.md" in check_names
     assert "Competition archive content: competition_package/demo_materials/sparkweave-learning-effect-summary.md" in check_names
     assert "Competition archive content: competition_package/runtime/scripts/start_web.py" in check_names
+    assert "Competition archive content: competition_package/screenshots/screenshots-sparkbot-demo-readiness.png" in check_names
     assert "Competition archive safety" in check_names
     assert "Generated package: START_HERE.md" in check_names
     assert "Generated package: index.html" in check_names
@@ -168,6 +197,11 @@ def test_check_competition_readiness_json_report(tmp_path: Path) -> None:
     assert "Runtime: scripts/verify_competition_package.py" in check_names
     assert "Generated package: runtime/scripts/verify_competition_package.py" in check_names
     assert "Generated package content: docs/iflytek-integration.md" in check_names
+    assert "Generated package content: docs/sparkbot-demo-runbook.md" in check_names
+    assert "Generated package content: docs/sparkbot-teaching-assistant-ux-plan.md" in check_names
+    assert "Generated package content: docs/sparkbot-plan-completion-report.md" in check_names
+    assert "Generated package content: docs/competition-visualization-completion-report.md" in check_names
+    assert "Generated package content: docs/sparkweave-execution-plan.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-demo-fallback-assets.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-competition-scorecard.md" in check_names
     assert "Generated package content: demo_materials/sparkweave-learning-effect-summary.md" in check_names

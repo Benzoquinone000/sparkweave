@@ -51,6 +51,16 @@ PROOF_POINTS = [
         "课程产出包、页面证据和测试证据已覆盖。",
     ),
     (
+        "AI 助教中心",
+        [
+            "SparkBot teaching assistant: demo workspace defaults",
+            "SparkBot teaching assistant: frontend readiness panel",
+            "SparkBot teaching assistant: runbook",
+            "SparkBot teaching assistant: package export",
+        ],
+        "固定助教、课程资料包、演示检查面板、Runbook 和提交包导出已覆盖。",
+    ),
+    (
         "用户化体验护栏",
         [
             "User-facing diagnostics: settings status strip",

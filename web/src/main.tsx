@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
 import { router } from "@/router";
-import "katex/dist/katex.min.css";
 import "@/styles/index.css";
 
 const queryClient = new QueryClient({

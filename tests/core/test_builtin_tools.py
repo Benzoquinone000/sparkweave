@@ -72,7 +72,15 @@ async def test_rag_tool_forwards_query_and_extra_kwargs(monkeypatch: pytest.Monk
     assert captured["kb_name"] == "demo-kb"
     assert captured["mode"] == "hybrid"
     assert captured["only_need_context"] is True
-    assert result.sources == [{"title": "Demo", "source": "demo.txt"}]
+    assert result.sources == [
+        {
+            "type": "rag",
+            "kb_name": "demo-kb",
+            "query": "what is a tensor",
+            "title": "Demo",
+            "source": "demo.txt",
+        }
+    ]
     assert result.success is True
 
 
@@ -103,7 +111,15 @@ async def test_rag_tool_propagates_backend_failure(monkeypatch: pytest.MonkeyPat
 
     assert result.success is False
     assert result.metadata["error"] == "boom"
-    assert result.sources == [{"title": "Demo", "source": "demo.txt"}]
+    assert result.sources == [
+        {
+            "type": "rag",
+            "kb_name": "demo-kb",
+            "query": "what is a tensor",
+            "title": "Demo",
+            "source": "demo.txt",
+        }
+    ]
 
 
 @pytest.mark.asyncio

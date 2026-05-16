@@ -160,3 +160,16 @@ class TestErrorHandling:
         with pytest.raises(ValueError, match="Cannot parse embeddings"):
             _extract({"embedding": []})
 
+
+class TestDimensionParameterPolicy:
+    def test_unknown_openai_compatible_model_does_not_send_dimensions(self) -> None:
+        assert OpenAICompatibleEmbeddingAdapter._should_send_dimensions("Qwen/Qwen3-Embedding-8B", 4096) is False
+
+    def test_fixed_openai_model_does_not_send_dimensions(self) -> None:
+        assert OpenAICompatibleEmbeddingAdapter._should_send_dimensions("text-embedding-ada-002", 1536) is False
+
+    def test_openai_variable_model_sends_only_custom_supported_dimension(self) -> None:
+        assert OpenAICompatibleEmbeddingAdapter._should_send_dimensions("text-embedding-3-small", 512) is True
+        assert OpenAICompatibleEmbeddingAdapter._should_send_dimensions("text-embedding-3-small", 1536) is False
+        assert OpenAICompatibleEmbeddingAdapter._should_send_dimensions("text-embedding-3-small", 1024) is False
+

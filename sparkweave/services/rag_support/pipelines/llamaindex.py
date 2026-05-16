@@ -22,8 +22,8 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.bridge.pydantic import PrivateAttr
 
 from sparkweave.services.embedding_support import get_embedding_client, get_embedding_config
-from sparkweave.services.ocr import OcrUnavailable, is_iflytek_ocr_configured, ocr_pdf_with_iflytek
-from sparkweave.services.rag_support.file_routing import FileTypeRouter
+from sparkweave.services.ocr import OcrUnavailable, is_ocr_configured, ocr_pdf, recognize_image
+from sparkweave.services.rag_support.file_routing import DocumentType, FileTypeRouter
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
@@ -161,6 +161,68 @@ class LlamaIndexPipeline:
             f"({embedding_cfg.dim}D, {embedding_cfg.binding}), chunk_size=512"
         )
 
+    @staticmethod
+    def _relative_path_for_file(file_path: Path) -> str:
+        """Return the KB raw-relative path when the file lives under raw/."""
+        try:
+            resolved = file_path.resolve()
+            parts = resolved.parts
+            raw_index = len(parts) - 1 - parts[::-1].index("raw")
+            if raw_index < len(parts) - 1:
+                return Path(*parts[raw_index + 1 :]).as_posix()
+        except (OSError, ValueError):
+            pass
+        return file_path.name
+
+    @classmethod
+    def _document_id_for_file(cls, file_path: Path) -> str:
+        """Return the same stable id used by the document-management API."""
+        import hashlib
+
+        relative_path = cls._relative_path_for_file(file_path)
+        return hashlib.sha1(relative_path.encode("utf-8")).hexdigest()[:16]
+
+    @classmethod
+    def _document_metadata(
+        cls,
+        file_path: Path,
+        *,
+        source_type: str = "",
+    ) -> dict[str, str]:
+        document_id = cls._document_id_for_file(file_path)
+        relative_path = cls._relative_path_for_file(file_path)
+        metadata = {
+            "file_name": file_path.name,
+            "file_path": str(file_path),
+            "relative_path": relative_path,
+            "document_id": document_id,
+            "doc_id": document_id,
+            "ref_doc_id": document_id,
+        }
+        if source_type:
+            metadata["source_type"] = source_type
+        return metadata
+
+    @classmethod
+    def _make_document(
+        cls,
+        *,
+        text: str,
+        file_path: Path,
+        source_type: str = "",
+    ) -> Document:
+        document_id = cls._document_id_for_file(file_path)
+        metadata = cls._document_metadata(file_path, source_type=source_type)
+        try:
+            return Document(text=text, id_=document_id, metadata=metadata)
+        except TypeError:
+            document = Document(text=text, metadata=metadata)
+            try:
+                document.id_ = document_id
+            except Exception:
+                pass
+            return document
+
     async def _verify_embedding_connectivity(self) -> None:
         """Quick smoke-test: embed a single token to catch config/network issues early."""
         self.logger.info("Verifying embedding API connectivity...")
@@ -169,14 +231,77 @@ class LlamaIndexPipeline:
             result = await client.embed(["connectivity test"])
             if not result or not result[0]:
                 raise RuntimeError("Embedding API returned empty result")
+            embedding_cfg = get_embedding_config()
+            actual_dim = len(result[0])
+            if embedding_cfg.dim and actual_dim != embedding_cfg.dim:
+                raise RuntimeError(
+                    "Embedding dimension mismatch: "
+                    f"configured EMBEDDING_DIMENSION={embedding_cfg.dim}, "
+                    f"but provider returned {actual_dim}. "
+                    "Update the embedding dimension setting and rebuild the knowledge base."
+                )
             self.logger.info(
-                f"Embedding API OK (returned {len(result[0])}-dim vector)"
+                f"Embedding API OK (returned {actual_dim}-dim vector)"
             )
         except Exception as e:
             self.logger.error(f"Embedding API connectivity check failed: {e}")
             raise RuntimeError(
                 f"Cannot reach embedding API. Please check your embedding configuration. Error: {e}"
             ) from e
+
+    async def _load_documents(self, file_paths: List[str]) -> List[Document]:
+        """Load supported files into LlamaIndex documents.
+
+        Milvus and local LlamaIndex storage share the same ingestion behavior:
+        PDFs go through the PDF/OCR parser, images go through OCR, text-like
+        files are read directly, and unsupported files are skipped with a
+        warning.
+        """
+        documents = []
+        classification = FileTypeRouter.classify_files(file_paths)
+
+        for file_path_str in classification.parser_files:
+            file_path = Path(file_path_str)
+            doc_type = FileTypeRouter.get_document_type(str(file_path))
+            if doc_type == DocumentType.IMAGE:
+                self.logger.info("Parsing image with OCR: %s", file_path.name)
+                text = self._extract_image_text(file_path)
+                source_type = "image_ocr"
+            else:
+                self.logger.info(f"Parsing PDF: {file_path.name}")
+                text = self._extract_pdf_text(file_path)
+                source_type = "pdf"
+            if text.strip():
+                documents.append(
+                    self._make_document(
+                        text=text,
+                        file_path=file_path,
+                        source_type=source_type,
+                    )
+                )
+                self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
+            else:
+                self.logger.warning(f"Skipped empty document: {file_path.name}")
+
+        for file_path_str in classification.text_files:
+            file_path = Path(file_path_str)
+            self.logger.info(f"Parsing text: {file_path.name}")
+            text = await FileTypeRouter.read_text_file(str(file_path))
+            if text.strip():
+                documents.append(
+                    self._make_document(
+                        text=text,
+                        file_path=file_path,
+                    )
+                )
+                self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
+            else:
+                self.logger.warning(f"Skipped empty document: {file_path.name}")
+
+        for file_path_str in classification.unsupported:
+            self.logger.warning(f"Skipped unsupported file: {Path(file_path_str).name}")
+
+        return documents
 
     async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
         """
@@ -204,52 +329,10 @@ class LlamaIndexPipeline:
             # Verify embedding API is reachable before doing any heavy work
             await self._verify_embedding_connectivity()
 
-            # Parse documents with centralized file routing
-            documents = []
-            classification = FileTypeRouter.classify_files(file_paths)
-
-            for file_path_str in classification.parser_files:
-                file_path = Path(file_path_str)
-                self.logger.info(f"Parsing PDF: {file_path.name}")
-                text = self._extract_pdf_text(file_path)
-                if text.strip():
-                    documents.append(
-                        Document(
-                            text=text,
-                            metadata={
-                                "file_name": file_path.name,
-                                "file_path": str(file_path),
-                            },
-                        )
-                    )
-                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
-                else:
-                    self.logger.warning(f"Skipped empty document: {file_path.name}")
-
-            for file_path_str in classification.text_files:
-                file_path = Path(file_path_str)
-                self.logger.info(f"Parsing text: {file_path.name}")
-                text = await FileTypeRouter.read_text_file(str(file_path))
-                if text.strip():
-                    documents.append(
-                        Document(
-                            text=text,
-                            metadata={
-                                "file_name": file_path.name,
-                                "file_path": str(file_path),
-                            },
-                        )
-                    )
-                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
-                else:
-                    self.logger.warning(f"Skipped empty document: {file_path.name}")
-
-            for file_path_str in classification.unsupported:
-                self.logger.warning(f"Skipped unsupported file: {Path(file_path_str).name}")
+            documents = await self._load_documents(file_paths)
 
             if not documents:
-                self.logger.error("No valid documents found")
-                return False
+                raise RuntimeError("No valid documents found after parsing uploaded files.")
 
             self.logger.info(
                 f"Creating VectorStoreIndex with {len(documents)} documents "
@@ -277,7 +360,7 @@ class LlamaIndexPipeline:
             import traceback
 
             self.logger.error(traceback.format_exc())
-            return False
+            raise RuntimeError(f"LlamaIndex initialization failed: {e}") from e
         finally:
             if isinstance(Settings.embed_model, CustomEmbedding):
                 Settings.embed_model.set_progress_callback(None)
@@ -286,35 +369,35 @@ class LlamaIndexPipeline:
         """Extract text from PDF.
 
         Strategy:
-        - ``SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first``: try iFlyTek OCR first,
+        - ``SPARKWEAVE_PDF_OCR_STRATEGY=ocr_first``: try configured OCR first,
           then fall back to the default PyMuPDF text-layer parser.
         - default/auto: use PyMuPDF first; if the extracted text is too short and
-          iFlyTek OCR is configured, try OCR as a scanned-PDF fallback.
+          OCR is configured, try OCR as a scanned-PDF fallback.
         """
         strategy = _env("SPARKWEAVE_PDF_OCR_STRATEGY", "auto").strip().lower()
-        if strategy in {"iflytek_first", "ocr_first", "iflytek"}:
+        if strategy in {"iflytek_first", "ocr_first", "iflytek", "siliconflow_first", "deepseekocr_first"}:
             try:
-                text = ocr_pdf_with_iflytek(file_path)
+                text = ocr_pdf(file_path)
                 if text.strip():
-                    self.logger.info("Extracted PDF text with iFlyTek OCR: %s", file_path.name)
+                    self.logger.info("Extracted PDF text with OCR provider: %s", file_path.name)
                     return text
-                self.logger.warning("iFlyTek OCR returned empty text for %s; falling back to PyMuPDF", file_path.name)
+                self.logger.warning("OCR returned empty text for %s; falling back to PyMuPDF", file_path.name)
             except OcrUnavailable as exc:
-                self.logger.warning("iFlyTek OCR unavailable for %s; falling back to PyMuPDF: %s", file_path.name, exc)
+                self.logger.warning("OCR unavailable for %s; falling back to PyMuPDF: %s", file_path.name, exc)
             return self._extract_pdf_text_default(file_path)
 
         text = self._extract_pdf_text_default(file_path)
-        min_chars = _env_int("SPARKWEAVE_OCR_MIN_TEXT_CHARS", 80)
-        if len(text.strip()) >= min_chars or not is_iflytek_ocr_configured():
+        min_chars = _env_int("SPARKWEAVE_OCR_MIN_TEXT_CHARS", 40)
+        if len(text.strip()) >= min_chars or not is_ocr_configured():
             return text
 
         try:
-            ocr_text = ocr_pdf_with_iflytek(file_path)
+            ocr_text = ocr_pdf(file_path)
             if ocr_text.strip():
-                self.logger.info("Used iFlyTek OCR fallback for scanned PDF: %s", file_path.name)
+                self.logger.info("Used OCR fallback for scanned PDF: %s", file_path.name)
                 return ocr_text
         except OcrUnavailable as exc:
-            self.logger.warning("iFlyTek OCR fallback failed for %s: %s", file_path.name, exc)
+            self.logger.warning("OCR fallback failed for %s: %s", file_path.name, exc)
         return text
 
     def _extract_pdf_text_default(self, file_path: Path) -> str:
@@ -333,6 +416,29 @@ class LlamaIndexPipeline:
             return ""
         except Exception as e:
             self.logger.error(f"Failed to extract PDF text: {e}")
+            return ""
+
+    def _extract_image_text(self, file_path: Path) -> str:
+        """Extract text from an image using the configured OCR provider."""
+        if not is_ocr_configured():
+            self.logger.warning("OCR is not configured. Cannot parse image: %s", file_path.name)
+            return ""
+
+        encoding = file_path.suffix.lower().lstrip(".") or "png"
+        if encoding == "jpg":
+            encoding = "jpeg"
+        try:
+            text = recognize_image(file_path.read_bytes(), encoding=encoding)
+            if text.strip():
+                self.logger.info("Extracted image text with OCR provider: %s", file_path.name)
+            else:
+                self.logger.warning("OCR returned empty text for image: %s", file_path.name)
+            return text
+        except OcrUnavailable as exc:
+            self.logger.warning("OCR unavailable for image %s: %s", file_path.name, exc)
+            return ""
+        except Exception as exc:
+            self.logger.error("Failed to OCR image %s: %s", file_path.name, exc)
             return ""
 
     async def search(
@@ -476,48 +582,7 @@ class LlamaIndexPipeline:
             if progress_callback and isinstance(Settings.embed_model, CustomEmbedding):
                 Settings.embed_model.set_progress_callback(progress_callback)
 
-            # Parse new documents with centralized file routing
-            documents = []
-            classification = FileTypeRouter.classify_files(file_paths)
-
-            for file_path_str in classification.parser_files:
-                file_path = Path(file_path_str)
-                self.logger.info(f"Parsing PDF: {file_path.name}")
-                text = self._extract_pdf_text(file_path)
-                if text.strip():
-                    documents.append(
-                        Document(
-                            text=text,
-                            metadata={
-                                "file_name": file_path.name,
-                                "file_path": str(file_path),
-                            },
-                        )
-                    )
-                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
-                else:
-                    self.logger.warning(f"Skipped empty document: {file_path.name}")
-
-            for file_path_str in classification.text_files:
-                file_path = Path(file_path_str)
-                self.logger.info(f"Parsing text: {file_path.name}")
-                text = await FileTypeRouter.read_text_file(str(file_path))
-                if text.strip():
-                    documents.append(
-                        Document(
-                            text=text,
-                            metadata={
-                                "file_name": file_path.name,
-                                "file_path": str(file_path),
-                            },
-                        )
-                    )
-                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
-                else:
-                    self.logger.warning(f"Skipped empty document: {file_path.name}")
-
-            for file_path_str in classification.unsupported:
-                self.logger.warning(f"Skipped unsupported file: {Path(file_path_str).name}")
+            documents = await self._load_documents(file_paths)
 
             if not documents:
                 self.logger.warning("No valid documents to add")

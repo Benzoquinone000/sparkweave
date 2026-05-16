@@ -31,12 +31,25 @@ import type {
   GuideV2TaskCompletionResult,
   KnowledgeBase,
   KnowledgeBaseDetail,
+  KnowledgeDocumentDeleteResult,
+  KnowledgeDocumentPreview,
+  KnowledgeDocumentsResponse,
+  KnowledgeVectorChunksResponse,
   KnowledgeConfig,
   KnowledgeConfigRegistry,
   KnowledgeConfigResponse,
   KnowledgeDefaultResponse,
+  KnowledgeRegistryAudit,
+  KnowledgeRegistryPruneResult,
+  RagEvaluationRunRequest,
+  RagEvaluationLatestResponse,
+  RagEvaluationReport,
+  RagPreflight,
+  RagSearchTestRequest,
+  RagSearchTestResult,
   KnowledgeHealth,
   KnowledgeProgress,
+  KnowledgeTaskStatusResponse,
   KnowledgeTaskResult,
   LinkedFolder,
   LearnerEvidenceEvent,
@@ -58,9 +71,11 @@ import type {
   NotebookSummary,
   PluginsList,
   PluginToolExecutionResult,
+  OcrPreviewResponse,
   QuestionCategory,
   QuestionNotebookEntry,
   QuizResultItem,
+  RagDiagnostic,
   RagProvider,
   SessionDetail,
   SettingsResponse,
@@ -407,8 +422,123 @@ export function getKnowledgeBaseDetail(kbName: string) {
   return fetchJson<KnowledgeBaseDetail>(`/api/v1/knowledge/${encodeURIComponent(kbName)}`);
 }
 
+export function listKnowledgeDocuments(input: { kbName: string; includeVectors?: boolean }) {
+  const include = input.includeVectors === false ? "?include_vectors=false" : "";
+  return fetchJson<KnowledgeDocumentsResponse>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/documents${include}`);
+}
+
+export function previewKnowledgeDocument(input: { kbName: string; documentId: string; forceRefresh?: boolean }) {
+  const query = input.forceRefresh ? "?force_refresh=true" : "";
+  return fetchJson<KnowledgeDocumentPreview>(
+    `/api/v1/knowledge/${encodeURIComponent(input.kbName)}/documents/${encodeURIComponent(input.documentId)}/preview${query}`,
+  );
+}
+
+export function listKnowledgeVectorChunks(input: {
+  kbName: string;
+  documentId?: string | null;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (input.documentId) params.set("document_id", input.documentId);
+  if (input.limit) params.set("limit", String(input.limit));
+  if (input.offset) params.set("offset", String(input.offset));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<KnowledgeVectorChunksResponse>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/vectors${query}`);
+}
+
+export function deleteKnowledgeDocument(input: {
+  kbName: string;
+  documentId: string;
+  removeRaw?: boolean;
+  removeVectors?: boolean;
+}) {
+  return fetchJson<KnowledgeDocumentDeleteResult>(
+    `/api/v1/knowledge/${encodeURIComponent(input.kbName)}/documents/${encodeURIComponent(input.documentId)}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({
+        remove_raw: input.removeRaw ?? true,
+        remove_vectors: input.removeVectors ?? true,
+      }),
+    },
+  );
+}
+
+export function deleteKnowledgeVectorChunk(input: { kbName: string; nodeId: string }) {
+  return fetchJson<{ kb_name: string; node_id: string; deleted_vectors?: number }>(
+    `/api/v1/knowledge/${encodeURIComponent(input.kbName)}/vectors/${encodeURIComponent(input.nodeId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function getKnowledgeHealth() {
   return fetchJson<KnowledgeHealth>("/api/v1/knowledge/health");
+}
+
+export function getKnowledgeDiagnostics(input?: { kbName?: string | null; checkConnection?: boolean }) {
+  const query = input?.checkConnection === false ? "?check_connection=false" : "";
+  if (input?.kbName) {
+    return fetchJson<RagDiagnostic>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/diagnostics${query}`);
+  }
+  return fetchJson<RagDiagnostic>(`/api/v1/knowledge/diagnostics${query}`);
+}
+
+export function getKnowledgePreflight(input?: {
+  kbName?: string | null;
+  checkConnection?: boolean;
+  checkDocker?: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (input?.checkConnection === false) params.set("check_connection", "false");
+  if (input?.checkDocker === false) params.set("check_docker", "false");
+  const query = params.toString() ? `?${params.toString()}` : "";
+  if (input?.kbName) {
+    return fetchJson<RagPreflight>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/preflight${query}`);
+  }
+  return fetchJson<RagPreflight>(`/api/v1/knowledge/preflight${query}`);
+}
+
+export function getLatestRagEvaluation(kbName: string) {
+  return fetchJson<RagEvaluationLatestResponse>(`/api/v1/knowledge/${encodeURIComponent(kbName)}/rag-eval/latest`);
+}
+
+export function runRagEvaluation(input: RagEvaluationRunRequest) {
+  return fetchJson<RagEvaluationReport>(
+    `/api/v1/knowledge/${encodeURIComponent(input.kbName)}/rag-eval`,
+    jsonBody({
+      cases: input.cases,
+      preset: input.preset || "default",
+      provider: input.provider || undefined,
+      baseline_strategy: input.baselineStrategy || "baseline",
+    }),
+  );
+}
+
+export function testKnowledgeRagSearch(input: RagSearchTestRequest) {
+  return fetchJson<RagSearchTestResult>(
+    `/api/v1/knowledge/${encodeURIComponent(input.kbName)}/rag-test`,
+    jsonBody({
+      query: input.query,
+      provider: input.provider || undefined,
+      retrieval_profile: input.retrievalProfile || undefined,
+      retrieval_mode: input.retrievalMode || undefined,
+      top_k: input.topK ?? 5,
+      candidate_top_k: input.candidateTopK ?? undefined,
+      reranker: input.reranker || undefined,
+      query_transform: input.queryTransform || undefined,
+      agentic_rag: input.agenticRag ?? undefined,
+      agentic_max_context_chars: input.agenticMaxContextChars ?? undefined,
+      agentic_max_sources: input.agenticMaxSources ?? undefined,
+      agentic_min_sources: input.agenticMinSources ?? undefined,
+      agentic_min_coverage_ratio: input.agenticMinCoverageRatio ?? undefined,
+      agentic_min_relevant_coverage_ratio: input.agenticMinRelevantCoverageRatio ?? undefined,
+      agentic_min_context_chars: input.agenticMinContextChars ?? undefined,
+      agentic_min_score: input.agenticMinScore ?? undefined,
+      max_context_chars: input.maxContextChars ?? 5000,
+    }),
+  );
 }
 
 export function getDefaultKnowledgeBase() {
@@ -517,6 +647,16 @@ export async function uploadKnowledgeFiles(input: { kbName: string; files: File[
   });
 }
 
+export function reindexKnowledgeBase(input: { kbName: string; ragProvider?: string; backup?: boolean }) {
+  return fetchJson<KnowledgeTaskResult>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/reindex`, {
+    method: "POST",
+    body: JSON.stringify({
+      rag_provider: input.ragProvider,
+      backup: input.backup ?? true,
+    }),
+  });
+}
+
 export function setDefaultKnowledgeBase(kbName: string) {
   return fetchJson<{ success?: boolean; message?: string }>(`/api/v1/knowledge/default/${encodeURIComponent(kbName)}`, {
     method: "PUT",
@@ -547,6 +687,10 @@ export function listKnowledgeConfigs() {
   return fetchJson<KnowledgeConfigRegistry>("/api/v1/knowledge/configs");
 }
 
+export function auditKnowledgeConfigs() {
+  return fetchJson<KnowledgeRegistryAudit>("/api/v1/knowledge/configs/audit");
+}
+
 export function updateKnowledgeConfig(input: { kbName: string; config: Partial<KnowledgeConfig> }) {
   return fetchJson<KnowledgeConfigResponse>(`/api/v1/knowledge/${encodeURIComponent(input.kbName)}/config`, {
     method: "PUT",
@@ -560,8 +704,19 @@ export function syncKnowledgeConfigs() {
   });
 }
 
+export function pruneMissingKnowledgeConfigs(input?: { dryRun?: boolean }) {
+  const suffix = input?.dryRun ? "?dry_run=true" : "";
+  return fetchJson<KnowledgeRegistryPruneResult>(`/api/v1/knowledge/configs/prune-missing${suffix}`, {
+    method: "POST",
+  });
+}
+
 export function openKnowledgeTaskStream(taskId: string) {
   return new EventSource(apiUrl(`/api/v1/knowledge/tasks/${encodeURIComponent(taskId)}/stream`));
+}
+
+export function getKnowledgeTaskStatus(taskId: string) {
+  return fetchJson<KnowledgeTaskStatusResponse>(`/api/v1/knowledge/tasks/${encodeURIComponent(taskId)}`);
 }
 
 export function knowledgeProgressSocketUrl(input: { kbName: string; taskId: string }) {
@@ -677,6 +832,19 @@ export function appendLearnerEvidence(input: Partial<LearnerEvidenceEvent>) {
   return fetchJson<{ event: LearnerEvidenceEvent }>("/api/v1/learner-profile/evidence", jsonBody(input));
 }
 
+export function appendLearnerEvidenceBatch(input: {
+  events: Array<Partial<LearnerEvidenceEvent>>;
+  dedupe?: boolean;
+}) {
+  return fetchJson<{ added: number; skipped: number; events: LearnerEvidenceEvent[] }>(
+    "/api/v1/learner-profile/evidence/batch",
+    jsonBody({
+      events: input.events,
+      dedupe: input.dedupe ?? true,
+    }),
+  );
+}
+
 export function rebuildLearnerEvidence(input?: { clear?: boolean }) {
   return fetchJson<{ added: number; skipped: number; events: LearnerEvidenceEvent[] }>(
     "/api/v1/learner-profile/evidence/rebuild",
@@ -688,7 +856,11 @@ export type LearningEffectEventInput = Partial<LearnerEvidenceEvent> & {
   concept_ids?: string[];
   result?: Record<string, unknown>;
   signals?: Record<string, unknown>;
-};
+  };
+
+export function getLearningEffectHealth() {
+  return fetchJson<Record<string, unknown>>("/api/v1/learning-effect/health");
+}
 
 export function getLearningEffectReport(input?: { courseId?: string | null; window?: string }) {
   const params = new URLSearchParams();
@@ -696,6 +868,14 @@ export function getLearningEffectReport(input?: { courseId?: string | null; wind
   if (input?.window) params.set("window", input.window);
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return fetchJson<LearningEffectReport>(`/api/v1/learning-effect/report${suffix}`);
+}
+
+export function getLearningEffectDemoSummary(input?: { courseId?: string | null; window?: string }) {
+  const params = new URLSearchParams();
+  if (input?.courseId) params.set("course_id", input.courseId);
+  if (input?.window) params.set("window", input.window);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<Record<string, unknown>>(`/api/v1/learning-effect/demo-summary${suffix}`);
 }
 
 export function listLearningEffectConcepts(input?: { courseId?: string | null; window?: string; limit?: number }) {
@@ -1353,6 +1533,16 @@ export function saveGuideV2Artifact(input: {
   );
 }
 
+export function guideV2ArtifactAssetUrl(input: {
+  sessionId: string;
+  taskId: string;
+  artifactId: string;
+}) {
+  return apiUrl(
+    `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/artifacts/${encodeURIComponent(input.artifactId)}/asset`,
+  );
+}
+
 export function submitGuideV2QuizResults(input: {
   sessionId: string;
   taskId: string;
@@ -1578,5 +1768,9 @@ export async function previewTts(text: string) {
     contentType: response.headers.get("content-type") || "audio/mpeg",
     voice: response.headers.get("x-sparkweave-tts-voice") || "",
   };
+}
+
+export function previewOcrImage(input: { image_base64: string; encoding?: string }) {
+  return fetchJson<OcrPreviewResponse>("/api/v1/system/ocr-preview", jsonBody(input));
 }
 

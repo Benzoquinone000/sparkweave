@@ -1,4 +1,3 @@
-import katex from "katex";
 import { Children, Fragment, isValidElement, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
@@ -24,6 +23,14 @@ const mermaidLinePattern =
   /^(?:graph\b|flowchart\b|sequenceDiagram\b|classDiagram\b|stateDiagram\b|erDiagram\b|journey\b|gantt\b|pie\b|gitGraph\b|mindmap\b|timeline\b|style\b|classDef\b|class\b|linkStyle\b|click\b|subgraph\b|end\b|title\b|section\b|participant\b|actor\b|activate\b|deactivate\b|note\b|loop\b|alt\b|else\b|opt\b|par\b|and\b|rect\b|critical\b|break\b|%%|[A-Za-z0-9_:-]+.*(?:-->|---|-.->|==>|--|::=|\[|\]|\(|\)|\{|\}))/;
 
 let mermaidConfigured = false;
+let katexRuntimePromise: Promise<typeof import("katex")> | null = null;
+let katexStylePromise: Promise<unknown> | null = null;
+
+function loadKatexRuntime() {
+  katexStylePromise ??= import("katex/dist/katex.min.css");
+  katexRuntimePromise ??= Promise.all([import("katex"), katexStylePromise]).then(([katex]) => katex);
+  return katexRuntimePromise;
+}
 
 const markdownComponents: Components = {
   pre({ children, ...props }) {
@@ -160,16 +167,36 @@ function ensureMermaidConfigured(mermaid: typeof import("mermaid")["default"]) {
 }
 
 function KatexFormula({ expression, displayMode }: { expression: string; displayMode: boolean }) {
-  let html = "";
-  try {
-    html = katex.renderToString(expression, {
-      displayMode,
-      strict: false,
-      throwOnError: false,
-    });
-  } catch {
-    return <code className="katex-error">{expression}</code>;
-  }
+  const [html, setHtml] = useState("");
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function renderFormula() {
+      setFailed(false);
+      setHtml("");
+      try {
+        const katex = await loadKatexRuntime();
+        const rendered = katex.default.renderToString(expression, {
+          displayMode,
+          strict: false,
+          throwOnError: false,
+        });
+        if (!cancelled) setHtml(rendered);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    }
+
+    void renderFormula();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayMode, expression]);
+
+  if (failed) return <code className="katex-error">{expression}</code>;
+  if (!html) return <code>{expression}</code>;
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
 

@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SparkWeave API",
-    version="1.0.0",
+    version="0.3.0",
     lifespan=lifespan,
     # Disable automatic trailing slash redirects to prevent protocol downgrade issues
     # when deployed behind HTTPS reverse proxies (e.g., nginx).

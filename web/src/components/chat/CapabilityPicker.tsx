@@ -19,10 +19,10 @@ export function CapabilityPicker({
             key={capability.id}
             type="button"
             onClick={() => onChange(capability.id)}
-            className={`dt-interactive relative flex min-h-10 items-center gap-2 rounded-lg border bg-white px-2.5 py-2 text-left ${
+            className={`dt-interactive relative flex min-h-10 items-center gap-2 rounded-lg border px-2.5 py-2 text-left ${
               active
                 ? "border-ink bg-ink text-white"
-                : "border-line hover:border-brand-purple hover:bg-canvas"
+                : "border-line bg-white text-ink hover:border-brand-purple hover:bg-canvas"
             }`}
           >
             <div className={`shrink-0 rounded-md p-1.5 ${active ? "bg-white/10 text-white" : "bg-canvas text-steel"}`}>

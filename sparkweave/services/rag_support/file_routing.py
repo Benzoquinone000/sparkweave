@@ -39,7 +39,8 @@ class FileTypeRouter:
     """File type router for the RAG pipeline.
 
     Classifies files before processing to route them to appropriate handlers:
-    - PDF files -> PDF parsing
+    - PDF files -> PDF parsing / OCR fallback
+    - Image files -> OCR parsing
     - Text files -> Direct read (fast, simple)
     - Unsupported -> Skip with warning
     """
@@ -146,7 +147,7 @@ class FileTypeRouter:
         for path in file_paths:
             doc_type = cls.get_document_type(path)
 
-            if doc_type == DocumentType.PDF:
+            if doc_type in (DocumentType.PDF, DocumentType.IMAGE):
                 parser_files.append(path)
             elif doc_type in (DocumentType.TEXT, DocumentType.MARKDOWN):
                 text_files.append(path)
@@ -194,7 +195,7 @@ class FileTypeRouter:
     @classmethod
     def get_supported_extensions(cls) -> set[str]:
         """Get the set of all supported file extensions."""
-        return cls.PARSER_EXTENSIONS | cls.TEXT_EXTENSIONS
+        return cls.PARSER_EXTENSIONS | cls.TEXT_EXTENSIONS | cls.IMAGE_EXTENSIONS
 
     @classmethod
     def get_glob_patterns(cls) -> list[str]:

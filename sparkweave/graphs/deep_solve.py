@@ -19,6 +19,7 @@ from sparkweave.graphs._answer_now import (
     extract_answer_now_payload,
     skip_notice,
 )
+from sparkweave.graphs.rag_overrides import apply_rag_overrides
 from sparkweave.llm import chat_messages, create_chat_model
 from sparkweave.tools import LangChainToolRegistry
 
@@ -477,6 +478,7 @@ class DeepSolveGraph:
         augmented = dict(args)
         if name == "rag" and context.knowledge_bases:
             augmented.setdefault("kb_name", context.knowledge_bases[0])
+            DeepSolveGraph._apply_rag_overrides(augmented, context)
         if name in {"rag", "web_search", "paper_search"}:
             augmented.setdefault("query", context.user_message)
         if name == "code_execution":
@@ -489,6 +491,10 @@ class DeepSolveGraph:
             augmented.setdefault("query", context.user_message)
             augmented.setdefault("context", context.metadata.get("conversation_context_text", ""))
         return augmented
+
+    @staticmethod
+    def _apply_rag_overrides(args: dict[str, Any], context: UnifiedContext) -> None:
+        apply_rag_overrides(args, context.config_overrides)
 
     def _fallback_tool_calls(
         self,

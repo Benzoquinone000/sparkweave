@@ -102,6 +102,79 @@ export interface KnowledgeBaseDetail extends KnowledgeBase {
   [key: string]: unknown;
 }
 
+export interface KnowledgeDocumentSummary {
+  id: string;
+  name: string;
+  extension?: string;
+  relative_path?: string;
+  raw_path?: string;
+  size?: number;
+  size_human?: string;
+  modified_at?: string;
+  content_available?: boolean;
+  extracted_cached?: boolean;
+  vector_count?: number | null;
+  vectors_available?: boolean;
+  sample_chunks?: Array<Record<string, unknown>>;
+}
+
+export interface KnowledgeDocumentsResponse {
+  kb_name: string;
+  provider?: string;
+  document_count?: number;
+  vector_count?: number | null;
+  vectors_available?: boolean;
+  vector_error?: string;
+  documents: KnowledgeDocumentSummary[];
+}
+
+export interface KnowledgeDocumentPreview {
+  kb_name: string;
+  document: KnowledgeDocumentSummary;
+  content: string;
+  content_chars?: number;
+  truncated?: boolean;
+  cache_path?: string;
+  cached?: boolean;
+  generated?: boolean;
+}
+
+export interface KnowledgeVectorChunk {
+  id: string;
+  node_id?: string;
+  file_name?: string;
+  file_path?: string;
+  document_key?: string;
+  text_preview?: string;
+  text_chars?: number;
+  score?: number | string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface KnowledgeVectorChunksResponse {
+  kb_name: string;
+  provider?: string;
+  document_id?: string | null;
+  chunks: KnowledgeVectorChunk[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  collection?: string;
+  available?: boolean;
+  error?: string;
+}
+
+export interface KnowledgeDocumentDeleteResult {
+  kb_name: string;
+  document_id: string;
+  document_name?: string;
+  deleted_raw?: boolean;
+  deleted_cache?: boolean;
+  deleted_vectors?: number;
+  vector_error?: string;
+  needs_reindex?: boolean;
+}
+
 export interface KnowledgeConfig {
   default_kb?: string | null;
   rag_provider?: string;
@@ -125,6 +198,259 @@ export interface KnowledgeConfigRegistry {
   defaults?: KnowledgeConfig;
   knowledge_bases?: Record<string, KnowledgeConfig>;
   [key: string]: unknown;
+}
+
+export interface KnowledgeRegistryAuditItem {
+  name: string;
+  path: string;
+  status?: string;
+  rag_provider?: string;
+  reason?: string;
+}
+
+export interface KnowledgeRegistryAudit {
+  base_dir?: string;
+  config_file?: string;
+  registered_count: number;
+  available_count: number;
+  missing_count: number;
+  discovered_count: number;
+  default_kb?: string | null;
+  stale_default?: boolean;
+  available: KnowledgeRegistryAuditItem[];
+  missing: KnowledgeRegistryAuditItem[];
+  discovered: KnowledgeRegistryAuditItem[];
+  [key: string]: unknown;
+}
+
+export interface KnowledgeRegistryPruneResult {
+  status: string;
+  dry_run: boolean;
+  removed: string[];
+  removed_count: number;
+  audit: KnowledgeRegistryAudit;
+}
+
+export interface RagDiagnostic {
+  status?: string;
+  provider?: string;
+  provider_source?: string;
+  uri?: string;
+  kb_name?: string | null;
+  marker_present?: boolean;
+  collection_name?: string | null;
+  collection_present?: boolean;
+  collection_count?: number;
+  embedding_model?: string;
+  embedding_dim?: number | string;
+  message?: string;
+  checks?: Array<{
+    name?: string;
+    status?: string;
+    message?: string;
+  }>;
+  readiness?: {
+    state?: string;
+    label?: string;
+    summary?: string;
+    primary_action?: string;
+  };
+  proxy?: {
+    http_proxy_configured?: boolean;
+    https_proxy_configured?: boolean;
+    no_proxy?: string;
+    milvus_proxy_bypassed?: boolean;
+  };
+  indexed_uri?: string;
+  connection_error_kind?: string;
+  runtime_action?: string;
+  milvus_service_running?: boolean;
+  [key: string]: unknown;
+}
+
+export interface RagPreflight {
+  status?: string;
+  label?: string;
+  summary?: string;
+  primary_action?: string;
+  kb_name?: string | null;
+  diagnostic?: RagDiagnostic;
+  docker?: {
+    docker_cli_present?: boolean;
+    docker_running?: boolean;
+    server_version?: string;
+    error?: string;
+    skipped?: boolean;
+  };
+  recommended_commands?: string[];
+  [key: string]: unknown;
+}
+
+export interface RagSearchTestRequest {
+  kbName: string;
+  query: string;
+  provider?: string | null;
+  retrievalProfile?: string | null;
+  retrievalMode?: string | null;
+  topK?: number;
+  candidateTopK?: number | null;
+  reranker?: string | null;
+  queryTransform?: string | null;
+  agenticRag?: string | boolean | null;
+  agenticMaxContextChars?: number | null;
+  agenticMaxSources?: number | null;
+  agenticMinSources?: number | null;
+  agenticMinCoverageRatio?: number | null;
+  agenticMinRelevantCoverageRatio?: number | null;
+  agenticMinContextChars?: number | null;
+  agenticMinScore?: number | null;
+  maxContextChars?: number;
+}
+
+export interface RagSearchSource {
+  title?: string;
+  content?: string;
+  source?: string;
+  page?: string | number;
+  chunk_id?: string;
+  score?: number | string;
+  matched_keywords?: string[];
+  evidence_reason?: string;
+  context_chars?: number;
+  [key: string]: unknown;
+}
+
+export interface RagSearchTestResult {
+  kb_name: string;
+  query: string;
+  provider?: string;
+  success?: boolean;
+  content?: string;
+  answer?: string;
+  sources: RagSearchSource[];
+  source_count?: number;
+  retrieval_profile?: string;
+  retrieval_mode?: string;
+  requested_retrieval_mode?: string;
+  indexed_retrieval_mode?: string;
+  query_transform?: string;
+  query_transform_applied?: boolean;
+  agentic_rag?: boolean;
+  agentic_fallback?: boolean;
+  agentic_fallback_reason?: string;
+  agentic_quality?: Record<string, unknown>;
+  agentic_repair?: Record<string, unknown>;
+  agentic_explanation?: Record<string, unknown>;
+  agentic_activity_plan?: Record<string, unknown>;
+  agentic_evidence_groups?: Record<string, unknown>[];
+  agentic_context_pack?: Record<string, unknown>;
+  subquery_results?: Record<string, unknown>[];
+  query_plan?: Record<string, unknown>;
+  failed_query_plan?: Record<string, unknown>;
+  context_pack?: Record<string, unknown>;
+  error?: string | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+  readiness?: RagDiagnostic["readiness"];
+  diagnostic?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface RagEvaluationSummaryRow {
+  strategy?: string;
+  query_type?: string;
+  difficulty?: string;
+  chapter?: string;
+  cases?: number;
+  success_rate?: number | null;
+  keyword_recall?: number | null;
+  source_hit_rate?: number | null;
+  avg_source_score?: number | null;
+  avg_source_mrr?: number | null;
+  avg_source_ndcg?: number | null;
+  avg_first_source_rank?: number | null;
+  avg_source_count?: number | null;
+  avg_context_chars?: number | null;
+  avg_matched_keywords?: number | null;
+  avg_evidence_reasons?: number | null;
+  avg_skipped_duplicate?: number | null;
+  avg_skipped_threshold?: number | null;
+  avg_skipped_budget?: number | null;
+  p50_latency_ms?: number | null;
+  p95_latency_ms?: number | null;
+  [key: string]: unknown;
+}
+
+export interface RagEvaluationReport {
+  kb_name?: string;
+  provider?: string;
+  created_at?: string;
+  strategy_count?: number;
+  case_count?: number;
+  baseline_strategy?: string;
+  preset?: string;
+  dataset_profile?: {
+    case_count?: number;
+    keyword_labelled_cases?: number;
+    source_labelled_cases?: number;
+    fully_labelled_cases?: number;
+    keyword_label_coverage?: number;
+    source_label_coverage?: number;
+    full_label_coverage?: number;
+    label_status?: "empty" | "smoke_check" | "partial" | "release_ready" | string;
+    label_status_label?: string;
+    headline?: string;
+    recommendation?: string;
+    min_release_cases?: number;
+    metrics_supported?: Record<string, unknown>;
+  } | null;
+  summary?: RagEvaluationSummaryRow[];
+  summary_by_query_type?: RagEvaluationSummaryRow[];
+  summary_by_difficulty?: RagEvaluationSummaryRow[];
+  summary_by_chapter?: RagEvaluationSummaryRow[];
+  deltas?: Array<Record<string, unknown>>;
+  experiment_summary?: Record<string, unknown>;
+  quality_gate?: {
+    status?: "pass" | "warn" | "fail" | string;
+    status_label?: string;
+    headline?: string;
+    recommendation?: string;
+    strategy?: string;
+    reasons?: string[];
+    metrics?: Record<string, unknown>;
+    thresholds?: Record<string, unknown>;
+  } | null;
+  case_diagnostics?: Array<Record<string, unknown>>;
+  diagnostic_summary?: Record<string, unknown>;
+  records?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+export interface RagEvaluationLatestResponse {
+  kb_name: string;
+  available: boolean;
+  report?: RagEvaluationReport | null;
+}
+
+export interface RagEvaluationCaseInput {
+  id?: string;
+  question: string;
+  kb_name?: string;
+  provider?: string;
+  query_type?: string;
+  topic?: string;
+  difficulty?: string;
+  chapter?: string;
+  expected_keywords?: string[];
+  expected_sources?: string[];
+}
+
+export interface RagEvaluationRunRequest {
+  kbName: string;
+  cases: RagEvaluationCaseInput[];
+  preset?: string;
+  provider?: string | null;
+  baselineStrategy?: string;
 }
 
 export interface NotebookSummary {
@@ -340,6 +666,23 @@ export interface KnowledgeProgress {
   task_id?: string;
 }
 
+export interface KnowledgeTaskStatusResponse {
+  task_id: string;
+  known: boolean;
+  metadata: Record<string, unknown>;
+  stream: {
+    task_id?: string;
+    event_count?: number;
+    subscriber_count?: number;
+    latest_event?: {
+      event?: string;
+      payload?: Record<string, unknown>;
+    } | null;
+    terminal?: boolean;
+    [key: string]: unknown;
+  };
+}
+
 export interface KnowledgeHealth {
   status: string;
   config_file?: string;
@@ -347,6 +690,7 @@ export interface KnowledgeHealth {
   base_dir?: string;
   base_dir_exists?: boolean;
   knowledge_bases_count?: number;
+  rag?: RagDiagnostic;
   error?: string;
 }
 
@@ -561,6 +905,7 @@ export interface LearningEffectNextAction {
   capability?: CapabilityId | string;
   prompt?: string;
   config?: Record<string, unknown>;
+  knowledge_bases?: string[];
   writes_back: string[];
 }
 
@@ -637,6 +982,117 @@ export interface LearningEffectReport {
       ready_for_retest?: number;
       closed?: number;
     };
+  };
+  study_brief?: {
+    headline?: string;
+    summary?: string;
+    mode?: string;
+    mode_label?: string;
+    focus?: {
+      concept_id?: string;
+      title?: string;
+      status?: string;
+      status_label?: string;
+      score?: number;
+    };
+    timebox_minutes?: number;
+    score?: number;
+    score_label?: string;
+    confidence_label?: string;
+    agenda?: Array<{
+      label?: string;
+      minutes?: number;
+      detail?: string;
+      action_label?: string;
+      action_href?: string;
+      capability?: CapabilityId | string;
+      prompt?: string;
+    }>;
+    success_criteria?: string[];
+    avoid?: string[];
+    writes_back?: string[];
+    primary_action_id?: string;
+    knowledge_evidence?: {
+      title?: string;
+      kb_name?: string;
+      summary?: string;
+      status_label?: string;
+      focus_query?: string;
+      action_label?: string;
+      action_href?: string;
+      ready?: boolean;
+      metrics?: Array<{
+        label?: string;
+        value?: string;
+      }>;
+    } | null;
+  };
+  explainability?: {
+    headline?: string;
+    summary?: string;
+    confidence?: {
+      level?: "none" | "low" | "medium" | "high" | string;
+      label?: string;
+      score?: number;
+      reason?: string;
+    };
+    evidence_used?: Array<{
+      label?: string;
+      value?: string;
+      detail?: string;
+      tone?: string;
+    }>;
+    decision_rules?: Array<{
+      label?: string;
+      result?: string;
+      status?: string;
+      explanation?: string;
+    }>;
+    score_breakdown?: Array<{
+      id?: string;
+      label?: string;
+      score?: number;
+      weight?: number;
+      weight_label?: string;
+      impact?: number;
+      status?: string;
+      evidence?: string;
+      explanation?: string;
+    }>;
+    attention_factors?: Array<{
+      id?: string;
+      label?: string;
+      score?: number;
+      explanation?: string;
+    }>;
+    supporting_factors?: Array<{
+      id?: string;
+      label?: string;
+      score?: number;
+      explanation?: string;
+    }>;
+    action_rationale?: {
+      title?: string;
+      reason?: string;
+      because?: string[];
+      will_update?: string[];
+    };
+    plain_language?: string[];
+  };
+  knowledge_context?: {
+    available?: boolean;
+    ready?: boolean;
+    status?: string;
+    status_label?: string;
+    kb_name?: string;
+    provider?: string;
+    document_count?: number;
+    focus_query?: string;
+    summary?: string;
+    action_label?: string;
+    action_href?: string;
+    can_ground_actions?: boolean;
+    latest_eval?: Record<string, unknown>;
   };
   visualization?: {
     summary?: string;
@@ -1945,14 +2401,22 @@ export interface SystemStatus {
     provider?: string | null;
     error?: string;
   };
+  rag?: {
+    status: string;
+    provider?: string | null;
+    uri?: string | null;
+    error?: string;
+  };
   ocr?: {
     status: string;
     provider?: string | null;
+    model?: string | null;
     error?: string;
   };
   tts?: {
     status: string;
     provider?: string | null;
+    model?: string | null;
     error?: string;
   };
 }
@@ -1962,6 +2426,14 @@ export interface SystemTestResponse {
   message: string;
   model?: string | null;
   response_time_ms?: number | null;
+  error?: string | null;
+}
+
+export interface OcrPreviewResponse {
+  success: boolean;
+  text?: string;
+  provider?: string | null;
+  model?: string | null;
   error?: string | null;
 }
 
@@ -2039,6 +2511,18 @@ export interface ServiceCatalog {
 
 export interface ModelCatalog {
   version: number;
+  provider_credentials?: {
+    iflytek?: {
+      app_id?: string;
+      api_key?: string;
+      api_secret?: string;
+      api_password?: string;
+    };
+    siliconflow?: {
+      api_key?: string;
+    };
+    [provider: string]: Record<string, string | undefined> | undefined;
+  };
   services: {
     llm: ServiceCatalog;
     embedding: ServiceCatalog;

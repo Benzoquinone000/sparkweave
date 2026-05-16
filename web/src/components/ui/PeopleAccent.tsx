@@ -1,14 +1,38 @@
-export type PeopleAccentName = "coffee" | "goodnight" | "inspired" | "music" | "notes" | "reading" | "thinking" | "working_laptop";
+export type PeopleAccentName =
+  | "course_map"
+  | "learner_profile"
+  | "knowledge_notes"
+  | "writing_board"
+  | "vision_tutor"
+  | "question_lab"
+  | "playground_lab"
+  | "settings_panel"
+  | "coffee"
+  | "goodnight"
+  | "inspired"
+  | "music"
+  | "notes"
+  | "reading"
+  | "thinking"
+  | "working_laptop";
 
 const PEOPLE_ACCENT_SRC: Record<PeopleAccentName, string> = {
-  coffee: "/illustrations/notion-people/coffee.svg",
-  goodnight: "/illustrations/notion-people/goodnight.svg",
-  inspired: "/illustrations/notion-people/inspired.svg",
-  music: "/illustrations/notion-people/music.svg",
-  notes: "/illustrations/notion-people/notes.svg",
-  reading: "/illustrations/notion-people/reading.svg",
-  thinking: "/illustrations/notion-people/thinking.svg",
-  working_laptop: "/illustrations/notion-people/working_laptop.svg",
+  course_map: "/illustrations/education/course-map.svg",
+  learner_profile: "/illustrations/education/learner-profile.svg",
+  knowledge_notes: "/illustrations/education/knowledge-notes.svg",
+  writing_board: "/illustrations/education/writing-board.svg",
+  vision_tutor: "/illustrations/education/vision-tutor.svg",
+  question_lab: "/illustrations/education/question-lab.svg",
+  playground_lab: "/illustrations/education/playground-lab.svg",
+  settings_panel: "/illustrations/education/settings-panel.svg",
+  coffee: "/illustrations/education/settings-panel.svg",
+  goodnight: "/illustrations/education/course-map.svg",
+  inspired: "/illustrations/education/question-lab.svg",
+  music: "/illustrations/education/playground-lab.svg",
+  notes: "/illustrations/education/knowledge-notes.svg",
+  reading: "/illustrations/education/knowledge-notes.svg",
+  thinking: "/illustrations/education/learner-profile.svg",
+  working_laptop: "/illustrations/education/writing-board.svg",
 };
 
 export function PeopleAccent({ name, className = "" }: { name: PeopleAccentName; className?: string }) {

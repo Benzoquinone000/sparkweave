@@ -154,6 +154,120 @@ async def test_deep_solve_keeps_rag_when_knowledge_base_attached() -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_passes_rag_strategy_overrides_to_tool() -> None:
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel(
+        [
+            AIMessage(
+                content="Use knowledge.",
+                tool_calls=[
+                    {
+                        "name": "rag",
+                        "args": {"query": "PCA 推导"},
+                        "id": "rag-1",
+                    }
+                ],
+            ),
+            "Final answer with evidence.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag"])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="对比 PCA 推导和特征值分解",
+        enabled_tools=["rag"],
+        knowledge_bases=["ml-kb"],
+        config_overrides={
+            "prefetch_rag": False,
+            "agentic_rag": "auto",
+            "query_transform": "hyde",
+            "agentic_max_subqueries": 3,
+            "agentic_max_context_chars": 5000,
+            "agentic_max_sources": 8,
+            "agentic_min_relevant_coverage_ratio": 0.67,
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert len(registry.calls) == 1
+    name, kwargs = registry.calls[0]
+    assert name == "rag"
+    kwargs.pop("event_sink", None)
+    assert kwargs == {
+        "query": "PCA 推导",
+        "kb_name": "ml-kb",
+        "agentic_rag": "auto",
+        "query_transform": "hyde",
+        "agentic_max_subqueries": 3,
+        "agentic_max_context_chars": 5000,
+        "agentic_max_sources": 8,
+        "agentic_min_relevant_coverage_ratio": 0.67,
+    }
+
+
+@pytest.mark.asyncio
+async def test_deep_solve_passes_rag_strategy_overrides_to_tool() -> None:
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel(
+        [
+            '{"analysis":"Need context.","steps":[{"id":"S1","goal":"Retrieve"}]}',
+            AIMessage(
+                content="Use RAG.",
+                tool_calls=[
+                    {
+                        "name": "rag",
+                        "args": {},
+                        "id": "rag-1",
+                    }
+                ],
+            ),
+            "Draft with retrieved context.",
+            "Looks correct.",
+            "Final answer.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag"])
+    bus = StreamBus()
+    graph = DeepSolveGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="结合资料解释反向传播为什么需要链式法则",
+        active_capability="deep_solve",
+        enabled_tools=["rag"],
+        knowledge_bases=["ml-kb"],
+        config_overrides={
+            "agentic_rag": "force",
+            "query_transform": "hyde",
+            "agentic_max_subqueries": 4,
+            "agentic_max_context_chars": 8000,
+            "agentic_max_sources": 12,
+            "agentic_min_relevant_coverage_ratio": 0.8,
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert registry.calls == [
+        (
+            "rag",
+            {
+                "kb_name": "ml-kb",
+                "agentic_rag": "force",
+                "query_transform": "hyde",
+                "agentic_max_subqueries": 4,
+                "agentic_max_context_chars": 8000,
+                "agentic_max_sources": 12,
+                "agentic_min_relevant_coverage_ratio": 0.8,
+                "query": "结合资料解释反向传播为什么需要链式法则",
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
 async def test_deep_research_drops_kb_source_when_no_knowledge_base() -> None:
     model = FakeModel(
         [

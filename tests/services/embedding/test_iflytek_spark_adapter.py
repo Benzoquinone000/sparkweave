@@ -3,10 +3,13 @@ from __future__ import annotations
 import base64
 import struct
 
+import httpx
 import pytest
 
 from sparkweave.services.embedding_support.adapters.base import EmbeddingRequest
-from sparkweave.services.embedding_support.adapters.iflytek_spark import IflytekSparkEmbeddingAdapter
+from sparkweave.services.embedding_support.adapters.iflytek_spark import (
+    IflytekSparkEmbeddingAdapter,
+)
 
 
 def _encoded_vector(values: list[float]) -> str:
@@ -59,3 +62,17 @@ async def test_iflytek_spark_requires_signed_credentials() -> None:
     )
     with pytest.raises(ValueError, match="app_id, api_key and api_secret"):
         await adapter.embed(EmbeddingRequest(texts=["hello"], model="llm-embedding"))
+
+
+def test_iflytek_spark_formats_license_error() -> None:
+    response = httpx.Response(
+        500,
+        json={"header": {"code": 11202, "message": "licc failed", "sid": "emb-test"}},
+        request=httpx.Request("POST", "https://emb-cn-huabei-1.xf-yun.com/"),
+    )
+
+    message = IflytekSparkEmbeddingAdapter._format_http_error(response)
+
+    assert "licc failed" in message
+    assert "code=11202" in message
+    assert "未通过 Embedding 服务许可校验" in message

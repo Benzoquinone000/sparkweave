@@ -13,9 +13,15 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 
 from sparkweave.logging import get_logger
-from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
+from sparkweave.services.rag_support import milvus_http
+from sparkweave.services.rag_support.factory import (
+    DEFAULT_PROVIDER,
+    LOCAL_PROVIDER,
+    normalize_provider_name,
+)
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
 
 logger = get_logger("KnowledgeBaseManager")
@@ -134,6 +140,87 @@ def _is_llamaindex_storage_ready(storage_dir: Path | None) -> bool:
     return True
 
 
+def _is_milvus_storage_ready(storage_dir: Path | None) -> bool:
+    """Return True when local Milvus collection metadata exists."""
+    if storage_dir is None or not storage_dir.exists() or not storage_dir.is_dir():
+        return False
+    marker = storage_dir / "metadata.json"
+    if not marker.is_file() or marker.stat().st_size <= 0:
+        return False
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    return data.get("provider") == DEFAULT_PROVIDER and bool(data.get("collection_name"))
+
+
+def _is_provider_storage_ready(kb_dir: Path, provider: str) -> bool:
+    provider = normalize_provider_name(provider)
+    if provider == LOCAL_PROVIDER:
+        return _is_llamaindex_storage_ready(kb_dir / "llamaindex_storage")
+    return _is_milvus_storage_ready(kb_dir / "milvus_storage")
+
+
+def _detect_provider_from_storage(kb_dir: Path) -> str | None:
+    if _is_milvus_storage_ready(kb_dir / "milvus_storage"):
+        return DEFAULT_PROVIDER
+    if _is_llamaindex_storage_ready(kb_dir / "llamaindex_storage"):
+        return LOCAL_PROVIDER
+    return None
+
+
+def _is_valid_kb_dir(kb_dir: Path) -> bool:
+    """Return True when a directory looks like a usable knowledge base."""
+    if not kb_dir.exists() or not kb_dir.is_dir():
+        return False
+    rag_storage = kb_dir / "rag_storage"
+    return (
+        (rag_storage.exists() and rag_storage.is_dir())
+        or _is_llamaindex_storage_ready(kb_dir / "llamaindex_storage")
+        or _is_milvus_storage_ready(kb_dir / "milvus_storage")
+        or (kb_dir / "raw").is_dir()
+        or (kb_dir / "metadata.json").is_file()
+    )
+
+
+def _env_value(name: str, default: str = "") -> str:
+    try:
+        from sparkweave.services.config import get_env_store
+
+        return get_env_store().get(name, default)
+    except Exception:
+        return os.getenv(name, default)
+
+
+def _drop_milvus_collection_from_metadata(kb_dir: Path) -> None:
+    marker = kb_dir / "milvus_storage" / "metadata.json"
+    if not marker.exists():
+        return
+    try:
+        metadata = json.loads(marker.read_text(encoding="utf-8"))
+        collection_name = str(metadata.get("collection_name") or "").strip()
+        if not collection_name:
+            return
+        token = _env_value("MILVUS_TOKEN", "").strip() or None
+        uri = _env_value("MILVUS_URI", "http://localhost:19530").strip() or "http://localhost:19530"
+        if milvus_http.is_http_uri(uri):
+            if milvus_http.has_collection(uri, token, collection_name):
+                milvus_http.drop_collection(uri, token, collection_name)
+                logger.info(f"Dropped Milvus collection '{collection_name}' via REST")
+            return
+
+        from pymilvus import MilvusClient
+
+        client = MilvusClient(uri=uri, token=token)
+        if client.has_collection(collection_name):
+            client.drop_collection(collection_name)
+            logger.info(f"Dropped Milvus collection '{collection_name}'")
+    except ImportError:
+        logger.warning("pymilvus is not installed; Milvus collection was not dropped")
+    except Exception as exc:
+        logger.warning(f"Failed to drop Milvus collection for '{kb_dir.name}': {exc}")
+
+
 class KnowledgeBaseManager:
     """Manager for knowledge bases"""
 
@@ -150,12 +237,11 @@ class KnowledgeBaseManager:
         if self.config_file.exists():
             try:
                 with open(self.config_file, encoding="utf-8") as f:
-                    with file_lock_shared(f):
-                        content = f.read()
-                        if not content.strip():
-                            # Empty file, return default
-                            return {"knowledge_bases": {}}
-                        config = json.loads(content)
+                    content = f.read()
+                    if not content.strip():
+                        # Empty file, return default
+                        return {"knowledge_bases": {}}
+                    config = json.loads(content)
 
                 # Ensure knowledge_bases key exists
                 if "knowledge_bases" not in config:
@@ -167,8 +253,8 @@ class KnowledgeBaseManager:
                     # Note: Don't save during load to avoid recursion issues
                     # The next _save_config() call will persist this change
 
-                # Migration: normalize legacy providers to llamaindex and
-                # mark legacy index-only KBs as needs_reindex.
+                # Migration: keep known providers, normalize removed legacy
+                # providers to the Milvus default and mark them for reindex.
                 knowledge_bases = config.get("knowledge_bases", {})
                 config_changed = False
                 for kb_name, kb_entry in knowledge_bases.items():
@@ -176,13 +262,15 @@ class KnowledgeBaseManager:
                         continue
 
                     raw_provider = kb_entry.get("rag_provider")
-                    if kb_entry.get("rag_provider") != DEFAULT_PROVIDER:
-                        kb_entry["rag_provider"] = DEFAULT_PROVIDER
+                    provider = normalize_provider_name(raw_provider or DEFAULT_PROVIDER)
+                    if kb_entry.get("rag_provider") != provider:
+                        kb_entry["rag_provider"] = provider
                         config_changed = True
 
                     if (
                         isinstance(raw_provider, str)
-                        and raw_provider.strip().lower() not in {"", DEFAULT_PROVIDER}
+                        and raw_provider.strip().lower()
+                        not in {"", DEFAULT_PROVIDER, LOCAL_PROVIDER, "llama_index"}
                     ):
                         if not kb_entry.get("needs_reindex", False):
                             kb_entry["needs_reindex"] = True
@@ -191,9 +279,12 @@ class KnowledgeBaseManager:
                     kb_dir = self.base_dir / kb_name
                     legacy_storage = kb_dir / "rag_storage"
                     llamaindex_storage = kb_dir / "llamaindex_storage"
-                    if legacy_storage.exists() and legacy_storage.is_dir() and not (
-                        llamaindex_storage.exists() and llamaindex_storage.is_dir()
-                    ):
+                    milvus_storage = kb_dir / "milvus_storage"
+                    has_supported_storage = (
+                        _is_llamaindex_storage_ready(llamaindex_storage)
+                        or _is_milvus_storage_ready(milvus_storage)
+                    )
+                    if legacy_storage.exists() and legacy_storage.is_dir() and not has_supported_storage:
                         if not kb_entry.get("needs_reindex", False):
                             kb_entry["needs_reindex"] = True
                             config_changed = True
@@ -203,11 +294,7 @@ class KnowledgeBaseManager:
 
                 if config_changed:
                     try:
-                        with open(self.config_file, "w", encoding="utf-8") as f:
-                            with file_lock_exclusive(f):
-                                json.dump(config, f, indent=2, ensure_ascii=False)
-                                f.flush()
-                                os.fsync(f.fileno())
+                        self._write_config_data(config)
                     except Exception as save_err:
                         logger.warning(f"Failed to persist normalized KB config: {save_err}")
 
@@ -218,13 +305,33 @@ class KnowledgeBaseManager:
         return {"knowledge_bases": {}}
 
     def _save_config(self):
-        """Save knowledge base configuration (thread-safe with file locking)"""
-        # Use exclusive lock for writing
-        with open(self.config_file, "w", encoding="utf-8") as f:
-            with file_lock_exclusive(f):
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
+        """Save knowledge base configuration atomically."""
+        self._write_config_data(self.config)
+
+    def _write_config_data(self, config: dict) -> None:
+        """Persist config atomically so concurrent readers never see partial JSON."""
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=self.base_dir,
+                prefix=f".{self.config_file.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                temp_path = Path(f.name)
+                json.dump(config, f, indent=2, ensure_ascii=False)
                 f.flush()
-                os.fsync(f.fileno())  # Ensure data is written to disk
+                os.fsync(f.fileno())
+            os.replace(temp_path, self.config_file)
+        finally:
+            try:
+                if temp_path and temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass
 
     def update_kb_status(
         self,
@@ -293,13 +400,131 @@ class KnowledgeBaseManager:
             "updated_at": kb_config.get("updated_at"),
         }
 
+    def _config_kb_dir(self, name: str, entry: dict | None = None) -> Path:
+        """Resolve the directory referenced by one config entry.
+
+        Existing KB code treats names as directories under ``base_dir``.  This
+        helper also respects a relative ``path`` field for audit reports, while
+        keeping paths rooted in ``base_dir`` unless the config explicitly uses
+        an absolute path.
+        """
+        raw_path = name
+        if isinstance(entry, dict) and entry.get("path"):
+            raw_path = str(entry["path"])
+        path = Path(raw_path)
+        return path if path.is_absolute() else self.base_dir / path
+
+    def audit_registry(self) -> dict:
+        """Return a non-mutating audit of config entries and KB directories."""
+        self.config = self._load_config()
+        knowledge_bases = self.config.get("knowledge_bases", {})
+        if not isinstance(knowledge_bases, dict):
+            knowledge_bases = {}
+
+        available: list[dict] = []
+        missing: list[dict] = []
+        registered_names = set()
+
+        for name, entry in sorted(knowledge_bases.items()):
+            if not isinstance(entry, dict):
+                entry = {}
+            registered_names.add(name)
+            kb_dir = self._config_kb_dir(name, entry)
+            item = {
+                "name": name,
+                "path": str(kb_dir),
+                "status": entry.get("status") or "unknown",
+                "rag_provider": normalize_provider_name(entry.get("rag_provider") or DEFAULT_PROVIDER),
+            }
+            if kb_dir.exists() and kb_dir.is_dir():
+                available.append(item)
+            else:
+                missing.append({
+                    **item,
+                    "reason": "directory_missing",
+                })
+
+        discovered: list[dict] = []
+        if self.base_dir.exists():
+            for kb_dir in sorted(self.base_dir.iterdir(), key=lambda item: item.name):
+                if not kb_dir.is_dir() or kb_dir.name.startswith(("__", ".")):
+                    continue
+                if kb_dir.name in registered_names:
+                    continue
+                if _is_valid_kb_dir(kb_dir):
+                    discovered.append({
+                        "name": kb_dir.name,
+                        "path": str(kb_dir),
+                        "rag_provider": _detect_provider_from_storage(kb_dir) or DEFAULT_PROVIDER,
+                    })
+
+        defaults = self.config.get("defaults") if isinstance(self.config.get("defaults"), dict) else {}
+        default_kb = defaults.get("default_kb") or self.config.get("default")
+        stale_default = bool(default_kb and default_kb in {item["name"] for item in missing})
+
+        return {
+            "base_dir": str(self.base_dir),
+            "config_file": str(self.config_file),
+            "registered_count": len(knowledge_bases),
+            "available_count": len(available),
+            "missing_count": len(missing),
+            "discovered_count": len(discovered),
+            "default_kb": default_kb,
+            "stale_default": stale_default,
+            "available": available,
+            "missing": missing,
+            "discovered": discovered,
+        }
+
+    def prune_missing_configs(self, dry_run: bool = False) -> dict:
+        """Remove config entries whose knowledge-base directory is missing.
+
+        This does not delete any raw documents or vector data.  It only prunes
+        stale registry records that point at directories that no longer exist.
+        """
+        audit = self.audit_registry()
+        missing_names = [item["name"] for item in audit.get("missing", [])]
+        if dry_run or not missing_names:
+            return {
+                "status": "dry_run" if dry_run else "success",
+                "dry_run": dry_run,
+                "removed": [],
+                "removed_count": 0,
+                "audit": audit,
+            }
+
+        self.config = self._load_config()
+        knowledge_bases = self.config.setdefault("knowledge_bases", {})
+        removed: list[str] = []
+        for name in missing_names:
+            if name in knowledge_bases:
+                del knowledge_bases[name]
+                removed.append(name)
+
+        defaults = self.config.get("defaults")
+        if isinstance(defaults, dict) and defaults.get("default_kb") in removed:
+            defaults["default_kb"] = None
+        if self.config.get("default") in removed:
+            self.config["default"] = None
+
+        if removed:
+            self._save_config()
+
+        return {
+            "status": "success",
+            "dry_run": False,
+            "removed": removed,
+            "removed_count": len(removed),
+            "audit": self.audit_registry(),
+        }
+
     def list_knowledge_bases(self) -> list[str]:
         """List all available knowledge bases.
         
         This method:
         1. Loads registered KBs from kb_config.json
         2. Scans the directory for existing KBs not yet registered
-        3. Auto-registers any discovered KBs with valid structure (rag_storage or llamaindex_storage)
+        3. Auto-registers discovered KBs with valid Milvus or local LlamaIndex storage
         """
         # Always reload config from file to ensure we have the latest data
         self.config = self._load_config()
@@ -320,15 +545,8 @@ class KnowledgeBaseManager:
                 if item.name in kb_list:
                     continue
                     
-                # Check if this is a valid KB directory (legacy rag_storage or llamaindex_storage)
-                rag_storage = item / "rag_storage"
-                llamaindex_storage = item / "llamaindex_storage"
-                is_valid_kb = (
-                    (rag_storage.exists() and rag_storage.is_dir()) or
-                    _is_llamaindex_storage_ready(llamaindex_storage)
-                )
-                
-                if is_valid_kb:
+                # Check if this is a valid KB directory.
+                if _is_valid_kb_dir(item):
                     # Auto-register this KB to kb_config.json
                     kb_list.add(item.name)
                     self._auto_register_kb(item.name)
@@ -366,8 +584,8 @@ class KnowledgeBaseManager:
                     kb_entry["description"] = metadata["description"]
                 if metadata.get("rag_provider"):
                     raw_provider = str(metadata["rag_provider"]).strip().lower()
-                    kb_entry["rag_provider"] = DEFAULT_PROVIDER
-                    if raw_provider not in {"", DEFAULT_PROVIDER}:
+                    kb_entry["rag_provider"] = normalize_provider_name(raw_provider)
+                    if raw_provider not in {"", DEFAULT_PROVIDER, LOCAL_PROVIDER, "llama_index"}:
                         kb_entry["needs_reindex"] = True
                 if metadata.get("created_at"):
                     kb_entry["created_at"] = metadata["created_at"]
@@ -380,8 +598,14 @@ class KnowledgeBaseManager:
         if "rag_provider" not in kb_entry:
             rag_storage = kb_dir / "rag_storage"
             llamaindex_storage = kb_dir / "llamaindex_storage"
-            if _is_llamaindex_storage_ready(llamaindex_storage):
+            milvus_storage = kb_dir / "milvus_storage"
+            detected_provider = _detect_provider_from_storage(kb_dir)
+            if detected_provider:
+                kb_entry["rag_provider"] = detected_provider
+            elif _is_milvus_storage_ready(milvus_storage):
                 kb_entry["rag_provider"] = DEFAULT_PROVIDER
+            elif _is_llamaindex_storage_ready(llamaindex_storage):
+                kb_entry["rag_provider"] = LOCAL_PROVIDER
             elif rag_storage.exists():
                 kb_entry["rag_provider"] = DEFAULT_PROVIDER
                 kb_entry["needs_reindex"] = True
@@ -426,8 +650,11 @@ class KnowledgeBaseManager:
     def get_rag_storage_path(self, name: str | None = None) -> Path:
         """Get active index storage path for a knowledge base."""
         kb_dir = self.get_knowledge_base_path(name)
+        milvus_storage = kb_dir / "milvus_storage"
         llamaindex_storage = kb_dir / "llamaindex_storage"
         legacy_storage = kb_dir / "rag_storage"
+        if milvus_storage.exists():
+            return milvus_storage
         if llamaindex_storage.exists():
             return llamaindex_storage
         if legacy_storage.exists():
@@ -438,11 +665,6 @@ class KnowledgeBaseManager:
         """Get images path for a knowledge base"""
         kb_dir = self.get_knowledge_base_path(name)
         return kb_dir / "images"
-
-    def get_content_list_path(self, name: str | None = None) -> Path:
-        """Get content list path for a knowledge base"""
-        kb_dir = self.get_knowledge_base_path(name)
-        return kb_dir / "content_list"
 
     def get_raw_path(self, name: str | None = None) -> Path:
         """Get raw documents path for a knowledge base"""
@@ -522,7 +744,9 @@ class KnowledgeBaseManager:
             metadata = {
                 "name": kb_name,
                 "description": kb_config.get("description", f"Knowledge base: {kb_name}"),
-                "rag_provider": DEFAULT_PROVIDER,
+                "rag_provider": normalize_provider_name(
+                    kb_config.get("rag_provider") or DEFAULT_PROVIDER
+                ),
                 "needs_reindex": bool(kb_config.get("needs_reindex", False)),
                 "created_at": kb_config.get("created_at"),
                 "last_updated": kb_config.get("updated_at"),
@@ -558,16 +782,14 @@ class KnowledgeBaseManager:
         status = kb_config.get("status")
         progress = kb_config.get("progress")
         description = kb_config.get("description", f"Knowledge base: {kb_name}")
-        rag_provider = DEFAULT_PROVIDER
+        rag_provider = normalize_provider_name(kb_config.get("rag_provider") or DEFAULT_PROVIDER)
         needs_reindex = bool(kb_config.get("needs_reindex", False))
         created_at = kb_config.get("created_at")
         updated_at = kb_config.get("updated_at")
 
         # KB might not have a directory yet if still initializing
         dir_exists = kb_dir.exists()
-        llamaindex_storage_dir = kb_dir / "llamaindex_storage" if dir_exists else None
-
-        storage_ready = _is_llamaindex_storage_ready(llamaindex_storage_dir)
+        storage_ready = _is_provider_storage_ready(kb_dir, rag_provider) if dir_exists else False
 
         # For old KBs without status field, determine status from storage.
         if needs_reindex:
@@ -577,6 +799,10 @@ class KnowledgeBaseManager:
         elif not status and dir_exists:
             rag_storage_dir = kb_dir / "rag_storage"
             if storage_ready:
+                status = "ready"
+            elif detected_provider := _detect_provider_from_storage(kb_dir):
+                rag_provider = detected_provider
+                storage_ready = True
                 status = "ready"
             elif rag_storage_dir.exists() and any(rag_storage_dir.iterdir()):
                 status = "needs_reindex"
@@ -615,12 +841,10 @@ class KnowledgeBaseManager:
         # Count files - handle errors gracefully
         raw_dir = kb_dir / "raw" if dir_exists else None
         images_dir = kb_dir / "images" if dir_exists else None
-        content_list_dir = kb_dir / "content_list" if dir_exists else None
         rag_storage_dir = kb_dir / "rag_storage" if dir_exists else None
 
         raw_count = 0
         images_count = 0
-        content_lists_count = 0
 
         if dir_exists:
             try:
@@ -639,20 +863,12 @@ class KnowledgeBaseManager:
             except Exception:
                 pass
 
-            try:
-                content_lists_count = (
-                    len(list(content_list_dir.glob("*.json"))) if content_list_dir.exists() else 0
-                )
-            except Exception:
-                pass
-
         # Check rag_initialized (llamaindex storage only)
         rag_initialized = storage_ready
 
         info["statistics"] = {
             "raw_documents": raw_count,
             "images": images_count,
-            "content_lists": content_lists_count,
             "rag_initialized": rag_initialized,
             "rag_provider": rag_provider,
             "needs_reindex": needs_reindex,
@@ -688,10 +904,13 @@ class KnowledgeBaseManager:
                 print("Deletion cancelled.")
                 return False
 
+        _drop_milvus_collection_from_metadata(kb_dir)
+
         # Delete the directory
         shutil.rmtree(kb_dir)
 
         # Remove from config
+        self.config = self._load_config()
         if name in self.config.get("knowledge_bases", {}):
             del self.config["knowledge_bases"][name]
 
@@ -716,14 +935,22 @@ class KnowledgeBaseManager:
         """
         kb_name = name or self.get_default()
         kb_dir = self.get_knowledge_base_path(kb_name)
+        milvus_storage_dir = kb_dir / "milvus_storage"
         llamaindex_storage_dir = kb_dir / "llamaindex_storage"
         legacy_storage_dir = kb_dir / "rag_storage"
 
-        if not llamaindex_storage_dir.exists() and not legacy_storage_dir.exists():
+        if (
+            not milvus_storage_dir.exists()
+            and not llamaindex_storage_dir.exists()
+            and not legacy_storage_dir.exists()
+        ):
             logger.info(f"Index storage does not exist for '{kb_name}'")
             return False
 
         targets = []
+        if milvus_storage_dir.exists():
+            _drop_milvus_collection_from_metadata(kb_dir)
+            targets.append(("milvus_storage", milvus_storage_dir))
         if llamaindex_storage_dir.exists():
             targets.append(("llamaindex_storage", llamaindex_storage_dir))
         if legacy_storage_dir.exists():
@@ -1100,7 +1327,6 @@ def main():
             stats = info["statistics"]
             print(f"  Raw documents: {stats['raw_documents']}")
             print(f"  Images: {stats['images']}")
-            print(f"  Content lists: {stats['content_lists']}")
             print(f"  RAG initialized: {'Yes' if stats['rag_initialized'] else 'No'}")
 
             if "rag" in stats:

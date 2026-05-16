@@ -102,20 +102,13 @@ cd ..
 
 新增功能时，应同步更新：
 
+- 新页面、新 API 路由、新 CLI 命令或功能入口变化：`docs/feature-code-map.md`
+- 智能体调度、Agentic RAG、学习画像/记忆注入、简历/答辩口径：`docs/core-ai-code-facts.md`
+- 多智能体运行时、对话协调、specialist 委派和协作事件：`docs/agent-runtime-design.md`
+- Milvus、检索策略、HyDE、Gated Agentic RAG、Context Pack 和 RAG 评测：`docs/rag-system-design.md`
+- Memory、证据账本、统一学习画像、模型上下文注入和用户校准：`docs/learner-profile-memory-design.md`
 - 赛题目标、学习闭环、画像/导学/评估后续计划：`docs/competition-roadmap.md`
 - 统一学习画像、证据账本、画像中心、画像 API：`docs/learner-profile-design.md`
-- 画像调研来源、证据源盘点、风险和测试准备：`docs/learner-profile-research-notes.md`
-- 画像 P1 只读聚合、API 合约和前端施工顺序：`docs/learner-profile-p1-implementation.md`
-- 画像 P1 实际落地状态、验证记录和下一步：`docs/learner-profile-p1-status.md`
-- 画像 P2 正式证据账本、事件格式和模块接入点：`docs/learner-profile-p2-evidence-ledger.md`
-- 画像 P3 用户校准、确认/驳回/修改画像判断和前端入口：`docs/learner-profile-p3-calibration.md`
-- 画像 P4 对话信号接入、聊天目标/卡点/偏好低置信度写入证据账本：`docs/learner-profile-p4-chat-signals.md`
-- 画像 P5 导学接入统一画像、资源生成个性化：`docs/learner-profile-p5-guide-integration.md`
-- 画像 P6 学习效果评估融合长期画像：`docs/learner-profile-p6-effect-assessment.md`
-- 画像 P7 题目事件按知识点沉淀 mastery 与 weak point：`docs/learner-profile-p7-concept-mastery.md`
-- 画像 P8 一步行动建议、画像到导学的行动闭环：`docs/learner-profile-p8-next-action.md`
-- 画像 P9 模型上下文注入、LangGraph 回合画像摘要：`docs/learner-profile-p9-context-injection.md`
-- 画像 P20 推进方式压缩、学习协议式前端表达：`docs/learner-profile-p20-compact-style-card.md`
 - 新环境变量：`docs/configuration.md`
 - 新 Provider、设置页、模型 catalog 行为：`docs/settings-and-providers.md`
 - 新系统状态、连接测试、诊断提示或 Embedding adapter 行为：`docs/system-diagnostics.md`
@@ -139,7 +132,7 @@ cd ..
 
 当前优先级：
 
-1. 统一学习画像中心：把 Chat、Memory、Notebook、题目本和 Guide V2 的画像证据合并展示，详细设计见 [学习画像设计调研与实现方案](./learner-profile-design.md)，P1 施工图见 [学习画像 P1 只读统一画像实施方案](./learner-profile-p1-implementation.md)。
+1. 统一学习画像中心：把 Chat、Memory、Notebook、题目本和 Guide V2 的画像证据合并展示，详细设计见 [学习画像设计调研与实现方案](./learner-profile-design.md)，代码事实见 [学习画像与长期记忆设计](./learner-profile-memory-design.md)。
 2. 导学闭环继续简化：围绕“当前任务 -> 资源生成 -> 交互练习 -> 提交反思 -> 推荐下一步 -> 回写画像”推进。
 3. 学习效果评估：不仅保留导学报告，也把评估前移到画像中心，展示掌握度、正确率、稳定性、薄弱点压力和下一步调整策略。
 4. 多智能体协作可视化：用轻量轨迹展示画像、规划、检索、图解、动画、出题、评估等智能体分工。

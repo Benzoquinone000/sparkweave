@@ -144,6 +144,7 @@ async def test_chat_graph_streams_retrieve_progress_for_rag() -> None:
         user_message="what is a transformer",
         enabled_tools=["rag"],
         knowledge_bases=["demo-kb"],
+        config_overrides={"prefetch_rag": False},
         metadata={"turn_id": "turn-1"},
     )
 

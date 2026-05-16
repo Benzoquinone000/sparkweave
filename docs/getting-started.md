@@ -69,8 +69,10 @@ EMBEDDING_DIMENSION=3072
 
 ## 启动 Web 工作台
 
+推荐使用 Docker 启动完整项目。前端、后端、Milvus、etcd 和 MinIO 都由 Docker Compose 管理：
+
 ```powershell
-python scripts/start_web.py
+python scripts/start_docker.py
 ```
 
 默认访问地址：
@@ -80,6 +82,24 @@ python scripts/start_web.py
 | 前端 | `http://localhost:3782` |
 | 后端 | `http://localhost:8001` |
 | API 文档 | `http://localhost:8001/docs` |
+| Milvus Web UI | `http://localhost:9091/webui/` |
+
+常用命令：
+
+```powershell
+python scripts/start_docker.py --status
+python scripts/start_docker.py --logs
+python scripts/start_docker.py --down
+```
+
+本机已经用源码方式启动前后端、只差 RAG 向量库时，可以只启动 Milvus 依赖栈：
+
+```powershell
+python scripts/start_docker.py --milvus-only
+python scripts/start_docker.py --milvus-only --status
+```
+
+`python scripts/start_web.py` 只作为本地源码开发备用入口。
 
 ## 使用 CLI
 

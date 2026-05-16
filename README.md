@@ -177,12 +177,13 @@ data/              本地用户数据、记忆、知识库和运行产物
 
 ## 运行环境
 
+- Docker Desktop（推荐启动方式，负责前端、后端、Milvus、etcd、MinIO）
 - Python 3.11+
 - Node.js 20+
 - 可用的 LLM API Key 和 Embedding API Key
 - FFmpeg：数学动画视频编码
 - MiKTeX：`MathTex`/`Tex` 公式渲染
-- Manim、MinerU、LlamaIndex、SparkBot 等 Python 依赖会通过全量依赖安装
+- Manim、MinerU、Milvus/LlamaIndex、SparkBot 等 Python 依赖会通过全量依赖安装
 
 ## 全量配置与启动
 
@@ -250,10 +251,10 @@ cd ..
 copy .env.example .env
 ```
 
-至少填写 `.env` 中的 `LLM_*` 与 `EMBEDDING_*`。完成后用同一个 Conda 环境启动前后端：
+至少填写 `.env` 中的 `LLM_*` 与 `EMBEDDING_*`。以后默认通过 Docker 启动完整项目，前端、后端、Milvus、etcd、MinIO 都由 Docker Compose 管理：
 
 ```powershell
-python scripts/start_web.py
+python scripts/start_docker.py
 ```
 
 默认访问地址：
@@ -261,8 +262,36 @@ python scripts/start_web.py
 - 前端：`http://localhost:3782`
 - 后端：`http://localhost:8001`
 - API 文档：`http://localhost:8001/docs`
+- Milvus Web UI：`http://localhost:9091/webui/`
 
-全量配置完成后，聊天、知识库 RAG、题目生成、Notebook、SparkBot、多智能体协作、图表可视化、数学动画视频和 PDF 题目仿写能力都会使用同一套环境运行。
+常用 Docker 命令：
+
+```powershell
+python scripts/start_docker.py --status
+python scripts/start_docker.py --logs
+python scripts/start_docker.py --down
+```
+
+如果你已经在本机直接运行后端和前端，只需要为 RAG 启动向量数据库，可以使用轻量入口：
+
+```powershell
+python scripts/start_docker.py --milvus-only
+python scripts/start_docker.py --milvus-only --status
+```
+
+开发时需要 Docker 热加载，可以启动开发覆盖配置：
+
+```powershell
+python scripts/start_docker.py --dev --logs
+```
+
+这个模式会把本地 `sparkweave/`、`sparkweave_cli/`、`scripts/` 和 `web/src`、`web/public` 等目录挂载到容器内。后端使用 `uvicorn --reload`，前端使用 Vite HMR；在 Windows / Docker Desktop 下已经开启文件轮询，避免保存文件后容器没有感知变化。改依赖、Dockerfile、`package.json` 或底层系统包时仍然需要重新构建：
+
+```powershell
+python scripts/start_docker.py --dev --recreate
+```
+
+`scripts/start_web.py` 仅保留为本地开发备用入口，不再作为推荐启动方式。全量配置完成后，聊天、知识库 RAG、题目生成、Notebook、SparkBot、多智能体协作、图表可视化、数学动画视频和 PDF 题目仿写能力都会使用同一套 Docker 环境运行。
 
 比赛提交相关材料可直接参考：
 
@@ -288,17 +317,21 @@ LLM_API_KEY=your-api-key
 LLM_HOST=https://api.openai.com/v1
 ```
 
+设置页按供应商维护共享凭据：科大讯飞服务共用 `IFLYTEK_APPID`、`IFLYTEK_API_KEY`、`IFLYTEK_API_SECRET`、可选 `IFLYTEK_API_PASSWORD`；硅基流动服务共用 `SILICONFLOW_API_KEY`。除非使用旧配置迁移，服务级密钥字段可以留空。
+
 如果希望使用科大讯飞星火大模型，请在设置页选择 `iFlytek Spark X`，或直接配置：
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 LLM_BINDING=iflytek_spark_ws
 LLM_MODEL=spark-x
-LLM_API_KEY=your-iflytek-api-password-or-ak-sk
+LLM_API_KEY=
 LLM_HOST=https://spark-api-open.xf-yun.com/x2/
 ```
 
-讯飞星火大模型在本项目中仅保留 X2 与 X1.5 两个 OpenAI 兼容 HTTP 入口，模型名统一为 `spark-x`。X2 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/x2/`，X1.5 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/v2/`。`LLM_API_KEY` 可填写 HTTP 协议的 APIPassword，或按官方说明填写 `APIKey:APISecret`。
-设置页选择 `iFlytek Spark X` 后会提供两种鉴权方式：直接填写 `APIPassword`，或分别填写 `APIKey` 与 `APISecret`，保存时会自动拼接为 `APIKey:APISecret`。
+讯飞星火大模型在本项目中仅保留 X2 与 X1.5 两个 OpenAI 兼容 HTTP 入口，模型名统一为 `spark-x`。X2 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/x2/`，X1.5 使用 `LLM_HOST=https://spark-api-open.xf-yun.com/v2/`。若 `IFLYTEK_API_PASSWORD` 留空，运行时会按官方说明使用 `IFLYTEK_API_KEY:IFLYTEK_API_SECRET`。
 比赛答辩中如需说明讯飞能力接入，可直接参考 [科大讯飞能力接入说明](docs/iflytek-integration.md)。
 
 使用知识库 RAG 时，还需要配置 Embedding：
@@ -314,25 +347,38 @@ EMBEDDING_DIMENSION=3072
 也可以在设置页选择 `iFlytek Spark Embedding`，或直接配置科大讯飞向量服务：
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 EMBEDDING_BINDING=iflytek_spark
 EMBEDDING_MODEL=llm-embedding
-EMBEDDING_API_KEY=your-iflytek-embedding-apikey
+EMBEDDING_API_KEY=
 EMBEDDING_HOST=https://emb-cn-huabei-1.xf-yun.com/
 EMBEDDING_DIMENSION=2560
-IFLYTEK_EMBEDDING_APPID=your-iflytek-appid
-IFLYTEK_EMBEDDING_API_SECRET=your-iflytek-embedding-apisecret
 ```
 
-讯飞 llm Embedding 使用独立签名鉴权，同样配置 `APPID`、`APIKey`、`APISecret` 三项；在设置页选择 `iFlytek Spark Embedding` 后也会出现对应输入框。系统会按文档自动为文档向量使用 `domain=para`，为查询向量使用 `domain=query`，返回 2560 维 float32 向量。官方文档：https://www.xfyun.cn/doc/spark/Embedding_api.html
+讯飞 llm Embedding 使用 `APPID`、`APIKey`、`APISecret` 三项共享凭据。系统会按文档自动为文档向量使用 `domain=para`，为查询向量使用 `domain=query`，返回 2560 维 float32 向量。官方文档：https://www.xfyun.cn/doc/spark/Embedding_api.html
+
+知识库向量检索默认使用 Milvus。Windows 原生 Python 环境建议先启动 Milvus Standalone，然后使用本地端口连接：
+
+```env
+RAG_PROVIDER=milvus
+MILVUS_URI=http://localhost:19530
+MILVUS_COLLECTION_PREFIX=sparkweave
+```
+
+如果使用 Docker Compose 启动整套项目，`docker compose up -d` 会同时启动 Milvus、etcd 和 MinIO；容器内会默认使用 `DOCKER_MILVUS_URI=http://milvus:19530`，不需要把容器里的 Milvus 地址写成 `localhost`。
+
+Linux、macOS 或 WSL 环境可以使用 Milvus Lite 文件模式：`MILVUS_URI=./data/milvus/sparkweave.db`。如果要连接 Zilliz Cloud，把 `MILVUS_URI` 改成远程地址，并按需填写 `MILVUS_TOKEN`。旧的本地 LlamaIndex JSON 索引仍可作为回退方案，配置 `RAG_PROVIDER=llamaindex` 即可。更多说明见 [Milvus RAG 设计说明](docs/milvus-rag.md)。
 
 如需让扫描版 PDF 优先走科大讯飞 OCR，可配置：
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 SPARKWEAVE_OCR_PROVIDER=iflytek
 SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first
-IFLYTEK_OCR_APPID=your-appid
-IFLYTEK_OCR_API_KEY=your-api-key
-IFLYTEK_OCR_API_SECRET=your-api-secret
 ```
 
 `iflytek_first` 表示知识库 PDF 会先调用讯飞 OCR；当 OCR 未配置、网络失败、接口报错或返回为空时，会自动回退到默认 PyMuPDF 文本层解析。若希望优先使用默认解析，只在文本过少时 OCR，可设为 `SPARKWEAVE_PDF_OCR_STRATEGY=auto`。
@@ -350,12 +396,14 @@ VITE_API_BASE=http://localhost:8001
 联网搜索支持 DuckDuckGo、SearXNG、Jina、Brave、Tavily、Perplexity、Serper 和科大讯飞 ONE SEARCH。讯飞搜索按官方 Search API 使用 `APIPassword`：
 
 ```env
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 SEARCH_PROVIDER=iflytek_spark
-SEARCH_API_KEY=your-iflytek-search-apipassword
+SEARCH_API_KEY=
 SEARCH_BASE_URL=https://search-api-open.cn-huabei-1.xf-yun.com/v2/search
 ```
 
-也可以把讯飞搜索密钥写入 `IFLYTEK_SEARCH_API_PASSWORD`，设置页选择 `iFlytek ONE SEARCH` 后保存即可。官方文档：https://www.xfyun.cn/doc/spark/Search_API/search_API.html
+也可以直接填写 `IFLYTEK_API_PASSWORD`；旧配置仍兼容 `SEARCH_API_KEY` 或 `IFLYTEK_SEARCH_API_PASSWORD`。官方文档：https://www.xfyun.cn/doc/spark/Search_API/search_API.html
 
 ## Web 前端
 
@@ -448,18 +496,25 @@ sparkweave competition-preflight --template ai_learning_agents_systems --with-bu
 创建知识库：
 
 ```powershell
-sparkweave kb create code --file .\examples\intro.pdf
+sparkweave kb create code --doc .\examples\intro.pdf
 ```
 
 追加文件：
 
 ```powershell
-sparkweave kb upload code --file .\notes.md
+sparkweave kb add code --doc .\notes.md
 ```
 
 在前端可以进入 `/knowledge` 上传资料、查看索引进度并设置默认知识库。RAG 失败时优先检查 `.env` 中的 `EMBEDDING_*` 配置、文件 MIME 类型和后端日志。
 
-扫描版 PDF 的知识库索引支持可选讯飞 OCR：配置 `IFLYTEK_OCR_*` 后，`SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first` 会先识别页面图像，再写入 LlamaIndex；OCR 不可用时仍保留默认 PyMuPDF 回退，不会阻断知识库创建。
+默认向量数据库是 Milvus；Windows 推荐连接本机 Docker/Standalone 服务，Linux、macOS 或 WSL 可用 Milvus Lite 文件模式。如果改了 Embedding 模型或向量维度，已有知识库会提示需要重建索引。扫描版 PDF 的知识库索引支持可选讯飞 OCR：配置 `IFLYTEK_OCR_*` 后，`SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first` 会先识别页面图像，再进入当前 RAG 索引；OCR 不可用时仍保留默认 PyMuPDF 回退，不会阻断知识库创建。
+
+旧知识库迁移或向量配置变化后，可以在前端资料库页面点击“重建索引”，也可以使用：
+
+```powershell
+sparkweave kb doctor code --no-connect
+sparkweave kb reindex code --provider milvus
+```
 
 ## SparkBot
 

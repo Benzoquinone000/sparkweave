@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, CheckCircle2, FileQuestion, Loader2, Save, Sparkles, Upload } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 
-import { QuizViewer } from "@/components/quiz/QuizViewer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,6 +12,8 @@ import { NotionProductHero } from "@/components/ui/NotionProductHero";
 import { useKnowledgeBases, useNotebookMutations, useNotebooks } from "@/hooks/useApiQueries";
 import { questionGenerateSocketUrl, questionMimicSocketUrl } from "@/lib/api";
 import type { QuestionGenerationSummary, QuizQuestion } from "@/lib/types";
+
+const QuizViewer = lazy(() => import("@/components/quiz/QuizViewer").then((module) => ({ default: module.QuizViewer })));
 
 type RunMode = "topic" | "mimic";
 type RunStatus = "idle" | "running" | "complete" | "error";
@@ -146,7 +147,6 @@ function readFileAsBase64(file: File) {
 
 export function QuestionLabPage() {
   const knowledgeBases = useKnowledgeBases();
-  const notebooks = useNotebooks();
   const notebookMutations = useNotebookMutations();
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -166,8 +166,10 @@ export function QuestionLabPage() {
   const [error, setError] = useState("");
 
   const kbItems = useMemo(() => knowledgeBases.data ?? [], [knowledgeBases.data]);
-  const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
   const questions = useMemo(() => normalizeQuestions(summary), [summary]);
+  const shouldLoadNotebooks = questions.length > 0 || Boolean(targetNotebookId);
+  const notebooks = useNotebooks({ enabled: shouldLoadNotebooks });
+  const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
   const markdown = useMemo(() => questionsToMarkdown(questions), [questions]);
   const completed = summary?.completed ?? questions.length;
   const failed = summary?.failed ?? 0;
@@ -290,7 +292,7 @@ export function QuestionLabPage() {
           accent="pink"
           imageSrc="/illustrations/notion-note-pink.svg"
           imageAlt="题目生成预览"
-          people="inspired"
+          people="question_lab"
           previewTitle="练习要能提交"
           previewDescription="选择、判断、填空和主观题都可以在页面内完成反馈。"
           tiles={[
@@ -375,7 +377,13 @@ export function QuestionLabPage() {
               <div className="mt-4 space-y-3">
                 <FieldShell label="知识库">
                   <SelectInput value={kbName} onChange={(event) => setKbName(event.target.value)}>
-                    <option value="">{kbItems.length ? "自动选择默认知识库" : "ai_textbook"}</option>
+                    <option value="">
+                      {knowledgeBases.isLoading || knowledgeBases.isFetching
+                        ? "正在读取知识库..."
+                        : kbItems.length
+                          ? "自动选择默认知识库"
+                          : "ai_textbook"}
+                    </option>
                     {kbItems.map((item) => (
                       <option key={item.name} value={item.name}>
                         {item.name}
@@ -500,7 +508,15 @@ export function QuestionLabPage() {
               <PanelHeader title="保存到 Notebook" description="把本次题目作为一条结构化记录沉淀下来。" />
               <div className="mt-4 space-y-3">
                 <SelectInput value={targetNotebookId} onChange={(event) => setTargetNotebookId(event.target.value)}>
-                  <option value="">{notebookItems.length ? `默认：${notebookItems[0].name}` : "暂无 Notebook"}</option>
+                  <option value="">
+                    {!questions.length
+                      ? "生成题目后选择 Notebook"
+                      : notebooks.isLoading || notebooks.isFetching
+                        ? "正在读取 Notebook..."
+                        : notebookItems.length
+                          ? `默认：${notebookItems[0].name}`
+                          : "暂无 Notebook"}
+                  </option>
                   {notebookItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -595,7 +611,9 @@ export function QuestionLabPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                      <QuizViewer questions={questions} />
+                      <Suspense fallback={<QuizViewerSkeleton />}>
+                        <QuizViewer questions={questions} />
+                      </Suspense>
                     </motion.div>
                   ) : (
                     <motion.div
@@ -616,6 +634,23 @@ export function QuestionLabPage() {
             </Panel>
           </div>
         </motion.section>
+      </div>
+    </div>
+  );
+}
+
+function QuizViewerSkeleton() {
+  return (
+    <div className="space-y-3" aria-label="正在准备练习预览">
+      <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+      <div className="space-y-2">
+        <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-5/6 animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="h-10 animate-pulse rounded border border-line bg-slate-50" />
+        <div className="h-10 animate-pulse rounded border border-line bg-slate-50" />
       </div>
     </div>
   );

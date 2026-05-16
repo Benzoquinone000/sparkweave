@@ -77,15 +77,18 @@ class XfyunTtsConfig:
         app_id = _first_env(
             "IFLYTEK_TTS_APPID",
             "IFLYTEK_TTS_APP_ID",
+            "IFLYTEK_APPID",
             "XFYUN_TTS_APPID",
         )
         api_key = _first_env(
             "IFLYTEK_TTS_API_KEY",
+            "IFLYTEK_API_KEY",
             "IFLYTEK_TTS_APIKEY",
             "XFYUN_TTS_API_KEY",
         )
         api_secret = _first_env(
             "IFLYTEK_TTS_API_SECRET",
+            "IFLYTEK_API_SECRET",
             "IFLYTEK_TTS_APISECRET",
             "XFYUN_TTS_API_SECRET",
         )

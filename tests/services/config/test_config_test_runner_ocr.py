@@ -11,15 +11,15 @@ from sparkweave.services.config_test_runner import ConfigTestRunner, TestRun
 async def test_config_test_runner_ocr_probe(monkeypatch: pytest.MonkeyPatch) -> None:
     from sparkweave.services import ocr as ocr_module
 
-    config = SimpleNamespace(url="https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm")
+    config = SimpleNamespace(url="https://api.siliconflow.cn/v1/chat/completions", provider="siliconflow")
     calls: list[dict] = []
-    monkeypatch.setattr(ocr_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: config))
+    monkeypatch.setattr(ocr_module, "resolve_ocr_config", lambda: config)
 
     def _fake_recognize(image: bytes, **kwargs):
         calls.append({"image": image, **kwargs})
         return "SparkWeave OCR"
 
-    monkeypatch.setattr(ocr_module, "recognize_image_with_iflytek", _fake_recognize)
+    monkeypatch.setattr(ocr_module, "recognize_image", _fake_recognize)
 
     runner = ConfigTestRunner()
     run = TestRun(id="ocr-test", service="ocr")
@@ -36,7 +36,7 @@ async def test_config_test_runner_ocr_probe(monkeypatch: pytest.MonkeyPatch) -> 
 async def test_config_test_runner_ocr_probe_requires_config(monkeypatch: pytest.MonkeyPatch) -> None:
     from sparkweave.services import ocr as ocr_module
 
-    monkeypatch.setattr(ocr_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: None))
+    monkeypatch.setattr(ocr_module, "resolve_ocr_config", lambda: None)
 
     runner = ConfigTestRunner()
     run = TestRun(id="ocr-test", service="ocr")

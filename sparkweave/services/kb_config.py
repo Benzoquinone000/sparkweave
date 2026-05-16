@@ -8,7 +8,11 @@ from typing import Any
 
 from sparkweave.logging import get_logger
 from sparkweave.services.paths import get_path_service
-from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
+from sparkweave.services.rag_support.factory import (
+    DEFAULT_PROVIDER,
+    LOCAL_PROVIDER,
+    normalize_provider_name,
+)
 
 logger = get_logger("KBConfigService")
 
@@ -56,7 +60,9 @@ class KnowledgeBaseConfigService:
 
     def _normalize_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         defaults = payload.setdefault("defaults", _default_payload()["defaults"])
-        defaults["rag_provider"] = DEFAULT_PROVIDER
+        defaults["rag_provider"] = normalize_provider_name(
+            defaults.get("rag_provider") or DEFAULT_PROVIDER
+        )
 
         knowledge_bases = payload.setdefault("knowledge_bases", {})
         kb_base_dir = self.config_path.parent
@@ -64,20 +70,31 @@ class KnowledgeBaseConfigService:
             if not isinstance(config, dict):
                 continue
             raw_provider = config.get("rag_provider")
-            config["rag_provider"] = DEFAULT_PROVIDER
+            config["rag_provider"] = normalize_provider_name(raw_provider or DEFAULT_PROVIDER)
             if isinstance(raw_provider, str) and raw_provider.strip().lower() not in {
                 "",
                 DEFAULT_PROVIDER,
+                LOCAL_PROVIDER,
+                "llama_index",
             }:
                 config["needs_reindex"] = True
 
             kb_dir = kb_base_dir / kb_name
             legacy_storage = kb_dir / "rag_storage"
-            new_storage = kb_dir / "llamaindex_storage"
+            milvus_storage = kb_dir / "milvus_storage"
+            llamaindex_storage = kb_dir / "llamaindex_storage"
+            has_supported_storage = (
+                (milvus_storage / "metadata.json").exists()
+                or (
+                    (llamaindex_storage / "docstore.json").exists()
+                    and (llamaindex_storage / "index_store.json").exists()
+                    and (llamaindex_storage / "default__vector_store.json").exists()
+                )
+            )
             if (
                 legacy_storage.exists()
                 and legacy_storage.is_dir()
-                and not (new_storage.exists() and new_storage.is_dir())
+                and not has_supported_storage
             ):
                 config["needs_reindex"] = True
 
@@ -90,6 +107,11 @@ class KnowledgeBaseConfigService:
             json.dumps(self._config, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+
+    def reload(self) -> dict[str, Any]:
+        """Reload the config from disk and return the fresh payload."""
+        self._config = self._load_config()
+        return self._config
 
     def _ensure_kb(self, kb_name: str) -> dict[str, Any]:
         knowledge_bases = self._config.setdefault("knowledge_bases", {})
@@ -105,12 +127,14 @@ class KnowledgeBaseConfigService:
         kb_config = dict(self._config.get("knowledge_bases", {}).get(kb_name, {}))
         merged = {
             "default_kb": defaults.get("default_kb"),
-            "rag_provider": DEFAULT_PROVIDER,
+            "rag_provider": normalize_provider_name(
+                kb_config.get("rag_provider") or defaults.get("rag_provider") or DEFAULT_PROVIDER
+            ),
             "search_mode": kb_config.get("search_mode") or defaults.get("search_mode", "hybrid"),
             "needs_reindex": bool(kb_config.get("needs_reindex", False)),
             **kb_config,
         }
-        merged["rag_provider"] = DEFAULT_PROVIDER
+        merged["rag_provider"] = normalize_provider_name(merged.get("rag_provider"))
         return merged
 
     def set_kb_config(self, kb_name: str, config: dict[str, Any]) -> None:
@@ -119,11 +143,10 @@ class KnowledgeBaseConfigService:
         self._save()
 
     def get_rag_provider(self, kb_name: str) -> str:
-        return DEFAULT_PROVIDER
+        return normalize_provider_name(self.get_kb_config(kb_name).get("rag_provider"))
 
     def set_rag_provider(self, kb_name: str, provider: str) -> None:
-        del provider
-        self.set_kb_config(kb_name, {"rag_provider": DEFAULT_PROVIDER})
+        self.set_kb_config(kb_name, {"rag_provider": normalize_provider_name(provider)})
 
     def get_search_mode(self, kb_name: str) -> str:
         return str(self.get_kb_config(kb_name).get("search_mode", "hybrid"))
@@ -165,8 +188,8 @@ class KnowledgeBaseConfigService:
         config: dict[str, Any] = {}
         if metadata.get("rag_provider"):
             raw_provider = metadata["rag_provider"]
-            config["rag_provider"] = DEFAULT_PROVIDER
-            if str(raw_provider).strip().lower() not in {"", DEFAULT_PROVIDER}:
+            config["rag_provider"] = normalize_provider_name(raw_provider)
+            if str(raw_provider).strip().lower() not in {"", DEFAULT_PROVIDER, LOCAL_PROVIDER}:
                 config["needs_reindex"] = True
         if metadata.get("search_mode"):
             config["search_mode"] = metadata["search_mode"]

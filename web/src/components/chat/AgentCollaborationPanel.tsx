@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import {
+  ArrowRight,
   BookOpenCheck,
   Bot,
   CheckCircle2,
@@ -342,6 +343,14 @@ export function AgentCollaborationPanel({
         </div>
       </div>
 
+      <AgentRelayTheater
+        routeItems={routeItems}
+        displayedSteps={displayedSteps}
+        profileAware={profileAware}
+        profileGuidedPrompt={profileGuidedPrompt}
+        routeSummary={routeSummary}
+      />
+
       <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2" data-testid="agent-collaboration-route">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <span className="font-medium text-ink">接力路线</span>
@@ -401,6 +410,89 @@ export function AgentCollaborationPanel({
           </div>
         </details>
       ) : null}
+    </div>
+  );
+}
+
+function AgentRelayTheater({
+  routeItems,
+  displayedSteps,
+  profileAware,
+  profileGuidedPrompt,
+  routeSummary,
+}: {
+  routeItems: StructuredRouteItem[];
+  displayedSteps: AgentStep[];
+  profileAware: boolean;
+  profileGuidedPrompt: string;
+  routeSummary: string;
+}) {
+  const items = routeItems.slice(0, 6).map((item, index) => {
+    const fallback = displayedSteps[Math.min(index, Math.max(displayedSteps.length - 1, 0))];
+    return {
+      ...item,
+      icon: fallback?.icon ?? Bot,
+      status: item.status ?? fallback?.status ?? "complete",
+      detail: item.detail || fallback?.description || "接收上一位智能体的结果并继续加工。",
+    };
+  });
+
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-canvas p-3" data-testid="agent-relay-theater">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">多智能体接力剧场</Badge>
+            <span className="text-xs font-medium text-ink">{profileAware ? "画像先入场" : "任务自动分派"}</span>
+          </div>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+            {profileGuidedPrompt || routeSummary || "把学生问题变成可检索、可生成、可验证的学习任务。"}
+          </p>
+        </div>
+        <Badge tone="neutral">{items.length} 段协作</Badge>
+      </div>
+
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        <div className="grid min-w-[8.5rem] shrink-0 place-items-center rounded-lg border border-brand-purple-300 bg-white px-3 py-3 text-center">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-tint-lavender text-brand-purple">
+            <Sparkles size={16} />
+          </span>
+          <p className="mt-2 text-xs font-semibold text-ink">学习任务包</p>
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">问题 · 画像 · 资料</p>
+        </div>
+        <span className="mt-12 shrink-0 text-slate-300">
+          <ArrowRight size={16} />
+        </span>
+        {items.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <div key={`${item.key}-theater`} className="flex shrink-0 items-start gap-2">
+              <motion.div
+                className={`min-h-[8.25rem] w-40 rounded-lg border p-3 ${theaterCardTone(item.status)}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, delay: Math.min(index * 0.04, 0.16) }}
+                title={item.detail}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`grid h-8 w-8 place-items-center rounded-lg ${iconTone(item.status)}`}>
+                    {item.status === "running" ? <Loader2 size={15} className="animate-spin" /> : <Icon size={15} />}
+                  </span>
+                  <span className={`h-2 w-2 rounded-sm ${routeDotTone(item.status)}`} />
+                </div>
+                <p className="mt-2 line-clamp-2 min-h-9 text-sm font-semibold leading-5 text-ink">{item.label}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.detail}</p>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">{statusText(item.status)}</p>
+              </motion.div>
+              {index < items.length - 1 ? (
+                <span className="mt-14 shrink-0 text-slate-300">
+                  <ArrowRight size={16} />
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -777,6 +869,13 @@ function routeChipTone(status: StepStatus) {
   if (status === "complete") return "border-line bg-white text-ink";
   if (status === "error") return "border-red-200 bg-white text-brand-red";
   return "border-line bg-white text-slate-500";
+}
+
+function theaterCardTone(status: StepStatus) {
+  if (status === "running") return "border-brand-purple-300 bg-white shadow-sm";
+  if (status === "complete") return "border-line bg-white";
+  if (status === "error") return "border-red-200 bg-red-50";
+  return "border-line bg-white/80";
 }
 
 function routeDotTone(status: StepStatus) {

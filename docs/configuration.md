@@ -15,6 +15,20 @@ copy .env.example .env
 | `BACKEND_PORT` | `8001` | FastAPI 后端端口 |
 | `FRONTEND_PORT` | `3782` | Vite 前端端口 |
 
+## 供应商共享凭据
+
+设置页和 `.env` 都以供应商级密钥为主：同一家供应商只维护一套参数，再由运行时共享给问答、Embedding、联网搜索、OCR、TTS 等能力。
+
+| 变量 | 说明 |
+| --- | --- |
+| `IFLYTEK_APPID` | 科大讯飞 APPID |
+| `IFLYTEK_API_KEY` | 科大讯飞 APIKey |
+| `IFLYTEK_API_SECRET` | 科大讯飞 APISecret |
+| `IFLYTEK_API_PASSWORD` | 科大讯飞 APIPassword，可留空；留空时运行时会用 `APIKey:APISecret` |
+| `SILICONFLOW_API_KEY` | 硅基流动 APIKey，LLM / Embedding / DeepSeek-OCR 共用 |
+
+服务级变量如 `LLM_API_KEY`、`EMBEDDING_API_KEY`、`SEARCH_API_KEY`、`IFLYTEK_OCR_API_KEY`、`IFLYTEK_TTS_API_KEY` 仍保留为旧配置兼容项。新配置建议只填写本节共享凭据。
+
 ## LLM
 
 | 变量 | 必填 | 说明 |
@@ -52,9 +66,12 @@ LLM_HOST=http://localhost:1234/v1
 SparkWeave 仅保留星火 X2 / X1.5 的 OpenAI 兼容 HTTP 入口，模型名统一为 `spark-x`。
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 LLM_BINDING=iflytek_spark_ws
 LLM_MODEL=spark-x
-LLM_API_KEY=your-iflytek-api-password-or-ak-sk
+LLM_API_KEY=
 LLM_HOST=https://spark-api-open.xf-yun.com/x2/
 ```
 
@@ -85,15 +102,72 @@ EMBEDDING_DIMENSION=3072
 科大讯飞 Embedding 示例：
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 EMBEDDING_BINDING=iflytek_spark
 EMBEDDING_MODEL=llm-embedding
-EMBEDDING_API_KEY=your-iflytek-embedding-apikey
+EMBEDDING_API_KEY=
 EMBEDDING_HOST=https://emb-cn-huabei-1.xf-yun.com/
 EMBEDDING_DIMENSION=2560
-IFLYTEK_EMBEDDING_APPID=your-iflytek-appid
-IFLYTEK_EMBEDDING_API_KEY=your-iflytek-embedding-apikey
-IFLYTEK_EMBEDDING_API_SECRET=your-iflytek-embedding-apisecret
 ```
+
+## RAG 与 Milvus
+
+知识库默认使用 Milvus 作为向量数据库。Windows 原生 Python 环境推荐启动 Milvus Standalone，并通过本地端口连接：
+
+```env
+RAG_PROVIDER=milvus
+SPARKWEAVE_KB_BACKGROUND_WORKERS=1
+MILVUS_URI=http://localhost:19530
+MILVUS_COLLECTION_PREFIX=sparkweave
+MILVUS_SIMILARITY_METRIC=IP
+MILVUS_CONSISTENCY_LEVEL=Strong
+MILVUS_OVERWRITE_ON_INIT=1
+RAG_TOP_K=5
+RAG_CANDIDATE_TOP_K=20
+RAG_SCORE_THRESHOLD=
+RAG_MAX_CONTEXT_CHARS=8000
+RAG_RERANKER=none
+RAG_RERANK_TOP_N=5
+RAG_RERANK_VECTOR_WEIGHT=0.65
+RAG_RERANK_LEXICAL_WEIGHT=0.35
+RAG_RETRIEVAL_MODE=dense
+MILVUS_HYBRID_RANKER=RRFRanker
+MILVUS_HYBRID_RRF_K=60
+MILVUS_DENSE_WEIGHT=1.0
+MILVUS_SPARSE_WEIGHT=0.6
+```
+
+使用项目自带 Docker Compose 时，SparkWeave 容器会连接 compose 网络内的 Milvus 服务：
+
+```env
+DOCKER_MILVUS_URI=http://milvus:19530
+```
+
+如果要让 Docker 连接外部 Milvus 或 Zilliz Cloud，请同时配置 `DOCKER_MILVUS_URI`，避免容器内部把 `localhost` 解析成 SparkWeave 容器自身。
+
+Linux、macOS 或 WSL 环境可以使用 Milvus Lite 文件模式：
+
+```env
+MILVUS_URI=./data/milvus/sparkweave.db
+```
+
+连接独立 Milvus 或 Zilliz Cloud 时，保持 `RAG_PROVIDER=milvus`，把 `MILVUS_URI` 改成服务地址，并按需填写：
+
+```env
+MILVUS_TOKEN=your-token
+```
+
+如果需要回退到旧的本地 JSON 索引，可以显式配置：
+
+```env
+RAG_PROVIDER=llamaindex
+```
+
+切换 Embedding provider、模型名或向量维度后，已有知识库会被标记为需要重建索引。
+
+`RAG_TOP_K` 控制最终最多使用多少个片段；`RAG_CANDIDATE_TOP_K` 控制 rerank 前先召回多少候选；`RAG_SCORE_THRESHOLD` 用于过滤低相关片段，默认留空；`RAG_MAX_CONTEXT_CHARS` 控制返回给上层智能体的上下文长度，避免大资料库检索时输出过长。`RAG_RERANKER=keyword` 可以开启轻量二阶段重排；`RAG_RETRIEVAL_MODE=hybrid` 会启用 Milvus sparse/BM25 字段和 hybrid ranker，这会改变 collection schema，因此旧知识库需要重建索引后才能真正使用 hybrid。
 
 ## 搜索
 
@@ -108,35 +182,50 @@ IFLYTEK_EMBEDDING_API_SECRET=your-iflytek-embedding-apisecret
 科大讯飞 ONE SEARCH 使用 `APIPassword`：
 
 ```env
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
+# 或直接填写 IFLYTEK_API_PASSWORD=your-iflytek-search-apipassword
 SEARCH_PROVIDER=iflytek_spark
-SEARCH_API_KEY=your-iflytek-search-apipassword
+SEARCH_API_KEY=
 SEARCH_BASE_URL=https://search-api-open.cn-huabei-1.xf-yun.com/v2/search
 ```
 
-也可以把讯飞搜索密钥写入 `IFLYTEK_SEARCH_API_PASSWORD`。官方文档：https://www.xfyun.cn/doc/spark/Search_API/search_API.html
+旧配置也可以把讯飞搜索密钥写入 `SEARCH_API_KEY` 或 `IFLYTEK_SEARCH_API_PASSWORD`。官方文档：https://www.xfyun.cn/doc/spark/Search_API/search_API.html
 
 ## OCR 与扫描版 PDF
 
 | 变量 | 说明 |
 | --- | --- |
-| `SPARKWEAVE_OCR_PROVIDER` | OCR 提供商 |
-| `SPARKWEAVE_PDF_OCR_STRATEGY` | PDF OCR 策略，如 `iflytek_first`、`auto` |
-| `SPARKWEAVE_OCR_TIMEOUT` | OCR 超时时间，单位秒 |
-| `SPARKWEAVE_OCR_MAX_PAGES` | 单次处理最大页数 |
-| `SPARKWEAVE_OCR_DPI` | PDF 转图片 DPI |
-| `SPARKWEAVE_OCR_MIN_TEXT_CHARS` | 文本层最少字符数，低于该值可触发 OCR |
+| `SPARKWEAVE_OCR_PROVIDER` | OCR 提供商，支持 `iflytek`、`siliconflow`、`disabled` |
+| `SPARKWEAVE_PDF_OCR_STRATEGY` | PDF OCR 策略，如 `ocr_first`、`iflytek_first`、`auto` |
+| `SPARKWEAVE_OCR_TIMEOUT` | OCR 超时时间，单位秒，默认 `90` |
+| `SPARKWEAVE_OCR_MAX_PAGES` | 单次处理最大页数，留空默认不限制 |
+| `SPARKWEAVE_OCR_DPI` | PDF 转图片 DPI，默认 `200` |
+| `SPARKWEAVE_OCR_MIN_TEXT_CHARS` | 文本层最少字符数，低于该值可触发 OCR，默认 `40` |
 
 科大讯飞 OCR 示例：
 
 ```env
+IFLYTEK_APPID=your-appid
+IFLYTEK_API_KEY=your-api-key
+IFLYTEK_API_SECRET=your-api-secret
 SPARKWEAVE_OCR_PROVIDER=iflytek
 SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first
-IFLYTEK_OCR_APPID=your-appid
-IFLYTEK_OCR_API_KEY=your-api-key
-IFLYTEK_OCR_API_SECRET=your-api-secret
 IFLYTEK_OCR_URL=https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm
 IFLYTEK_OCR_SERVICE_ID=se75ocrbm
 IFLYTEK_OCR_CATEGORY=ch_en_public_cloud
+```
+
+硅基流动 DeepSeek-OCR 示例：
+
+```env
+SILICONFLOW_API_KEY=your-siliconflow-api-key
+SPARKWEAVE_OCR_PROVIDER=siliconflow
+SPARKWEAVE_PDF_OCR_STRATEGY=ocr_first
+SILICONFLOW_OCR_BASE_URL=https://api.siliconflow.cn/v1
+SILICONFLOW_OCR_MODEL=deepseek-ai/DeepSeek-OCR
+SILICONFLOW_OCR_PROMPT=<image>\n<|grounding|>Convert the document to markdown.
+SILICONFLOW_OCR_MAX_TOKENS=8192
 ```
 
 OCR 在知识库 PDF 解析和图像题能力中的调用链路见 [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)。

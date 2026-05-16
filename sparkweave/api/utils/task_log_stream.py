@@ -76,11 +76,41 @@ class KnowledgeTaskStreamManager:
     def emit_log(self, task_id: str, line: str) -> None:
         self.emit(task_id, "log", {"line": line, "task_id": task_id})
 
+    def emit_status(self, task_id: str, status: str, detail: str = "", **extra: Any) -> None:
+        payload = {"status": status, "detail": detail, "task_id": task_id}
+        payload.update(extra)
+        self.emit(task_id, "status", payload)
+
     def emit_complete(self, task_id: str, detail: str = "Task completed") -> None:
+        self.emit_status(task_id, "completed", detail)
         self.emit(task_id, "complete", {"detail": detail, "task_id": task_id})
 
     def emit_failed(self, task_id: str, detail: str) -> None:
+        self.emit_status(task_id, "error", detail)
         self.emit(task_id, "failed", {"detail": detail, "task_id": task_id})
+
+    def snapshot(self, task_id: str) -> dict[str, Any]:
+        with self._lock:
+            buffer = list(self._buffers.get(task_id, []))
+            subscribers = list(self._subscribers.get(task_id, []))
+        latest_event = buffer[-1] if buffer else None
+        latest_name = str(latest_event.get("event") or "") if latest_event else ""
+        latest_payload = latest_event.get("payload") if latest_event else None
+        latest_status = ""
+        if isinstance(latest_payload, dict):
+            latest_status = str(latest_payload.get("status") or "")
+        terminal = latest_name in {"complete", "failed"} or latest_status in {
+            "completed",
+            "error",
+            "cancelled",
+        }
+        return {
+            "task_id": task_id,
+            "event_count": len(buffer),
+            "subscriber_count": len(subscribers),
+            "latest_event": latest_event,
+            "terminal": terminal,
+        }
 
     def subscribe(
         self,

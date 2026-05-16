@@ -128,8 +128,20 @@ class ChatAgent:
         stream: bool,
     ) -> AsyncGenerator[dict[str, Any], None]:
         bus = StreamBus()
-        sources = {"rag": [], "web": []}
+        rag_context, prefetched_rag_sources = await self._prefetch_rag_context(
+            message=message,
+            kb_name=kb_name,
+            enabled=enable_rag,
+        )
+        sources = {"rag": list(prefetched_rag_sources), "web": []}
         full_response = ""
+        memory_context = ""
+        if rag_context:
+            memory_context = (
+                f"Retrieved knowledge base context from `{kb_name}`. "
+                "Use it as grounded evidence when answering:\n\n"
+                f"{rag_context}"
+            )
 
         context = UnifiedContext(
             user_message=message,
@@ -147,7 +159,9 @@ class ChatAgent:
                 "base_url": self.base_url,
                 "api_version": self.api_version,
                 "stream": stream,
+                "prefetched_rag": bool(rag_context),
             },
+            memory_context=memory_context,
         )
 
         async def _run_graph() -> None:
@@ -165,7 +179,10 @@ class ChatAgent:
                     full_response += content
                     yield {"type": "chunk", "content": content}
                 elif event.type == StreamEventType.SOURCES:
-                    sources = self._categorize_sources(event.metadata.get("sources", []))
+                    sources = self._merge_sources(
+                        sources,
+                        self._categorize_sources(event.metadata.get("sources", [])),
+                    )
                 elif event.type == StreamEventType.RESULT:
                     response = str(event.metadata.get("response") or "")
                     if response:
@@ -178,8 +195,31 @@ class ChatAgent:
         yield {
             "type": "complete",
             "response": full_response,
-            "sources": sources,
+            "sources": self._dedupe_sources(sources),
         }
+
+    async def _prefetch_rag_context(
+        self,
+        *,
+        message: str,
+        kb_name: str,
+        enabled: bool,
+    ) -> tuple[str, list[dict[str, Any]]]:
+        if not enabled or not kb_name:
+            return "", []
+        try:
+            from sparkweave.services.rag import rag_search
+
+            result = await rag_search(query=message, kb_name=kb_name)
+        except Exception:
+            return "", []
+        content = str(result.get("content") or result.get("answer") or "").strip()
+        sources = self._normalize_rag_sources(
+            result.get("sources"),
+            kb_name=kb_name,
+            query=message,
+        )
+        return content, sources
 
     async def _forward_trace(self, event: StreamEvent) -> None:
         if self._trace_callback is None:
@@ -218,7 +258,68 @@ class ChatAgent:
                 grouped["web"].append(source)
             elif source_type == "rag":
                 grouped["rag"].append(source)
+            else:
+                grouped["rag"].append({"type": "rag", **source})
         return grouped
+
+    @staticmethod
+    def _normalize_rag_sources(
+        raw_sources: Any,
+        *,
+        kb_name: str,
+        query: str,
+    ) -> list[dict[str, Any]]:
+        if not isinstance(raw_sources, list):
+            return []
+        normalized: list[dict[str, Any]] = []
+        for source in raw_sources:
+            if not isinstance(source, dict):
+                continue
+            normalized.append(
+                {
+                    "type": "rag",
+                    "kb_name": kb_name,
+                    "query": query,
+                    **source,
+                }
+            )
+        return normalized
+
+    @classmethod
+    def _merge_sources(
+        cls,
+        current: dict[str, list[dict[str, Any]]],
+        incoming: dict[str, list[dict[str, Any]]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        return {
+            "rag": [*current.get("rag", []), *incoming.get("rag", [])],
+            "web": [*current.get("web", []), *incoming.get("web", [])],
+        }
+
+    @classmethod
+    def _dedupe_sources(cls, grouped: dict[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
+        return {
+            "rag": cls._dedupe_source_list(grouped.get("rag", [])),
+            "web": cls._dedupe_source_list(grouped.get("web", [])),
+        }
+
+    @staticmethod
+    def _dedupe_source_list(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        seen: set[str] = set()
+        unique: list[dict[str, Any]] = []
+        for source in sources:
+            key = str(
+                source.get("chunk_id")
+                or source.get("url")
+                or source.get("source")
+                or source.get("title")
+                or source
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(source)
+        return unique
 
 
 __all__ = ["ChatAgent", "SessionManager"]

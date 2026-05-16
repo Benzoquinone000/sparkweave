@@ -1,12 +1,9 @@
 import { motion } from "framer-motion";
 import { Bot, Check, Copy, FileText, Save, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
-import { AgentCollaborationPanel } from "@/components/chat/AgentCollaborationPanel";
-import { QuizViewer } from "@/components/quiz/QuizViewer";
-import { ExternalVideoViewer } from "@/components/results/ExternalVideoViewer";
-import { MathAnimatorViewer } from "@/components/results/MathAnimatorViewer";
-import { VisualizationViewer } from "@/components/results/VisualizationViewer";
+import { LazyExternalVideoViewer, LazyMathAnimatorViewer } from "@/components/results/LazyMediaResultViewers";
+import { LazyVisualizationViewer } from "@/components/results/LazyVisualizationViewer";
 import { Badge } from "@/components/ui/Badge";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { extractExternalVideoResult, extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
@@ -14,7 +11,16 @@ import { capabilityLabel } from "@/lib/capabilities";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
 import { hasNotebookAssetOutput } from "@/lib/notebookAssets";
 import { extractQuizQuestions } from "@/lib/quiz";
+import { extractRagEvidence } from "@/lib/ragEvidence";
 import type { ChatMessage } from "@/lib/types";
+
+const AgentCollaborationPanel = lazy(() =>
+  import("@/components/chat/AgentCollaborationPanel").then((module) => ({ default: module.AgentCollaborationPanel })),
+);
+const QuizViewer = lazy(() => import("@/components/quiz/QuizViewer").then((module) => ({ default: module.QuizViewer })));
+const RagEvidenceChain = lazy(() =>
+  import("@/components/results/RagEvidenceChain").then((module) => ({ default: module.RagEvidenceChain })),
+);
 
 export function MessageBubble({
   message,
@@ -26,11 +32,12 @@ export function MessageBubble({
   sessionId?: string | null;
 }) {
   const isUser = message.role === "user";
-  const events = message.events ?? [];
+  const events = useMemo(() => message.events ?? [], [message.events]);
   const traceEvents = events.filter((event) => event.type !== "content" && event.type !== "done");
-  const resultEvent = events.find((event) => event.type === "result");
+  const resultEvent = [...events].reverse().find((event) => event.type === "result");
   const effectiveCapability = useMemo(() => getMessageCapability(message), [message]);
   const displayContent = useMemo(() => getMessageDisplayContent(message), [message]);
+  const ragEvidence = useMemo(() => (!isUser ? extractRagEvidence(events) : null), [events, isUser]);
   const quizQuestions =
     !isUser && effectiveCapability === "deep_question" ? extractQuizQuestions(resultEvent?.metadata) : null;
   const mathAnimatorResult =
@@ -82,13 +89,15 @@ export function MessageBubble({
           </div>
           {message.attachments?.length ? <AttachmentStrip attachments={message.attachments} /> : null}
           {mathAnimatorResult ? (
-            <MathAnimatorViewer result={mathAnimatorResult} />
+            <LazyMathAnimatorViewer result={mathAnimatorResult} />
           ) : externalVideoResult ? (
-            <ExternalVideoViewer result={externalVideoResult} />
+            <LazyExternalVideoViewer result={externalVideoResult} />
           ) : visualizeResult ? (
-            <VisualizationViewer result={visualizeResult} />
+            <LazyVisualizationViewer result={visualizeResult} />
           ) : quizQuestions?.length ? (
-            <QuizViewer questions={quizQuestions} sessionId={sessionId} />
+            <Suspense fallback={<InlineResultLoading label="正在准备练习题" />}>
+              <QuizViewer questions={quizQuestions} sessionId={sessionId} />
+            </Suspense>
           ) : displayContent ? (
             <MarkdownRenderer className="markdown-body">{displayContent}</MarkdownRenderer>
           ) : (
@@ -97,13 +106,20 @@ export function MessageBubble({
               正在组织解答
             </div>
           )}
+          {ragEvidence ? (
+            <Suspense fallback={<InlineResultLoading label="正在准备证据链" />}>
+              <RagEvidenceChain evidence={ragEvidence} className="mt-4" />
+            </Suspense>
+          ) : null}
         </div>
         {!isUser && traceEvents.length ? (
-          <AgentCollaborationPanel
-            events={traceEvents}
-            capability={effectiveCapability}
-            status={message.status === "error" ? "error" : message.status === "streaming" ? "streaming" : "done"}
-          />
+          <Suspense fallback={<InlineResultLoading label="正在准备协作轨迹" />}>
+            <AgentCollaborationPanel
+              events={traceEvents}
+              capability={effectiveCapability}
+              status={message.status === "error" ? "error" : message.status === "streaming" ? "streaming" : "done"}
+            />
+          </Suspense>
         ) : null}
       </div>
       {isUser ? (
@@ -112,6 +128,14 @@ export function MessageBubble({
         </div>
       ) : null}
     </motion.article>
+  );
+}
+
+function InlineResultLoading({ label }: { label: string }) {
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-slate-500">
+      <span className="font-medium text-ink">{label}</span>
+    </div>
   );
 }
 

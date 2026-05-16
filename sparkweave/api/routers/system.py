@@ -4,20 +4,38 @@ Manages system status checks and model connection tests
 """
 
 import asyncio
+import base64
+import binascii
 from datetime import datetime
+import os
 import time
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 from fastapi.responses import Response
+from pydantic import BaseModel
 
-from sparkweave.services.config import clear_llm_config_cache, resolve_search_runtime_config
+from sparkweave.services.config import (
+    clear_llm_config_cache,
+    get_env_store,
+    resolve_search_runtime_config,
+)
 from sparkweave.services.diagnostics import explain_provider_error
-from sparkweave.services.embedding import EmbeddingClient, get_embedding_config, reset_embedding_client
+from sparkweave.services.embedding import (
+    EmbeddingClient,
+    get_embedding_config,
+    reset_embedding_client,
+)
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.llm import get_llm_config, get_token_limit_kwargs
-from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, XfyunOcrConfig, recognize_image_with_iflytek
-from sparkweave.services.rag_support.factory import reset_pipeline_cache
+from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, recognize_image, resolve_ocr_config
+from sparkweave.services.rag_support.diagnostics import default_milvus_uri
+from sparkweave.services.rag_support.factory import (
+    DEFAULT_PROVIDER as DEFAULT_RAG_PROVIDER,
+)
+from sparkweave.services.rag_support.factory import (
+    normalize_provider_name,
+    reset_pipeline_cache,
+)
 from sparkweave.services.search import web_search
 from sparkweave.services.tts import (
     TTS_SMOKE_TEST_TEXT,
@@ -26,6 +44,13 @@ from sparkweave.services.tts import (
 )
 
 router = APIRouter()
+
+
+def _env_value(name: str, default: str = "") -> str:
+    try:
+        return get_env_store().get(name, default)
+    except Exception:
+        return os.getenv(name, default)
 
 
 class TestResponse(BaseModel):
@@ -38,6 +63,19 @@ class TestResponse(BaseModel):
 
 class TtsPreviewRequest(BaseModel):
     text: str
+
+
+class OcrPreviewRequest(BaseModel):
+    image_base64: str
+    encoding: str = "png"
+
+
+class OcrPreviewResponse(BaseModel):
+    success: bool
+    text: str = ""
+    provider: str | None = None
+    model: str | None = None
+    error: str | None = None
 
 
 @router.get("/runtime-topology")
@@ -85,6 +123,7 @@ async def get_system_status():
         "llm": {"status": "unknown", "model": None, "testable": True},
         "embeddings": {"status": "unknown", "model": None, "testable": True},
         "search": {"status": "optional", "provider": None, "testable": True},
+        "rag": {"status": "unknown", "provider": None, "uri": None, "testable": False},
         "ocr": {"status": "optional", "provider": None, "testable": True},
         "tts": {"status": "optional", "provider": None, "testable": True},
     }
@@ -148,12 +187,24 @@ async def get_system_status():
         result["search"]["error"] = str(e)
 
     try:
-        ocr_config = XfyunOcrConfig.from_env()
+        rag_provider = normalize_provider_name(_env_value("RAG_PROVIDER", DEFAULT_RAG_PROVIDER))
+        result["rag"]["provider"] = rag_provider
+        result["rag"]["status"] = "configured"
+        if rag_provider == "milvus":
+            result["rag"]["uri"] = _env_value("MILVUS_URI", default_milvus_uri())
+        else:
+            result["rag"]["uri"] = "local"
+    except Exception as e:
+        result["rag"]["status"] = "error"
+        result["rag"]["error"] = str(e)
+
+    try:
+        ocr_config = resolve_ocr_config()
         if ocr_config is None:
             result["ocr"]["status"] = "not_configured"
         else:
             result["ocr"]["status"] = "configured"
-            result["ocr"]["provider"] = "iflytek"
+            result["ocr"]["provider"] = getattr(ocr_config, "provider", "ocr")
     except Exception as e:
         result["ocr"]["status"] = "error"
         result["ocr"]["error"] = str(e)
@@ -354,25 +405,27 @@ async def test_ocr_connection():
     start_time = time.time()
 
     try:
-        ocr_config = XfyunOcrConfig.from_env()
+        ocr_config = resolve_ocr_config()
         if ocr_config is None:
             return TestResponse(
                 success=False,
                 message="OCR not configured",
-                error="Set iFlytek OCR APPID, APIKey and APISecret in Settings.",
+                error="Set OCR provider credentials in Settings.",
             )
 
         text = await asyncio.to_thread(
-            recognize_image_with_iflytek,
+            recognize_image,
             OCR_SMOKE_TEST_PNG,
             encoding="png",
             config=ocr_config,
         )
         response_time = (time.time() - start_time) * 1000
+        provider = getattr(ocr_config, "provider", "ocr")
+        model = f"{provider}:{getattr(ocr_config, 'model', '')}".rstrip(":")
         return TestResponse(
             success=True,
             message="OCR connection successful" if text.strip() else "OCR connection successful; no text detected in smoke image",
-            model="iflytek",
+            model=model,
             response_time_ms=round(response_time, 2),
         )
 
@@ -447,5 +500,54 @@ async def create_tts_preview(payload: TtsPreviewRequest):
     if result.sid:
         headers["X-SparkWeave-TTS-SID"] = result.sid
     return Response(content=result.audio, media_type=result.content_type, headers=headers)
+
+
+@router.post("/ocr-preview", response_model=OcrPreviewResponse)
+async def create_ocr_preview(payload: OcrPreviewRequest):
+    ocr_config = resolve_ocr_config()
+    if ocr_config is None:
+        return OcrPreviewResponse(
+            success=False,
+            error="OCR not configured",
+        )
+
+    raw = payload.image_base64.strip()
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        image = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError):
+        return OcrPreviewResponse(
+            success=False,
+            error="Invalid base64 image",
+        )
+    if not image:
+        return OcrPreviewResponse(
+            success=False,
+            error="Empty image",
+        )
+
+    try:
+        text = await asyncio.to_thread(
+            recognize_image,
+            image,
+            encoding=payload.encoding or "png",
+            config=ocr_config,
+        )
+        provider = getattr(ocr_config, "provider", "ocr")
+        model = f"{provider}:{getattr(ocr_config, 'model', '')}".rstrip(":")
+        return OcrPreviewResponse(
+            success=True,
+            text=text,
+            provider=provider,
+            model=model,
+        )
+    except Exception as exc:
+        detail = explain_provider_error("ocr", exc)
+        return OcrPreviewResponse(
+            success=False,
+            provider=getattr(ocr_config, "provider", "ocr"),
+            error=detail,
+        )
 
 

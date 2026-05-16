@@ -10,11 +10,10 @@ Features:
 - Validate required index files
 - Copy/migrate KB to target directory
 - Register in kb_config.json
-- Optionally extract numbered items (if content_list exists)
 - Run test query to verify migration
 
 Usage:
-    python scripts/migrate_kb.py /path/to/kb --name my_kb --test --extract-items
+    python scripts/migrate_kb.py /path/to/kb --name my_kb --test
     python scripts/migrate_kb.py /path/to/kb --validate-only
 """
 
@@ -180,7 +179,6 @@ def validate_kb(kb_path: Path) -> dict:
         "has_raw_docs": False,
         "has_images": False,
         "has_metadata": False,
-        "has_numbered_items": False,
     }
 
     if not kb_path.exists():
@@ -226,7 +224,6 @@ def validate_kb(kb_path: Path) -> dict:
     result["has_images"] = images_dir.exists() and any(images_dir.iterdir())
 
     result["has_metadata"] = (kb_path / "metadata.json").exists()
-    result["has_numbered_items"] = (kb_path / "numbered_items.json").exists()
 
     return result
 
@@ -349,22 +346,6 @@ def register_kb(
     return True
 
 
-async def extract_numbered_items(kb_name: str, kb_base_dir: Path) -> bool:
-    """
-    Extract numbered items from content_list files.
-
-    Args:
-        kb_name: Knowledge base name
-        kb_base_dir: Base directory for knowledge bases
-
-    Returns:
-        True if successful
-    """
-    _ = (kb_name, kb_base_dir)
-    print("  ⚠️  Numbered item extraction is deprecated and has been removed. Skipping.")
-    return False
-
-
 async def test_kb_search(kb_name: str, query: str = "What is this knowledge base about?") -> bool:
     """
     Test knowledge base with a simple search query.
@@ -411,7 +392,6 @@ async def migrate_kb(
     target_base_dir: str | None = None,
     kb_name: str | None = None,
     run_test: bool = False,
-    extract_items: bool = False,
     validate_only: bool = False,
     force: bool = False,
 ) -> bool:
@@ -423,7 +403,6 @@ async def migrate_kb(
         target_base_dir: Target base directory (default: data/knowledge_bases)
         kb_name: Name for the migrated KB (default: source directory name)
         run_test: Run a test query after migration
-        extract_items: Extract numbered items if content_list exists
         validate_only: Only validate, don't migrate
         force: Overwrite existing KB if exists
 
@@ -506,18 +485,9 @@ async def migrate_kb(
     )
     print()
 
-    # Step 4: Extract numbered items (optional)
-    if extract_items and validation["has_content_list"]:
-        print("Step 4: Extracting numbered items...")
-        await extract_numbered_items(kb_name, target_base)
-        print()
-    elif extract_items:
-        print("Step 4: Skipping numbered items extraction (no content_list)")
-        print()
-
-    # Step 5: Test search (optional)
+    # Step 4: Test search (optional)
     if run_test:
-        print("Step 5: Testing knowledge base...")
+        print("Step 4: Testing knowledge base...")
         await test_kb_search(kb_name)
         print()
 
@@ -549,9 +519,6 @@ Examples:
   # Migrate and run test query
   python scripts/migrate_kb.py /path/to/kb --test
 
-  # Migrate and extract numbered items
-  python scripts/migrate_kb.py /path/to/kb --extract-items
-
   # Validate only (don't migrate)
   python scripts/migrate_kb.py /path/to/kb --validate-only
 
@@ -573,12 +540,6 @@ Examples:
     parser.add_argument("--test", action="store_true", help="Run a test query after migration")
 
     parser.add_argument(
-        "--extract-items",
-        action="store_true",
-        help="Extract numbered items from content_list (requires LLM API)",
-    )
-
-    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Only validate the knowledge base, don't migrate",
@@ -597,7 +558,6 @@ Examples:
             target_base_dir=args.target_dir,
             kb_name=args.name,
             run_test=args.test,
-            extract_items=args.extract_items,
             validate_only=args.validate_only,
             force=args.force,
         )

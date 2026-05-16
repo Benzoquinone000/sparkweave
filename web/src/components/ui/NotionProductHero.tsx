@@ -74,7 +74,7 @@ export function NotionProductHero({
         </div>
         <div className="dt-workspace-mockup">
           <div className="relative min-h-[150px] overflow-hidden border-b border-line bg-[#fbfbfa]">
-            {imageSrc ? <img src={imageSrc} alt={imageAlt ?? ""} className="absolute inset-0 h-full w-full object-cover opacity-95" /> : null}
+            {imageSrc ? <img src={imageSrc} alt={imageAlt ?? ""} className="absolute inset-0 h-full w-full object-cover object-right opacity-95" /> : null}
             <div className="absolute inset-y-0 left-0 w-[56%] bg-[#fbfbfa]/95" />
             <div className="absolute left-4 right-4 top-3 z-10 flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 bg-brand-orange/70" style={{ borderRadius: "50%" }} />

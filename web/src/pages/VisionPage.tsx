@@ -135,7 +135,6 @@ function buildNotebookOutput(input: {
 }
 
 export function VisionPage() {
-  const notebooks = useNotebooks();
   const notebookMutations = useNotebookMutations();
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -153,10 +152,12 @@ export function VisionPage() {
   const [answer, setAnswer] = useState("");
   const [targetNotebookId, setTargetNotebookId] = useState("");
 
-  const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
-  const selectedNotebookId = targetNotebookId || notebookItems[0]?.id || "";
   const commands = liveCommands.length ? liveCommands : analysis?.final_ggb_commands ?? [];
   const ggbScript = liveScript || analysis?.ggb_script || scriptFromCommands(commands);
+  const hasSaveableVisionResult = Boolean(ggbScript || answer);
+  const notebooks = useNotebooks({ enabled: hasSaveableVisionResult || Boolean(targetNotebookId) });
+  const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
+  const selectedNotebookId = targetNotebookId || notebookItems[0]?.id || "";
   const imageSource = preview || imageUrl;
   const running = status === "running";
   const output = buildNotebookOutput({ question, answer, script: ggbScript, commands });
@@ -296,7 +297,7 @@ export function VisionPage() {
           accent="blue"
           imageSrc="/illustrations/notion-vision-board.svg"
           imageAlt="图像解题预览"
-          people="thinking"
+          people="vision_tutor"
           previewTitle="先看懂图，再讲清楚"
           previewDescription="图形元素、关系和作图指令会一起沉淀为学习记录。"
           tiles={[
@@ -430,7 +431,15 @@ export function VisionPage() {
                   onChange={(event) => setTargetNotebookId(event.target.value)}
                   className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple-300"
                 >
-                  <option value="">{notebookItems.length ? `默认：${notebookItems[0].name}` : "暂无 Notebook"}</option>
+                  <option value="">
+                    {!hasSaveableVisionResult
+                      ? "解析完成后选择 Notebook"
+                      : notebooks.isLoading || notebooks.isFetching
+                        ? "正在读取 Notebook..."
+                        : notebookItems.length
+                          ? `默认：${notebookItems[0].name}`
+                          : "暂无 Notebook"}
+                  </option>
                   {notebookItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}

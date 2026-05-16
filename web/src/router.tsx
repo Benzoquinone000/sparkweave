@@ -10,6 +10,7 @@ import {
   AgentsRoute,
   ChatRoute,
   CoWriterRoute,
+  DemoRoute,
   GuideRoute,
   KnowledgeRoute,
   MemoryRoute,
@@ -19,6 +20,7 @@ import {
   SettingsRoute,
   VisionRoute,
 } from "@/routerPages";
+import { isKnowledgeWorkspaceId } from "@/lib/ragHandoff";
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -161,6 +163,17 @@ const knowledgeRoute = createRoute({
   component: KnowledgeRoute,
 });
 
+const knowledgeWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/knowledge/$workspace",
+  beforeLoad: ({ params }) => {
+    if (params.workspace !== "create" && !isKnowledgeWorkspaceId(params.workspace)) {
+      throw redirect({ to: "/knowledge" });
+    }
+  },
+  component: KnowledgeRoute,
+});
+
 const notebookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/notebook",
@@ -183,6 +196,12 @@ const guideRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/guide",
   component: GuideRoute,
+});
+
+const demoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/demo",
+  component: DemoRoute,
 });
 
 const coWriterRoute = createRoute({
@@ -225,6 +244,24 @@ const legacySparkBotChatRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
+  component: SettingsRoute,
+});
+
+const settingsModelsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/models",
+  component: SettingsRoute,
+});
+
+const settingsPreferencesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/preferences",
+  component: SettingsRoute,
+});
+
+const settingsDiagnosticsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/diagnostics",
   component: SettingsRoute,
 });
 
@@ -277,9 +314,11 @@ const routeTree = rootRoute.addChildren([
   legacyCoWriterRoute,
   compactCoWriterRoute,
   knowledgeRoute,
+  knowledgeWorkspaceRoute,
   notebookRoute,
   memoryRoute,
   playgroundRoute,
+  demoRoute,
   guideRoute,
   coWriterRoute,
   agentsRoute,
@@ -287,13 +326,21 @@ const routeTree = rootRoute.addChildren([
   legacySparkBotRoute,
   legacySparkBotChatRoute,
   settingsRoute,
+  settingsModelsRoute,
+  settingsPreferencesRoute,
+  settingsDiagnosticsRoute,
   utilityKnowledgeRoute,
   utilityMemoryRoute,
   utilityNotebookRoute,
   utilitySettingsRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  defaultPreload: "intent",
+  defaultPreloadDelay: 80,
+  defaultPreloadStaleTime: 30_000,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

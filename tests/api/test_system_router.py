@@ -65,6 +65,8 @@ def test_system_status_uses_ng_service_facades(monkeypatch: pytest.MonkeyPatch) 
     }
     assert body["search"]["provider"] == "duckduckgo"
     assert body["search"]["status"] == "configured"
+    assert body["rag"]["provider"] == "milvus"
+    assert body["rag"]["status"] == "configured"
 
 
 def test_system_search_probe_awaits_ng_search(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -91,16 +93,16 @@ def test_system_search_probe_awaits_ng_search(monkeypatch: pytest.MonkeyPatch) -
     assert calls == [{"query": "SparkWeave health check", "provider": "duckduckgo"}]
 
 
-def test_system_ocr_probe_uses_iflytek_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
-    config = SimpleNamespace(url="https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm")
+def test_system_ocr_probe_uses_configured_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(url="https://api.siliconflow.cn/v1/chat/completions", provider="siliconflow", model="deepseek-ai/DeepSeek-OCR")
     calls: list[dict] = []
-    monkeypatch.setattr(system_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: config))
+    monkeypatch.setattr(system_module, "resolve_ocr_config", lambda: config)
 
     def _fake_recognize(image: bytes, **kwargs):
         calls.append({"image": image, **kwargs})
         return "OK"
 
-    monkeypatch.setattr(system_module, "recognize_image_with_iflytek", _fake_recognize)
+    monkeypatch.setattr(system_module, "recognize_image", _fake_recognize)
 
     with TestClient(_build_app()) as client:
         response = client.post("/api/v1/system/test/ocr")
@@ -108,14 +110,14 @@ def test_system_ocr_probe_uses_iflytek_ocr(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert body["model"] == "iflytek"
+    assert body["model"] == "siliconflow:deepseek-ai/DeepSeek-OCR"
     assert calls
     assert calls[0]["encoding"] == "png"
     assert calls[0]["config"] is config
 
 
 def test_system_ocr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(system_module.XfyunOcrConfig, "from_env", classmethod(lambda cls: None))
+    monkeypatch.setattr(system_module, "resolve_ocr_config", lambda: None)
 
     with TestClient(_build_app()) as client:
         response = client.post("/api/v1/system/test/ocr")
@@ -124,6 +126,43 @@ def test_system_ocr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch
     body = response.json()
     assert body["success"] is False
     assert body["message"] == "OCR not configured"
+
+
+def test_system_ocr_preview_recognizes_uploaded_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(url="https://ocr.example", provider="iflytek")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module, "resolve_ocr_config", lambda: config)
+
+    def _fake_recognize(image: bytes, **kwargs):
+        calls.append({"image": image, **kwargs})
+        return "导数讲义截图"
+
+    monkeypatch.setattr(system_module, "recognize_image", _fake_recognize)
+
+    with TestClient(_build_app()) as client:
+        response = client.post(
+            "/api/v1/system/ocr-preview",
+            json={"image_base64": "data:image/png;base64,aW1hZ2U=", "encoding": "png"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["text"] == "导数讲义截图"
+    assert body["provider"] == "iflytek"
+    assert calls == [{"image": b"image", "encoding": "png", "config": config}]
+
+
+def test_system_ocr_preview_reports_invalid_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module, "resolve_ocr_config", lambda: SimpleNamespace(provider="iflytek"))
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/ocr-preview", json={"image_base64": "not-base64"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"] == "Invalid base64 image"
 
 
 def test_system_tts_probe_uses_iflytek_tts(monkeypatch: pytest.MonkeyPatch) -> None:

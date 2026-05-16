@@ -74,3 +74,51 @@ def test_session_manager_keeps_legacy_shape():
     assert manager.delete_session(session_id) is True
     assert manager.get_session(session_id) is None
 
+
+@pytest.mark.asyncio
+async def test_chat_agent_prefetches_rag_context_and_sources(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    class _CaptureChatGraph:
+        async def run(self, context, stream):  # noqa: ANN001
+            captured["context"] = context
+            await stream.content("Grounded answer", source="chat", stage="responding")
+            await stream.result({"response": "Grounded answer"}, source="chat")
+            return {}
+
+    async def fake_rag_search(**kwargs):  # noqa: ANN001
+        captured["rag_kwargs"] = kwargs
+        return {
+            "content": "RAG chunk about MP model.",
+            "sources": [{"title": "Course PDF", "source": "/kb/course.pdf", "chunk_id": "c1"}],
+            "success": True,
+        }
+
+    monkeypatch.setattr(chat_generation, "ChatGraph", _CaptureChatGraph)
+    monkeypatch.setattr("sparkweave.services.rag.rag_search", fake_rag_search)
+
+    agent = chat_generation.ChatAgent(language="zh")
+    stream = await agent.process(
+        message="MP模型是什么？",
+        history=[],
+        kb_name="demo",
+        enable_rag=True,
+        enable_web_search=False,
+    )
+    events = [event async for event in stream]
+
+    complete = events[-1]
+    assert captured["rag_kwargs"]["query"] == "MP模型是什么？"
+    assert captured["rag_kwargs"]["kb_name"] == "demo"
+    assert "RAG chunk about MP model." in captured["context"].memory_context
+    assert complete["sources"]["rag"] == [
+        {
+            "type": "rag",
+            "kb_name": "demo",
+            "query": "MP模型是什么？",
+            "title": "Course PDF",
+            "source": "/kb/course.pdf",
+            "chunk_id": "c1",
+        }
+    ]
+

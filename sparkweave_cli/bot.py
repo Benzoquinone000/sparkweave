@@ -97,3 +97,32 @@ def register(app: typer.Typer) -> None:
             console.print(f"[red]Failed: {e}[/]")
             raise typer.Exit(1)
 
+    @app.command("seed-demo")
+    def bot_seed_demo(
+        bot_id: str = typer.Option(
+            "ai_learning_agents_systems_tutor",
+            "--bot-id",
+            help="SparkBot id for the competition teaching-assistant demo.",
+        ),
+        overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing demo workspace files."),
+        start: bool = typer.Option(False, "--start", help="Start the demo bot after seeding."),
+    ) -> None:
+        """Seed the stable AI teaching-assistant demo SparkBot."""
+        from sparkweave.services.sparkbot import get_sparkbot_manager
+
+        mgr = get_sparkbot_manager()
+        result = mgr.seed_competition_demo_bot(bot_id, overwrite=overwrite)
+        if start:
+            try:
+                asyncio.get_event_loop().run_until_complete(mgr.start_bot(result["bot_id"]))
+            except RuntimeError as e:
+                console.print(f"[red]Seeded but failed to start: {e}[/]")
+                raise typer.Exit(1)
+
+        console.print(f"[green]SparkBot demo seeded:[/] {result['bot_id']}")
+        if result["workspace_files"]:
+            console.print("[dim]Written files:[/] " + ", ".join(result["workspace_files"]))
+        if result["skipped_files"]:
+            console.print("[dim]Preserved files:[/] " + ", ".join(result["skipped_files"]))
+        console.print("[dim]Open:[/] http://127.0.0.1:3782/agents")
+

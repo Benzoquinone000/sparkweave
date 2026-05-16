@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addNotebookRecord,
   addNotebookRecordWithSummary,
+  auditKnowledgeConfigs,
   autoMarkText,
   calibrateLearnerProfile,
   chatGuideSession,
@@ -18,6 +19,8 @@ import {
   createSparkBotSoul,
   clearMemory,
   clearKnowledgeProgress,
+  deleteKnowledgeDocument,
+  deleteKnowledgeVectorChunk,
   deleteSparkBotSoul,
   deleteKnowledgeBase,
   deleteGuideSession,
@@ -32,6 +35,7 @@ import {
   editWithCoWriterBasic,
   exportCoWriterMarkdown,
   applySettingsCatalog,
+  appendLearningEffectEvent,
   fixGuideHtml,
   getDashboardActivity,
   getCoWriterOperation,
@@ -53,6 +57,11 @@ import {
   getGuideV2ResourceRecommendations,
   getGuideV2StudyPlan,
   getKnowledgeBaseDetail,
+  getKnowledgePreflight,
+  listKnowledgeDocuments,
+  listKnowledgeVectorChunks,
+  previewKnowledgeDocument,
+  pruneMissingKnowledgeConfigs,
   getGuidePages,
   getGuideSession,
   getGuideV2Session,
@@ -61,9 +70,12 @@ import {
   getSidebarSettings,
   listAgentConfigs,
   getDefaultKnowledgeBase,
+  getKnowledgeDiagnostics,
+  getLatestRagEvaluation,
   getKnowledgeHealth,
   getKnowledgeConfig,
   getKnowledgeProgress,
+  getKnowledgeTaskStatus,
   getLearnerProfile,
   getLearnerProfileEvidencePreview,
   getLearningEffectReport,
@@ -108,6 +120,7 @@ import {
   navigateGuideSession,
   readSparkBotFile,
   rebuildLearnerEvidence,
+  reindexKnowledgeBase,
   saveGuideV2CoursePackage,
   saveGuideV2Artifact,
   saveGuideV2Report,
@@ -124,10 +137,12 @@ import {
   refreshGuideV2Recommendations,
   retryGuidePage,
   reopenSetupTour,
+  runRagEvaluation,
   startGuideSession,
   stopSparkBot,
   syncKnowledgeConfigs,
   syncKnowledgeFolder,
+  testKnowledgeRagSearch,
   testService,
   updateLanguage,
   updateSettingsCatalog,
@@ -165,18 +180,19 @@ export function useRuntimeTopology() {
   });
 }
 
-export function useAgentConfigs() {
+export function useAgentConfigs(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["agent-configs"],
     queryFn: listAgentConfigs,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useAgentConfigDetail(agentType: string | null) {
+export function useAgentConfigDetail(agentType: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["agent-config", agentType],
     queryFn: () => getAgentConfig(agentType || ""),
-    enabled: Boolean(agentType),
+    enabled: Boolean(agentType && (options?.enabled ?? true)),
   });
 }
 
@@ -250,10 +266,11 @@ export function useSessionMutations() {
   };
 }
 
-export function useKnowledgeBases() {
+export function useKnowledgeBases(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["knowledge-bases"],
     queryFn: listKnowledgeBases,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -265,10 +282,63 @@ export function useKnowledgeBaseDetail(kbName: string | null) {
   });
 }
 
+export function useKnowledgeDocuments(kbName: string | null) {
+  return useQuery({
+    queryKey: ["knowledge-documents", kbName],
+    queryFn: () => listKnowledgeDocuments({ kbName: kbName || "" }),
+    enabled: Boolean(kbName),
+  });
+}
+
+export function useKnowledgeDocumentPreview(kbName: string | null, documentId: string | null, enabled = false) {
+  return useQuery({
+    queryKey: ["knowledge-document-preview", kbName, documentId],
+    queryFn: () => previewKnowledgeDocument({ kbName: kbName || "", documentId: documentId || "" }),
+    enabled: Boolean(kbName && documentId && enabled),
+  });
+}
+
+export function useKnowledgeVectorChunks(kbName: string | null, documentId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["knowledge-vector-chunks", kbName, documentId || "all"],
+    queryFn: () => listKnowledgeVectorChunks({ kbName: kbName || "", documentId: documentId || null, limit: 80 }),
+    enabled: Boolean(kbName && enabled),
+  });
+}
+
 export function useKnowledgeHealth() {
   return useQuery({
     queryKey: ["knowledge-health"],
     queryFn: getKnowledgeHealth,
+  });
+}
+
+export function useKnowledgeDiagnostics(kbName: string | null, checkConnection = true, enabled = false) {
+  return useQuery({
+    queryKey: ["knowledge-diagnostics", kbName || "global", checkConnection],
+    queryFn: () => getKnowledgeDiagnostics({ kbName, checkConnection }),
+    enabled,
+  });
+}
+
+export function useKnowledgePreflight(
+  kbName: string | null,
+  checkConnection = true,
+  checkDocker = false,
+  enabled = false,
+) {
+  return useQuery({
+    queryKey: ["knowledge-preflight", kbName || "global", checkConnection, checkDocker],
+    queryFn: () => getKnowledgePreflight({ kbName, checkConnection, checkDocker }),
+    enabled,
+  });
+}
+
+export function useKnowledgeRagEvaluation(kbName: string | null) {
+  return useQuery({
+    queryKey: ["knowledge-rag-evaluation", kbName],
+    queryFn: () => getLatestRagEvaluation(kbName || ""),
+    enabled: Boolean(kbName),
   });
 }
 
@@ -317,6 +387,15 @@ export function useKnowledgeProgress(kbName: string | null) {
   });
 }
 
+export function useKnowledgeTaskStatus(taskId: string | null) {
+  return useQuery({
+    queryKey: ["knowledge-task-status", taskId],
+    queryFn: () => getKnowledgeTaskStatus(taskId || ""),
+    enabled: Boolean(taskId),
+    refetchInterval: 2000,
+  });
+}
+
 export function useKnowledgeConfig(kbName: string | null) {
   return useQuery({
     queryKey: ["knowledge-config", kbName],
@@ -329,6 +408,13 @@ export function useKnowledgeConfigs() {
   return useQuery({
     queryKey: ["knowledge-configs"],
     queryFn: listKnowledgeConfigs,
+  });
+}
+
+export function useKnowledgeConfigAudit() {
+  return useQuery({
+    queryKey: ["knowledge-config-audit"],
+    queryFn: auditKnowledgeConfigs,
   });
 }
 
@@ -397,10 +483,11 @@ export function useLearningEffectNextActions(input?: { courseId?: string | null;
   });
 }
 
-export function useNotebooks() {
+export function useNotebooks(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["notebooks"],
     queryFn: listNotebooks,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -427,10 +514,11 @@ export function useNotebookDetail(notebookId: string | null) {
   });
 }
 
-export function useQuestionEntries() {
+export function useQuestionEntries(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["question-entries"],
     queryFn: listQuestionEntries,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -442,10 +530,11 @@ export function useQuestionEntryDetail(entryId: number | null) {
   });
 }
 
-export function useQuestionCategories() {
+export function useQuestionCategories(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["question-categories"],
     queryFn: listQuestionCategories,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -463,25 +552,27 @@ export function useSparkBotRecent(limit = 5) {
   });
 }
 
-export function useSparkBotDetail(botId: string | null) {
+export function useSparkBotDetail(botId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot", botId],
     queryFn: () => getSparkBot(botId || "", true),
-    enabled: Boolean(botId),
+    enabled: Boolean(botId && (options?.enabled ?? true)),
   });
 }
 
-export function useSparkBotChannelSchemas() {
+export function useSparkBotChannelSchemas(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot-channel-schemas"],
     queryFn: listSparkBotChannelSchemas,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useSparkBotSouls() {
+export function useSparkBotSouls(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot-souls"],
     queryFn: listSparkBotSouls,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -493,30 +584,30 @@ export function useSparkBotSoulDetail(soulId: string | null) {
   });
 }
 
-export function useSparkBotFiles(botId: string | null) {
+export function useSparkBotFiles(botId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot-files", botId],
     queryFn: () => listSparkBotFiles(botId || ""),
-    enabled: Boolean(botId),
+    enabled: Boolean(botId && (options?.enabled ?? true)),
   });
 }
 
-export function useSparkBotFile(botId: string | null, filename: string | null) {
+export function useSparkBotFile(botId: string | null, filename: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot-file", botId, filename],
     queryFn: () => readSparkBotFile({ botId: botId || "", filename: filename || "" }),
-    enabled: Boolean(botId && filename),
+    enabled: Boolean(botId && filename && (options?.enabled ?? true)),
   });
 }
 
-export function useSparkBotHistory(botId: string | null) {
+export function useSparkBotHistory(botId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["sparkbot-history", botId],
     queryFn: async () => {
       const data = await getSparkBotHistory(botId || "");
       return Array.isArray(data) ? data : data.history ?? data.messages ?? [];
     },
-    enabled: Boolean(botId),
+    enabled: Boolean(botId && (options?.enabled ?? true)),
   });
 }
 
@@ -686,19 +777,19 @@ export function useCoWriterHistory() {
   });
 }
 
-export function useCoWriterOperation(operationId: string | null) {
+export function useCoWriterOperation(operationId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["co-writer-operation", operationId],
     queryFn: () => getCoWriterOperation(operationId || ""),
-    enabled: Boolean(operationId),
+    enabled: Boolean(operationId && (options?.enabled ?? true)),
   });
 }
 
-export function useCoWriterToolCalls(operationId: string | null) {
+export function useCoWriterToolCalls(operationId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["co-writer-tool-calls", operationId],
     queryFn: () => getCoWriterToolCalls(operationId || ""),
-    enabled: Boolean(operationId),
+    enabled: Boolean(operationId && (options?.enabled ?? true)),
     retry: false,
   });
 }
@@ -774,9 +865,40 @@ export function useKnowledgeMutations() {
   };
   return {
     create: useMutation({ mutationFn: createKnowledgeBase, onSettled: settle }),
-    upload: useMutation({ mutationFn: uploadKnowledgeFiles, onSettled: settle }),
+    upload: useMutation({
+      mutationFn: uploadKnowledgeFiles,
+      onSettled: (_result, _error, input) => {
+        settle();
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-documents", input?.kbName] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-vector-chunks", input?.kbName] });
+      },
+    }),
+    reindex: useMutation({
+      mutationFn: reindexKnowledgeBase,
+      onSettled: (_result, _error, input) => {
+        settle();
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-documents", input?.kbName] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-vector-chunks", input?.kbName] });
+      },
+    }),
     setDefault: useMutation({ mutationFn: setDefaultKnowledgeBase, onSettled: settle }),
     remove: useMutation({ mutationFn: deleteKnowledgeBase, onSettled: settle }),
+    removeDocument: useMutation({
+      mutationFn: deleteKnowledgeDocument,
+      onSettled: (_result, _error, input) => {
+        settle();
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-base-detail", input?.kbName] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-documents", input?.kbName] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-vector-chunks", input?.kbName] });
+      },
+    }),
+    removeVectorChunk: useMutation({
+      mutationFn: deleteKnowledgeVectorChunk,
+      onSettled: (_result, _error, input) => {
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-documents", input?.kbName] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-vector-chunks", input?.kbName] });
+      },
+    }),
     updateConfig: useMutation({
       mutationFn: updateKnowledgeConfig,
       onSettled: (_result, _error, input) => {
@@ -795,6 +917,16 @@ export function useKnowledgeMutations() {
       onSettled: () => {
         settle();
         void queryClient.invalidateQueries({ queryKey: ["knowledge-config"] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-config-audit"] });
+      },
+    }),
+    pruneMissingConfigs: useMutation({
+      mutationFn: pruneMissingKnowledgeConfigs,
+      onSettled: () => {
+        settle();
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-config"] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-configs"] });
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-config-audit"] });
       },
     }),
     linkFolder: useMutation({
@@ -817,6 +949,15 @@ export function useKnowledgeMutations() {
         settle();
         void queryClient.invalidateQueries({ queryKey: ["linked-folders", input?.kbName] });
       },
+    }),
+    runRagEvaluation: useMutation({
+      mutationFn: runRagEvaluation,
+      onSettled: (_result, _error, input) => {
+        void queryClient.invalidateQueries({ queryKey: ["knowledge-rag-evaluation", input?.kbName] });
+      },
+    }),
+    testRagSearch: useMutation({
+      mutationFn: testKnowledgeRagSearch,
     }),
   };
 }
@@ -879,6 +1020,10 @@ export function useLearningEffectMutations() {
     void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
   };
   return {
+    appendEvent: useMutation({
+      mutationFn: appendLearningEffectEvent,
+      onSettled: settle,
+    }),
     completeAction: useMutation({
       mutationFn: completeLearningEffectAction,
       onSettled: settle,

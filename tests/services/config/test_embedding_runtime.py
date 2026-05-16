@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sparkweave.services.config import EnvStore, resolve_embedding_runtime_config
+from sparkweave.services import config as config_module
+from sparkweave.services.config import EnvStore, ModelCatalogService, resolve_embedding_runtime_config
 
 
 def _build_catalog(
@@ -50,6 +51,7 @@ def _env(tmp_path: Path, lines: list[str]) -> EnvStore:
         "AZURE_API_KEY=",
         "COHERE_API_KEY=",
         "JINA_API_KEY=",
+        "SILICONFLOW_API_KEY=",
         "IFLYTEK_EMBEDDING_APPID=",
         "IFLYTEK_EMBEDDING_API_KEY=",
         "IFLYTEK_EMBEDDING_API_SECRET=",
@@ -124,6 +126,101 @@ def test_embedding_alias_canonicalization_google_to_openai(tmp_path: Path) -> No
     assert resolved.binding == "openai"
 
 
+def test_env_file_overrides_stale_process_embedding_env(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "\n".join(
+            [
+                "EMBEDDING_BINDING=siliconflow",
+                "EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B",
+                "EMBEDDING_HOST=https://api.siliconflow.cn/v1",
+                "EMBEDDING_DIMENSION=4096",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config_module, "ENV_PATH", env_path)
+    monkeypatch.setenv("EMBEDDING_BINDING", "iflytek_spark")
+    monkeypatch.setenv("EMBEDDING_MODEL", "llm-embedding")
+    monkeypatch.setenv("EMBEDDING_HOST", "https://emb-cn-huabei-1.xf-yun.com/")
+    monkeypatch.setenv("EMBEDDING_DIMENSION", "2560")
+
+    env = EnvStore(path=env_path)
+    summary = env.as_summary()
+
+    assert env.get("EMBEDDING_BINDING") == "siliconflow"
+    assert summary.embedding["binding"] == "siliconflow"
+    assert summary.embedding["model"] == "Qwen/Qwen3-Embedding-8B"
+    assert summary.embedding["dimension"] == "4096"
+
+
+def test_existing_catalog_is_not_overwritten_by_stale_env_file(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "\n".join(
+            [
+                "EMBEDDING_BINDING=iflytek_spark",
+                "EMBEDDING_MODEL=llm-embedding",
+                "EMBEDDING_HOST=https://emb-cn-huabei-1.xf-yun.com/",
+                "EMBEDDING_DIMENSION=2560",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    catalog_path = tmp_path / "model_catalog.json"
+    catalog_path.write_text(
+        """
+{
+  "version": 1,
+  "services": {
+    "embedding": {
+      "active_profile_id": "embedding-p",
+      "active_model_id": "embedding-m",
+      "profiles": [
+        {
+          "id": "embedding-p",
+          "name": "Embedding",
+          "binding": "siliconflow",
+          "base_url": "https://api.siliconflow.cn/v1",
+          "api_key": "",
+          "api_version": "",
+          "extra_headers": {},
+          "models": [
+            {
+              "id": "embedding-m",
+              "name": "Qwen/Qwen3-Embedding-8B",
+              "model": "Qwen/Qwen3-Embedding-8B",
+              "dimension": "4096"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config_module, "_env_store", EnvStore(path=env_path))
+
+    loaded = ModelCatalogService(path=catalog_path).load()
+    profile = loaded["services"]["embedding"]["profiles"][0]
+    model = profile["models"][0]
+
+    assert profile["binding"] == "siliconflow"
+    assert profile["base_url"] == "https://api.siliconflow.cn/v1"
+    assert model["model"] == "Qwen/Qwen3-Embedding-8B"
+    assert model["dimension"] == "4096"
+
+
 def test_embedding_local_fallback_from_base_url(tmp_path: Path) -> None:
     catalog = _build_catalog(
         embedding_profile={
@@ -189,6 +286,37 @@ def test_embedding_provider_env_key_fallback(tmp_path: Path) -> None:
     resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=env)
     assert resolved.provider_name == "cohere"
     assert resolved.api_key == "cohere-test-key"
+
+
+def test_embedding_siliconflow_shared_credentials(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "siliconflow",
+            "base_url": "",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [
+                {
+                    "id": "embedding-m",
+                    "name": "Qwen/Qwen3-Embedding-8B",
+                    "model": "Qwen/Qwen3-Embedding-8B",
+                    "dimension": "4096",
+                }
+            ],
+        }
+    )
+    catalog["provider_credentials"] = {"siliconflow": {"api_key": "sf-shared"}}
+
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=_env(tmp_path, []))
+
+    assert resolved.provider_name == "siliconflow"
+    assert resolved.binding == "siliconflow"
+    assert resolved.effective_url == "https://api.siliconflow.cn/v1"
+    assert resolved.api_key == "sf-shared"
+    assert resolved.dimension == 4096
 
 
 def test_embedding_iflytek_spark_provider_defaults(tmp_path: Path) -> None:

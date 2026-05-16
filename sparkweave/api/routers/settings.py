@@ -152,6 +152,13 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
             "label": "iFlytek OCR for LLM",
             "base_url": "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
         },
+        {
+            "value": "siliconflow",
+            "label": "SiliconFlow DeepSeek-OCR",
+            "base_url": "https://api.siliconflow.cn/v1",
+            "default_model": "deepseek-ai/DeepSeek-OCR",
+            "models": ["deepseek-ai/DeepSeek-OCR"],
+        },
         {"value": "disabled", "label": "Disabled", "base_url": ""},
     ]
     tts = [

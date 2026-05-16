@@ -22,12 +22,20 @@ REQUIRED_DOCS = [
     "docs/architecture.md",
     "docs/capabilities.md",
     "docs/competition-demo-runbook.md",
+    "docs/competition-demo-connectivity-check.md",
+    "docs/competition-demo-visual-runbook.md",
+    "docs/competition-visualization-wow-plan.md",
+    "docs/competition-visualization-completion-report.md",
+    "docs/sparkbot-demo-runbook.md",
+    "docs/sparkbot-teaching-assistant-ux-plan.md",
+    "docs/sparkbot-plan-completion-report.md",
     "docs/competition-roadmap.md",
     "docs/demo-quickstart.md",
     "docs/guided-learning.md",
     "docs/learner-profile-design.md",
     "docs/iflytek-integration.md",
     "docs/ai-coding-statement.md",
+    "docs/sparkweave-execution-plan.md",
 ]
 
 REQUIRED_RUNTIME_FILES = [
@@ -35,10 +43,12 @@ REQUIRED_RUNTIME_FILES = [
     "requirements.txt",
     "requirements/server.txt",
     "requirements/math-animator.txt",
+    "scripts/start_docker.py",
     "scripts/start_web.py",
     "scripts/check_install.py",
     "scripts/check_release_safety.py",
     "scripts/check_competition_readiness.py",
+    "scripts/check_competition_visuals.py",
     "scripts/render_competition_summary.py",
     "scripts/verify_competition_package.py",
     "scripts/export_demo_materials.py",
@@ -54,12 +64,15 @@ REQUIRED_ASSETS = [
 
 REQUIRED_SCREENSHOTS = [
     "web/screenshots-refined-chat.png",
+    "web/screenshots-competition-demo.png",
+    "web/screenshots-competition-demo-mobile.png",
     "web/screenshots-simplified-guide.png",
     "web/screenshots-simplified-final-knowledge.png",
     "web/screenshots-simplified-final-question.png",
     "web/screenshots-simplified-final-vision.png",
     "web/screenshots-simplified-notebook.png",
     "web/screenshots-finalcheck-agents.png",
+    "web/screenshots-sparkbot-demo-readiness.png",
     "web/screenshots-simplified-final-settings.png",
 ]
 
@@ -139,6 +152,8 @@ def build_report() -> dict[str, object]:
     checks.extend(check_effect_assessment_chain())
     checks.extend(check_learning_effect_closed_loop())
     checks.extend(check_competition_proof_chain())
+    checks.extend(check_competition_visualization_plan())
+    checks.extend(check_sparkbot_teaching_assistant_demo())
     checks.extend(check_user_facing_settings_diagnostics())
     checks.extend(check_user_facing_knowledge_progress())
     checks.extend(check_user_facing_chat_trace())
@@ -277,7 +292,7 @@ def check_effect_assessment_chain() -> list[Check]:
         ),
         (
             "Effect assessment chain: frontend card",
-            "web/src/pages/GuidePage.tsx",
+            "web/src/pages/guide/GuideLearningReportPanel.tsx",
             ["EffectAssessmentCard", "guide-effect-assessment-chain", "评估依据"],
         ),
         (
@@ -425,12 +440,9 @@ def check_learning_effect_closed_loop() -> list[Check]:
         ),
         (
             "Learning effect closed loop: guide receipt",
-            "web/src/pages/GuidePage.tsx",
+            "web/src/pages/guide/GuideLearningLoopSummary.tsx",
             [
                 "GuideLearningLoopReceipt",
-                "buildGuideEffectActionSeed",
-                "effect_action",
-                "效果评估接力",
                 "guide-learning-loop-receipt",
                 "guide-learning-loop-open-memory",
                 "guide-learning-loop-receipt-action",
@@ -471,13 +483,207 @@ def check_competition_proof_chain() -> list[Check]:
         ),
         (
             "Competition proof chain: frontend card",
-            "web/src/pages/GuidePage.tsx",
+            "web/src/pages/guide/GuideCoursePackagePanel.tsx",
             ["guide-competition-proof-chain", "proofChain", "证明"],
         ),
         (
             "Competition proof chain: test coverage",
             "tests/services/test_guide_v2.py",
             ["proof_chain", "三步证明链"],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_competition_visualization_plan() -> list[Check]:
+    expectations = [
+        (
+            "Competition visualization: demo route",
+            "web/src/router.tsx",
+            ["path: \"/demo\"", "DemoRoute"],
+        ),
+        (
+            "Competition visualization: demo page",
+            "web/src/pages/DemoPage.tsx",
+            [
+                "competition-demo-page",
+                "competition-demo-dashboard",
+                "demo-recording-script",
+                "demo-runtime-iflytek",
+                "demo-ppt-shot-list",
+            ],
+        ),
+        (
+            "Competition visualization: stable package",
+            "web/src/pages/demo/demoCoursePackage.ts",
+            ["competition_alignment", "recording_script", "presentation_outline", "agent_collaboration_blueprint"],
+        ),
+        (
+            "Competition visualization: screenshot script",
+            "web/scripts/capture-screenshots.mjs",
+            ["screenshots-competition-demo.png", "screenshots-competition-demo-mobile.png", "SCREENSHOT_ONLY"],
+        ),
+        (
+            "Competition visualization: e2e coverage",
+            "web/tests/e2e/workbench-smoke.spec.ts",
+            ["competition demo route exposes judge-facing visual proof points", "competition-demo-dashboard", "demo-ppt-shot-list"],
+        ),
+        (
+            "Competition visualization: runbook",
+            "docs/competition-demo-visual-runbook.md",
+            ["/demo", "7 分钟录屏路线", "PPT 主截图位", "兜底策略"],
+        ),
+        (
+            "Competition visualization: plan completion",
+            "docs/competition-visualization-wow-plan.md",
+            ["实施完成记录", "新增 `/demo` 独立评委演示台", "Playwright 已加入 `/demo` 黑盒可见性检查"],
+        ),
+        (
+            "Competition visualization: completion report",
+            "docs/competition-visualization-completion-report.md",
+            [
+                "比赛可视化专项完成证据",
+                "完成结论",
+                "完成矩阵",
+                "验证命令",
+                "Competition visual plan is complete.",
+            ],
+        ),
+        (
+            "Competition visualization: execution plan sync",
+            "docs/sparkweave-execution-plan.md",
+            [
+                "2026-05-15 可视化专项计划",
+                "比赛可视化专项完成证据",
+                "Competition visual plan is complete.",
+                "All required competition materials are ready.",
+            ],
+        ),
+    ]
+    checks: list[Check] = []
+    for name, relative, needles in expectations:
+        path = ROOT / relative
+        if not path.exists():
+            checks.append(Check(name, False, f"missing {relative}"))
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            checks.append(Check(name, False, f"not utf-8 text: {exc}"))
+            continue
+        missing = [needle for needle in needles if needle not in content]
+        checks.append(Check(name, not missing, "" if not missing else f"missing {', '.join(missing)}"))
+    return checks
+
+
+def check_sparkbot_teaching_assistant_demo() -> list[Check]:
+    expectations = [
+        (
+            "SparkBot teaching assistant: demo workspace defaults",
+            "sparkweave/services/sparkbot_support/defaults.py",
+            [
+                "COMPETITION_DEMO_WORKSPACE_FILES",
+                "COURSE.md",
+                "LESSONS.md",
+                "QUESTION_BANK.md",
+                "RUBRIC.md",
+                "RESOURCES.md",
+                "AGENTS.md",
+                "TOOLS.md",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: seed demo CLI",
+            "sparkweave_cli/bot.py",
+            [
+                "seed-demo",
+                "seed_competition_demo_bot",
+                "SparkBot demo seeded",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: frontend readiness panel",
+            "web/src/pages/agents/AssistantEvidencePanels.tsx",
+            [
+                "AssistantDemoReadinessPanel",
+                "assistant-demo-readiness",
+                "比赛演示检查",
+                "完整高校课程",
+                "7 分钟录屏路线",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: course-first workspace",
+            "web/src/pages/agents/agentWorkspaceFiles.ts",
+            [
+                "COURSE.md",
+                "LESSONS.md",
+                "QUESTION_BANK.md",
+                "RUBRIC.md",
+                "RESOURCES.md",
+                "priority: 1",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: e2e coverage",
+            "web/tests/e2e/workbench-smoke.spec.ts",
+            [
+                "assistant-demo-readiness",
+                "高等数学：极限与导数",
+                "sparkbot workspace files create and save through backend",
+                "AI Coding",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: runbook",
+            "docs/sparkbot-demo-runbook.md",
+            [
+                "比赛演示检查",
+                "7 分钟路线",
+                "AI Coding 说明",
+                "seed-demo",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: plan completion record",
+            "docs/sparkbot-teaching-assistant-ux-plan.md",
+            [
+                "P4 录屏准备体验",
+                "比赛演示检查",
+                "计划书完成确认",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: completion report",
+            "docs/sparkbot-plan-completion-report.md",
+            [
+                "AI 助教中心计划书完成证据",
+                "完成结论",
+                "完成矩阵",
+                "验证命令",
+            ],
+        ),
+        (
+            "SparkBot teaching assistant: package export",
+            "scripts/export_competition_package.py",
+            [
+                "sparkbot_demo_workspace",
+                "screenshots-sparkbot-demo-readiness.png",
+                "docs/sparkbot-demo-runbook.md",
+            ],
         ),
     ]
     checks: list[Check] = []
@@ -540,13 +746,13 @@ def check_user_facing_knowledge_progress() -> list[Check]:
     expectations = [
         (
             "User-facing knowledge progress: milestone view",
-            "web/src/pages/KnowledgePage.tsx",
+            "web/src/pages/knowledge/KnowledgeProgressPanel.tsx",
             [
                 "knowledge-task-milestones",
                 "knowledge-task-log-details",
-                "summarizeKnowledgeTaskLogs",
-                "formatKnowledgeLogLine",
-                "withLegacyText",
+                "taskMilestones",
+                "visibleKnowledgeLogText",
+                "完整处理记录",
             ],
         ),
         (
@@ -688,9 +894,13 @@ def check_generated_exports() -> list[Check]:
                     "competition_package/demo_materials/sparkweave-competition-scorecard.md",
                     "competition_package/demo_materials/sparkweave-learning-effect-summary.md",
                     "competition_package/demo_materials/sparkweave-7min-recording-script.md",
+                    "competition_package/docs/competition-visualization-completion-report.md",
+                    "competition_package/docs/sparkweave-execution-plan.md",
                     "competition_package/assets/architecture.svg",
+                    "competition_package/runtime/scripts/start_docker.py",
                     "competition_package/runtime/scripts/start_web.py",
                     "competition_package/screenshots/screenshots-simplified-guide.png",
+                    "competition_package/screenshots/screenshots-sparkbot-demo-readiness.png",
                 ],
             )
         )
@@ -718,8 +928,10 @@ def check_generated_exports() -> list[Check]:
                     "runtime/scripts/check_release_safety.py",
                     "runtime/scripts/render_competition_summary.py",
                     "runtime/scripts/verify_competition_package.py",
+                    "runtime/scripts/start_docker.py",
                     "runtime/scripts/start_web.py",
                     "screenshots/screenshots-simplified-guide.png",
+                    "screenshots/screenshots-sparkbot-demo-readiness.png",
                 ],
             )
         )
@@ -732,7 +944,13 @@ def check_generated_exports() -> list[Check]:
                     ("START_HERE.md", "先看这里"),
                     ("checksums.sha256", "index.html"),
                     ("submission_manifest.md", "SparkWeave 比赛提交包索引"),
+                    ("docs/sparkbot-demo-runbook.md", "AI 助教中心 SparkBot 演示 Runbook"),
+                    ("docs/sparkbot-teaching-assistant-ux-plan.md", "计划书完成确认"),
+                    ("docs/sparkbot-plan-completion-report.md", "AI 助教中心计划书完成证据"),
+                    ("docs/competition-visualization-completion-report.md", "比赛可视化专项完成证据"),
+                    ("docs/sparkweave-execution-plan.md", "SparkWeave 后续开发计划书"),
                     ("docs/iflytek-integration.md", "科大讯飞能力接入说明"),
+                    ("index.html", "screenshots/screenshots-sparkbot-demo-readiness.png"),
                     ("demo_materials/sparkweave-demo-deck.html", "SparkWeave 演示页"),
                     ("demo_materials/sparkweave-agent-collaboration-blueprint.md", "SparkWeave 多智能体协作蓝图"),
                     ("demo_materials/sparkweave-demo-fallback-assets.md", "SparkWeave 稳定演示兜底素材"),

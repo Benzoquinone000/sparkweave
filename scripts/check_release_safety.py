@@ -111,6 +111,8 @@ def list_tracked_files(root: Path) -> list[str]:
 
 
 def scan_file(relative: str, path: Path) -> list[Finding]:
+    if not path.exists():
+        return []
     if not should_scan(path):
         return []
     try:

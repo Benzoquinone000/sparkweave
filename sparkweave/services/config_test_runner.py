@@ -275,16 +275,17 @@ class ConfigTestRunner:
             raise ValueError("Search provider returned no answer and no search results.")
 
     async def _test_ocr(self, run: TestRun, catalog: dict[str, Any]) -> None:
-        from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, XfyunOcrConfig, recognize_image_with_iflytek
+        from sparkweave.services.ocr import OCR_SMOKE_TEST_PNG, recognize_image, resolve_ocr_config
 
-        resolved = XfyunOcrConfig.from_env()
+        resolved = resolve_ocr_config()
         if resolved is None:
-            raise ValueError("iFlytek OCR credentials are not configured")
+            raise ValueError("OCR credentials are not configured")
 
-        run.emit("info", "Resolved OCR provider `iflytek`.")
+        provider = getattr(resolved, "provider", "ocr")
+        run.emit("info", f"Resolved OCR provider `{provider}`.")
         run.emit("info", f"Request target: {resolved.url}")
         text = await asyncio.to_thread(
-            recognize_image_with_iflytek,
+            recognize_image,
             OCR_SMOKE_TEST_PNG,
             encoding="png",
             config=resolved,
@@ -292,7 +293,7 @@ class ConfigTestRunner:
         run.emit(
             "response",
             "OCR response received.",
-            provider="iflytek",
+            provider=provider,
             text_preview=text.strip()[:160],
             detected_chars=len(text.strip()),
         )

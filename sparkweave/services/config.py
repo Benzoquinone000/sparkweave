@@ -461,6 +461,7 @@ SEARCH_ENV_FALLBACK = {
     "perplexity": ("PERPLEXITY_API_KEY",),
     "serper": ("SERPER_API_KEY",),
     "iflytek_spark": (
+        "IFLYTEK_API_PASSWORD",
         "IFLYTEK_SEARCH_API_PASSWORD",
         "IFLYTEK_SPARK_SEARCH_API_PASSWORD",
         "XFYUN_SEARCH_API_PASSWORD",
@@ -539,6 +540,15 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         default_model="jina-embeddings-v3",
         default_dim=1024,
     ),
+    "siliconflow": EmbeddingProviderSpec(
+        label="SiliconFlow",
+        default_api_base="https://api.siliconflow.cn/v1",
+        keywords=("siliconflow", "qwen3-embedding", "qwen/qwen3-embedding"),
+        is_local=False,
+        api_key_envs=("SILICONFLOW_API_KEY",),
+        default_model="Qwen/Qwen3-Embedding-8B",
+        default_dim=4096,
+    ),
     "iflytek_spark": EmbeddingProviderSpec(
         label="iFlytek Spark Embedding",
         adapter="iflytek_spark",
@@ -546,8 +556,11 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         keywords=("iflytek", "xfyun", "xunfei", "llm-embedding"),
         is_local=False,
         api_key_envs=(
+            "IFLYTEK_API_KEY",
             "IFLYTEK_EMBEDDING_API_KEY",
             "IFLYTEK_SPARK_EMBEDDING_API_KEY",
+            "IFLYTEK_OCR_API_KEY",
+            "IFLYTEK_TTS_API_KEY",
             "XFYUN_EMBEDDING_API_KEY",
             "SPARK_EMBEDDING_API_KEY",
         ),
@@ -655,6 +668,14 @@ def strip_provider_prefix(model: str, spec: ProviderSpec | None) -> str:
 DEFAULT_IFLYTEK_OCR_URL = "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
 DEFAULT_IFLYTEK_OCR_SERVICE_ID = "se75ocrbm"
 DEFAULT_IFLYTEK_OCR_CATEGORY = "ch_en_public_cloud"
+DEFAULT_SILICONFLOW_OCR_BASE_URL = "https://api.siliconflow.cn/v1"
+DEFAULT_SILICONFLOW_OCR_MODEL = "deepseek-ai/DeepSeek-OCR"
+DEFAULT_SILICONFLOW_OCR_PROMPT = "<image>\n<|grounding|>Convert the document to markdown."
+DEFAULT_OCR_TIMEOUT = "90"
+DEFAULT_OCR_MAX_PAGES = ""
+DEFAULT_OCR_DPI = "200"
+DEFAULT_OCR_MIN_TEXT_CHARS = "40"
+DEFAULT_SILICONFLOW_OCR_MAX_TOKENS = "8192"
 DEFAULT_IFLYTEK_TTS_URL = "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6"
 DEFAULT_IFLYTEK_TTS_VOICE = "x5_lingxiaoxuan_flow"
 
@@ -662,6 +683,11 @@ DEFAULT_IFLYTEK_TTS_VOICE = "x5_lingxiaoxuan_flow"
 ENV_KEY_ORDER = (
     "BACKEND_PORT",
     "FRONTEND_PORT",
+    "IFLYTEK_APPID",
+    "IFLYTEK_API_KEY",
+    "IFLYTEK_API_SECRET",
+    "IFLYTEK_API_PASSWORD",
+    "SILICONFLOW_API_KEY",
     "LLM_BINDING",
     "LLM_MODEL",
     "LLM_API_KEY",
@@ -689,6 +715,10 @@ ENV_KEY_ORDER = (
     "IFLYTEK_OCR_URL",
     "IFLYTEK_OCR_SERVICE_ID",
     "IFLYTEK_OCR_CATEGORY",
+    "SILICONFLOW_OCR_API_KEY",
+    "SILICONFLOW_OCR_BASE_URL",
+    "SILICONFLOW_OCR_MODEL",
+    "SILICONFLOW_OCR_PROMPT",
     "SPARKWEAVE_TTS_PROVIDER",
     "SPARKWEAVE_TTS_TIMEOUT",
     "IFLYTEK_TTS_APPID",
@@ -742,153 +772,142 @@ class EnvStore:
     def __init__(self, path: Path = ENV_PATH):
         self.path = path
 
+    def _include_process_env(self) -> bool:
+        try:
+            return self.path.resolve() == ENV_PATH.resolve()
+        except Exception:
+            return self.path == ENV_PATH
+
     def load(self) -> OrderedDict[str, str]:
         if self.path.exists():
             values = _parse_env_lines(self.path.read_text(encoding="utf-8").splitlines())
         else:
             values = OrderedDict()
-        for key, value in values.items():
-            os.environ.setdefault(key, value)
+        if self._include_process_env():
+            for key, value in values.items():
+                os.environ.setdefault(key, value)
         return values
 
     def get(self, key: str, default: str = "") -> str:
         values = self.load()
-        return values.get(key, os.getenv(key, default))
+        file_value = values.get(key)
+        if file_value not in (None, ""):
+            return file_value
+        process_value = os.getenv(key) if self._include_process_env() else None
+        if process_value not in (None, ""):
+            return process_value
+        return default
 
     def as_summary(self) -> ConfigSummary:
         values = self.load()
+        include_process_env = self._include_process_env()
+        def value(key: str, default: str = "") -> str:
+            file_value = values.get(key)
+            if file_value not in (None, ""):
+                return _as_str(file_value)
+            process_value = os.getenv(key) if include_process_env else ""
+            return _as_str(process_value or default)
+
+        iflytek_app_id = value("IFLYTEK_APPID")
+        iflytek_api_key = value("IFLYTEK_API_KEY")
+        iflytek_api_secret = value("IFLYTEK_API_SECRET")
+        iflytek_api_password = value("IFLYTEK_API_PASSWORD")
+        if not iflytek_api_password and iflytek_api_key and iflytek_api_secret:
+            iflytek_api_password = f"{iflytek_api_key}:{iflytek_api_secret}"
+        siliconflow_api_key = value("SILICONFLOW_API_KEY")
+
+        llm_binding = value("LLM_BINDING", "openai")
+        llm_host = value("LLM_HOST")
+        llm_api_key = value("LLM_API_KEY")
+        if not llm_api_key:
+            llm_provider = canonical_provider_name(llm_binding)
+            if llm_provider == "iflytek_spark_ws":
+                llm_api_key = iflytek_api_password or iflytek_api_key
+            elif llm_provider == "siliconflow" or "siliconflow" in llm_host.lower():
+                llm_api_key = siliconflow_api_key
+
+        embedding_binding = value("EMBEDDING_BINDING", "openai")
+        embedding_host = value("EMBEDDING_HOST")
+        embedding_api_key = value("EMBEDDING_API_KEY")
+        if not embedding_api_key:
+            embedding_provider = _canonical_embedding_provider_name(embedding_binding)
+            if embedding_provider == "iflytek_spark":
+                embedding_api_key = iflytek_api_key
+            elif embedding_binding == "siliconflow" or "siliconflow" in embedding_host.lower():
+                embedding_api_key = siliconflow_api_key
+
+        search_provider = value("SEARCH_PROVIDER")
+        search_api_key = value("SEARCH_API_KEY")
+        if not search_api_key and search_provider.strip().lower().replace("-", "_") == "iflytek_spark":
+            search_api_key = iflytek_api_password or iflytek_api_key
+
+        ocr_provider = value("SPARKWEAVE_OCR_PROVIDER", "iflytek")
+        ocr_is_siliconflow = ocr_provider.strip().lower().replace("-", "_") in {
+            "siliconflow",
+            "silicon_flow",
+            "deepseekocr",
+            "deepseek_ocr",
+        }
         return ConfigSummary(
-            backend_port=_safe_int(values.get("BACKEND_PORT") or os.getenv("BACKEND_PORT"), 8001),
-            frontend_port=_safe_int(
-                values.get("FRONTEND_PORT") or os.getenv("FRONTEND_PORT"), 3782
-            ),
+            backend_port=_safe_int(value("BACKEND_PORT"), 8001),
+            frontend_port=_safe_int(value("FRONTEND_PORT"), 3782),
             llm={
-                "binding": values.get("LLM_BINDING", os.getenv("LLM_BINDING", "openai")),
-                "model": values.get("LLM_MODEL", os.getenv("LLM_MODEL", "")),
-                "api_key": values.get("LLM_API_KEY", os.getenv("LLM_API_KEY", "")),
-                "host": values.get("LLM_HOST", os.getenv("LLM_HOST", "")),
-                "api_version": values.get(
-                    "LLM_API_VERSION", os.getenv("LLM_API_VERSION", "")
-                ),
+                "binding": llm_binding,
+                "model": value("LLM_MODEL"),
+                "api_key": llm_api_key,
+                "host": llm_host,
+                "api_version": value("LLM_API_VERSION"),
             },
             embedding={
-                "binding": values.get(
-                    "EMBEDDING_BINDING", os.getenv("EMBEDDING_BINDING", "openai")
-                ),
-                "model": values.get("EMBEDDING_MODEL", os.getenv("EMBEDDING_MODEL", "")),
-                "api_key": values.get(
-                    "EMBEDDING_API_KEY", os.getenv("EMBEDDING_API_KEY", "")
-                ),
-                "host": values.get("EMBEDDING_HOST", os.getenv("EMBEDDING_HOST", "")),
-                "dimension": values.get(
-                    "EMBEDDING_DIMENSION", os.getenv("EMBEDDING_DIMENSION", "3072")
-                ),
-                "api_version": values.get(
-                    "EMBEDDING_API_VERSION", os.getenv("EMBEDDING_API_VERSION", "")
-                ),
+                "binding": embedding_binding,
+                "model": value("EMBEDDING_MODEL"),
+                "api_key": embedding_api_key,
+                "host": embedding_host,
+                "dimension": value("EMBEDDING_DIMENSION", "3072"),
+                "api_version": value("EMBEDDING_API_VERSION"),
             },
             search={
-                "provider": values.get("SEARCH_PROVIDER", os.getenv("SEARCH_PROVIDER", "")),
-                "api_key": values.get("SEARCH_API_KEY", os.getenv("SEARCH_API_KEY", "")),
-                "base_url": values.get("SEARCH_BASE_URL", os.getenv("SEARCH_BASE_URL", "")),
-                "proxy": values.get("SEARCH_PROXY", os.getenv("SEARCH_PROXY", "")),
+                "provider": search_provider,
+                "api_key": search_api_key,
+                "base_url": value("SEARCH_BASE_URL"),
+                "proxy": value("SEARCH_PROXY"),
             },
             ocr={
-                "provider": values.get(
-                    "SPARKWEAVE_OCR_PROVIDER",
-                    os.getenv("SPARKWEAVE_OCR_PROVIDER", "iflytek"),
-                ),
-                "strategy": values.get(
-                    "SPARKWEAVE_PDF_OCR_STRATEGY",
-                    os.getenv("SPARKWEAVE_PDF_OCR_STRATEGY", "auto"),
-                ),
-                "timeout": values.get(
-                    "SPARKWEAVE_OCR_TIMEOUT",
-                    os.getenv("SPARKWEAVE_OCR_TIMEOUT", "30"),
-                ),
-                "max_pages": values.get(
-                    "SPARKWEAVE_OCR_MAX_PAGES",
-                    os.getenv("SPARKWEAVE_OCR_MAX_PAGES", "20"),
-                ),
-                "dpi": values.get("SPARKWEAVE_OCR_DPI", os.getenv("SPARKWEAVE_OCR_DPI", "180")),
-                "min_text_chars": values.get(
-                    "SPARKWEAVE_OCR_MIN_TEXT_CHARS",
-                    os.getenv("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "80"),
-                ),
-                "app_id": values.get("IFLYTEK_OCR_APPID", os.getenv("IFLYTEK_OCR_APPID", "")),
-                "api_key": values.get("IFLYTEK_OCR_API_KEY", os.getenv("IFLYTEK_OCR_API_KEY", "")),
-                "api_secret": values.get(
-                    "IFLYTEK_OCR_API_SECRET",
-                    os.getenv("IFLYTEK_OCR_API_SECRET", ""),
-                ),
-                "url": values.get(
-                    "IFLYTEK_OCR_URL",
-                    os.getenv("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL),
-                ),
-                "service_id": values.get(
-                    "IFLYTEK_OCR_SERVICE_ID",
-                    os.getenv("IFLYTEK_OCR_SERVICE_ID", DEFAULT_IFLYTEK_OCR_SERVICE_ID),
-                ),
-                "category": values.get(
-                    "IFLYTEK_OCR_CATEGORY",
-                    os.getenv("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY),
-                ),
+                "provider": ocr_provider,
+                "strategy": value("SPARKWEAVE_PDF_OCR_STRATEGY", "auto"),
+                "timeout": value("SPARKWEAVE_OCR_TIMEOUT"),
+                "max_pages": value("SPARKWEAVE_OCR_MAX_PAGES"),
+                "dpi": value("SPARKWEAVE_OCR_DPI"),
+                "min_text_chars": value("SPARKWEAVE_OCR_MIN_TEXT_CHARS"),
+                "app_id": value("IFLYTEK_OCR_APPID") or iflytek_app_id,
+                "api_key": (value("SILICONFLOW_OCR_API_KEY") or siliconflow_api_key)
+                if ocr_is_siliconflow
+                else (value("IFLYTEK_OCR_API_KEY") or iflytek_api_key),
+                "api_secret": value("IFLYTEK_OCR_API_SECRET") or iflytek_api_secret,
+                "url": value("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL),
+                "service_id": value("IFLYTEK_OCR_SERVICE_ID", DEFAULT_IFLYTEK_OCR_SERVICE_ID),
+                "category": value("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY),
+                "siliconflow_api_key": value("SILICONFLOW_OCR_API_KEY") or siliconflow_api_key,
+                "siliconflow_base_url": value("SILICONFLOW_OCR_BASE_URL", DEFAULT_SILICONFLOW_OCR_BASE_URL),
+                "siliconflow_model": value("SILICONFLOW_OCR_MODEL", DEFAULT_SILICONFLOW_OCR_MODEL),
+                "siliconflow_prompt": value("SILICONFLOW_OCR_PROMPT", DEFAULT_SILICONFLOW_OCR_PROMPT),
             },
             tts={
-                "provider": values.get(
-                    "SPARKWEAVE_TTS_PROVIDER",
-                    os.getenv("SPARKWEAVE_TTS_PROVIDER", "iflytek"),
-                ),
-                "timeout": values.get(
-                    "SPARKWEAVE_TTS_TIMEOUT",
-                    os.getenv("SPARKWEAVE_TTS_TIMEOUT", "30"),
-                ),
-                "app_id": values.get("IFLYTEK_TTS_APPID", os.getenv("IFLYTEK_TTS_APPID", "")),
-                "api_key": values.get("IFLYTEK_TTS_API_KEY", os.getenv("IFLYTEK_TTS_API_KEY", "")),
-                "api_secret": values.get(
-                    "IFLYTEK_TTS_API_SECRET",
-                    os.getenv("IFLYTEK_TTS_API_SECRET", ""),
-                ),
-                "url": values.get(
-                    "IFLYTEK_TTS_URL",
-                    os.getenv("IFLYTEK_TTS_URL", DEFAULT_IFLYTEK_TTS_URL),
-                ),
-                "voice": values.get(
-                    "IFLYTEK_TTS_VOICE",
-                    os.getenv("IFLYTEK_TTS_VOICE", DEFAULT_IFLYTEK_TTS_VOICE),
-                ),
-                "encoding": values.get(
-                    "IFLYTEK_TTS_ENCODING",
-                    os.getenv("IFLYTEK_TTS_ENCODING", "lame"),
-                ),
-                "sample_rate": values.get(
-                    "IFLYTEK_TTS_SAMPLE_RATE",
-                    os.getenv("IFLYTEK_TTS_SAMPLE_RATE", "24000"),
-                ),
-                "channels": values.get(
-                    "IFLYTEK_TTS_CHANNELS",
-                    os.getenv("IFLYTEK_TTS_CHANNELS", "1"),
-                ),
-                "bit_depth": values.get(
-                    "IFLYTEK_TTS_BIT_DEPTH",
-                    os.getenv("IFLYTEK_TTS_BIT_DEPTH", "16"),
-                ),
-                "frame_size": values.get(
-                    "IFLYTEK_TTS_FRAME_SIZE",
-                    os.getenv("IFLYTEK_TTS_FRAME_SIZE", "0"),
-                ),
-                "speed": values.get(
-                    "IFLYTEK_TTS_SPEED",
-                    os.getenv("IFLYTEK_TTS_SPEED", "50"),
-                ),
-                "volume": values.get(
-                    "IFLYTEK_TTS_VOLUME",
-                    os.getenv("IFLYTEK_TTS_VOLUME", "50"),
-                ),
-                "pitch": values.get(
-                    "IFLYTEK_TTS_PITCH",
-                    os.getenv("IFLYTEK_TTS_PITCH", "50"),
-                ),
+                "provider": value("SPARKWEAVE_TTS_PROVIDER", "iflytek"),
+                "timeout": value("SPARKWEAVE_TTS_TIMEOUT", "30"),
+                "app_id": value("IFLYTEK_TTS_APPID") or iflytek_app_id,
+                "api_key": value("IFLYTEK_TTS_API_KEY") or iflytek_api_key,
+                "api_secret": value("IFLYTEK_TTS_API_SECRET") or iflytek_api_secret,
+                "url": value("IFLYTEK_TTS_URL", DEFAULT_IFLYTEK_TTS_URL),
+                "voice": value("IFLYTEK_TTS_VOICE", DEFAULT_IFLYTEK_TTS_VOICE),
+                "encoding": value("IFLYTEK_TTS_ENCODING", "lame"),
+                "sample_rate": value("IFLYTEK_TTS_SAMPLE_RATE", "24000"),
+                "channels": value("IFLYTEK_TTS_CHANNELS", "1"),
+                "bit_depth": value("IFLYTEK_TTS_BIT_DEPTH", "16"),
+                "frame_size": value("IFLYTEK_TTS_FRAME_SIZE", "0"),
+                "speed": value("IFLYTEK_TTS_SPEED", "50"),
+                "volume": value("IFLYTEK_TTS_VOLUME", "50"),
+                "pitch": value("IFLYTEK_TTS_PITCH", "50"),
             },
         )
 
@@ -937,56 +956,156 @@ class EnvStore:
         tts_extra = (tts_profile or {}).get("extra_headers") or {}
 
         current = self.load()
+        provider_credentials = catalog.get("provider_credentials") or {}
+        iflytek_credentials = provider_credentials.get("iflytek") or {}
+        siliconflow_credentials = provider_credentials.get("siliconflow") or {}
+
+        def credential(provider_values: dict[str, Any], key: str, *env_names: str) -> str:
+            value = _as_str(provider_values.get(key))
+            if value:
+                return value
+            for env_name in env_names:
+                env_value = _as_str(current.get(env_name) or os.getenv(env_name, ""))
+                if env_value:
+                    return env_value
+            return ""
+
+        iflytek_app_id = credential(
+            iflytek_credentials,
+            "app_id",
+            "IFLYTEK_APPID",
+            "IFLYTEK_OCR_APPID",
+            "IFLYTEK_TTS_APPID",
+            "IFLYTEK_EMBEDDING_APPID",
+        )
+        iflytek_api_key = credential(
+            iflytek_credentials,
+            "api_key",
+            "IFLYTEK_API_KEY",
+            "IFLYTEK_OCR_API_KEY",
+            "IFLYTEK_TTS_API_KEY",
+            "IFLYTEK_EMBEDDING_API_KEY",
+        )
+        iflytek_api_secret = credential(
+            iflytek_credentials,
+            "api_secret",
+            "IFLYTEK_API_SECRET",
+            "IFLYTEK_OCR_API_SECRET",
+            "IFLYTEK_TTS_API_SECRET",
+            "IFLYTEK_EMBEDDING_API_SECRET",
+        )
+        iflytek_api_password = _as_str(iflytek_credentials.get("api_password"))
+        if not iflytek_api_password and iflytek_api_key and iflytek_api_secret:
+            iflytek_api_password = f"{iflytek_api_key}:{iflytek_api_secret}"
+        if not iflytek_api_password:
+            iflytek_api_password = credential(
+                iflytek_credentials,
+                "api_password",
+                "IFLYTEK_API_PASSWORD",
+                "IFLYTEK_SPARK_API_PASSWORD",
+                "IFLYTEK_SEARCH_API_PASSWORD",
+            )
+        siliconflow_api_key = credential(
+            siliconflow_credentials,
+            "api_key",
+            "SILICONFLOW_API_KEY",
+            "SILICONFLOW_OCR_API_KEY",
+        )
+
+        def is_iflytek_llm() -> bool:
+            return canonical_provider_name(_as_str((llm_profile or {}).get("binding"))) == "iflytek_spark_ws"
+
+        def is_iflytek_embedding() -> bool:
+            return _canonical_embedding_provider_name(_as_str((embedding_profile or {}).get("binding"))) == "iflytek_spark"
+
+        def is_siliconflow_endpoint(profile: dict[str, Any] | None) -> bool:
+            if not profile:
+                return False
+            binding = canonical_provider_name(_as_str(profile.get("binding")))
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            base_url = _as_str(profile.get("base_url")).lower()
+            return binding == "siliconflow" or provider == "siliconflow" or "siliconflow" in base_url
+
+        def is_iflytek_search() -> bool:
+            return _as_str((search_profile or {}).get("provider")).lower().replace("-", "_") == "iflytek_spark"
+
+        ocr_provider = str(
+            (ocr_profile or {}).get("provider")
+            or current.get("SPARKWEAVE_OCR_PROVIDER", "iflytek")
+        )
+        ocr_is_siliconflow = ocr_provider.strip().lower().replace("-", "_") in {
+            "siliconflow",
+            "silicon_flow",
+            "deepseekocr",
+            "deepseek_ocr",
+        }
         return {
             "BACKEND_PORT": current.get("BACKEND_PORT", os.getenv("BACKEND_PORT", "8001")),
             "FRONTEND_PORT": current.get("FRONTEND_PORT", os.getenv("FRONTEND_PORT", "3782")),
+            "IFLYTEK_APPID": iflytek_app_id,
+            "IFLYTEK_API_KEY": iflytek_api_key,
+            "IFLYTEK_API_SECRET": iflytek_api_secret,
+            "IFLYTEK_API_PASSWORD": iflytek_api_password,
+            "SILICONFLOW_API_KEY": siliconflow_api_key,
             "LLM_BINDING": str((llm_profile or {}).get("binding") or "openai"),
             "LLM_MODEL": str((llm_model or {}).get("model") or ""),
-            "LLM_API_KEY": str((llm_profile or {}).get("api_key") or ""),
+            "LLM_API_KEY": str(
+                ""
+                if is_iflytek_llm() or is_siliconflow_endpoint(llm_profile)
+                else (llm_profile or {}).get("api_key")
+                or ""
+            ),
             "LLM_HOST": str((llm_profile or {}).get("base_url") or ""),
             "LLM_API_VERSION": str((llm_profile or {}).get("api_version") or ""),
             "EMBEDDING_BINDING": str((embedding_profile or {}).get("binding") or "openai"),
             "EMBEDDING_MODEL": str((embedding_model or {}).get("model") or ""),
-            "EMBEDDING_API_KEY": str((embedding_profile or {}).get("api_key") or ""),
+            "EMBEDDING_API_KEY": str(
+                ""
+                if is_iflytek_embedding() or is_siliconflow_endpoint(embedding_profile)
+                else (embedding_profile or {}).get("api_key")
+                or ""
+            ),
             "EMBEDDING_HOST": str((embedding_profile or {}).get("base_url") or ""),
             "EMBEDDING_DIMENSION": str((embedding_model or {}).get("dimension") or 3072),
             "EMBEDDING_API_VERSION": str((embedding_profile or {}).get("api_version") or ""),
             "SEARCH_PROVIDER": str((search_profile or {}).get("provider") or ""),
-            "SEARCH_API_KEY": str((search_profile or {}).get("api_key") or ""),
+            "SEARCH_API_KEY": str("" if is_iflytek_search() else (search_profile or {}).get("api_key") or ""),
             "SEARCH_BASE_URL": str((search_profile or {}).get("base_url") or ""),
             "SEARCH_PROXY": str((search_profile or {}).get("proxy") or ""),
-            "SPARKWEAVE_OCR_PROVIDER": str(
-                (ocr_profile or {}).get("provider")
-                or current.get("SPARKWEAVE_OCR_PROVIDER", "iflytek")
-            ),
+            "SPARKWEAVE_OCR_PROVIDER": ocr_provider,
             "SPARKWEAVE_PDF_OCR_STRATEGY": str(
                 (ocr_profile or {}).get("strategy")
                 or current.get("SPARKWEAVE_PDF_OCR_STRATEGY", "auto")
             ),
             "SPARKWEAVE_OCR_TIMEOUT": str(
-                (ocr_profile or {}).get("timeout") or current.get("SPARKWEAVE_OCR_TIMEOUT", "30")
+                (ocr_profile or {}).get("timeout") or ""
             ),
             "SPARKWEAVE_OCR_MAX_PAGES": str(
-                (ocr_profile or {}).get("max_pages")
-                or current.get("SPARKWEAVE_OCR_MAX_PAGES", "20")
+                (ocr_profile or {}).get("max_pages") or ""
             ),
             "SPARKWEAVE_OCR_DPI": str(
-                (ocr_profile or {}).get("dpi") or current.get("SPARKWEAVE_OCR_DPI", "180")
+                (ocr_profile or {}).get("dpi") or ""
             ),
             "SPARKWEAVE_OCR_MIN_TEXT_CHARS": str(
-                (ocr_profile or {}).get("min_text_chars")
-                or current.get("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "80")
+                (ocr_profile or {}).get("min_text_chars") or ""
             ),
-            "IFLYTEK_OCR_APPID": str(ocr_extra.get("app_id") or current.get("IFLYTEK_OCR_APPID", "")),
+            "IFLYTEK_OCR_APPID": str(
+                "" if iflytek_app_id else ocr_extra.get("app_id") or current.get("IFLYTEK_OCR_APPID", "")
+            ),
             "IFLYTEK_OCR_API_KEY": str(
-                (ocr_profile or {}).get("api_key") or current.get("IFLYTEK_OCR_API_KEY", "")
+                ""
+                if ocr_is_siliconflow or iflytek_api_key
+                else (ocr_profile or {}).get("api_key") or current.get("IFLYTEK_OCR_API_KEY", "")
             ),
             "IFLYTEK_OCR_API_SECRET": str(
-                ocr_extra.get("api_secret") or current.get("IFLYTEK_OCR_API_SECRET", "")
+                ""
+                if iflytek_api_secret
+                else ocr_extra.get("api_secret") or current.get("IFLYTEK_OCR_API_SECRET", "")
             ),
             "IFLYTEK_OCR_URL": str(
-                (ocr_profile or {}).get("base_url")
-                or current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
+                current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
+                if ocr_is_siliconflow
+                else ((ocr_profile or {}).get("base_url") or current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL))
             ),
             "IFLYTEK_OCR_SERVICE_ID": str(
                 ocr_extra.get("service_id")
@@ -996,6 +1115,24 @@ class EnvStore:
                 ocr_extra.get("category")
                 or current.get("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY)
             ),
+            "SILICONFLOW_OCR_API_KEY": str(
+                ""
+                if ocr_is_siliconflow and siliconflow_api_key
+                else ((ocr_profile or {}).get("api_key") if ocr_is_siliconflow else "")
+                or current.get("SILICONFLOW_OCR_API_KEY", "")
+            ),
+            "SILICONFLOW_OCR_BASE_URL": str(
+                ((ocr_profile or {}).get("base_url") if ocr_is_siliconflow else "")
+                or current.get("SILICONFLOW_OCR_BASE_URL", DEFAULT_SILICONFLOW_OCR_BASE_URL)
+            ),
+            "SILICONFLOW_OCR_MODEL": str(
+                ocr_extra.get("model")
+                or current.get("SILICONFLOW_OCR_MODEL", DEFAULT_SILICONFLOW_OCR_MODEL)
+            ),
+            "SILICONFLOW_OCR_PROMPT": str(
+                ocr_extra.get("prompt")
+                or current.get("SILICONFLOW_OCR_PROMPT", DEFAULT_SILICONFLOW_OCR_PROMPT)
+            ),
             "SPARKWEAVE_TTS_PROVIDER": str(
                 (tts_profile or {}).get("provider")
                 or current.get("SPARKWEAVE_TTS_PROVIDER", "iflytek")
@@ -1003,12 +1140,16 @@ class EnvStore:
             "SPARKWEAVE_TTS_TIMEOUT": str(
                 (tts_profile or {}).get("timeout") or current.get("SPARKWEAVE_TTS_TIMEOUT", "30")
             ),
-            "IFLYTEK_TTS_APPID": str(tts_extra.get("app_id") or current.get("IFLYTEK_TTS_APPID", "")),
+            "IFLYTEK_TTS_APPID": str(
+                "" if iflytek_app_id else tts_extra.get("app_id") or current.get("IFLYTEK_TTS_APPID", "")
+            ),
             "IFLYTEK_TTS_API_KEY": str(
-                (tts_profile or {}).get("api_key") or current.get("IFLYTEK_TTS_API_KEY", "")
+                "" if iflytek_api_key else (tts_profile or {}).get("api_key") or current.get("IFLYTEK_TTS_API_KEY", "")
             ),
             "IFLYTEK_TTS_API_SECRET": str(
-                tts_extra.get("api_secret") or current.get("IFLYTEK_TTS_API_SECRET", "")
+                ""
+                if iflytek_api_secret
+                else tts_extra.get("api_secret") or current.get("IFLYTEK_TTS_API_SECRET", "")
             ),
             "IFLYTEK_TTS_URL": str(
                 (tts_profile or {}).get("base_url")
@@ -1093,9 +1234,24 @@ def _tts_shell() -> dict[str, Any]:
     return {"active_profile_id": None, "profiles": []}
 
 
+def _provider_credentials_shell() -> dict[str, Any]:
+    return {
+        "iflytek": {
+            "app_id": "",
+            "api_key": "",
+            "api_secret": "",
+            "api_password": "",
+        },
+        "siliconflow": {
+            "api_key": "",
+        },
+    }
+
+
 def _default_catalog() -> dict[str, Any]:
     return {
         "version": 1,
+        "provider_credentials": _provider_credentials_shell(),
         "services": {
             "llm": _service_shell(),
             "embedding": _service_shell(),
@@ -1122,20 +1278,23 @@ class ModelCatalogService:
 
     def load(self) -> dict[str, Any]:
         catalog = _default_catalog()
-        if self.path.exists():
+        loaded_from_disk = self.path.exists()
+        if loaded_from_disk:
             loaded = json.loads(self.path.read_text(encoding="utf-8") or "{}")
             catalog.update({k: v for k, v in loaded.items() if k != "services"})
             catalog["services"].update(loaded.get("services", {}))
         hydrated = self._hydrate_missing_services_from_env(catalog)
-        synced = self._sync_active_services_from_env(catalog)
+        synced = False if loaded_from_disk else self._sync_active_services_from_env(catalog)
+        credential_synced = self._sync_provider_credentials(catalog)
         self._normalize(catalog)
-        if hydrated or synced or not self.path.exists():
+        if hydrated or synced or credential_synced or not self.path.exists():
             self.save(catalog)
         return catalog
 
     def save(self, catalog: dict[str, Any]) -> dict[str, Any]:
         """Normalize and persist the model catalog."""
         normalized = deepcopy(catalog)
+        self._sync_provider_credentials(normalized)
         self._normalize(normalized)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(normalized, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1235,11 +1394,19 @@ class ModelCatalogService:
             changed = True
 
         ocr_service = services.setdefault("ocr", _ocr_shell())
+        ocr_provider = summary.ocr["provider"].strip().lower().replace("-", "_")
+        ocr_is_siliconflow = ocr_provider in {
+            "siliconflow",
+            "silicon_flow",
+            "deepseekocr",
+            "deepseek_ocr",
+        }
         if not ocr_service.get("profiles") and (
             summary.ocr["provider"]
             or summary.ocr["app_id"]
             or summary.ocr["api_key"]
             or summary.ocr["api_secret"]
+            or summary.ocr["siliconflow_api_key"]
         ):
             profile_id = "ocr-profile-default"
             services["ocr"] = {
@@ -1250,17 +1417,23 @@ class ModelCatalogService:
                         "name": "Default OCR Provider",
                         "provider": summary.ocr["provider"] or "iflytek",
                         "strategy": summary.ocr["strategy"] or "auto",
-                        "base_url": summary.ocr["url"],
-                        "api_key": summary.ocr["api_key"],
-                        "timeout": summary.ocr["timeout"] or "30",
-                        "max_pages": summary.ocr["max_pages"] or "20",
-                        "dpi": summary.ocr["dpi"] or "180",
-                        "min_text_chars": summary.ocr["min_text_chars"] or "80",
+                        "base_url": (
+                            summary.ocr["siliconflow_base_url"]
+                            if ocr_is_siliconflow
+                            else summary.ocr["url"]
+                        ),
+                        "api_key": (
+                            summary.ocr["siliconflow_api_key"]
+                            if ocr_is_siliconflow
+                            else summary.ocr["api_key"]
+                        ),
                         "extra_headers": {
                             "app_id": summary.ocr["app_id"],
                             "api_secret": summary.ocr["api_secret"],
                             "service_id": summary.ocr["service_id"] or DEFAULT_IFLYTEK_OCR_SERVICE_ID,
                             "category": summary.ocr["category"] or DEFAULT_IFLYTEK_OCR_CATEGORY,
+                            "model": summary.ocr["siliconflow_model"] or DEFAULT_SILICONFLOW_OCR_MODEL,
+                            "prompt": summary.ocr["siliconflow_prompt"] or DEFAULT_SILICONFLOW_OCR_PROMPT,
                         },
                         "models": [],
                     }
@@ -1401,10 +1574,10 @@ class ModelCatalogService:
                     "strategy": "auto",
                     "base_url": DEFAULT_IFLYTEK_OCR_URL,
                     "api_key": "",
-                    "timeout": "30",
-                    "max_pages": "20",
-                    "dpi": "180",
-                    "min_text_chars": "80",
+                    "timeout": DEFAULT_OCR_TIMEOUT,
+                    "max_pages": DEFAULT_OCR_MAX_PAGES,
+                    "dpi": DEFAULT_OCR_DPI,
+                    "min_text_chars": DEFAULT_OCR_MIN_TEXT_CHARS,
                     "extra_headers": {
                         "app_id": "",
                         "api_secret": "",
@@ -1535,6 +1708,10 @@ class ModelCatalogService:
             "IFLYTEK_OCR_URL",
             "IFLYTEK_OCR_SERVICE_ID",
             "IFLYTEK_OCR_CATEGORY",
+            "SILICONFLOW_OCR_API_KEY",
+            "SILICONFLOW_OCR_BASE_URL",
+            "SILICONFLOW_OCR_MODEL",
+            "SILICONFLOW_OCR_PROMPT",
         }
         if ocr_keys.intersection(env_values):
             profile = ensure_ocr_profile()
@@ -1548,6 +1725,8 @@ class ModelCatalogService:
                 ("SPARKWEAVE_OCR_MIN_TEXT_CHARS", "min_text_chars", summary.ocr["min_text_chars"]),
                 ("IFLYTEK_OCR_API_KEY", "api_key", summary.ocr["api_key"]),
                 ("IFLYTEK_OCR_URL", "base_url", summary.ocr["url"]),
+                ("SILICONFLOW_OCR_API_KEY", "api_key", summary.ocr["siliconflow_api_key"]),
+                ("SILICONFLOW_OCR_BASE_URL", "base_url", summary.ocr["siliconflow_base_url"]),
             ):
                 if env_key in env_values and profile.get(field_name) != value:
                     profile[field_name] = value
@@ -1557,6 +1736,8 @@ class ModelCatalogService:
                 ("IFLYTEK_OCR_API_SECRET", "api_secret", summary.ocr["api_secret"]),
                 ("IFLYTEK_OCR_SERVICE_ID", "service_id", summary.ocr["service_id"]),
                 ("IFLYTEK_OCR_CATEGORY", "category", summary.ocr["category"]),
+                ("SILICONFLOW_OCR_MODEL", "model", summary.ocr["siliconflow_model"]),
+                ("SILICONFLOW_OCR_PROMPT", "prompt", summary.ocr["siliconflow_prompt"]),
             ):
                 if env_key in env_values and extra_headers.get(field_name) != value:
                     extra_headers[field_name] = value
@@ -1610,6 +1791,212 @@ class ModelCatalogService:
 
         return changed
 
+    def _sync_provider_credentials(self, catalog: dict[str, Any]) -> bool:
+        """Move provider-owned credentials to one shared catalog location.
+
+        The UI exposes these shared credentials once per provider. Service
+        profiles keep routing/model fields, while runtime rendering fans the
+        shared credentials back out to legacy env keys.
+        """
+        changed = False
+        services = catalog.setdefault("services", {})
+        credentials = catalog.setdefault("provider_credentials", {})
+        defaults = _provider_credentials_shell()
+
+        for provider, default_values in defaults.items():
+            provider_values = credentials.setdefault(provider, {})
+            for key, value in default_values.items():
+                if key not in provider_values:
+                    provider_values[key] = value
+                    changed = True
+
+        iflytek = credentials["iflytek"]
+        siliconflow = credentials["siliconflow"]
+        env = get_env_store().load()
+
+        def set_if_empty(target: dict[str, Any], key: str, value: Any) -> None:
+            nonlocal changed
+            parsed = _as_str(value)
+            if parsed and not _as_str(target.get(key)):
+                target[key] = parsed
+                changed = True
+
+        def split_ak_sk(value: str) -> tuple[str, str]:
+            if ":" not in value:
+                return "", ""
+            api_key, api_secret = value.split(":", 1)
+            return api_key.strip(), api_secret.strip()
+
+        set_if_empty(
+            iflytek,
+            "app_id",
+            env.get("IFLYTEK_APPID")
+            or env.get("IFLYTEK_OCR_APPID")
+            or env.get("IFLYTEK_TTS_APPID")
+            or env.get("IFLYTEK_EMBEDDING_APPID"),
+        )
+        set_if_empty(
+            iflytek,
+            "api_key",
+            env.get("IFLYTEK_API_KEY")
+            or env.get("IFLYTEK_OCR_API_KEY")
+            or env.get("IFLYTEK_TTS_API_KEY")
+            or env.get("IFLYTEK_EMBEDDING_API_KEY"),
+        )
+        set_if_empty(
+            iflytek,
+            "api_secret",
+            env.get("IFLYTEK_API_SECRET")
+            or env.get("IFLYTEK_OCR_API_SECRET")
+            or env.get("IFLYTEK_TTS_API_SECRET")
+            or env.get("IFLYTEK_EMBEDDING_API_SECRET"),
+        )
+        set_if_empty(
+            iflytek,
+            "api_password",
+            env.get("IFLYTEK_API_PASSWORD")
+            or env.get("IFLYTEK_SPARK_API_PASSWORD")
+            or env.get("IFLYTEK_SEARCH_API_PASSWORD"),
+        )
+        set_if_empty(
+            siliconflow,
+            "api_key",
+            env.get("SILICONFLOW_API_KEY") or env.get("SILICONFLOW_OCR_API_KEY"),
+        )
+
+        def active_profile(service_name: str) -> dict[str, Any]:
+            service = services.setdefault(
+                service_name,
+                _search_shell()
+                if service_name == "search"
+                else _ocr_shell()
+                if service_name == "ocr"
+                else _tts_shell()
+                if service_name == "tts"
+                else _service_shell(),
+            )
+            profiles = service.setdefault("profiles", [])
+            profile = self.get_active_profile(catalog, service_name)
+            return profile or (profiles[0] if profiles else {})
+
+        llm_profile = active_profile("llm")
+        llm_binding = canonical_provider_name(_as_str(llm_profile.get("binding")))
+        llm_key = _as_str(llm_profile.get("api_key"))
+        if llm_binding == "iflytek_spark_ws":
+            api_key, api_secret = split_ak_sk(llm_key)
+            set_if_empty(iflytek, "api_key", api_key)
+            set_if_empty(iflytek, "api_secret", api_secret)
+            set_if_empty(iflytek, "api_password", llm_key if not api_key else "")
+        elif llm_binding == "siliconflow":
+            set_if_empty(siliconflow, "api_key", llm_key)
+
+        embedding_profile = active_profile("embedding")
+        embedding_binding = _canonical_embedding_provider_name(_as_str(embedding_profile.get("binding")))
+        embedding_key = _as_str(embedding_profile.get("api_key"))
+        embedding_extra = embedding_profile.get("extra_headers") or {}
+        if embedding_binding == "iflytek_spark":
+            set_if_empty(iflytek, "api_key", embedding_key)
+            set_if_empty(iflytek, "app_id", embedding_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", embedding_extra.get("api_secret"))
+        elif self._profile_uses_siliconflow(embedding_profile):
+            set_if_empty(siliconflow, "api_key", embedding_key)
+
+        search_profile = active_profile("search")
+        if _as_str(search_profile.get("provider")).lower().replace("-", "_") == "iflytek_spark":
+            search_key = _as_str(search_profile.get("api_key"))
+            api_key, api_secret = split_ak_sk(search_key)
+            set_if_empty(iflytek, "api_key", api_key)
+            set_if_empty(iflytek, "api_secret", api_secret)
+            set_if_empty(iflytek, "api_password", search_key if not api_key else "")
+
+        ocr_profile = active_profile("ocr")
+        ocr_provider = _as_str(ocr_profile.get("provider")).lower().replace("-", "_")
+        ocr_extra = ocr_profile.get("extra_headers") or {}
+        if ocr_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", ocr_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", ocr_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", ocr_extra.get("api_secret"))
+        elif ocr_provider in {"siliconflow", "silicon_flow", "deepseekocr", "deepseek_ocr"}:
+            set_if_empty(siliconflow, "api_key", ocr_profile.get("api_key"))
+
+        tts_profile = active_profile("tts")
+        tts_provider = _as_str(tts_profile.get("provider")).lower().replace("-", "_")
+        tts_extra = tts_profile.get("extra_headers") or {}
+        if tts_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", tts_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", tts_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", tts_extra.get("api_secret"))
+
+        changed = self._strip_shared_credentials_from_profiles(catalog) or changed
+        return changed
+
+    def _profile_uses_siliconflow(self, profile: dict[str, Any] | None) -> bool:
+        if not profile:
+            return False
+        binding = canonical_provider_name(_as_str(profile.get("binding")))
+        provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+        base_url = _as_str(profile.get("base_url")).lower()
+        return binding == "siliconflow" or provider == "siliconflow" or "siliconflow" in base_url
+
+    def _strip_shared_credentials_from_profiles(self, catalog: dict[str, Any]) -> bool:
+        changed = False
+        credentials = catalog.setdefault("provider_credentials", _provider_credentials_shell())
+        iflytek = credentials.get("iflytek") or {}
+        siliconflow = credentials.get("siliconflow") or {}
+        has_iflytek = any(_as_str(iflytek.get(key)) for key in ("app_id", "api_key", "api_secret", "api_password"))
+        has_siliconflow = bool(_as_str(siliconflow.get("api_key")))
+        services = catalog.setdefault("services", {})
+
+        def clear_profile_key(profile: dict[str, Any]) -> None:
+            nonlocal changed
+            if _as_str(profile.get("api_key")):
+                profile["api_key"] = ""
+                changed = True
+
+        def clear_extra(profile: dict[str, Any], *keys: str) -> None:
+            nonlocal changed
+            extra = profile.setdefault("extra_headers", {})
+            for key in keys:
+                if _as_str(extra.get(key)):
+                    extra[key] = ""
+                    changed = True
+
+        for profile in services.get("llm", {}).get("profiles", []):
+            if canonical_provider_name(_as_str(profile.get("binding"))) == "iflytek_spark_ws" and has_iflytek:
+                clear_profile_key(profile)
+                clear_extra(profile, "app_id", "appid", "api_secret")
+            elif self._profile_uses_siliconflow(profile) and has_siliconflow:
+                clear_profile_key(profile)
+
+        for profile in services.get("embedding", {}).get("profiles", []):
+            binding = _canonical_embedding_provider_name(_as_str(profile.get("binding")))
+            if binding == "iflytek_spark" and has_iflytek:
+                clear_profile_key(profile)
+                clear_extra(profile, "app_id", "api_secret")
+            elif self._profile_uses_siliconflow(profile) and has_siliconflow:
+                clear_profile_key(profile)
+
+        for profile in services.get("search", {}).get("profiles", []):
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            if provider == "iflytek_spark" and has_iflytek:
+                clear_profile_key(profile)
+
+        for profile in services.get("ocr", {}).get("profiles", []):
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
+                clear_profile_key(profile)
+                clear_extra(profile, "app_id", "api_secret")
+            elif provider in {"siliconflow", "silicon_flow", "deepseekocr", "deepseek_ocr"} and has_siliconflow:
+                clear_profile_key(profile)
+
+        for profile in services.get("tts", {}).get("profiles", []):
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
+                clear_profile_key(profile)
+                clear_extra(profile, "app_id", "api_secret")
+
+        return changed
+
     def get_active_profile(self, catalog: dict[str, Any], service_name: str) -> dict[str, Any] | None:
         service = catalog.get("services", {}).get(service_name, {})
         active_id = service.get("active_profile_id")
@@ -1656,16 +2043,18 @@ class ModelCatalogService:
                 elif service_name == "ocr":
                     profile.setdefault("provider", "iflytek")
                     profile.setdefault("strategy", "auto")
-                    profile.setdefault("base_url", DEFAULT_IFLYTEK_OCR_URL)
-                    profile.setdefault("timeout", "30")
-                    profile.setdefault("max_pages", "20")
-                    profile.setdefault("dpi", "180")
-                    profile.setdefault("min_text_chars", "80")
+                    ocr_provider = str(profile.get("provider") or "iflytek").strip().lower().replace("-", "_")
+                    if ocr_provider in {"siliconflow", "silicon_flow", "deepseekocr", "deepseek_ocr"}:
+                        profile.setdefault("base_url", DEFAULT_SILICONFLOW_OCR_BASE_URL)
+                    else:
+                        profile.setdefault("base_url", DEFAULT_IFLYTEK_OCR_URL)
                     extra_headers = profile.setdefault("extra_headers", {})
                     extra_headers.setdefault("app_id", "")
                     extra_headers.setdefault("api_secret", "")
                     extra_headers.setdefault("service_id", DEFAULT_IFLYTEK_OCR_SERVICE_ID)
                     extra_headers.setdefault("category", DEFAULT_IFLYTEK_OCR_CATEGORY)
+                    extra_headers.setdefault("model", DEFAULT_SILICONFLOW_OCR_MODEL)
+                    extra_headers.setdefault("prompt", DEFAULT_SILICONFLOW_OCR_PROMPT)
                     profile["models"] = []
                 elif service_name == "tts":
                     profile.setdefault("provider", "iflytek")
@@ -2088,7 +2477,9 @@ def _llm_provider_env_key(spec: ProviderSpec, env: EnvStore) -> str:
     if spec.name == "iflytek_spark_ws":
         env_names.extend(
             [
+                "IFLYTEK_API_PASSWORD",
                 "IFLYTEK_SPARK_API_PASSWORD",
+                "IFLYTEK_API_KEY",
                 "IFLYTEK_SPARK_API_KEY",
                 "XFYUN_SPARK_API_PASSWORD",
                 "XFYUN_SPARK_API_KEY",
@@ -2098,6 +2489,8 @@ def _llm_provider_env_key(spec: ProviderSpec, env: EnvStore) -> str:
                 "SPARK_WS_API_KEY",
             ]
         )
+    elif spec.name == "siliconflow":
+        env_names.insert(0, "SILICONFLOW_API_KEY")
     for key in env_names:
         value = env.get(key, "").strip()
         if value:
@@ -2128,11 +2521,11 @@ def _iflytek_ws_env(env: EnvStore) -> dict[str, str]:
             "SPARK_WS_DOMAIN",
         ),
     }
-    for field, env_names in candidates.items():
+    for field_name, env_names in candidates.items():
         for env_name in env_names:
             value = env.get(env_name, "").strip()
             if value:
-                values[field] = value
+                values[field_name] = value
                 break
     return values
 
@@ -2426,12 +2819,17 @@ def _iflytek_embedding_env(env: EnvStore) -> dict[str, str]:
             "IFLYTEK_EMBEDDING_APPID",
             "IFLYTEK_EMBEDDING_APP_ID",
             "IFLYTEK_APPID",
+            "IFLYTEK_OCR_APPID",
+            "IFLYTEK_TTS_APPID",
             "XFYUN_EMBEDDING_APPID",
             "SPARK_EMBEDDING_APPID",
         ),
         "api_secret": (
+            "IFLYTEK_API_SECRET",
             "IFLYTEK_EMBEDDING_API_SECRET",
             "IFLYTEK_SPARK_EMBEDDING_API_SECRET",
+            "IFLYTEK_OCR_API_SECRET",
+            "IFLYTEK_TTS_API_SECRET",
             "XFYUN_EMBEDDING_API_SECRET",
             "SPARK_EMBEDDING_API_SECRET",
         ),
@@ -2440,13 +2838,13 @@ def _iflytek_embedding_env(env: EnvStore) -> dict[str, str]:
             "SPARK_EMBEDDING_DOMAIN",
         ),
     }
-    for field, env_names in candidates.items():
-        if field == "domain":
-            values[field] = "para"
+    for field_name, env_names in candidates.items():
+        if field_name == "domain":
+            values[field_name] = "para"
         for env_name in env_names:
             value = env.get(env_name, "").strip()
             if value:
-                values[field] = value
+                values[field_name] = value
                 break
     return values
 
@@ -2465,26 +2863,56 @@ def resolve_embedding_runtime_config(
     model = catalog_service.get_active_model(loaded, "embedding")
     summary = env.as_summary()
     env_values = env.load()
+    explicit_env_keys = {key for key, value in env_values.items() if str(value).strip()}
+    if env_store is None:
+        for key in (
+            "EMBEDDING_MODEL",
+            "EMBEDDING_BINDING",
+            "EMBEDDING_API_KEY",
+            "EMBEDDING_HOST",
+            "EMBEDDING_DIMENSION",
+        ):
+            if os.getenv(key, "").strip():
+                explicit_env_keys.add(key)
 
+    env_embedding_model = summary.embedding.get("model", "").strip()
     resolved_model = (
-        _as_str((model or {}).get("model")) or summary.embedding.get("model", "").strip()
+        env_embedding_model
+        if "EMBEDDING_MODEL" in explicit_env_keys and env_embedding_model
+        else _as_str((model or {}).get("model")) or env_embedding_model
     )
     if not resolved_model:
         raise ValueError("No active embedding model is configured. Please set it in Settings.")
 
-    binding_hint_raw = _as_str((profile or {}).get("binding"))
-    if not binding_hint_raw and "EMBEDDING_BINDING" in env_values:
-        binding_hint_raw = _as_str(summary.embedding.get("binding", ""))
+    env_embedding_binding = _as_str(summary.embedding.get("binding", ""))
+    binding_hint_raw = (
+        env_embedding_binding
+        if "EMBEDDING_BINDING" in explicit_env_keys and env_embedding_binding
+        else _as_str((profile or {}).get("binding"))
+    )
     binding_hint = _canonical_embedding_provider_name(binding_hint_raw)
 
-    active_api_key = _as_str((profile or {}).get("api_key")) or summary.embedding.get("api_key", "")
-    active_api_base = _as_str((profile or {}).get("base_url")) or summary.embedding.get("host", "")
+    env_embedding_api_key = summary.embedding.get("api_key", "")
+    env_embedding_host = summary.embedding.get("host", "")
+    active_api_key = (
+        env_embedding_api_key
+        if "EMBEDDING_API_KEY" in explicit_env_keys and env_embedding_api_key
+        else _as_str((profile or {}).get("api_key")) or env_embedding_api_key
+    )
+    active_api_base = (
+        env_embedding_host
+        if "EMBEDDING_HOST" in explicit_env_keys and env_embedding_host
+        else _as_str((profile or {}).get("base_url")) or env_embedding_host
+    )
     active_api_version = (
         _as_str((profile or {}).get("api_version")) or summary.embedding.get("api_version", "")
     )
     active_extra_headers = _to_headers((profile or {}).get("extra_headers"))
+    env_embedding_dimension = summary.embedding.get("dimension")
     dimension = _resolve_embedding_dimension(
-        (model or {}).get("dimension") or summary.embedding.get("dimension") or 3072
+        env_embedding_dimension
+        if "EMBEDDING_DIMENSION" in explicit_env_keys and env_embedding_dimension
+        else (model or {}).get("dimension") or env_embedding_dimension or 3072
     )
 
     provider_pool = _collect_embedding_provider_pool(loaded)
@@ -2497,6 +2925,14 @@ def resolve_embedding_runtime_config(
     spec = EMBEDDING_PROVIDERS[provider_name]
     mapped = provider_pool.get(provider_name)
 
+    provider_credentials = loaded.get("provider_credentials") if isinstance(loaded.get("provider_credentials"), dict) else {}
+    iflytek_credentials = provider_credentials.get("iflytek") if isinstance(provider_credentials.get("iflytek"), dict) else {}
+    siliconflow_credentials = (
+        provider_credentials.get("siliconflow")
+        if isinstance(provider_credentials.get("siliconflow"), dict)
+        else {}
+    )
+
     api_key = active_api_key or (mapped.api_key if mapped else "")
     if not api_key:
         api_key = _embedding_provider_env_key(provider_name, env)
@@ -2504,11 +2940,20 @@ def resolve_embedding_runtime_config(
     api_base = active_api_base or ((mapped.api_base or "") if mapped else "")
     if not api_base and spec.default_api_base:
         api_base = spec.default_api_base
+    if provider_name == "iflytek_spark":
+        api_key = _as_str(iflytek_credentials.get("api_key")) or active_api_key or api_key
+    elif "siliconflow" in (api_base or "").lower():
+        api_key = _as_str(siliconflow_credentials.get("api_key")) or active_api_key or api_key
     api_version = active_api_version or ((mapped.api_version or "") if mapped else "")
     extra_headers = active_extra_headers or ((mapped.extra_headers or {}) if mapped else {})
 
     if provider_name == "iflytek_spark":
-        extra_headers = {**_iflytek_embedding_env(env), **extra_headers}
+        credential_headers = {
+            "app_id": _as_str(iflytek_credentials.get("app_id")),
+            "api_secret": _as_str(iflytek_credentials.get("api_secret")),
+        }
+        credential_headers = {key: value for key, value in credential_headers.items() if value}
+        extra_headers = {**_iflytek_embedding_env(env), **credential_headers, **extra_headers}
 
     if spec.is_local and not api_key:
         api_key = "sk-no-key-required"
@@ -2704,6 +3149,8 @@ def _get_llm_config_from_env() -> LLMConfig:
             api_key = _llm_provider_env_key(spec, env_store)
         base_url = _iflytek_ws_default_base(model, base_url, binding)
         model = IFLYTEK_SPARK_MODEL
+    if not api_key and not spec.is_local and not spec.is_oauth:
+        api_key = _llm_provider_env_key(spec, env_store)
     if not base_url:
         base_url = spec.default_api_base or None
     if spec.is_local and not api_key:

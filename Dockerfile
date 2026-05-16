@@ -64,6 +64,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Make Debian package downloads resilient on unstable networks.
+RUN printf '%s\n' \
+    'Acquire::Retries "5";' \
+    'Acquire::http::Timeout "60";' \
+    'Acquire::https::Timeout "60";' \
+    'APT::Get::Fix-Missing "true";' \
+    > /etc/apt/apt.conf.d/80-sparkweave-retries
+
 # Install system dependencies
 # Note: libgl1 and libglib2.0-0 are required for OpenCV (used by mineru)
 # Rust is required for building tiktoken and other packages without pre-built wheels
@@ -71,6 +79,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -111,18 +121,35 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Make Debian package downloads resilient on unstable networks.
+RUN printf '%s\n' \
+    'Acquire::Retries "5";' \
+    'Acquire::http::Timeout "60";' \
+    'Acquire::https::Timeout "60";' \
+    'APT::Get::Fix-Missing "true";' \
+    > /etc/apt/apt.conf.d/80-sparkweave-retries
+
 # Install system dependencies
 # Note: libgl1 and libglib2.0-0 are required for OpenCV (used by mineru)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     bash \
+    dvisvgm \
+    ffmpeg \
     supervisor \
+    fonts-noto-cjk \
+    libcairo2 \
     libgl1 \
     libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
+    texlive-fonts-recommended \
+    texlive-latex-base \
+    texlive-latex-extra \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node.js from node-runtime stage (platform-matched binary)
@@ -332,6 +359,7 @@ FROM production AS development
 # Re-add full node_modules for development hot-reload.
 COPY --from=frontend-builder /app/web/node_modules ./web/node_modules
 COPY --from=frontend-builder /app/web/package.json ./web/package.json
+COPY --from=frontend-builder /app/web/scripts ./web/scripts
 
 # Install development tools
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -23,6 +23,7 @@ services:
       # Mount frontend source for hot-reload
       - ./web/src:/app/web/src:ro
       - ./web/public:/app/web/public:ro
+      - ./web/scripts:/app/web/scripts:ro
       - ./web/index.html:/app/web/index.html:ro
       - ./web/vite.config.ts:/app/web/vite.config.ts:ro
       - ./web/tailwind.config.js:/app/web/tailwind.config.js:ro
@@ -31,11 +32,16 @@ services:
       # Mount data directories (writable) - output to local ./data
       - ./data/user:/app/data/user
       - ./data/knowledge_bases:/app/data/knowledge_bases
+      - ./data/milvus:/app/data/milvus
 
     environment:
       - NODE_ENV=development
       - VITE_API_BASE=http://localhost:${BACKEND_PORT:-8001}
       - NEXT_PUBLIC_API_BASE=http://localhost:${BACKEND_PORT:-8001}
+      # Docker Desktop on Windows/macOS can miss native filesystem events.
+      # Polling makes Vite HMR and uvicorn reload stable for mounted source files.
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHFILES_FORCE_POLLING=true
 
     # In development, we might want to see logs directly
     # Uncomment the following to disable log files and see everything in console

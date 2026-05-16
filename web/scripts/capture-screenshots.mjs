@@ -13,6 +13,7 @@ const mobile = { width: 390, height: 844, isMobile: true, hasTouch: true };
 const desktopShots = [
   { route: "/chat", files: ["screenshots-chat.png", "screenshots-refined-chat.png", "screenshots-simplified-chat.png", "screenshots-simplified-shell-chat-desktop.png"] },
   { route: "/chat", files: ["screenshots-simplified-chat-drawer.png"], prepare: openChatContext },
+  { route: "/demo", files: ["screenshots-competition-demo.png"] },
   { route: "/knowledge", files: ["screenshots-knowledge.png", "screenshots-finalcheck-knowledge.png", "screenshots-review-knowledge.png", "screenshots-simplified-final-knowledge.png", "screenshots-simplified-knowledge-desktop.png"] },
   { route: "/memory", files: ["screenshots-notion-memory.png", "screenshots-simplified-memory.png"] },
   { route: "/notebook", files: ["screenshots-simplified-notebook.png"] },
@@ -22,12 +23,14 @@ const desktopShots = [
   { route: "/co-writer", files: ["screenshots-simplified-co-writer.png"] },
   { route: "/playground", files: ["screenshots-simplified-playground.png"] },
   { route: "/agents", files: ["screenshots-agents.png", "screenshots-finalcheck-agents.png", "screenshots-review-agents.png", "screenshots-simplified-agents-desktop.png"] },
+  { route: "/agents", files: ["screenshots-sparkbot-demo-readiness.png"], prepare: openAgentsWorkspace },
   { route: "/settings", files: ["screenshots-settings.png", "screenshots-finalcheck-settings.png", "screenshots-review-settings.png", "screenshots-simplified-final-settings.png", "screenshots-simplified-settings-expanded.png", "screenshots-simplified-shell-settings-desktop.png"] },
   { route: "/settings", files: ["screenshots-simplified-settings-collapsed.png"], prepare: collapseSidebar },
 ];
 
 const mobileShots = [
   { route: "/chat", files: ["screenshots-simplified-shell-chat-mobile.png"] },
+  { route: "/demo", files: ["screenshots-competition-demo-mobile.png"] },
   { route: "/knowledge", files: ["screenshots-simplified-knowledge-mobile.png"] },
 ];
 
@@ -152,6 +155,17 @@ async function collapseSidebar(page) {
   }
 }
 
+async function openAgentsWorkspace(page) {
+  const tab = page.getByTestId("agent-workspace-tab-workspace").first();
+  if (await tab.count()) {
+    await tab.click();
+  }
+  const readiness = page.getByTestId("assistant-demo-readiness");
+  await readiness.waitFor({ state: "visible", timeout: 10_000 });
+  await readiness.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+}
+
 async function installApiMocks(page) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -187,6 +201,8 @@ async function installApiMocks(page) {
     if (pathname.match(/^\/api\/v1\/notebook\/[^/]+$/)) return route.fulfill({ json: notebookDetail });
     if (pathname === "/api/v1/learner-profile") return route.fulfill({ json: learnerProfile });
     if (pathname === "/api/v1/learner-profile/refresh") return route.fulfill({ json: learnerProfile });
+    if (pathname === "/api/v1/learning-effect/report") return route.fulfill({ json: learningEffectReport });
+    if (pathname === "/api/v1/learning-effect/next-actions") return route.fulfill({ json: learningEffectNextActions });
     if (pathname === "/api/v1/guide/v2/templates") return route.fulfill({ json: { templates: guideV2CourseTemplates } });
     if (pathname === "/api/v1/guide/v2/sessions") return route.fulfill({ json: { sessions: [] } });
     if (pathname === "/api/v1/question-notebook/categories") return route.fulfill({ json: questionCategories });
@@ -230,6 +246,8 @@ const systemStatus = {
   llm: { status: "configured", model: "Spark Lite" },
   embeddings: { status: "configured", model: "bge-large-zh" },
   search: { status: "configured", provider: "web" },
+  ocr: { status: "configured", provider: "iflytek" },
+  tts: { status: "configured", provider: "iflytek" },
 };
 
 const runtimeTopology = {
@@ -411,13 +429,118 @@ const plugins = {
 };
 
 const sparkBots = [
-  { bot_id: "math_bot", name: "高数助教", description: "追问、复盘和错题讲解", status: "running", auto_start: true, persona: "耐心、善于追问和归纳的学习助教。" },
+  { bot_id: "math_bot", name: "高数助教", description: "追问、复盘和错题讲解", status: "running", running: true, auto_start: true, persona: "耐心、善于追问和归纳的学习助教。" },
 ];
 const sparkBotRecent = [{ bot_id: "math_bot", name: "高数助教", last_message: "今天继续练习极限。", updated_at: 1_700_000_000 }];
-const channelSchemas = { channels: [{ id: "web", name: "Web 对话" }] };
+const channelSchemas = {
+  global: {
+    secret_fields: ["transcription_api_key"],
+    json_schema: {
+      type: "object",
+      properties: {
+        send_progress: { type: "boolean", title: "Send progress", default: true },
+        send_tool_hints: { type: "boolean", title: "Send tool hints", default: true },
+        transcription_api_key: { type: "string", title: "Transcription API key", default: "" },
+      },
+    },
+  },
+  channels: {
+    web: {
+      name: "web",
+      display_name: "Web 对话",
+      json_schema: {
+        type: "object",
+        properties: {
+          enabled: { type: "boolean", title: "Enabled", default: true },
+          welcome_text: { type: "string", title: "Welcome text", default: "欢迎回来，今天从导数小测开始。" },
+        },
+      },
+      secret_fields: [],
+    },
+  },
+};
 const souls = [{ id: "patient_tutor", name: "耐心助教", content: "以启发式追问帮助学生学习。" }];
-const sparkBotFiles = [{ filename: "SKILL.md", content: "# 高数助教\n持续复盘学生薄弱点。" }];
-const sparkBotHistory = [{ role: "assistant", content: "我们先从左右极限开始。" }];
+const sparkBotFiles = [
+  { filename: "COURSE.md", content: "# 高等数学：极限与导数\n\n课程定位、目标、项目产物和考核结构。" },
+  { filename: "LESSONS.md", content: "# 8 周课时安排\n\n极限直观理解、导数与切线斜率、综合练习。" },
+  { filename: "QUESTION_BANK.md", content: "# 题库\n\n判断导数是否表示瞬时变化率，并解释理由。" },
+  { filename: "RUBRIC.md", content: "# Rubric\n\n能解释切线斜率、完成小测、复盘错因。" },
+  { filename: "RESOURCES.md", content: "# 资源索引\n\n科大讯飞星火、OCR、语音听写和 TTS 接入讲法。" },
+  { filename: "AGENTS.md", content: "# 多智能体路线\n\n画像、检索、讲解、练习、评估回写协作。" },
+  { filename: "TOOLS.md", content: "# 工具链\n\nRAG、讯飞 OCR、讯飞 TTS、语音听写和题目生成。" },
+  { filename: "NOTES.md", content: "# 演示笔记\n\n稳定提示词、录屏路线和兜底素材。" },
+  { filename: "SOUL.md", content: "# 高数助教\n持续复盘学生薄弱点。" },
+];
+const sparkBotHistory = [{ role: "assistant", content: "导数表示瞬时变化率，也可以看成函数图像在一点处的切线斜率。" }];
+
+const learningEffectActions = [
+  {
+    id: "derivative_quiz",
+    type: "generate_practice",
+    title: "完成导数小测",
+    reason: "最近对切线斜率的解释还不稳定，适合用 3 道短题确认。",
+    target_concepts: ["导数", "切线斜率"],
+    estimated_minutes: 8,
+    priority: 90,
+    href: "/question",
+    capability: "deep_question",
+    prompt: "请生成 3 道导数小测，并等我作答后分析错因。",
+    writes_back: ["mastery", "mistake_review"],
+  },
+];
+
+const learningEffectReport = {
+  success: true,
+  generated_at: 1_779_000_000,
+  course_id: "higher_math",
+  window: "14d",
+  overall: { score: 72, label: "巩固中", summary: "最近证据显示导数概念需要再练一次。" },
+  dimensions: [],
+  concepts: [],
+  open_mistakes: [],
+  study_brief: {
+    headline: "今天先做导数小测",
+    summary: "用 8 分钟确认瞬时变化率和切线斜率。",
+    timebox_minutes: 8,
+    knowledge_evidence: {
+      title: "高等数学资料库",
+      summary: "导数章节资料已可引用，今天优先围绕切线斜率组织小测和图解。",
+      status_label: "可引用",
+      focus_query: "导数与变化率",
+      ready: true,
+      metrics: [
+        { label: "资料", value: "5 份" },
+        { label: "状态", value: "可引用" },
+        { label: "焦点", value: "切线斜率" },
+      ],
+    },
+  },
+  knowledge_context: {
+    available: true,
+    ready: true,
+    status: "ready",
+    status_label: "可引用",
+    kb_name: "calculus_notes",
+    provider: "milvus",
+    document_count: 5,
+    focus_query: "导数与变化率",
+    summary: "课程资料、工作区文件和最近小测证据已就绪，可作为助教答疑和练习生成依据。",
+    action_label: "打开资料库",
+    action_href: "/knowledge",
+    can_ground_actions: true,
+  },
+  next_actions: learningEffectActions,
+  evidence_refs: [{ id: "ev-derivative-quiz", title: "导数小测", summary: "最近小测暴露切线斜率薄弱。", resource_type: "quiz" }],
+  summary: { event_count: 4, quiz_count: 1, resource_count: 2 },
+};
+
+const learningEffectNextActions = {
+  success: true,
+  course_id: "higher_math",
+  window: "14d",
+  items: learningEffectActions,
+  total: learningEffectActions.length,
+};
 
 const guideSessions = [{ session_id: "guide-1", title: "函数极限学习路径", status: "ready", current_index: 1 }];
 const guidePages = { pages: [{ index: 0, title: "直观理解" }, { index: 1, title: "形式化定义" }, { index: 2, title: "典型题训练" }] };

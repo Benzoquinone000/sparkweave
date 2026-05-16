@@ -124,6 +124,20 @@ test("routes to core workbench areas", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "连接与服务设置" })).toBeVisible();
 });
 
+test("competition demo route exposes judge-facing visual proof points", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "competition demo smoke runs once");
+  await mockReferenceApis(page);
+  await page.goto("/demo");
+
+  await expect(page.getByTestId("competition-demo-page")).toBeVisible();
+  await expect(page.getByTestId("competition-demo-dashboard")).toBeVisible();
+  await expect(page.getByTestId("competition-loop-rail")).toBeVisible();
+  await expect(page.getByTestId("competition-iflytek-strip")).toBeVisible();
+  await expect(page.getByTestId("demo-recording-script")).toContainText("7 分钟录屏路线");
+  await expect(page.getByTestId("demo-runtime-iflytek")).toContainText("讯飞/服务状态");
+  await expect(page.getByTestId("demo-ppt-shot-list")).toContainText("PPT 截图位");
+});
+
 test("inspector opens dashboard activity details", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "inspector activity detail smoke runs once");
   await mockReferenceApis(page);
@@ -735,17 +749,26 @@ test("sparkbot soul library creates updates and deletes templates", async ({ pag
 
 test("sparkbot chat streams websocket replies", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "sparkbot websocket smoke runs once");
-  await mockSparkBotApis(page);
+  const sparkbot = await mockSparkBotApis(page);
   await installMockSparkBotWebSocket(page);
 
   await page.goto("/agents/math_bot/chat");
   const botChat = page.locator("section", { has: page.getByRole("heading", { name: "Bot 对话" }) });
-  await botChat.getByPlaceholder("向 SparkBot 提问...").fill("解释导数");
+  await botChat.getByPlaceholder(/向助教提问/).fill("解释导数");
   await botChat.getByRole("button", { name: "发送" }).click();
 
   await expect(botChat).not.toContainText("Planning derivative hint");
   await expect(botChat.getByText("导数表示瞬时变化率。斜率是 2。")).toBeVisible();
   await expect(botChat.getByText("记得复盘切线斜率。")).toBeVisible();
+  await botChat.getByRole("button", { name: "有帮助" }).first().click();
+  await expect.poll(() => sparkbot.learningEffectEventPayload).toEqual(
+    expect.objectContaining({
+      source: "sparkbot",
+      verb: "rated",
+      object_type: "assistant_response",
+      title: "助教回答反馈：有帮助",
+    }),
+  );
   await expect.poll(() =>
     page.evaluate(() => {
       const state = window as typeof window & { __deepSparkBotWsMessages?: Array<Record<string, unknown>> };
@@ -759,6 +782,7 @@ test("sparkbot channel editor saves schema driven config", async ({ page }, test
   const sparkbot = await mockSparkBotApis(page);
 
   await page.goto("/agents/math_bot/chat");
+  await page.getByTestId("agent-workspace-tab-advanced").click();
   await page.getByTestId("bot-profile-toggle").click();
   await page.getByTestId("bot-profile-name").fill("Math Bot Coach");
   await page.getByTestId("bot-profile-description").fill("Updated profile");
@@ -777,6 +801,7 @@ test("sparkbot channel editor saves schema driven config", async ({ page }, test
   );
   await expect(page.getByText("资料已保存。")).toBeVisible();
 
+  await page.getByTestId("agent-workspace-tab-workspace").click();
   await page.getByTestId("sparkbot-channel-toggle").click();
   const globalChannel = page.getByTestId("sparkbot-global-channel-editor");
   await globalChannel.getByTestId("channel-field-send_tool_hints").click();
@@ -793,6 +818,7 @@ test("sparkbot channel editor saves schema driven config", async ({ page }, test
     }),
   );
 
+  await page.getByTestId("agent-workspace-tab-advanced").click();
   await page.getByTestId("bot-tools-toggle").click();
   await page.getByTestId("bot-tools-json").fill(
     JSON.stringify(
@@ -853,7 +879,8 @@ test("sparkbot channel editor saves schema driven config", async ({ page }, test
   );
   await expect(page.getByText("运行设置已保存。")).toBeVisible();
 
-  await expect(page.getByRole("heading", { name: "渠道配置" })).toBeVisible();
+  await page.getByTestId("agent-workspace-tab-workspace").click();
+  await expect(page.getByRole("heading", { name: "渠道与多模态" })).toBeVisible();
   await page.getByLabel("Welcome text").fill("Hello from web");
   await page.getByLabel("Rate limit").fill("9");
   await page.getByRole("button", { name: "保存渠道" }).click();
@@ -876,7 +903,38 @@ test("sparkbot workspace files create and save through backend", async ({ page }
   const sparkbot = await mockSparkBotApis(page);
 
   await page.goto("/agents/math_bot/chat");
+  await page.getByTestId("agent-workspace-tab-workspace").click();
+  await expect(page.getByTestId("assistant-artifacts-panel")).toBeVisible();
+  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("高等数学资料库");
+  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("导数小测");
+  await expect(page.getByTestId("assistant-collaboration-route")).toContainText("学习画像");
+  await expect(page.getByTestId("assistant-collaboration-route")).toContainText("讯飞多模态");
+  await expect(page.getByTestId("assistant-collaboration-route")).toContainText("评估回写");
+  await expect(page.getByTestId("assistant-demo-readiness")).toContainText("比赛演示检查");
+  await expect(page.getByTestId("assistant-demo-readiness")).toContainText("完整高校课程");
+  await expect(page.getByTestId("assistant-demo-readiness")).toContainText("7 分钟录屏路线");
+  await expect(page.getByTestId("assistant-demo-readiness")).toContainText("AI Coding");
+  await page.getByTestId("assistant-multimodal-action-visual").click();
+  await expect(page.getByTestId("sparkbot-chat-input")).toHaveValue(/图解方案/);
+
+  await page.getByTestId("agent-workspace-tab-workspace").click();
+  await page.getByTestId("assistant-multimodal-action-tts_script").click();
+  await expect(page.getByTestId("assistant-resource-preview")).toContainText("已生成一段可试听语音");
+  await expect(page.getByTestId("assistant-tts-preview").locator("audio")).toBeVisible();
+
+  await page.getByTestId("assistant-multimodal-action-ocr").click();
+  await page.getByTestId("assistant-ocr-file-input").setInputFiles({
+    name: "derivative-note.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("fake-png"),
+  });
+  await expect(page.getByTestId("assistant-ocr-preview")).toContainText("识别出的导数讲义内容");
+  await page.getByTestId("assistant-ocr-send").click();
+  await expect(page.getByTestId("sparkbot-chat-input")).toHaveValue(/识别出的导数讲义内容/);
+  await page.getByTestId("agent-workspace-tab-workspace").click();
   await page.getByTestId("sparkbot-files-toggle").click();
+  await expect(page.getByTestId("sparkbot-files-toggle")).toContainText("课程资料");
+  await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/高等数学：极限与导数/);
   await page.getByTestId("sparkbot-file-SOUL.md").click();
   await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/# Math Bot/);
   await page.getByTestId("sparkbot-file-content").fill("# Math Bot\n\nUpdated prompt");
@@ -896,6 +954,32 @@ test("sparkbot workspace files create and save through backend", async ({ page }
   });
   await expect(page.getByTestId("sparkbot-file-NOTES.md")).toBeVisible();
   await expect(page.getByTestId("sparkbot-file-content")).toHaveValue("");
+});
+
+test("sparkbot create wizard builds a course assistant preset", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "sparkbot create wizard smoke runs once");
+  const sparkbot = await mockSparkBotApis(page);
+
+  await page.goto("/agents/math_bot/chat");
+  await expect(page.getByTestId("assistant-create-step-0")).toContainText("大模型与智能学习系统");
+  await page.getByTestId("assistant-course-higher_math_limits_derivatives").click();
+  await page.getByTestId("assistant-create-next-style").click();
+  await page.getByTestId("assistant-style-practice").click();
+  await page.getByTestId("assistant-create-next-confirm").click();
+  await expect(page.getByTestId("assistant-create-bot-id")).toHaveValue("higher_math_derivatives_tutor");
+  await expect(page.getByTestId("assistant-create-name")).toHaveValue("高数导数助教");
+  await expect(page.getByTestId("assistant-create-persona")).toHaveValue(/短练习/);
+  await page.getByTestId("assistant-create-submit").click();
+
+  await expect.poll(() => sparkbot.startPayload).toEqual(
+    expect.objectContaining({
+      bot_id: "higher_math_derivatives_tutor",
+      name: "高数导数助教",
+      description: expect.stringContaining("错因复盘"),
+      auto_start: true,
+      persona: expect.stringContaining("高等数学：极限与导数"),
+    }),
+  );
 });
 
 test("sparkbot lifecycle buttons call start stop and destroy endpoints", async ({ page }, testInfo) => {
@@ -2056,6 +2140,7 @@ test("mobile sparkbot streams agent replies without DOM errors", async ({ page }
 
   await page.getByTestId("sparkbot-recent-writing_bot").click();
   await expect(page.getByTestId("sparkbot-history-piece-0-0")).toContainText("Draft outline feedback is ready.");
+  await page.getByTestId("agent-workspace-tab-advanced").click();
   await page.getByTestId("bot-profile-toggle").click();
   await expect(page.getByTestId("bot-profile-name")).toHaveValue("Writing Bot");
   await expect(page.getByTestId("bot-profile-model")).toHaveValue("gpt-writing");
@@ -2079,6 +2164,7 @@ test("mobile sparkbot manages profile files and lifecycle without DOM errors", a
   await page.goto("/agents/math_bot/chat");
   await expect(page.getByTestId("sparkbot-card-math_bot")).toBeVisible();
 
+  await page.getByTestId("agent-workspace-tab-advanced").click();
   await page.getByTestId("bot-profile-toggle").click();
   await page.getByTestId("bot-profile-name").fill("Mobile Math Bot");
   await page.getByTestId("bot-profile-description").fill("Managed from the mobile workbench");
@@ -2090,6 +2176,7 @@ test("mobile sparkbot manages profile files and lifecycle without DOM errors", a
     }),
   );
 
+  await page.getByTestId("agent-workspace-tab-workspace").click();
   await page.getByTestId("sparkbot-files-toggle").click();
   await page.getByTestId("sparkbot-file-SOUL.md").click();
   await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/# Math Bot/);
@@ -2101,6 +2188,7 @@ test("mobile sparkbot manages profile files and lifecycle without DOM errors", a
     content: "# Math Bot\n\nMobile prompt update",
   });
 
+  await page.getByTestId("agent-workspace-tab-assistants").click();
   await page.getByTestId("sparkbot-start-writing_bot").click();
   await expect.poll(() => sparkbot.startPayload).toEqual(
     expect.objectContaining({
@@ -2132,6 +2220,7 @@ test("mobile sparkbot edits souls and schema channels without DOM errors", async
   const sparkbot = await mockSparkBotApis(page);
 
   await page.goto("/agents/math_bot/chat");
+  await page.getByTestId("agent-workspace-tab-advanced").click();
   await page.getByTestId("sparkbot-soul-toggle").click();
   await page.getByTestId("sparkbot-soul-socratic").click();
   await expect.poll(() => sparkbot.soulDetailTarget).toBe("socratic");
@@ -2162,6 +2251,7 @@ test("mobile sparkbot edits souls and schema channels without DOM errors", async
   await page.getByTestId("sparkbot-soul-delete").click();
   await expect.poll(() => sparkbot.soulDeleteTarget).toBe("socratic");
 
+  await page.getByTestId("agent-workspace-tab-workspace").click();
   await page.getByTestId("sparkbot-channel-toggle").click();
   const globalChannel = page.getByTestId("sparkbot-global-channel-editor");
   await globalChannel.getByTestId("channel-field-send_tool_hints").click();
@@ -4363,11 +4453,21 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
     soulUpdatePayload?: { soulId: string; payload: Record<string, unknown> };
     soulDeleteTarget?: string;
     fileWritePayload?: { botId: string; filename: string; content: string };
+    learningEffectEventPayload?: Record<string, unknown>;
+    learningEffectCompletedAction?: { actionId: string; payload: Record<string, unknown> };
+    ocrPreviewPayload?: Record<string, unknown>;
     startPayload?: Record<string, unknown>;
     stopTarget?: string;
     destroyTarget?: string;
   } = {};
-  const mathFiles: Record<string, string> = { "SOUL.md": "# Math Bot" };
+  const mathFiles: Record<string, string> = {
+    "SOUL.md": "# Math Bot",
+    "COURSE.md": "# 高等数学：极限与导数\n\n课程资料包用于演示助教默认打开真实课程材料。",
+    "LESSONS.md": "# Lessons\n\n1. 极限直观理解\n2. 导数与切线斜率",
+    "QUESTION_BANK.md": "# Question Bank\n\n1. 判断导数是否表示瞬时变化率。",
+    "RUBRIC.md": "# Rubric\n\n能解释切线斜率并完成小测。",
+    "RESOURCES.md": "# Resources\n\n高等数学导数章节讲义。",
+  };
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({
       json: {
@@ -4378,9 +4478,154 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
       },
     }),
   );
+  await page.route("**/api/v1/system/tts-preview", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "audio/mpeg",
+        "x-sparkweave-tts-voice": "mock-iflytek-voice",
+      },
+      body: Buffer.from([0x49, 0x44, 0x33, 0x04]),
+    }),
+  );
+  await page.route("**/api/v1/system/ocr-preview", async (route) => {
+    state.ocrPreviewPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        success: true,
+        text: "识别出的导数讲义内容：瞬时变化率等于切线斜率。",
+        provider: "iflytek",
+        model: "iflytek:ocr",
+      },
+    });
+  });
   await page.route("**/api/v1/knowledge/list", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/dashboard/recent?**", (route) => route.fulfill({ json: [] }));
   await page.route(/\/api\/v1\/sessions\?/, (route) => route.fulfill({ json: { sessions: [] } }));
+  await page.route("**/api/v1/learner-profile", (route) =>
+    route.fulfill({
+      json: {
+        version: 1,
+        generated_at: "2026-05-14T10:00:00",
+        confidence: 0.72,
+        overview: {
+          current_focus: "导数与变化率",
+          suggested_level: "巩固",
+          preferred_time_budget_minutes: 12,
+          summary: "最近适合用小练习巩固概念。",
+        },
+        stable_profile: { goals: ["完成高数复习"], preferences: ["图解", "小测"] },
+        learning_state: { weak_points: [{ label: "切线斜率", severity: "medium", source_ids: [], evidence_count: 2, confidence: 0.7 }], mastery: [] },
+        next_action: {
+          title: "先做一次导数小测",
+          summary: "依据最近的错题记录，先确认瞬时变化率。",
+          suggested_prompt: "请带我完成一次导数小测，并在最后复盘错因。",
+        },
+        recommendations: [],
+        sources: [],
+        evidence_preview: [],
+        data_quality: { source_count: 1, evidence_count: 3 },
+      },
+    }),
+  );
+  const learningActions = [
+    {
+      id: "le_derivative_quiz",
+      type: "generate_practice",
+      title: "完成导数小测",
+      reason: "最近对切线斜率的解释还不稳定。",
+      target_concepts: ["导数"],
+      estimated_minutes: 8,
+      priority: 90,
+      href: "/question",
+      capability: "deep_question",
+      prompt: "请生成 3 道导数小测，并等我作答后分析错因。",
+      writes_back: ["mastery", "mistake_review"],
+    },
+  ];
+  await page.route(/\/api\/v1\/learning-effect\/report(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        generated_at: 1_779_000_000,
+        course_id: "math",
+        window: "14d",
+        overall: { score: 66, label: "巩固中", summary: "最近证据显示导数概念需要再练一次。" },
+        dimensions: [],
+        concepts: [],
+        open_mistakes: [],
+        remediation_loop: { total: 0, pending_remediation_count: 0, ready_for_retest_count: 0, closed_count: 0, items: [] },
+        study_brief: {
+          headline: "今天先做导数小测",
+          summary: "用 8 分钟确认瞬时变化率和切线斜率。",
+          timebox_minutes: 8,
+          agenda: [{ label: "小测", minutes: 8, detail: "完成 3 道题", prompt: "请生成 3 道导数小测，并等我作答后分析错因。" }],
+          knowledge_evidence: {
+            title: "高等数学资料库",
+            kb_name: "calculus",
+            summary: "导数章节资料已可引用，今天优先围绕切线斜率组织小测和图解。",
+            status_label: "可引用",
+            focus_query: "导数与变化率",
+            ready: true,
+            metrics: [
+              { label: "资料", value: "3 份" },
+              { label: "状态", value: "可引用" },
+              { label: "焦点", value: "切线斜率" },
+            ],
+          },
+        },
+        knowledge_context: {
+          available: true,
+          ready: true,
+          status: "ready",
+          status_label: "可引用",
+          kb_name: "calculus",
+          provider: "milvus",
+          document_count: 3,
+          focus_query: "导数与变化率",
+          summary: "导数章节资料已就绪，可以作为助教答疑和练习生成的依据。",
+          action_label: "打开资料库",
+          action_href: "/knowledge",
+          can_ground_actions: true,
+        },
+        next_actions: learningActions,
+        evidence_refs: [{ id: "ev-derivative-quiz", title: "导数小测", summary: "最近小测暴露切线斜率薄弱。", resource_type: "quiz" }],
+        summary: { event_count: 3 },
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/learning-effect\/next-actions(?:\?.*)?$/, (route) =>
+    route.fulfill({ json: { success: true, course_id: "math", window: "14d", items: learningActions, total: learningActions.length } }),
+  );
+  await page.route("**/api/v1/learning-effect/events", async (route) => {
+    state.learningEffectEventPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        event: {
+          id: "sparkbot-feedback",
+          source: state.learningEffectEventPayload.source,
+          actor: "learner",
+          verb: state.learningEffectEventPayload.verb,
+          object_type: state.learningEffectEventPayload.object_type,
+          title: state.learningEffectEventPayload.title,
+          mistake_types: [],
+          created_at: 1_779_000_100,
+          weight: 1,
+          confidence: state.learningEffectEventPayload.confidence ?? 0.7,
+        },
+      },
+    });
+  });
+  await page.route(/\/api\/v1\/learning-effect\/actions\/([^/?#]+)\/complete$/, async (route) => {
+    const actionId = decodeURIComponent(route.request().url().match(/\/actions\/([^/?#]+)\/complete$/)?.[1] ?? "");
+    state.learningEffectCompletedAction = { actionId, payload: route.request().postDataJSON() as Record<string, unknown> };
+    await route.fulfill({
+      json: {
+        event: { id: "completed-action", source: "learning_effect", actor: "learner", verb: "completed", object_type: "learning_action", title: actionId, mistake_types: [], created_at: 1_779_000_200, weight: 1, confidence: 0.8 },
+        report: { overall: { score: 70, label: "已更新" }, dimensions: [], concepts: [], open_mistakes: [], next_actions: learningActions, evidence_refs: [], summary: { event_count: 4 } },
+      },
+    });
+  });
   await page.route("**/api/v1/agent-config/agents", (route) =>
     route.fulfill({
       json: {

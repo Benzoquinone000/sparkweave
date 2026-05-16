@@ -51,6 +51,10 @@ def test_settings_provider_choices_include_embedding_defaults() -> None:
     assert embedding["jina"]["default_model"] == "jina-embeddings-v3"
     assert embedding["jina"]["default_dim"] == "1024"
 
+    assert embedding["siliconflow"]["base_url"] == "https://api.siliconflow.cn/v1"
+    assert embedding["siliconflow"]["default_model"] == "Qwen/Qwen3-Embedding-8B"
+    assert embedding["siliconflow"]["default_dim"] == "4096"
+
     assert embedding["iflytek_spark"]["base_url"] == "https://emb-cn-huabei-1.xf-yun.com/"
     assert embedding["iflytek_spark"]["label"] == "iFlytek Spark Embedding"
     assert embedding["iflytek_spark"]["default_model"] == "llm-embedding"
@@ -92,4 +96,8 @@ def test_settings_provider_choices_include_ocr_options() -> None:
 
     assert ocr["iflytek"]["label"] == "iFlytek OCR for LLM"
     assert ocr["iflytek"]["base_url"] == "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+    assert ocr["siliconflow"]["label"] == "SiliconFlow DeepSeek-OCR"
+    assert ocr["siliconflow"]["base_url"] == "https://api.siliconflow.cn/v1"
+    assert ocr["siliconflow"]["default_model"] == "deepseek-ai/DeepSeek-OCR"
+    assert ocr["siliconflow"]["models"] == ["deepseek-ai/DeepSeek-OCR"]
     assert ocr["disabled"]["label"] == "Disabled"

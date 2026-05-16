@@ -55,6 +55,12 @@ data/memory/SparkBots/<bot_id>/
     TOOLS.md
     AGENTS.md
     HEARTBEAT.md
+    NOTES.md
+    COURSE.md
+    LESSONS.md
+    QUESTION_BANK.md
+    RUBRIC.md
+    RESOURCES.md
     skills/
       <skill-name>/SKILL.md
     memory/
@@ -70,7 +76,7 @@ data/memory/SparkBots/<bot_id>/
 
 - `config.yaml` 是 Bot 的结构化配置，包含 `name`、`description`、`persona`、`channels`、`model`、`auto_start`、`tools`、`agent`、`heartbeat`。
 - `SOUL.md` 是 prompt 的人格文件；保存 `SOUL.md` 时会同步更新 `config.persona`。
-- 工作区文件 API 当前只允许 `SOUL.md`、`USER.md`、`TOOLS.md`、`AGENTS.md`、`HEARTBEAT.md` 五个文件。若要让前端真正创建 `NOTES.md`，需要同步放开 `_EDITABLE_WORKSPACE_FILES`。
+- 工作区文件 API 当前允许 `SOUL.md`、`USER.md`、`TOOLS.md`、`AGENTS.md`、`HEARTBEAT.md`、`NOTES.md`、`COURSE.md`、`LESSONS.md`、`QUESTION_BANK.md`、`RUBRIC.md`、`RESOURCES.md`。`NOTES.md` 用于沉淀助教笔记、稳定演示提示词和生成产物摘要；课程资料文件用于比赛演示中的完整高校课程、题库、rubric 和资源索引。
 - `workspace/memory/MEMORY.md` 和 `workspace/memory/HISTORY.md` 是 Bot 私有记忆；全局 `data/memory/PROFILE.md`、`SUMMARY.md` 也会被 SparkBot prompt 读取。
 - `/new` 会把当前 session 归档；在 Manager 传入 shared memory dir 的默认路径下，归档写入全局 `data/memory/SUMMARY.md`。
 - 旧布局会自动迁移：`data/sparkbot`、`data/SparkBot`、`data/SparkBot/bots` 下的配置和工作区会迁到新的 `data/memory/SparkBots/<bot_id>/`。
@@ -206,7 +212,7 @@ matrix, mochat, qq, wecom, whatsapp
 | 聊天 | `WS /sparkbot/{id}/ws` | 接收 `thinking`、`content`、`proactive`、`done`、`error` |
 | Soul 模板库 | `/sparkbot/souls/*` | 管理可复用人格模板 |
 | 渠道配置 | `/sparkbot/channels/schema`、`PATCH /sparkbot/{id}` | schema-driven 表单和高级 JSON 模式 |
-| 工作区文件 | `/sparkbot/{id}/files/*` | 编辑五个启动文件 |
+| 工作区文件 | `/sparkbot/{id}/files/*` | 编辑启动文件、助教笔记和课程资料包 |
 | 最近历史 | `/sparkbot/{id}/history` | 展示合并后的 `history.jsonl` 和 session JSONL |
 
 `useSparkBotMutations()` 会在 create/update/stop/destroy/writeFile 后失效 `sparkbots`、`sparkbot-recent`、`sparkbot`、`sparkbot-files`、`sparkbot-history` 查询。添加新 SparkBot API 时，记得同步 `web/src/lib/types.ts` 和查询失效范围。
@@ -255,7 +261,7 @@ WebSocket 事件约定：
 | WebSocket 连接被关闭 | Bot 是否 running；未运行时 WS 会用 code `4004` 关闭 |
 | 模型反复调工具 | `agent.max_tool_iterations`、`workspace/logs/agent_tools.jsonl` |
 | `/new` 后记忆变化异常 | 检查全局 `data/memory/SUMMARY.md` 和 session JSONL 是否被归档 |
-| 工作区文件保存失败 | 文件名是否属于五个 allowlist 文件 |
+| 工作区文件保存失败 | 文件名是否属于工作区 allowlist 文件 |
 | MCP 工具没有出现 | 是否安装 `mcp` SDK，`tools.mcp_servers` transport/url/command 是否正确 |
 
 建议的定向测试：

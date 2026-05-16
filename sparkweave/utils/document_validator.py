@@ -48,6 +48,12 @@ class DocumentValidator:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/vnd.ms-powerpoint",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/bmp",
+        "image/tiff",
     }
 
     TEXT_LIKE_MIME_TYPES: ClassVar[set[str]] = {

@@ -7,7 +7,7 @@ from typing import Any, Iterable
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-AGENTS_DIR = PROJECT_ROOT / "src" / "agents"
+PROMPTS_ROOT = PROJECT_ROOT / "sparkweave" / "services" / "prompts"
 
 # Template placeholders are expected to be like {topic}, {knowledge_title}, etc.
 # Avoid false positives from LaTeX (\frac{1}{3}) and Mermaid (B{{Processing}}).
@@ -55,18 +55,17 @@ def _collect_keys(value: Any, prefix: str = "") -> set[str]:
 
 
 def test_prompts_key_and_placeholder_parity():
-    assert AGENTS_DIR.exists(), f"Agents dir not found: {AGENTS_DIR}"
+    assert PROMPTS_ROOT.exists(), f"Prompts dir not found: {PROMPTS_ROOT}"
 
     failures: list[str] = []
 
-    for module_dir in sorted([p for p in AGENTS_DIR.iterdir() if p.is_dir()]):
-        prompts_dir = module_dir / "prompts"
-        en_dir = prompts_dir / "en"
+    for module_dir in sorted([p for p in PROMPTS_ROOT.iterdir() if p.is_dir()]):
+        en_dir = module_dir / "en"
         if not en_dir.exists():
             continue
 
-        zh_dir = prompts_dir / "zh"
-        cn_dir = prompts_dir / "cn"
+        zh_dir = module_dir / "zh"
+        cn_dir = module_dir / "cn"
 
         for en_file in _iter_yaml_files(en_dir):
             rel = en_file.relative_to(en_dir)

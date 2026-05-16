@@ -74,7 +74,7 @@
   <rect class="service" x="80" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
   <text class="h" x="102" y="412">RAG Service</text>
   <text class="small" x="102" y="438">services/rag.py</text>
-  <text class="small" x="102" y="458">LlamaIndex pipeline</text>
+  <text class="small" x="102" y="458">Milvus RAG pipeline</text>
 
   <rect class="service" x="270" y="380" width="160" height="100" rx="8" filter="url(#shadow)"/>
   <text class="h" x="292" y="412">Search Service</text>

@@ -1,9 +1,4 @@
-"""
-CLI Knowledge Base Command
-===========================
-
-Manage llamaindex knowledge bases from the command line.
-"""
+"""CLI commands for SparkWeave knowledge bases."""
 
 from __future__ import annotations
 
@@ -17,9 +12,20 @@ from rich.table import Table
 import typer
 
 from sparkweave.knowledge.manager import KnowledgeBaseManager
+from sparkweave.knowledge.reindex import reindex_knowledge_base
 from sparkweave.services.paths import get_path_service
 from sparkweave.services.rag import rag_search
-from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
+from sparkweave.services.rag_support.diagnostics import diagnose_rag, preflight_rag_environment
+from sparkweave.services.rag_support.evaluation import (
+    STRATEGY_PRESETS,
+    load_cases,
+    parse_strategy,
+    run_evaluation_sync,
+    strategies_for_preset,
+    write_report_json,
+    write_report_markdown,
+)
+from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER, normalize_provider_name
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
 
 console = Console()
@@ -122,6 +128,138 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(code=1) from exc
         console.print_json(json.dumps(info, indent=2, ensure_ascii=False, default=str))
 
+    @app.command("doctor")
+    def kb_doctor(
+        name: Optional[str] = typer.Argument(None, help="Optional knowledge base name."),
+        fmt: str = typer.Option("rich", "--format", "-f", help="Output format: rich | json."),
+        no_connect: bool = typer.Option(False, "--no-connect", help="Skip Milvus connection check."),
+    ) -> None:
+        """Inspect RAG provider, Milvus connectivity, and collection markers."""
+        mgr = _get_kb_manager()
+        if name and name not in mgr.list_knowledge_bases():
+            console.print(f"[red]Knowledge base '{name}' not found.[/]")
+            raise typer.Exit(code=1)
+
+        report = diagnose_rag(
+            kb_base_dir=mgr.base_dir,
+            kb_name=name,
+            check_connection=not no_connect,
+        )
+        if fmt == "json":
+            console.print_json(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+            return
+
+        table = Table(title=f"RAG Diagnostics{f' · {name}' if name else ''}")
+        table.add_column("Check")
+        table.add_column("Status")
+        table.add_column("Message")
+        for check in report.get("checks", []):
+            table.add_row(
+                str(check.get("name") or "-"),
+                str(check.get("status") or "-"),
+                str(check.get("message") or "-"),
+            )
+        console.print(f"[bold]Provider:[/] {report.get('provider')}")
+        console.print(f"[bold]URI:[/] {report.get('uri') or '-'}")
+        if report.get("collection_name"):
+            console.print(f"[bold]Collection:[/] {report.get('collection_name')}")
+        console.print(table)
+
+    @app.command("preflight")
+    def kb_preflight(
+        name: Optional[str] = typer.Argument(None, help="Optional knowledge base name."),
+        fmt: str = typer.Option("rich", "--format", "-f", help="Output format: rich | json."),
+        no_connect: bool = typer.Option(False, "--no-connect", help="Skip Milvus connection check."),
+        no_docker: bool = typer.Option(False, "--no-docker", help="Skip Docker availability check."),
+    ) -> None:
+        """Run an operator-focused RAG preflight before rebuilding or E2E testing."""
+        mgr = _get_kb_manager()
+        if name and name not in mgr.list_knowledge_bases():
+            console.print(f"[red]Knowledge base '{name}' not found.[/]")
+            raise typer.Exit(code=1)
+
+        report = preflight_rag_environment(
+            kb_base_dir=mgr.base_dir,
+            kb_name=name,
+            check_connection=not no_connect,
+            check_docker=not no_docker,
+        )
+        if fmt == "json":
+            console.print_json(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+            return
+
+        console.print(f"[bold]RAG preflight:[/] {report.get('label')}")
+        if report.get("summary"):
+            console.print(str(report.get("summary")))
+        if report.get("primary_action"):
+            console.print(f"[bold]Next:[/] {report.get('primary_action')}")
+
+        diagnostic = report.get("diagnostic") if isinstance(report.get("diagnostic"), dict) else {}
+        docker = report.get("docker") if isinstance(report.get("docker"), dict) else {}
+        table = Table(title="Runtime")
+        table.add_column("Item")
+        table.add_column("Value")
+        table.add_row("Milvus URI", str(diagnostic.get("uri") or "-"))
+        table.add_row("Indexed URI", str(diagnostic.get("indexed_uri") or "-"))
+        table.add_row("Connection", str(diagnostic.get("connection_error_kind") or diagnostic.get("status") or "-"))
+        table.add_row("Docker", "running" if docker.get("docker_running") else str(docker.get("error") or "not running"))
+        console.print(table)
+
+        commands = [str(item) for item in report.get("recommended_commands") or []]
+        if commands:
+            console.print("[bold]Recommended commands:[/]")
+            for command in commands:
+                console.print(f"  {command}")
+
+    @app.command("audit")
+    def kb_audit(
+        prune_missing: bool = typer.Option(
+            False,
+            "--prune-missing",
+            help="Remove config entries whose knowledge-base directory is missing.",
+        ),
+        dry_run: bool = typer.Option(
+            True,
+            "--dry-run/--apply",
+            help="Preview by default. Use --apply with --prune-missing to write changes.",
+        ),
+        fmt: str = typer.Option("rich", "--format", "-f", help="Output format: rich | json."),
+    ) -> None:
+        """Audit the knowledge-base registry and optionally prune stale entries."""
+        mgr = _get_kb_manager()
+        report = (
+            mgr.prune_missing_configs(dry_run=dry_run)
+            if prune_missing
+            else mgr.audit_registry()
+        )
+        if fmt == "json":
+            console.print_json(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+            return
+
+        audit = report.get("audit", report)
+        table = Table(title="Knowledge Base Registry Audit")
+        table.add_column("State")
+        table.add_column("Count", justify="right")
+        table.add_row("Available", str(audit.get("available_count", 0)))
+        table.add_row("Missing config entries", str(audit.get("missing_count", 0)))
+        table.add_row("Discovered unregistered dirs", str(audit.get("discovered_count", 0)))
+        console.print(table)
+
+        missing = audit.get("missing") or []
+        if missing:
+            console.print("[yellow]Missing entries:[/]")
+            for item in missing:
+                console.print(f"  - {item.get('name')} -> {item.get('path')}")
+
+        if prune_missing:
+            removed = report.get("removed") or []
+            if report.get("dry_run"):
+                console.print("[dim]Dry run only. Use --apply to write cleanup changes.[/]")
+            elif removed:
+                console.print(f"[green]Removed {len(removed)} stale config entries: {', '.join(removed)}[/]")
+            else:
+                console.print("[green]No stale config entries needed removal.[/]")
+
     @app.command("set-default")
     def kb_set_default(name: str = typer.Argument(..., help="Knowledge base name.")) -> None:
         """Set the default knowledge base."""
@@ -156,7 +294,7 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(code=1)
 
         console.print(
-            f"Creating KB [bold]{name}[/] with {len(doc_paths)} document(s) via [bold]LlamaIndex[/]..."
+            f"Creating KB [bold]{name}[/] with {len(doc_paths)} document(s) via [bold]{DEFAULT_PROVIDER}[/]..."
         )
         from sparkweave.knowledge.initializer import initialize_knowledge_base
 
@@ -166,7 +304,6 @@ def register(app: typer.Typer) -> None:
                     kb_name=name,
                     source_files=doc_paths,
                     base_dir=str(mgr.base_dir),
-                    skip_extract=True,
                 )
             )
         except Exception as exc:
@@ -216,6 +353,37 @@ def register(app: typer.Typer) -> None:
             console.print(f"[green]Done. Indexed {processed_count} document(s).[/]")
         else:
             console.print("[yellow]No new unique documents were indexed.[/]")
+
+    @app.command("reindex")
+    def kb_reindex(
+        name: str = typer.Argument(..., help="KB name."),
+        provider: Optional[str] = typer.Option(None, "--provider", "-p", help="RAG provider: milvus | llamaindex."),
+        no_backup: bool = typer.Option(False, "--no-backup", help="Skip local index backup before rebuilding."),
+    ) -> None:
+        """Rebuild a knowledge-base index from its raw files."""
+        mgr = _get_kb_manager()
+        if name not in mgr.list_knowledge_bases():
+            console.print(f"[red]Knowledge base '{name}' not found.[/]")
+            raise typer.Exit(code=1)
+
+        selected_provider = normalize_provider_name(provider or DEFAULT_PROVIDER)
+        console.print(
+            f"Rebuilding [bold]{name}[/] with [bold]{selected_provider}[/]. "
+            "Raw files stay in place."
+        )
+        try:
+            rebuilt = asyncio.run(
+                reindex_knowledge_base(
+                    kb_name=name,
+                    base_dir=str(mgr.base_dir),
+                    rag_provider=selected_provider,
+                    backup=not no_backup,
+                )
+            )
+        except Exception as exc:
+            console.print(f"[red]Reindex failed: {exc}[/]")
+            raise typer.Exit(code=1) from exc
+        console.print(f"[green]Done. Rebuilt index from {rebuilt} raw file(s).[/]")
 
     @app.command("delete")
     def kb_delete(
@@ -274,4 +442,98 @@ def register(app: typer.Typer) -> None:
         provider = result.get("provider", DEFAULT_PROVIDER)
         console.print(f"[bold]Provider:[/] {provider}")
         console.print(f"[bold]Answer:[/]\n{answer}")
+
+    @app.command("eval")
+    def kb_eval(
+        name: str = typer.Argument(..., help="KB name."),
+        dataset: Path = typer.Argument(..., help="JSONL RAG evaluation dataset."),
+        provider: Optional[str] = typer.Option(None, "--provider", "-p", help="RAG provider: milvus | llamaindex."),
+        strategy: list[str] = typer.Option(
+            [],
+            "--strategy",
+            "-s",
+            help="Strategy definition, e.g. baseline:top_k=5,max_context_chars=8000",
+        ),
+        output: Path = typer.Option(
+            Path("dist/rag-eval-report.md"),
+            "--output",
+            help="Markdown report path.",
+        ),
+        json_output: Path = typer.Option(
+            Path("dist/rag-eval-report.json"),
+            "--json-output",
+            help="JSON report path.",
+        ),
+        baseline_strategy: str = typer.Option("baseline", "--baseline-strategy", help="Baseline strategy name."),
+        preset: str = typer.Option(
+            "default",
+            "--preset",
+            help=f"Built-in strategy preset when --strategy is omitted: {', '.join(sorted(STRATEGY_PRESETS))}.",
+        ),
+        fmt: str = typer.Option("rich", "--format", "-f", help="Output format: rich | json."),
+    ) -> None:
+        """Evaluate retrieval quality for a knowledge base with a JSONL dataset."""
+        mgr = _get_kb_manager()
+        if name not in mgr.list_knowledge_bases():
+            console.print(f"[red]Knowledge base '{name}' not found.[/]")
+            raise typer.Exit(code=1)
+        if not dataset.exists():
+            console.print(f"[red]Dataset not found: {dataset}[/]")
+            raise typer.Exit(code=1)
+
+        try:
+            cases = load_cases(dataset)
+            strategies = [parse_strategy(item) for item in strategy] if strategy else strategies_for_preset(preset)
+            kb_entry = mgr._load_config().get("knowledge_bases", {}).get(name, {})
+            selected_provider = normalize_provider_name(provider or kb_entry.get("rag_provider") or DEFAULT_PROVIDER)
+            report = run_evaluation_sync(
+                cases=cases,
+                strategies=strategies,
+                default_kb=name,
+                default_provider=selected_provider,
+                baseline_strategy=baseline_strategy,
+            )
+            write_report_markdown(output, report)
+            write_report_json(json_output, report)
+        except Exception as exc:
+            console.print(f"[red]RAG evaluation failed: {exc}[/]")
+            raise typer.Exit(code=1) from exc
+
+        if fmt == "json":
+            console.print_json(json.dumps(report, ensure_ascii=False, default=str))
+            return
+
+        table = Table(title=f"RAG Evaluation - {name}")
+        table.add_column("Strategy", style="bold")
+        table.add_column("Cases", justify="right")
+        table.add_column("Success", justify="right")
+        table.add_column("Keyword Recall", justify="right")
+        table.add_column("Source Hit", justify="right")
+        table.add_column("P95 Latency", justify="right")
+        for row in report.get("summary", []):
+            table.add_row(
+                str(row.get("strategy") or "-"),
+                _metric_cell(row.get("cases")),
+                _metric_cell(row.get("success_rate")),
+                _metric_cell(row.get("keyword_recall")),
+                _metric_cell(row.get("source_hit_rate")),
+                _metric_cell(row.get("p95_latency_ms")),
+            )
+        console.print(table)
+        profile = report.get("dataset_profile")
+        if isinstance(profile, dict):
+            console.print(
+                "[bold]Dataset:[/] "
+                f"{profile.get('label_status_label') or '-'} - {profile.get('headline') or '-'}"
+            )
+        console.print(f"[green]Wrote {output}[/]")
+        console.print(f"[green]Wrote {json_output}[/]")
+
+
+def _metric_cell(value: object) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return str(value)
 

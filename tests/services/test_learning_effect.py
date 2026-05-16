@@ -22,6 +22,14 @@ def test_learning_effect_recommends_diagnostic_without_evidence(tmp_path) -> Non
     assert report["learner_receipt"]["action_id"] == report["next_actions"][0]["id"]
     assert report["learner_receipt"]["action_href"] == report["next_actions"][0]["href"]
     assert "profile" in report["learner_receipt"]["writes_back"]
+    assert report["study_brief"]["mode"] == "baseline"
+    assert report["study_brief"]["headline"] == "今天先做一次小诊断"
+    assert report["study_brief"]["agenda"][0]["action_href"] == report["next_actions"][0]["href"]
+    assert "完成诊断" in report["study_brief"]["success_criteria"]
+    assert report["explainability"]["headline"] == "这不是低分，而是证据还不够"
+    assert report["explainability"]["confidence"]["level"] == "none"
+    assert report["explainability"]["decision_rules"][0]["label"] == "先看证据量"
+    assert "系统不是只看最后一次回答" in report["explainability"]["plain_language"][0]
 
 
 def test_learning_effect_builds_concept_mastery_from_quiz_events(tmp_path) -> None:
@@ -80,14 +88,109 @@ def test_learning_effect_builds_concept_mastery_from_quiz_events(tmp_path) -> No
     assert report["learner_receipt"]["focus_concepts"]
     assert report["learner_receipt"]["next_step"]
     assert report["learner_receipt"]["profile_update"]
+    assert report["study_brief"]["headline"]
+    assert report["study_brief"]["timebox_minutes"] >= 6
+    assert report["study_brief"]["agenda"]
+    assert report["study_brief"]["focus"]["title"] == "梯度下降"
+    assert "不要只看不提交" in report["study_brief"]["avoid"]
+    assert report["explainability"]["headline"]
+    assert report["explainability"]["evidence_used"][0]["label"] == "作答证据"
+    assert report["explainability"]["score_breakdown"]
+    assert report["explainability"]["action_rationale"]["because"]
 
     demo = service.demo_summary(window="all")
     assert demo["headline"]
+    assert demo["study_brief"]["agenda"]
+    assert demo["explainability"]["decision_rules"]
     assert demo["primary_action"]["title"]
     assert demo["proof_points"][0]["label"] == "证据"
     assert any(item["requirement"] == "学习效果评估" for item in demo["requirement_alignment"])
     assert "学习效果评估闭环摘要" in demo["markdown"]
+    assert "为什么这样判断" in demo["markdown"]
+    assert "今日学习安排" in demo["markdown"]
     assert "答辩讲法" in demo["markdown"]
+
+
+def test_learning_effect_attaches_knowledge_context_to_actions(tmp_path) -> None:
+    kb_dir = tmp_path / "ml-course"
+    eval_dir = kb_dir / "rag_eval"
+    eval_dir.mkdir(parents=True)
+    (eval_dir / "latest.json").write_text(
+        """
+        {
+          "kb_name": "ml-course",
+          "created_at": "2026-05-13T10:00:00",
+          "case_count": 12,
+          "baseline_strategy": "baseline",
+          "summary": [
+            {
+              "strategy": "baseline",
+              "success_rate": 1.0,
+              "source_hit_rate": 0.92,
+              "avg_source_ndcg": 0.88,
+              "cases": 12
+            }
+          ],
+          "experiment_summary": {
+            "quality_leader": "baseline",
+            "decision": "keep_default",
+            "label": "Keep current default"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    class FakeKnowledgeManager:
+        def list_knowledge_bases(self):
+            return ["ml-course"]
+
+        def get_default(self):
+            return "ml-course"
+
+        def get_info(self, name: str):
+            assert name == "ml-course"
+            return {
+                "status": "ready",
+                "metadata": {"rag_provider": "milvus"},
+                "statistics": {
+                    "raw_documents": 3,
+                    "rag_initialized": True,
+                    "rag_provider": "milvus",
+                },
+            }
+
+        def get_knowledge_base_path(self, name: str):
+            assert name == "ml-course"
+            return kb_dir
+
+    evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
+    evidence.append_event(
+        {
+            "source": "guide_v2",
+            "verb": "answered",
+            "object_type": "quiz",
+            "object_id": "gd",
+            "title": "梯度下降练习",
+            "score": 0.25,
+            "is_correct": False,
+            "metadata": {"concepts": ["梯度下降"]},
+            "created_at": 1_777_000_000,
+        }
+    )
+    service = LearningEffectService(evidence_service=evidence, knowledge_manager=FakeKnowledgeManager())
+
+    report = service.build_report(course_id="ml-course", window="all")
+
+    assert report["knowledge_context"]["ready"] is True
+    assert report["knowledge_context"]["kb_name"] == "ml-course"
+    assert report["study_brief"]["knowledge_evidence"]["kb_name"] == "ml-course"
+    assert any(item["label"] == "资料依据" for item in report["explainability"]["evidence_used"])
+    assert all(action["knowledge_bases"] == ["ml-course"] for action in report["next_actions"])
+    assert all("kb=ml-course" in action["href"] for action in report["next_actions"])
+    grounded_action = next(action for action in report["next_actions"] if action["capability"] in {"chat", "deep_question"})
+    assert "请优先检索并引用资料库" in grounded_action["prompt"]
+    assert grounded_action["config"]["agentic_rag"] == "auto"
 
 
 def test_learning_effect_tracks_trend_and_completion_action(tmp_path) -> None:

@@ -89,11 +89,23 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert (output / "checksums.sha256").exists()
     assert (output / "submission_manifest.md").exists()
     assert (output / "docs" / "competition-demo-runbook.md").exists()
+    assert (output / "docs" / "sparkbot-demo-runbook.md").exists()
+    assert (output / "docs" / "sparkbot-teaching-assistant-ux-plan.md").exists()
+    assert (output / "docs" / "sparkbot-plan-completion-report.md").exists()
+    assert (output / "docs" / "competition-visualization-completion-report.md").exists()
+    assert (output / "docs" / "sparkweave-execution-plan.md").exists()
     assert (output / "docs" / "iflytek-integration.md").exists()
     assert (output / "course_templates" / "ai_learning_agents_systems.json").exists()
+    assert (output / "sparkbot_demo_workspace" / "README.md").exists()
+    assert (output / "sparkbot_demo_workspace" / "COURSE.md").exists()
+    assert (output / "sparkbot_demo_workspace" / "LESSONS.md").exists()
+    assert (output / "sparkbot_demo_workspace" / "QUESTION_BANK.md").exists()
+    assert (output / "sparkbot_demo_workspace" / "RUBRIC.md").exists()
+    assert (output / "sparkbot_demo_workspace" / "RESOURCES.md").exists()
     assert (output / "assets" / "architecture.svg").exists()
     assert (output / "assets" / "agent-collaboration-blueprint.svg").exists()
     assert (output / "screenshots" / "screenshots-simplified-guide.png").exists()
+    assert (output / "screenshots" / "screenshots-sparkbot-demo-readiness.png").exists()
     assert (output / "runtime" / ".env.example").exists()
     assert (output / "runtime" / "scripts" / "check_competition_readiness.py").exists()
     assert (output / "runtime" / "scripts" / "check_release_safety.py").exists()
@@ -117,10 +129,15 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "先看这里" in start_here
     assert "index.html" in start_here
     assert "sparkweave-competition-scorecard.md" in start_here
+    assert "competition-visualization-completion-report.md" in start_here
     assert "SparkWeave 星火织学提交包" in index
     assert "START_HERE.md" in index
     assert "demo_materials/sparkweave-demo-deck.html" in index
+    assert "docs/competition-visualization-completion-report.md" in index
     assert "screenshots/screenshots-simplified-guide.png" in index
+    assert "screenshots/screenshots-competition-demo.png" in index
+    assert "screenshots/screenshots-competition-demo-mobile.png" in index
+    assert "screenshots/screenshots-sparkbot-demo-readiness.png" in index
     assert "checksums.sha256" in index
     assert "五项要求证据" in index
     checksums = (output / "checksums.sha256").read_text(encoding="utf-8")
@@ -138,7 +155,15 @@ def test_export_competition_package(tmp_path: Path) -> None:
     assert "demo_materials/sparkweave-learning-effect-summary.md" in manifest
     assert "demo_materials/sparkweave-evaluator-one-pager.md" in manifest
     assert "demo_materials/sparkweave-final-pitch-checklist.md" in manifest
+    assert "sparkbot_demo_workspace/COURSE.md" in manifest
+    assert "sparkbot_demo_workspace/QUESTION_BANK.md" in manifest
+    assert "完整高校课程" in manifest
     assert "docs/iflytek-integration.md" in manifest
+    assert "docs/sparkbot-demo-runbook.md" in manifest
+    assert "docs/sparkbot-plan-completion-report.md" in manifest
+    assert "docs/competition-visualization-completion-report.md" in manifest
+    assert "docs/sparkweave-execution-plan.md" in manifest
+    assert "screenshots/" in manifest
     assert "missing 0 file(s)" not in manifest
 
 
@@ -173,4 +198,7 @@ def test_export_competition_package_can_write_archive(tmp_path: Path) -> None:
     assert "competition_package/submission_manifest.md" in names
     assert "competition_package/demo_materials/sparkweave-competition-scorecard.md" in names
     assert "competition_package/demo_materials/sparkweave-learning-effect-summary.md" in names
+    assert "competition_package/docs/competition-visualization-completion-report.md" in names
+    assert "competition_package/docs/sparkweave-execution-plan.md" in names
     assert "competition_package/runtime/scripts/start_web.py" in names
+    assert "competition_package/screenshots/screenshots-sparkbot-demo-readiness.png" in names

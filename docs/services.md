@@ -9,7 +9,7 @@
 | 配置解析 | `services/config.py` | `.env`、模型 catalog、provider spec、运行时配置解析 |
 | LLM | `services/llm.py`、`sparkweave/llm/factory.py` | 文本生成、流式生成、LangChain chat model 创建 |
 | Embedding | `services/embedding.py`、`services/embedding_support/` | 统一 embedding 配置、adapter 和批处理 client |
-| RAG | `services/rag.py`、`services/rag_support/` | 知识库检索 facade、pipeline factory、LlamaIndex pipeline |
+| RAG | `services/rag.py`、`services/rag_support/` | 知识库检索 facade、pipeline factory、Milvus 默认索引和本地回退 |
 | 搜索 | `services/search.py`、`services/search_support/` | 联网搜索 provider、引用、答案整合 |
 | 知识库 | `sparkweave/knowledge/` | 知识库目录、metadata、初始化、上传、同步 |
 | 会话 | `services/session.py`、`services/session_store.py` | runtime manager facade、SQLite 会话和事件持久化 |
@@ -18,7 +18,7 @@
 | 上下文 | `services/context.py` | 会话历史压缩和 Notebook 引用分析 |
 | 导学 | `services/guide_generation.py`、`services/guide_v2.py` | 旧版 HTML 导学、Guide V2 学习路径、证据闭环和资源生成 |
 | SparkBot | `services/sparkbot.py`、`sparkweave/sparkbot/` | 长期助教实例、工作区、渠道、工具、heartbeat、cron 和 team |
-| OCR | `services/ocr.py` | 讯飞 OCR、扫描版 PDF 文本提取 |
+| OCR | `services/ocr.py` | 讯飞 OCR、硅基流动 DeepSeek-OCR、扫描版 PDF 文本提取 |
 | 视觉 | `services/vision.py`、`services/vision_input.py` | 图像题解析和 GeoGebra pipeline |
 | 数学动画 | `services/math_animator.py`、`services/math_animator_support/` | Manim 渲染、重试、视觉复核 |
 | 路径 | `services/paths.py` | `data/user` 下的运行目录、产物白名单 |
@@ -124,7 +124,7 @@ sparkweave/services/rag.py
 当前默认 provider：
 
 ```text
-llamaindex
+milvus
 ```
 
 关键目录：
@@ -134,9 +134,13 @@ data/knowledge_bases/<kb_name>/
   raw/
   images/
   content_list/
-  llamaindex_storage/
+  milvus_storage/
   metadata.json
+
+data/milvus/sparkweave.db   # Linux/macOS/WSL Milvus Lite
 ```
+
+`milvus_storage/metadata.json` 只保存 collection 名称、embedding 模型、维度和更新时间；真正的向量数据在 Milvus 中。Windows 原生 Python 建议连接 `http://localhost:19530` 的 Milvus Standalone。兼容回退时可以配置 `RAG_PROVIDER=llamaindex`，此时会使用 `llamaindex_storage/`。
 
 配置索引：
 
@@ -152,7 +156,8 @@ data/knowledge_bases/kb_config.json
 | `KnowledgeBaseInitializer` | `knowledge/initializer.py` | 创建和初始化知识库 |
 | `DocumentAdder` | `knowledge/add_documents.py` | 向现有知识库添加文件 |
 | `RAGService` | `services/rag_support/service.py` | 搜索、初始化、删除统一服务 |
-| `LlamaIndexPipeline` | `services/rag_support/pipelines/llamaindex.py` | LlamaIndex 索引和检索实现 |
+| `MilvusPipeline` | `services/rag_support/pipelines/milvus.py` | 默认 Milvus 向量索引和检索实现 |
+| `LlamaIndexPipeline` | `services/rag_support/pipelines/llamaindex.py` | 本地 LlamaIndex JSON 索引兼容回退 |
 
 知识库 API 位于 `sparkweave/api/routers/knowledge.py`，支持创建、上传、进度、默认库、配置、链接本地文件夹和同步。
 完整生命周期、HTTP API、进度流和 linked folder 说明见 [知识库详解](./knowledge-base.md)。
@@ -326,11 +331,15 @@ OCR 服务：
 sparkweave/services/ocr.py
 ```
 
-支持科大讯飞 OCR：
+支持科大讯飞 OCR 与硅基流动 DeepSeek-OCR：
 
 - 图片识别：`recognize_image_with_iflytek()`
+- 图片识别：`recognize_image_with_siliconflow()`
+- 统一入口：`recognize_image()`
 - PDF OCR：`ocr_pdf_with_iflytek()`
-- 配置检查：`is_iflytek_ocr_configured()`
+- PDF OCR：`ocr_pdf_with_siliconflow()`
+- 统一入口：`ocr_pdf()`
+- 配置检查：`is_ocr_configured()`
 
 知识库 PDF 解析可以根据 `SPARKWEAVE_PDF_OCR_STRATEGY` 选择 OCR 优先或自动 fallback。
 图像输入、VisionSolverAgent、GeoGebra 工具和 OCR fallback 的完整链路见 [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)。
@@ -343,6 +352,16 @@ SPARKWEAVE_PDF_OCR_STRATEGY=iflytek_first
 IFLYTEK_OCR_APPID=
 IFLYTEK_OCR_API_KEY=
 IFLYTEK_OCR_API_SECRET=
+```
+
+硅基流动 DeepSeek-OCR：
+
+```env
+SPARKWEAVE_OCR_PROVIDER=siliconflow
+SPARKWEAVE_PDF_OCR_STRATEGY=ocr_first
+SILICONFLOW_OCR_API_KEY=
+SILICONFLOW_OCR_BASE_URL=https://api.siliconflow.cn/v1
+SILICONFLOW_OCR_MODEL=deepseek-ai/DeepSeek-OCR
 ```
 
 ## 路径与产物安全

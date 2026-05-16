@@ -5,13 +5,9 @@ Knowledge Base API Router
 Handles knowledge base CRUD operations, file uploads, and initialization.
 """
 
-import asyncio
 from datetime import datetime
-import os
-from pathlib import Path
-import shutil
+import json
 import traceback
-from uuid import uuid4
 
 from fastapi import (
     APIRouter,
@@ -19,26 +15,123 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     UploadFile,
     WebSocket,
-    WebSocketDisconnect,
 )
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
-from sparkweave.api.utils.progress_broadcaster import ProgressBroadcaster
+from sparkweave.api.routers.knowledge_catalog import (
+    list_knowledge_base_summaries as _list_knowledge_base_summaries,
+)
+from sparkweave.api.routers.knowledge_document_ops import (
+    delete_document_for_kb as _delete_document_for_kb,
+)
+from sparkweave.api.routers.knowledge_document_ops import (
+    delete_vector_for_kb as _delete_vector_for_kb,
+)
+from sparkweave.api.routers.knowledge_document_ops import (
+    list_documents_for_kb as _list_documents_for_kb,
+)
+from sparkweave.api.routers.knowledge_document_ops import (
+    list_vectors_for_kb as _list_vectors_for_kb,
+)
+from sparkweave.api.routers.knowledge_document_ops import (
+    preview_document_for_kb as _preview_document_for_kb,
+)
+from sparkweave.api.routers.knowledge_eval_reports import (
+    evaluation_strategies_or_default as _evaluation_strategies_or_default,
+)
+from sparkweave.api.routers.knowledge_eval_reports import (
+    model_dump as _model_dump,
+)
+from sparkweave.api.routers.knowledge_eval_reports import (
+    rag_eval_report_path as _rag_eval_report_path,
+)
+from sparkweave.api.routers.knowledge_eval_reports import (
+    save_latest_rag_eval_report as _save_latest_rag_eval_report,
+)
+from sparkweave.api.routers.knowledge_folder_ops import (
+    get_linked_folders_for_kb as _get_linked_folders_for_kb,
+)
+from sparkweave.api.routers.knowledge_folder_ops import (
+    link_folder_for_kb as _link_folder_for_kb,
+)
+from sparkweave.api.routers.knowledge_folder_ops import (
+    prepare_folder_sync_plan as _prepare_folder_sync_plan,
+)
+from sparkweave.api.routers.knowledge_folder_ops import (
+    unlink_folder_for_kb as _unlink_folder_for_kb,
+)
+from sparkweave.api.routers.knowledge_guards import (
+    assert_kb_writable_or_409 as _assert_kb_writable_or_409,
+)
+from sparkweave.api.routers.knowledge_guards import (
+    load_kb_entry_or_404 as _load_kb_entry_or_404,
+)
+from sparkweave.api.routers.knowledge_guards import (
+    validate_registered_provider as _validate_registered_provider,
+)
+from sparkweave.api.routers.knowledge_jobs import (
+    run_initialization_job as _run_initialization_job,
+)
+from sparkweave.api.routers.knowledge_jobs import (
+    run_reindex_processing_job as _run_reindex_processing_job,
+)
+from sparkweave.api.routers.knowledge_jobs import (
+    run_upload_processing_job as _run_upload_processing_job,
+)
+from sparkweave.api.routers.knowledge_models import (
+    KnowledgeBaseInfo,
+    KnowledgeDocumentDeleteRequest,
+    LinkedFolderInfo,
+    LinkFolderRequest,
+    RagEvaluationRequest,
+    RagSearchTestRequest,
+    ReindexKnowledgeBaseRequest,
+)
+from sparkweave.api.routers.knowledge_progress import (
+    handle_progress_websocket as _handle_progress_websocket,
+)
+from sparkweave.api.routers.knowledge_rag_ops import (
+    run_rag_evaluation_report as _run_rag_evaluation_report,
+)
+from sparkweave.api.routers.knowledge_rag_ops import (
+    run_rag_search_test as _run_rag_search_test,
+)
+from sparkweave.api.routers.knowledge_tasking import (
+    build_unique_task_id as _build_unique_task_id,
+)
+from sparkweave.api.routers.knowledge_tasking import (
+    schedule_kb_task as _schedule_kb_task,
+)
+from sparkweave.api.routers.knowledge_tasking import (
+    task_log as _task_log,
+)
+from sparkweave.api.routers.knowledge_uploads import (
+    cleanup_upload_staging as _cleanup_upload_staging,
+)
+from sparkweave.api.routers.knowledge_uploads import (
+    save_uploaded_files as _save_uploaded_files,
+)
 from sparkweave.api.utils.task_id_manager import TaskIDManager
-from sparkweave.api.utils.task_log_stream import capture_task_logs, get_task_stream_manager
-from sparkweave.knowledge.add_documents import DocumentAdder, DocumentIndexingError
+from sparkweave.api.utils.task_log_stream import get_task_stream_manager
+from sparkweave.knowledge.add_documents import DocumentAdder
 from sparkweave.knowledge.initializer import KnowledgeBaseInitializer
 from sparkweave.knowledge.manager import KnowledgeBaseManager
 from sparkweave.knowledge.progress_tracker import ProgressStage, ProgressTracker
+from sparkweave.knowledge.reindex import reindex_knowledge_base as rebuild_knowledge_index
 from sparkweave.logging import get_logger
 from sparkweave.services.config import PROJECT_ROOT, get_kb_config_service, load_config_with_main
 from sparkweave.services.rag import RAGService
+from sparkweave.services.rag_support.diagnostics import diagnose_rag, preflight_rag_environment
+from sparkweave.services.rag_support.evaluation import (
+    run_evaluation,
+    summarize_dataset_profile,
+)
 from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
-from sparkweave.utils.document_validator import DocumentValidator
 from sparkweave.utils.error_utils import format_exception_message
 
 # Initialize logger with config
@@ -48,26 +141,10 @@ logger = get_logger("Knowledge", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
 
-# Constants for byte conversions
-BYTES_PER_GB = 1024**3
-BYTES_PER_MB = 1024**2
-
-
-def format_bytes_human_readable(size_bytes: int) -> str:
-    """Format bytes into human-readable string (GB, MB, or bytes)."""
-    if size_bytes >= BYTES_PER_GB:
-        return f"{size_bytes / BYTES_PER_GB:.1f} GB"
-    elif size_bytes >= BYTES_PER_MB:
-        return f"{size_bytes / BYTES_PER_MB:.1f} MB"
-    else:
-        return f"{size_bytes} bytes"
-
-
 _kb_base_dir = PROJECT_ROOT / "data" / "knowledge_bases"
 
 # Lazy initialization
 kb_manager = None
-
 
 def get_kb_manager():
     """Get KnowledgeBaseManager instance (lazy init)"""
@@ -77,231 +154,14 @@ def get_kb_manager():
     return kb_manager
 
 
-class KnowledgeBaseInfo(BaseModel):
-    name: str
-    is_default: bool
-    statistics: dict
-    status: str | None = None
-    progress: dict | None = None
-
-
-class LinkFolderRequest(BaseModel):
-    """Request model for linking a local folder to a KB."""
-
-    folder_path: str
-
-
-class LinkedFolderInfo(BaseModel):
-    """Response model for linked folder information."""
-
-    id: str
-    path: str
-    added_at: str
-    file_count: int
-
-
-def _build_unique_task_id(task_type: str, task_key_prefix: str) -> str:
-    task_manager = TaskIDManager.get_instance()
-    task_key = f"{task_key_prefix}_{datetime.now().isoformat()}_{uuid4().hex[:8]}"
-    return task_manager.generate_task_id(task_type, task_key)
-
-
-def _save_uploaded_files(
-    files: list[UploadFile],
-    target_dir: Path,
-    allowed_extensions: set[str] | None = None,
-) -> tuple[list[str], list[str]]:
-    uploaded_files: list[str] = []
-    uploaded_file_paths: list[str] = []
-    seen_names: set[str] = set()
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    for file in files:
-        file_path = None
-        original_filename = file.filename or "upload"
-        try:
-            sanitized_filename = DocumentValidator.validate_upload_safety(
-                original_filename, None, allowed_extensions=allowed_extensions
-            )
-            file.filename = sanitized_filename
-            if sanitized_filename in seen_names:
-                raise ValueError(f"Duplicate filename in upload batch: {sanitized_filename}")
-            seen_names.add(sanitized_filename)
-
-            file_path = target_dir / sanitized_filename
-            max_size = DocumentValidator.MAX_FILE_SIZE
-            written_bytes = 0
-
-            with open(file_path, "wb") as buffer:
-                for chunk in iter(lambda: file.file.read(8192), b""):
-                    written_bytes += len(chunk)
-                    if written_bytes > max_size:
-                        size_str = format_bytes_human_readable(max_size)
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"File '{sanitized_filename}' exceeds maximum size limit of {size_str}",
-                        )
-                    buffer.write(chunk)
-
-            DocumentValidator.validate_upload_safety(
-                sanitized_filename, written_bytes, allowed_extensions=allowed_extensions
-            )
-            uploaded_files.append(sanitized_filename)
-            uploaded_file_paths.append(str(file_path))
-        except Exception as e:
-            if file_path and file_path.exists():
-                try:
-                    os.unlink(file_path)
-                except OSError:
-                    pass
-            for staged_path in uploaded_file_paths:
-                try:
-                    os.unlink(staged_path)
-                except OSError:
-                    pass
-
-            error_message = (
-                f"Validation failed for file '{original_filename}': {format_exception_message(e)}"
-            )
-            logger.error(error_message, exc_info=True)
-            raise HTTPException(status_code=400, detail=error_message) from e
-
-    return uploaded_files, uploaded_file_paths
-
-
-def _cleanup_upload_staging(uploaded_file_paths: list[str], base_dir: str, kb_name: str) -> None:
-    """Remove per-task upload staging dirs without touching raw or linked folders."""
-    staging_root = (Path(base_dir) / kb_name / ".uploads").resolve()
-    candidate_dirs: set[Path] = set()
-
-    for file_path in uploaded_file_paths:
-        try:
-            parent = Path(file_path).resolve().parent
-        except OSError:
-            continue
-        if parent == staging_root:
-            continue
-        if staging_root in parent.parents:
-            candidate_dirs.add(parent)
-
-    for directory in candidate_dirs:
-        try:
-            resolved = directory.resolve()
-            if staging_root not in resolved.parents:
-                continue
-            shutil.rmtree(resolved, ignore_errors=True)
-        except OSError:
-            logger.debug(f"Failed to remove upload staging directory: {directory}", exc_info=True)
-
-
-def _task_log(task_id: str, message: str, level: str = "info") -> None:
-    manager = get_task_stream_manager()
-    manager.ensure_task(task_id)
-    manager.emit_log(task_id, message)
-
-    log_method = getattr(logger, level, None)
-    if callable(log_method):
-        log_method(f"[{task_id}] {message}")
-    else:
-        logger.info(f"[{task_id}] {message}")
-
-
-def _validate_registered_provider(raw_provider: str | None) -> str:
-    """Always return the canonical provider; the field remains for API compatibility."""
-    return DEFAULT_PROVIDER
-
-
-def _load_kb_entry_or_404(manager: KnowledgeBaseManager, kb_name: str) -> dict:
-    manager.config = manager._load_config()
-    kb_entry = manager.config.get("knowledge_bases", {}).get(kb_name)
-    if kb_entry is None:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
-    return kb_entry
-
-
-def _assert_kb_writable_or_409(kb_name: str, kb_entry: dict) -> None:
-    if bool(kb_entry.get("needs_reindex", False)):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Knowledge base '{kb_name}' uses legacy index format and needs reindex "
-                "before accepting incremental uploads."
-            ),
-        )
-
-
 async def run_initialization_task(initializer: KnowledgeBaseInitializer, task_id: str):
-    """Background task for knowledge base initialization"""
-    task_manager = TaskIDManager.get_instance()
-    task_stream_manager = get_task_stream_manager()
-    task_stream_manager.ensure_task(task_id)
-
-    with capture_task_logs(task_id):
-        try:
-            if not initializer.progress_tracker:
-                initializer.progress_tracker = ProgressTracker(
-                    initializer.kb_name, initializer.base_dir
-                )
-
-            initializer.progress_tracker.task_id = task_id
-
-            _task_log(task_id, f"Initializing knowledge base '{initializer.kb_name}'")
-
-            await initializer.process_documents()
-            _task_log(task_id, "Document processing complete")
-            initializer.extract_numbered_items()
-            _task_log(task_id, "Finalizing initialization")
-
-            initializer.progress_tracker.update(
-                ProgressStage.COMPLETED, "Knowledge base initialization complete!", current=1, total=1
-            )
-
-            manager = get_kb_manager()
-            manager.update_kb_status(
-                name=initializer.kb_name,
-                status="ready",
-                progress={
-                    "stage": "completed",
-                    "message": "Knowledge base initialization complete!",
-                    "percent": 100,
-                    "current": 1,
-                    "total": 1,
-                    "task_id": task_id,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
-
-            _task_log(task_id, f"Knowledge base '{initializer.kb_name}' initialized", level="success")
-            task_manager.update_task_status(task_id, "completed")
-            task_stream_manager.emit_complete(
-                task_id, f"Knowledge base '{initializer.kb_name}' initialization complete"
-            )
-        except Exception as e:
-            error_msg = str(e)
-
-            _task_log(task_id, f"Initialization failed: {error_msg}", level="error")
-
-            task_manager.update_task_status(task_id, "error", error=error_msg)
-
-            manager = get_kb_manager()
-            manager.update_kb_status(
-                name=initializer.kb_name,
-                status="error",
-                progress={
-                    "stage": "error",
-                    "message": f"Initialization failed: {error_msg}",
-                    "percent": 0,
-                    "error": error_msg,
-                    "task_id": task_id,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
-
-            if initializer.progress_tracker:
-                initializer.progress_tracker.update(
-                    ProgressStage.ERROR, f"Initialization failed: {error_msg}", error=error_msg
-                )
-            task_stream_manager.emit_failed(task_id, error_msg)
+    """Background task for knowledge base initialization."""
+    await _run_initialization_job(
+        initializer,
+        task_id,
+        manager_factory=get_kb_manager,
+        task_log=_task_log,
+    )
 
 
 async def run_upload_processing_task(
@@ -312,107 +172,38 @@ async def run_upload_processing_task(
     rag_provider: str = None,
     folder_id: str = None,
 ):
-    """Background task for processing uploaded files.
+    """Background task for processing uploaded files."""
+    await _run_upload_processing_job(
+        kb_name=kb_name,
+        base_dir=base_dir,
+        uploaded_file_paths=uploaded_file_paths,
+        task_id=task_id,
+        manager_factory=get_kb_manager,
+        document_adder_cls=DocumentAdder,
+        cleanup_upload_staging=_cleanup_upload_staging,
+        task_log=_task_log,
+        rag_provider=rag_provider,
+        folder_id=folder_id,
+    )
 
-    Args:
-        kb_name: Knowledge base name
-        base_dir: Base directory for knowledge bases
-        uploaded_file_paths: List of file paths to process
-        rag_provider: RAG provider (ignored - we use the one from KB metadata)
-        folder_id: Optional folder ID for sync state update
-    """
-    task_manager = TaskIDManager.get_instance()
-    task_stream_manager = get_task_stream_manager()
-    task_stream_manager.ensure_task(task_id)
 
-    progress_tracker = ProgressTracker(kb_name, Path(base_dir))
-    progress_tracker.task_id = task_id
-
-    with capture_task_logs(task_id):
-        try:
-            _task_log(task_id, f"Processing {len(uploaded_file_paths)} file(s) for KB '{kb_name}'")
-            progress_tracker.update(
-                ProgressStage.PROCESSING_DOCUMENTS,
-                f"Processing {len(uploaded_file_paths)} files...",
-                current=0,
-                total=len(uploaded_file_paths),
-            )
-
-            adder = DocumentAdder(
-                kb_name=kb_name,
-                base_dir=base_dir,
-                progress_tracker=progress_tracker,
-                rag_provider=rag_provider,
-            )
-
-            staged_files = adder.add_documents(uploaded_file_paths, allow_duplicates=False)
-            _task_log(task_id, f"Staged {len(staged_files)} new file(s)")
-
-            if not staged_files:
-                _task_log(task_id, "No new files to process (all duplicates or invalid)")
-                progress_tracker.update(
-                    ProgressStage.COMPLETED,
-                    "No new files to process (all duplicates or invalid)",
-                    current=0,
-                    total=0,
-                )
-                task_manager.update_task_status(task_id, "completed")
-                task_stream_manager.emit_complete(
-                    task_id, "No new files to process (all duplicates or invalid)"
-                )
-                return
-
-            processed_files = await adder.process_new_documents(staged_files)
-            _task_log(task_id, f"Indexed {len(processed_files)} file(s)")
-            if staged_files and not processed_files:
-                raise DocumentIndexingError("No staged files were indexed successfully.")
-
-            if processed_files:
-                progress_tracker.update(
-                    ProgressStage.EXTRACTING_ITEMS,
-                    "Extracting numbered items...",
-                    current=0,
-                    total=len(processed_files),
-                )
-                adder.extract_numbered_items_for_new_docs(processed_files, batch_size=20)
-
-            adder.update_metadata(len(processed_files) if processed_files else 0)
-
-            if folder_id and processed_files:
-                try:
-                    manager = get_kb_manager()
-                    manager.update_folder_sync_state(
-                        kb_name, folder_id, [str(f) for f in processed_files]
-                    )
-                    _task_log(task_id, f"Updated folder sync state: {folder_id}")
-                except Exception as sync_err:
-                    _task_log(task_id, f"Folder sync state update failed: {sync_err}", level="warning")
-
-            num_processed = len(processed_files) if processed_files else 0
-            progress_tracker.update(
-                ProgressStage.COMPLETED,
-                f"Successfully processed {num_processed} files!",
-                current=num_processed,
-                total=num_processed,
-            )
-
-            _task_log(task_id, f"Processed {num_processed} file(s) for '{kb_name}'", level="success")
-            task_manager.update_task_status(task_id, "completed")
-            task_stream_manager.emit_complete(
-                task_id, f"Successfully processed {num_processed} files for '{kb_name}'"
-            )
-        except Exception as e:
-            error_msg = f"Upload processing failed (KB '{kb_name}'): {e}"
-            _task_log(task_id, error_msg, level="error")
-
-            task_manager.update_task_status(task_id, "error", error=error_msg)
-
-            progress_tracker.update(
-                ProgressStage.ERROR, f"Processing failed: {error_msg}", error=error_msg
-            )
-            task_stream_manager.emit_failed(task_id, error_msg)
-        finally:
-            _cleanup_upload_staging(uploaded_file_paths, base_dir, kb_name)
+async def run_reindex_processing_task(
+    kb_name: str,
+    base_dir: str,
+    task_id: str,
+    rag_provider: str,
+    backup: bool = True,
+):
+    """Background task for rebuilding an existing knowledge-base index."""
+    await _run_reindex_processing_job(
+        kb_name=kb_name,
+        base_dir=base_dir,
+        task_id=task_id,
+        rag_provider=rag_provider,
+        rebuild_index=rebuild_knowledge_index,
+        task_log=_task_log,
+        backup=backup,
+    )
 
 
 @router.get("/health")
@@ -422,6 +213,7 @@ async def health_check():
         manager = get_kb_manager()
         config_exists = manager.config_file.exists()
         kb_count = len(manager.list_knowledge_bases())
+        rag = diagnose_rag(kb_base_dir=_kb_base_dir, check_connection=False)
         return {
             "status": "ok",
             "config_file": str(manager.config_file),
@@ -429,9 +221,37 @@ async def health_check():
             "base_dir": str(manager.base_dir),
             "base_dir_exists": manager.base_dir.exists(),
             "knowledge_bases_count": kb_count,
+            "rag": rag,
         }
     except Exception as e:
         return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.get("/diagnostics")
+async def get_knowledge_diagnostics(check_connection: bool = True):
+    """Return RAG diagnostics for the active provider."""
+    try:
+        manager = get_kb_manager()
+        return diagnose_rag(
+            kb_base_dir=manager.base_dir,
+            check_connection=check_connection,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/preflight")
+async def get_knowledge_rag_preflight(check_connection: bool = True, check_docker: bool = True):
+    """Return an operator-focused RAG runtime preflight."""
+    try:
+        manager = get_kb_manager()
+        return preflight_rag_environment(
+            kb_base_dir=manager.base_dir,
+            check_connection=check_connection,
+            check_docker=check_docker,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/rag-providers")
@@ -453,6 +273,17 @@ async def get_all_kb_configs():
         return service.get_all_configs()
     except Exception as e:
         logger.error(f"Error getting KB configs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/configs/audit")
+async def audit_kb_configs():
+    """Audit KB config entries against on-disk knowledge-base directories."""
+    try:
+        manager = get_kb_manager()
+        return manager.audit_registry()
+    except Exception as e:
+        logger.error(f"Error auditing KB configs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -497,6 +328,22 @@ async def sync_configs_from_metadata():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/configs/prune-missing")
+async def prune_missing_kb_configs(dry_run: bool = Query(False)):
+    """Prune stale config entries whose KB directory no longer exists."""
+    try:
+        manager = get_kb_manager()
+        result = manager.prune_missing_configs(dry_run=dry_run)
+        try:
+            get_kb_config_service().reload()
+        except Exception:
+            logger.debug("KB config service reload failed after prune.", exc_info=True)
+        return result
+    except Exception as e:
+        logger.error(f"Error pruning missing KB configs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/default")
 async def get_default_kb():
     """Get the default knowledge base."""
@@ -533,73 +380,130 @@ async def list_knowledge_bases():
     """List all available knowledge bases with their details."""
     try:
         manager = get_kb_manager()
-        kb_names = manager.list_knowledge_bases()
-
-        logger.debug(f"Found {len(kb_names)} knowledge bases: {kb_names}")
-
-        if not kb_names:
-            logger.debug("No knowledge bases found, returning empty list")
-            return []
-
-        result = []
-        errors = []
-
-        for name in kb_names:
-            try:
-                info = manager.get_info(name)
-                logger.debug(f"Successfully got info for KB '{name}': {info.get('statistics', {})}")
-                result.append(
-                    KnowledgeBaseInfo(
-                        name=info["name"],
-                        is_default=info["is_default"],
-                        statistics=info.get("statistics", {}),
-                        status=info.get("status"),
-                        progress=info.get("progress"),
-                    )
-                )
-            except Exception as e:
-                error_msg = f"Error getting info for KB '{name}': {e}"
-                errors.append(error_msg)
-                logger.warning(f"{error_msg}\n{traceback.format_exc()}")
-                try:
-                    kb_dir = manager.base_dir / name
-                    if kb_dir.exists():
-                        logger.debug(f"KB '{name}' directory exists, creating fallback info")
-                        result.append(
-                            KnowledgeBaseInfo(
-                                name=name,
-                                is_default=name == manager.get_default(),
-                                statistics={
-                                    "raw_documents": 0,
-                                    "images": 0,
-                                    "content_lists": 0,
-                                    "rag_initialized": False,
-                                },
-                                status="unknown",
-                                progress=None,
-                            )
-                        )
-                except Exception as fallback_err:
-                    logger.error(f"Fallback also failed for KB '{name}': {fallback_err}")
-
-        if errors and not result:
-            error_detail = f"Failed to load knowledge bases. Errors: {'; '.join(errors)}"
-            logger.error(error_detail)
-            raise HTTPException(status_code=500, detail=error_detail)
-
-        if errors:
-            logger.warning(
-                f"Some KBs had errors, returning {len(result)} results. Errors: {errors}"
-            )
-
-        logger.debug(f"Returning {len(result)} knowledge bases")
-        return result
+        return _list_knowledge_base_summaries(manager, logger)
     except HTTPException:
         raise
     except Exception as e:
         error_msg = f"Error listing knowledge bases: {e}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to list knowledge bases: {e!s}")
+
+
+@router.get("/{kb_name}/documents")
+async def list_knowledge_base_documents(kb_name: str, include_vectors: bool = True):
+    """List raw documents with cached OCR/Markdown and vector counts."""
+    try:
+        manager = get_kb_manager()
+        kb_entry = _load_kb_entry_or_404(manager, kb_name)
+        return await _list_documents_for_kb(
+            manager=manager,
+            kb_name=kb_name,
+            kb_entry=kb_entry,
+            include_vectors=include_vectors,
+            validate_provider=_validate_registered_provider,
+            default_provider=DEFAULT_PROVIDER,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{kb_name}/documents/{document_id}/preview")
+async def preview_knowledge_base_document(
+    kb_name: str,
+    document_id: str,
+    max_chars: int = Query(24000, ge=1000, le=200000),
+    force_refresh: bool = False,
+):
+    """Return a Markdown preview for one raw document."""
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        return await _preview_document_for_kb(
+            manager=manager,
+            kb_name=kb_name,
+            document_id=document_id,
+            max_chars=max_chars,
+            force_refresh=force_refresh,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{kb_name}/vectors")
+async def list_knowledge_base_vectors(
+    kb_name: str,
+    document_id: str | None = None,
+    limit: int = Query(80, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List vector chunks stored for a KB or for one raw document."""
+    try:
+        manager = get_kb_manager()
+        kb_entry = _load_kb_entry_or_404(manager, kb_name)
+        return await _list_vectors_for_kb(
+            manager=manager,
+            kb_name=kb_name,
+            kb_entry=kb_entry,
+            document_id=document_id,
+            limit=limit,
+            offset=offset,
+            validate_provider=_validate_registered_provider,
+            default_provider=DEFAULT_PROVIDER,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/{kb_name}/documents/{document_id}")
+async def delete_knowledge_base_document(
+    kb_name: str,
+    document_id: str,
+    request: KnowledgeDocumentDeleteRequest | None = None,
+):
+    """Delete one raw document and/or the vector rows derived from it."""
+    options = request or KnowledgeDocumentDeleteRequest()
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        return await _delete_document_for_kb(
+            manager=manager,
+            kb_name=kb_name,
+            document_id=document_id,
+            remove_raw=options.remove_raw,
+            remove_vectors=options.remove_vectors,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/{kb_name}/vectors/{node_id}")
+async def delete_knowledge_base_vector(kb_name: str, node_id: str):
+    """Delete one vector chunk by node id."""
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        result = await _delete_vector_for_kb(manager=manager, kb_name=kb_name, node_id=node_id)
+        if result.get("error"):
+            raise HTTPException(status_code=400, detail=str(result["error"]))
+        return result
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{kb_name}")
@@ -612,6 +516,109 @@ async def get_knowledge_base_details(kb_name: str):
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{kb_name}/diagnostics")
+async def get_knowledge_base_diagnostics(kb_name: str, check_connection: bool = True):
+    """Return RAG diagnostics for a specific knowledge base."""
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        return diagnose_rag(
+            kb_base_dir=manager.base_dir,
+            kb_name=kb_name,
+            check_connection=check_connection,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{kb_name}/preflight")
+async def get_knowledge_base_rag_preflight(kb_name: str, check_connection: bool = True, check_docker: bool = True):
+    """Return an operator-focused RAG runtime preflight for a knowledge base."""
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        return preflight_rag_environment(
+            kb_base_dir=manager.base_dir,
+            kb_name=kb_name,
+            check_connection=check_connection,
+            check_docker=check_docker,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{kb_name}/rag-test")
+async def test_knowledge_base_rag_search(kb_name: str, request: RagSearchTestRequest):
+    """Run one retrieval-only RAG query for the knowledge-base UI."""
+    try:
+        manager = get_kb_manager()
+        kb_entry = _load_kb_entry_or_404(manager, kb_name)
+        return await _run_rag_search_test(
+            kb_name=kb_name,
+            request=request,
+            manager=manager,
+            kb_entry=kb_entry,
+            default_provider=DEFAULT_PROVIDER,
+            validate_provider=_validate_registered_provider,
+            rag_service_cls=RAGService,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{kb_name}/rag-eval")
+async def evaluate_knowledge_base_rag(kb_name: str, request: RagEvaluationRequest):
+    """Run a small retrieval quality evaluation against one knowledge base."""
+    try:
+        manager = get_kb_manager()
+        kb_entry = _load_kb_entry_or_404(manager, kb_name)
+        return await _run_rag_evaluation_report(
+            kb_name=kb_name,
+            request=request,
+            manager=manager,
+            kb_entry=kb_entry,
+            default_provider=DEFAULT_PROVIDER,
+            validate_provider=_validate_registered_provider,
+            evaluation_strategies_or_default=_evaluation_strategies_or_default,
+            model_dump=_model_dump,
+            run_evaluation=run_evaluation,
+            summarize_dataset_profile=summarize_dataset_profile,
+            save_latest_report=_save_latest_rag_eval_report,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{kb_name}/rag-eval/latest")
+async def get_latest_knowledge_base_rag_eval(kb_name: str):
+    """Return the latest persisted retrieval quality report for one KB."""
+    try:
+        manager = get_kb_manager()
+        _load_kb_entry_or_404(manager, kb_name)
+        path = _rag_eval_report_path(manager, kb_name)
+        if not path.exists():
+            return {"kb_name": kb_name, "available": False, "report": None}
+        return {"kb_name": kb_name, "available": True, "report": json.loads(path.read_text(encoding="utf-8"))}
+    except HTTPException:
+        raise
+    except ValueError:
+        return {"kb_name": kb_name, "available": False, "report": None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/{kb_name}")
@@ -630,6 +637,65 @@ async def delete_knowledge_base(kb_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{kb_name}/reindex")
+async def reindex_knowledge_base(
+    kb_name: str,
+    background_tasks: BackgroundTasks,
+    request: ReindexKnowledgeBaseRequest | None = None,
+):
+    """Rebuild an existing knowledge base from its raw files."""
+    try:
+        manager = get_kb_manager()
+        kb_entry = _load_kb_entry_or_404(manager, kb_name)
+        payload = request or ReindexKnowledgeBaseRequest()
+        rag_provider = _validate_registered_provider(
+            payload.rag_provider or kb_entry.get("rag_provider") or DEFAULT_PROVIDER
+        )
+
+        task_id = _build_unique_task_id("kb_reindex", kb_name)
+        get_task_stream_manager().ensure_task(task_id)
+
+        manager.update_kb_status(
+            name=kb_name,
+            status="processing",
+            progress={
+                "stage": "reindexing",
+                "message": "正在重建知识库索引...",
+                "percent": 0,
+                "current": 0,
+                "total": 0,
+                "task_id": task_id,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+        manager.config = manager._load_config()
+        entry = manager.config.setdefault("knowledge_bases", {}).setdefault(kb_name, {})
+        entry["rag_provider"] = rag_provider
+        manager._save_config()
+
+        _ = background_tasks
+        _schedule_kb_task(
+            task_id,
+            run_reindex_processing_task,
+            kb_name=kb_name,
+            base_dir=str(_kb_base_dir),
+            task_id=task_id,
+            rag_provider=rag_provider,
+            backup=payload.backup,
+        )
+
+        return {
+            "message": f"Knowledge base '{kb_name}' reindex started.",
+            "name": kb_name,
+            "task_id": task_id,
+            "rag_provider": rag_provider,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/tasks/{task_id}/stream")
 async def stream_task_logs(task_id: str):
     """Stream task-specific logs for knowledge-base operations."""
@@ -640,6 +706,21 @@ async def stream_task_logs(task_id: str):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """Return an in-memory status snapshot for a knowledge-base task."""
+    task_metadata = TaskIDManager.get_instance().get_task_metadata(task_id)
+    stream_snapshot = get_task_stream_manager().snapshot(task_id)
+    if not task_metadata and stream_snapshot["event_count"] == 0:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    return {
+        "task_id": task_id,
+        "known": task_metadata is not None,
+        "metadata": task_metadata or {},
+        "stream": stream_snapshot,
+    }
 
 
 @router.post("/{kb_name}/upload")
@@ -676,13 +757,16 @@ async def upload_files(
 
         allowed_extensions = FileTypeRouter.get_supported_extensions()
         staging_dir = kb_path / ".uploads" / task_id
-        uploaded_files, uploaded_file_paths = _save_uploaded_files(
+        uploaded_files, uploaded_file_paths = await run_in_threadpool(
+            _save_uploaded_files,
             files, staging_dir, allowed_extensions=allowed_extensions
         )
 
         logger.info(f"Uploading {len(uploaded_files)} files to KB '{kb_name}'")
 
-        background_tasks.add_task(
+        _ = background_tasks
+        _schedule_kb_task(
+            task_id,
             run_upload_processing_task,
             kb_name=kb_name,
             base_dir=str(_kb_base_dir),
@@ -764,7 +848,8 @@ async def create_knowledge_base(
             initializer._register_to_config()
 
         allowed_extensions = FileTypeRouter.get_supported_extensions()
-        uploaded_files, _ = _save_uploaded_files(
+        uploaded_files, _ = await run_in_threadpool(
+            _save_uploaded_files,
             files, initializer.raw_dir, allowed_extensions=allowed_extensions
         )
 
@@ -775,7 +860,8 @@ async def create_knowledge_base(
             total=len(uploaded_files),
         )
 
-        background_tasks.add_task(run_initialization_task, initializer, task_id)
+        _ = background_tasks
+        _schedule_kb_task(task_id, run_initialization_task, initializer, task_id)
 
         logger.success(f"KB '{name}' created, processing {len(uploaded_files)} files in background")
 
@@ -823,123 +909,16 @@ async def clear_progress(kb_name: str):
 @router.websocket("/{kb_name}/progress/ws")
 async def websocket_progress(websocket: WebSocket, kb_name: str):
     """WebSocket endpoint for real-time progress updates"""
-    await websocket.accept()
+    from sparkweave.api.utils.progress_broadcaster import ProgressBroadcaster
 
-    broadcaster = ProgressBroadcaster.get_instance()
-
-    try:
-        await broadcaster.connect(kb_name, websocket)
-
-        progress_tracker = ProgressTracker(kb_name, _kb_base_dir)
-        initial_progress = progress_tracker.get_progress()
-        expected_task_id = websocket.query_params.get("task_id")
-
-        kb_dir = _kb_base_dir / kb_name
-        llamaindex_storage_dir = kb_dir / "llamaindex_storage"
-        kb_is_ready = llamaindex_storage_dir.exists() and llamaindex_storage_dir.is_dir()
-
-        # Fast path: no active task — send current state and close immediately
-        # This prevents infinite polling loops for ready or legacy KBs.
-        has_active_task = False
-        if initial_progress:
-            stage = initial_progress.get("stage")
-            if stage not in ("completed", "error", None):
-                ts = initial_progress.get("timestamp")
-                if ts:
-                    try:
-                        age = (datetime.now() - datetime.fromisoformat(ts)).total_seconds()
-                        has_active_task = age < 120
-                    except Exception:
-                        pass
-
-        if not has_active_task and not expected_task_id:
-            if kb_is_ready:
-                await websocket.send_json({
-                    "type": "progress",
-                    "data": {
-                        "stage": "completed",
-                        "message": "Knowledge base is ready.",
-                        "percent": 100,
-                        "current": 1,
-                        "total": 1,
-                    },
-                })
-            else:
-                await websocket.send_json({
-                    "type": "progress",
-                    "data": initial_progress or {
-                        "stage": "error",
-                        "message": "Knowledge base needs reindex or initialization.",
-                    },
-                })
-            return
-
-        if initial_progress:
-            stage = initial_progress.get("stage")
-            timestamp = initial_progress.get("timestamp")
-            progress_task_id = initial_progress.get("task_id")
-
-            should_send = False
-            if expected_task_id and progress_task_id and progress_task_id != expected_task_id:
-                should_send = False
-            elif stage == "error" or not kb_is_ready:
-                should_send = True
-            elif stage != "completed" and timestamp:
-                try:
-                    progress_time = datetime.fromisoformat(timestamp)
-                    now = datetime.now()
-                    age_seconds = (now - progress_time).total_seconds()
-                    if age_seconds < 300:
-                        should_send = True
-                except Exception:
-                    pass
-
-            if should_send:
-                await websocket.send_json({"type": "progress", "data": initial_progress})
-
-        last_progress = initial_progress
-        last_timestamp = initial_progress.get("timestamp") if initial_progress else None
-
-        while True:
-            try:
-                try:
-                    await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    current_progress = progress_tracker.get_progress()
-                    if current_progress:
-                        progress_task_id = current_progress.get("task_id")
-                        if expected_task_id and progress_task_id and progress_task_id != expected_task_id:
-                            continue
-                        current_timestamp = current_progress.get("timestamp")
-                        if current_timestamp != last_timestamp:
-                            await websocket.send_json(
-                                {"type": "progress", "data": current_progress}
-                            )
-                            last_progress = current_progress
-                            last_timestamp = current_timestamp
-
-                            if current_progress.get("stage") in ["completed", "error"]:
-                                await asyncio.sleep(3)
-                                break
-                    continue
-
-            except WebSocketDisconnect:
-                break
-            except Exception:
-                break
-
-    except Exception as e:
-        logger.debug(f"Progress WS error: {e}")
-        try:
-            await websocket.send_json({"type": "error", "message": str(e)})
-        except Exception:
-            pass
-    finally:
-        await broadcaster.disconnect(kb_name, websocket)
-        try:
-            await websocket.close()
-        except Exception:
-            pass
+    await _handle_progress_websocket(
+        websocket,
+        kb_name,
+        broadcaster=ProgressBroadcaster.get_instance(),
+        progress_tracker=ProgressTracker(kb_name, _kb_base_dir),
+        manager_factory=get_kb_manager,
+        logger=logger,
+    )
 
 
 @router.post("/{kb_name}/link-folder", response_model=LinkedFolderInfo)
@@ -957,7 +936,7 @@ async def link_folder(kb_name: str, request: LinkFolderRequest):
     """
     try:
         manager = get_kb_manager()
-        folder_info = manager.link_folder(kb_name, request.folder_path)
+        folder_info = _link_folder_for_kb(manager, kb_name, request.folder_path)
         logger.info(f"Linked folder '{request.folder_path}' to KB '{kb_name}'")
         return LinkedFolderInfo(**folder_info)
     except ValueError as e:
@@ -974,7 +953,7 @@ async def get_linked_folders(kb_name: str):
     """Get list of linked folders for a knowledge base."""
     try:
         manager = get_kb_manager()
-        folders = manager.get_linked_folders(kb_name)
+        folders = _get_linked_folders_for_kb(manager, kb_name)
         return [LinkedFolderInfo(**f) for f in folders]
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
@@ -987,11 +966,9 @@ async def unlink_folder(kb_name: str, folder_id: str):
     """Unlink a folder from a knowledge base."""
     try:
         manager = get_kb_manager()
-        success = manager.unlink_folder(kb_name, folder_id)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"Folder '{folder_id}' not found")
+        result = _unlink_folder_for_kb(manager, kb_name, folder_id)
         logger.info(f"Unlinked folder '{folder_id}' from KB '{kb_name}'")
-        return {"message": "Folder unlinked successfully", "folder_id": folder_id}
+        return result
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
@@ -1010,53 +987,39 @@ async def sync_folder(kb_name: str, folder_id: str, background_tasks: Background
         manager = get_kb_manager()
         kb_entry = _load_kb_entry_or_404(manager, kb_name)
         _assert_kb_writable_or_409(kb_name, kb_entry)
-        kb_provider = _validate_registered_provider(kb_entry.get("rag_provider") or DEFAULT_PROVIDER)
-
-        # Get linked folders and find the one with matching ID
-        folders = manager.get_linked_folders(kb_name)
-        folder_info = next((f for f in folders if f["id"] == folder_id), None)
-
-        if not folder_info:
-            raise HTTPException(status_code=404, detail=f"Linked folder '{folder_id}' not found")
-
-        folder_path = folder_info["path"]
-
-        # Check for changes (new or modified files)
-        changes = manager.detect_folder_changes(kb_name, folder_id)
-        files_to_process = changes["new_files"] + changes["modified_files"]
-
-        if not files_to_process:
-            return {"message": "No new or modified files to sync", "files": [], "file_count": 0}
-
-        logger.info(
-            f"Syncing {len(files_to_process)} files from folder '{folder_path}' to KB '{kb_name}'"
+        sync_plan = _prepare_folder_sync_plan(
+            manager=manager,
+            kb_name=kb_name,
+            folder_id=folder_id,
+            kb_entry=kb_entry,
+            validate_provider=_validate_registered_provider,
+            default_provider=DEFAULT_PROVIDER,
+            build_task_id=_build_unique_task_id,
+            ensure_task=get_task_stream_manager().ensure_task,
+            logger=logger,
         )
-        task_id = _build_unique_task_id("kb_upload", f"{kb_name}_folder_{folder_id}")
-        get_task_stream_manager().ensure_task(task_id)
+
+        if not sync_plan["should_schedule"]:
+            return sync_plan["response"]
 
         # NOTE: We DO NOT update sync state here anymore.
         # It is updated in run_upload_processing_task only after successful processing.
         # This prevents marking files as synced if processing fails (race condition fix).
 
         # Add background task to process files
-        background_tasks.add_task(
+        _ = background_tasks
+        _schedule_kb_task(
+            sync_plan["task_id"],
             run_upload_processing_task,
             kb_name=kb_name,
             base_dir=str(_kb_base_dir),
-            uploaded_file_paths=files_to_process,
-            task_id=task_id,
-            rag_provider=kb_provider,
+            uploaded_file_paths=sync_plan["files_to_process"],
+            task_id=sync_plan["task_id"],
+            rag_provider=sync_plan["kb_provider"],
             folder_id=folder_id,  # Pass folder_id to update state on success
         )
 
-        return {
-            "message": f"Syncing {len(files_to_process)} files from linked folder",
-            "folder_path": folder_path,
-            "new_files": changes["new_count"],
-            "modified_files": changes["modified_count"],
-            "file_count": len(files_to_process),
-            "task_id": task_id,
-        }
+        return sync_plan["response"]
     except HTTPException:
         raise
     except ValueError:

@@ -18,6 +18,24 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         "text-embedding-ada-002": 1536,
     }
 
+    @classmethod
+    def _should_send_dimensions(cls, model: str | None, dimensions: int | None) -> bool:
+        """Return True only for models known to support custom dimensions.
+
+        Many OpenAI-compatible providers expose fixed-dimension models but
+        reject the OpenAI ``dimensions`` parameter. The runtime still keeps the
+        configured dimension for Milvus schema validation; it just avoids
+        sending unsupported request fields to Qwen/SiliconFlow/vLLM-style APIs.
+        """
+        if not dimensions:
+            return False
+        model_info = cls.MODELS_INFO.get(model or "")
+        if not isinstance(model_info, dict):
+            return False
+        supported = model_info.get("dimensions") or []
+        default_dim = model_info.get("default")
+        return dimensions != default_dim and dimensions in supported
+
     @staticmethod
     def _extract_embeddings_from_response(data: Any) -> list[list[float]]:
         """
@@ -117,8 +135,9 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             "encoding_format": request.encoding_format or "float",
         }
 
-        if request.dimensions or self.dimensions:
-            payload["dimensions"] = request.dimensions or self.dimensions
+        requested_dimensions = request.dimensions or self.dimensions
+        if self._should_send_dimensions(payload["model"], requested_dimensions):
+            payload["dimensions"] = requested_dimensions
 
         base = self.base_url.rstrip('/')
         if base.endswith('/embeddings'):

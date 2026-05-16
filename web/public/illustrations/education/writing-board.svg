@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Writing board</title>
+  <desc id="desc">A draft document with comments, revision marks, and a writing cursor.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .ink{fill:#37352f}
+      .muted{fill:#787671}
+      .line{fill:none;stroke:#37352f;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="20" y="26" width="280" height="168" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)">
+    <rect x="56" y="42" width="152" height="136" rx="10" class="paper"/>
+    <rect x="78" y="65" width="72" height="10" rx="5" class="ink"/>
+    <path d="M78 94h94M78 111h72M78 128h82M78 145h52" class="line" opacity=".34"/>
+    <path d="M151 107h23M151 108l-5-5M151 108l-5 5" class="line" opacity=".72"/>
+    <rect x="78" y="154" width="72" height="10" rx="5" fill="#f5d75e" opacity=".65"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="178" y="72" width="78" height="38" rx="8" fill="#fde0ec" stroke="#eccbd9"/>
+    <path d="M192 88h42M192 98h29" class="line" opacity=".36"/>
+    <rect x="194" y="128" width="72" height="44" rx="8" fill="#d9f3e1" stroke="#c1e2cb"/>
+    <path d="M209 145h36M209 157h22" class="line" opacity=".38"/>
+  </g>
+  <path d="M231 54l19 19-36 36-21 4 4-21 34-38Z" fill="#e6e0f5" stroke="#37352f" stroke-width="2" stroke-linejoin="round"/>
+</svg>

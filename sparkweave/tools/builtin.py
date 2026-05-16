@@ -115,6 +115,15 @@ class RAGTool(_PromptHintsMixin, BaseTool):
         if not isinstance(sources, list):
             sources = []
         sources = [source for source in sources if isinstance(source, dict)]
+        sources = [
+            {
+                "type": "rag",
+                "kb_name": kb_name,
+                "query": query,
+                **source,
+            }
+            for source in sources
+        ]
         if not sources:
             sources = [{"type": "rag", "query": query, "kb_name": kb_name}]
         return ToolResult(

@@ -59,12 +59,12 @@ function defaultParams(tool: PlaygroundTool) {
 }
 
 export function PlaygroundPage() {
+  const [mode, setMode] = useState<"tool" | "capability">("tool");
   const plugins = usePluginsList();
-  const knowledge = useKnowledgeBases();
+  const knowledge = useKnowledgeBases({ enabled: mode === "capability" });
   const tools = plugins.data?.tools ?? [];
   const capabilities = plugins.data?.capabilities ?? [];
   const pluginManifests = plugins.data?.plugins ?? [];
-  const [mode, setMode] = useState<"tool" | "capability">("tool");
   const [selectedToolName, setSelectedToolName] = useState("");
   const [selectedCapabilityName, setSelectedCapabilityName] = useState("");
   const [paramsJson, setParamsJson] = useState("{}");
@@ -190,7 +190,7 @@ export function PlaygroundPage() {
           accent="purple"
           imageSrc="/illustrations/notion-lab-console.svg"
           imageAlt="能力实验室预览"
-          people="music"
+          people="playground_lab"
           previewTitle="调试放这里，学习页保持清爽"
           previewDescription="工具、能力和结果分开看，方便定位问题。"
           tiles={[
@@ -303,6 +303,7 @@ export function PlaygroundPage() {
                 tools={tools}
                 enabledTools={enabledTools}
                 knowledgeBases={knowledge.data ?? []}
+                knowledgeLoading={knowledge.isLoading || knowledge.isFetching}
                 selectedKbs={selectedKbs}
                 running={running}
                 onContent={setContent}
@@ -539,6 +540,7 @@ function CapabilityRunner({
   tools,
   enabledTools,
   knowledgeBases,
+  knowledgeLoading,
   selectedKbs,
   running,
   onContent,
@@ -551,6 +553,7 @@ function CapabilityRunner({
   tools: PlaygroundTool[];
   enabledTools: string[];
   knowledgeBases: Array<{ name: string; is_default?: boolean }>;
+  knowledgeLoading: boolean;
   selectedKbs: string[];
   running: boolean;
   onContent: (value: string) => void;
@@ -639,7 +642,11 @@ function CapabilityRunner({
                   {kb.name}
                 </motion.button>
               ))}
-              {!knowledgeBases.length ? <span className="text-xs text-slate-500">暂无知识库</span> : null}
+              {knowledgeLoading ? (
+                <span className="text-xs text-slate-500">正在读取知识库...</span>
+              ) : !knowledgeBases.length ? (
+                <span className="text-xs text-slate-500">暂无知识库</span>
+              ) : null}
             </div>
           </div>
           {capability.stages?.length ? (

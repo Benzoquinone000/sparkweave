@@ -69,14 +69,20 @@ sparkweave learning-effect summary --format json
 ```powershell
 sparkweave kb list
 sparkweave kb create my-kb --doc textbook.pdf
+sparkweave kb add my-kb --doc notes.md
+sparkweave kb doctor my-kb --no-connect
+sparkweave kb reindex my-kb --provider milvus
+sparkweave kb eval my-kb docs/examples/rag_eval_dataset.ml_course.sample.jsonl --provider milvus
 ```
 
 典型流程：
 
 1. 创建知识库。
 2. 导入文档。
-3. 等待索引完成。
-4. 在聊天或深度能力中使用 `rag` 工具。
+3. 用 `kb doctor` 检查 provider、Milvus 地址和 collection marker。
+4. 等待索引完成。
+5. 用 `kb eval` 跑一组小样本，确认关键词召回、来源命中和延迟。
+6. 在聊天或深度能力中使用 `rag` 工具。
 
 ## 插件与记忆
 
@@ -233,7 +239,7 @@ FastAPI 应用在 `sparkweave/api/main.py` 组装。常用前缀：
 | `/api/v1/settings` | UI 设置、模型 catalog、服务连接测试 |
 | `/api/v1/system` | 系统状态和运行拓扑 |
 | `/api/v1/sessions` | 会话列表、详情、重命名、删除、题目结果 |
-| `/api/v1/knowledge` | 知识库管理、上传、进度、链接文件夹 |
+| `/api/v1/knowledge` | 知识库管理、上传、进度、链接文件夹、RAG 评测 |
 | `/api/v1/notebook` | Notebook 管理 |
 | `/api/v1/question-notebook` | 题目记录和分类 |
 | `/api/v1/plugins` | Playground 工具和能力测试 |

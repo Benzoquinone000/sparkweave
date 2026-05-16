@@ -19,6 +19,7 @@ from sparkweave.graphs._answer_now import (
     answer_now_user_prompt,
     extract_answer_now_payload,
 )
+from sparkweave.graphs.rag_overrides import apply_rag_overrides
 from sparkweave.llm import chat_messages, create_chat_model
 from sparkweave.tools import LangChainToolRegistry
 
@@ -251,7 +252,10 @@ class ChatGraph:
         if decision.delegates:
             return await self._run_specialist(context, stream, decision)
 
+        context, prefetched_rag = await self._prefetch_rag_context(context, stream)
         state = context_to_state(context, stream=stream)
+        if prefetched_rag is not None:
+            state["tool_results"] = [prefetched_rag]
         graph = self.compile()
         return await graph.ainvoke(state)
 
@@ -534,6 +538,7 @@ class ChatGraph:
                 "tool_index": tool_index,
                 "success": success,
                 "sources": sources,
+                "result_metadata": metadata if name == "rag" else {},
             },
         )
         return {
@@ -607,6 +612,234 @@ class ChatGraph:
             "external_video_result": final_result,
         }
 
+    async def _prefetch_rag_context(
+        self,
+        context: UnifiedContext,
+        stream: StreamBus,
+    ) -> tuple[UnifiedContext, dict[str, Any] | None]:
+        if not self._should_prefetch_rag(context):
+            return context, None
+
+        kb_name = str(context.knowledge_bases[0] or "").strip()
+        query = str(context.user_message or "").strip()
+        if not kb_name or not query:
+            return context, None
+
+        args: dict[str, Any] = {"query": query, "kb_name": kb_name}
+        self._apply_rag_overrides(args, context)
+        tool_call_id = "rag-prefetch"
+        retrieve_meta = {
+            **(
+                self._retrieve_metadata(
+                    name="rag",
+                    args=args,
+                    tool_call_id=tool_call_id,
+                    tool_index=0,
+                    context=context,
+                )
+                or {}
+            ),
+            "prefetch": True,
+        }
+
+        async with stream.stage(
+            "acting",
+            source=self.source,
+            metadata={
+                "trace_kind": "tool_work",
+                "tool_name": "rag",
+                "prefetch": True,
+            },
+        ):
+            await stream.tool_call(
+                tool_name="rag",
+                args=args,
+                source=self.source,
+                stage="acting",
+                metadata={
+                    "trace_kind": "tool_call",
+                    "tool_call_id": tool_call_id,
+                    "tool_name": "rag",
+                    "prefetch": True,
+                },
+            )
+            await stream.progress(
+                f"Query: {query}",
+                source=self.source,
+                stage="acting",
+                metadata={**retrieve_meta, "trace_kind": "call_status", "call_state": "running"},
+            )
+
+            async def _event_sink(
+                event_type: str,
+                message: str = "",
+                metadata: dict[str, Any] | None = None,
+            ) -> None:
+                if not message:
+                    return
+                await stream.progress(
+                    message,
+                    source=self.source,
+                    stage="acting",
+                    metadata={
+                        **retrieve_meta,
+                        "trace_kind": str(event_type or "tool_log"),
+                        **(metadata or {}),
+                    },
+                )
+
+            try:
+                from sparkweave.services.rag import rag_search
+
+                result = await rag_search(**args, event_sink=_event_sink)
+                content = str(result.get("content") or result.get("answer") or "").strip()
+                content = self._clip_prefetched_rag_context(content, context)
+                sources = self._normalize_rag_sources(
+                    result.get("sources"),
+                    kb_name=kb_name,
+                    query=query,
+                )
+                success = bool(result.get("success", True)) and bool(content or sources)
+                await stream.progress(
+                    f"Retrieve complete ({len(content)} chars)",
+                    source=self.source,
+                    stage="acting",
+                    metadata={**retrieve_meta, "trace_kind": "call_status", "call_state": "complete"},
+                )
+            except Exception as exc:
+                result = {"error": str(exc), "prefetch": True}
+                content = ""
+                sources = []
+                success = False
+                await stream.error(
+                    f"RAG prefetch failed: {exc}",
+                    source=self.source,
+                    stage="acting",
+                    metadata={**retrieve_meta, "trace_kind": "call_status", "call_state": "error"},
+                )
+
+            await stream.tool_result(
+                tool_name="rag",
+                result=content or "(empty RAG prefetch result)",
+                source=self.source,
+                stage="acting",
+                metadata={
+                    "trace_kind": "tool_result",
+                    "tool_call_id": tool_call_id,
+                    "tool_name": "rag",
+                    "success": success,
+                    "sources": sources,
+                    "prefetch": True,
+                    "result_metadata": {
+                        **dict(result or {}),
+                        "prefetch": True,
+                        "kb_name": kb_name,
+                        "query": query,
+                    },
+                },
+            )
+            if sources:
+                await stream.sources(
+                    sources,
+                    source=self.source,
+                    stage="acting",
+                    metadata={"prefetch": True, "tool_name": "rag"},
+                )
+
+        if not content:
+            return context, None
+
+        rag_context = self._format_prefetched_rag_context(
+            kb_name=kb_name,
+            content=content,
+        )
+        memory_context = "\n\n".join(
+            part.strip()
+            for part in (context.memory_context, rag_context)
+            if str(part or "").strip()
+        )
+        metadata = {
+            **dict(context.metadata or {}),
+            "prefetched_rag": True,
+            "prefetched_rag_kb": kb_name,
+            "prefetched_rag_source_count": len(sources),
+        }
+        record = {
+            "id": tool_call_id,
+            "name": "rag",
+            "arguments": args,
+            "result": content,
+            "success": success,
+            "sources": sources,
+            "metadata": {
+                **dict(result or {}),
+                "prefetch": True,
+                "kb_name": kb_name,
+                "query": query,
+            },
+        }
+        return replace(context, memory_context=memory_context, metadata=metadata), record
+
+    @staticmethod
+    def _should_prefetch_rag(context: UnifiedContext) -> bool:
+        overrides = dict(context.config_overrides or {})
+        if not ChatGraph._truthy(overrides.get("prefetch_rag")):
+            return False
+        prefetched = context.metadata.get("prefetched_rag")
+        if prefetched is not None and ChatGraph._truthy(prefetched):
+            return False
+        if not context.knowledge_bases:
+            return False
+        enabled = set(context.enabled_tools or [])
+        if "rag" not in enabled:
+            return False
+        memory_context = str(context.memory_context or "")
+        return "Retrieved knowledge base context from `" not in memory_context
+
+    @staticmethod
+    def _format_prefetched_rag_context(*, kb_name: str, content: str) -> str:
+        return (
+            f"Retrieved knowledge base context from `{kb_name}`. "
+            "Use it as grounded evidence when answering. If the evidence is "
+            "insufficient, say what is missing instead of inventing details.\n\n"
+            f"{content.strip()}"
+        )
+
+    @staticmethod
+    def _clip_prefetched_rag_context(content: str, context: UnifiedContext) -> str:
+        overrides = dict(context.config_overrides or {})
+        try:
+            limit = int(overrides.get("max_context_chars") or 12000)
+        except (TypeError, ValueError):
+            limit = 12000
+        limit = max(500, min(limit, 30000))
+        if len(content) <= limit:
+            return content
+        return content[:limit].rstrip() + "\n...[truncated]"
+
+    @staticmethod
+    def _normalize_rag_sources(
+        raw_sources: Any,
+        *,
+        kb_name: str,
+        query: str,
+    ) -> list[dict[str, Any]]:
+        if not isinstance(raw_sources, list):
+            return []
+        normalized: list[dict[str, Any]] = []
+        for source in raw_sources:
+            if not isinstance(source, dict):
+                continue
+            normalized.append(
+                {
+                    "type": "rag",
+                    "kb_name": kb_name,
+                    "query": query,
+                    **source,
+                }
+            )
+        return normalized
+
     @staticmethod
     def _retrieve_metadata(
         *,
@@ -679,6 +912,7 @@ class ChatGraph:
         augmented = dict(args)
         if name == "rag" and context.knowledge_bases:
             augmented.setdefault("kb_name", context.knowledge_bases[0])
+            ChatGraph._apply_rag_overrides(augmented, context)
         if name == "web_search":
             augmented.setdefault("query", context.user_message)
         if name == "external_video_search":
@@ -694,6 +928,10 @@ class ChatGraph:
         if name in {"reason", "brainstorm"}:
             augmented.setdefault("context", context.user_message)
         return augmented
+
+    @staticmethod
+    def _apply_rag_overrides(args: dict[str, Any], context: UnifiedContext) -> None:
+        apply_rag_overrides(args, context.config_overrides)
 
     async def _coordinate(
         self,

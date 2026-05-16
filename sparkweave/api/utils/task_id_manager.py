@@ -28,7 +28,8 @@ class TaskIDManager:
             if task_key in self._task_ids:
                 return self._task_ids[task_key]
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            now = datetime.now()
+            timestamp = now.strftime("%Y%m%d_%H%M%S")
             unique_id = str(uuid.uuid4())[:8]
             task_id = f"{task_type}_{timestamp}_{unique_id}"
 
@@ -36,7 +37,8 @@ class TaskIDManager:
             self._task_metadata[task_id] = {
                 "task_type": task_type,
                 "task_key": task_key,
-                "created_at": datetime.now().isoformat(),
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
                 "status": "running",
             }
             return task_id
@@ -47,11 +49,18 @@ class TaskIDManager:
 
     def update_task_status(self, task_id: str, status: str, **kwargs) -> None:
         with self._lock:
-            if task_id in self._task_metadata:
-                self._task_metadata[task_id]["status"] = status
-                self._task_metadata[task_id].update(kwargs)
-                if status in ["completed", "error", "cancelled"]:
-                    self._task_metadata[task_id]["finished_at"] = datetime.now().isoformat()
+            now = datetime.now()
+            if task_id not in self._task_metadata:
+                self._task_metadata[task_id] = {
+                    "task_type": kwargs.pop("task_type", "unknown"),
+                    "task_key": kwargs.pop("task_key", task_id),
+                    "created_at": now.isoformat(),
+                }
+            self._task_metadata[task_id]["status"] = status
+            self._task_metadata[task_id]["updated_at"] = now.isoformat()
+            self._task_metadata[task_id].update(kwargs)
+            if status in ["completed", "error", "cancelled"]:
+                self._task_metadata[task_id]["finished_at"] = now.isoformat()
 
     def get_task_metadata(self, task_id: str) -> dict | None:
         with self._lock:

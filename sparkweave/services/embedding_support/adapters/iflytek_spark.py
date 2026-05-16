@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import base64
+from email.utils import formatdate
 import hashlib
 import hmac
 import json
 import logging
 import struct
-from email.utils import formatdate
 from typing import Any, Dict
 from urllib.parse import urlencode, urlparse
 
@@ -24,6 +24,43 @@ class IflytekSparkEmbeddingAdapter(BaseEmbeddingAdapter):
 
     DEFAULT_MODEL = "llm-embedding"
     DEFAULT_DIMENSIONS = 2560
+
+    @staticmethod
+    def _format_http_error(response: httpx.Response) -> str:
+        """Return a user-actionable error message without exposing credentials."""
+        body = response.text
+        message = body
+        code = None
+        sid = None
+        try:
+            data = response.json()
+            header = data.get("header") if isinstance(data, dict) else None
+            if isinstance(header, dict):
+                code = header.get("code")
+                sid = header.get("sid")
+                message = header.get("message") or message
+            elif isinstance(data, dict):
+                message = data.get("message") or data.get("error") or message
+        except Exception:
+            pass
+
+        hint = ""
+        if str(message).strip().lower() == "licc failed" or str(code) == "11202":
+            hint = (
+                " 当前讯飞账号或应用未通过 Embedding 服务许可校验。"
+                "请在讯飞控制台确认该 APPID/APIKey/APISecret 已开通 Spark Embedding 且有可用额度，"
+                "或在设置页切换到 OpenAI/硅基流动/本地 embedding provider 后重建知识库。"
+            )
+
+        parts = [
+            f"iFlytek Spark Embedding HTTP {response.status_code}",
+            f"message={message}",
+        ]
+        if code is not None:
+            parts.append(f"code={code}")
+        if sid:
+            parts.append(f"sid={sid}")
+        return ", ".join(parts) + hint
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         app_id = self._setting("app_id", "appid", "x-app-id", "iflytek_app_id")
@@ -45,7 +82,7 @@ class IflytekSparkEmbeddingAdapter(BaseEmbeddingAdapter):
                 response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
             if response.status_code >= 400:
                 logger.error("iFlytek embedding HTTP %s response body: %s", response.status_code, response.text)
-            response.raise_for_status()
+                raise RuntimeError(self._format_http_error(response))
             data = response.json()
             embeddings.append(self._extract_embedding(data))
 

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Course map</title>
+  <desc id="desc">A calm course route with learning milestones, notes, and a focused next step.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f0f0f" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .paper{fill:#fff;stroke:#e5e3df;stroke-width:1.2}
+      .soft{fill:#fbfaf8;stroke:#e5e3df;stroke-width:1.1}
+      .ink{fill:#37352f}
+      .muted{fill:#787671}
+      .line{fill:none;stroke:#37352f;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+      .dash{fill:none;stroke:#5645d4;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:6 8}
+    </style>
+  </defs>
+  <rect x="18" y="24" width="284" height="172" rx="10" fill="#f7f6f3"/>
+  <g filter="url(#shadow)">
+    <rect x="44" y="38" width="210" height="144" rx="9" class="paper"/>
+    <rect x="44" y="38" width="210" height="30" rx="9" fill="#fbfaf8" stroke="#e5e3df" stroke-width="1.2"/>
+    <circle cx="60" cy="53" r="3.5" fill="#dd5b00"/>
+    <circle cx="73" cy="53" r="3.5" fill="#f5d75e"/>
+    <circle cx="86" cy="53" r="3.5" fill="#2a9d99"/>
+    <path d="M86 145C104 98 130 124 145 88s42-30 58-4" class="dash"/>
+    <circle cx="86" cy="145" r="13" fill="#dcecfa" stroke="#b9d8ea" stroke-width="1.2"/>
+    <circle cx="145" cy="88" r="13" fill="#fef7d6" stroke="#eadfbf" stroke-width="1.2"/>
+    <circle cx="203" cy="84" r="13" fill="#d9f3e1" stroke="#c1e2cb" stroke-width="1.2"/>
+    <path d="M80 145h12M145 82v12M139 88h12M197 84h12" class="line" opacity=".72"/>
+    <rect x="70" y="82" width="44" height="28" rx="7" fill="#e6e0f5" stroke="#d6cbed"/>
+    <rect x="162" y="124" width="58" height="32" rx="7" fill="#fde0ec" stroke="#eccbd9"/>
+    <path d="M82 94h20M82 102h14M176 136h28M176 145h19" class="line" opacity=".38"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="222" y="86" width="64" height="78" rx="9" class="paper"/>
+    <rect x="237" y="104" width="34" height="7" rx="3.5" class="ink"/>
+    <rect x="237" y="121" width="26" height="5" rx="2.5" class="muted" opacity=".42"/>
+    <rect x="237" y="133" width="34" height="5" rx="2.5" class="muted" opacity=".28"/>
+    <path d="M254 158v-18M246 149l8 9 8-9" class="line"/>
+  </g>
+</svg>

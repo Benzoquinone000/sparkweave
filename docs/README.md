@@ -1,101 +1,106 @@
 # SparkWeave 文档中心
 
-这里放置 SparkWeave 的详细文档。根目录 `README.md` 更适合作为项目首页和快速介绍，`docs/` 则用于沉淀安装、配置、架构、接口、插件开发和维护流程。
+根目录 `README.md` 用于项目首页和快速介绍；`docs/` 用于沉淀可维护的技术文档、接口说明、部署配置、比赛材料和后续开发计划。
 
-## 推荐阅读顺序
+如果你只想快速了解项目，按下面顺序读：
 
 1. [快速开始](./getting-started.md)
 2. [项目地图](./project-map.md)
 3. [系统架构](./architecture.md)
-4. [运行时链路](./runtime-flow.md)
-5. [会话、Turn 与事件持久化](./sessions-and-turns.md)
-6. [Notebook、Memory 与上下文引用](./notebook-memory-context.md)
-7. [学习画像设计调研与实现方案](./learner-profile-design.md)
-8. [学习画像开发前调研笔记](./learner-profile-research-notes.md)
-9. [学习画像 P1 只读统一画像实施方案](./learner-profile-p1-implementation.md)
-10. [学习画像 P1 开发状态](./learner-profile-p1-status.md)
-11. [学习画像 P2 证据账本](./learner-profile-p2-evidence-ledger.md)
-12. [学习画像 P3 用户校准](./learner-profile-p3-calibration.md)
-13. [学习画像 P4 对话信号接入](./learner-profile-p4-chat-signals.md)
-14. [学习画像 P5 Guide V2 导学接入统一画像](./learner-profile-p5-guide-integration.md)
-15. [学习画像 P6 学习效果评估融合](./learner-profile-p6-effect-assessment.md)
-16. [学习效果评估闭环设计稿](./learning-effect-closed-loop-design.md)
-17. [学习画像 P7 知识点掌握度沉淀](./learner-profile-p7-concept-mastery.md)
-18. [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md)
-19. [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md)
-20. [导学空间与 Guide V2](./guided-learning.md)
-21. [稳定课程 Demo 模板](./demo-course-templates.md)
-22. [演示者 5 分钟入口](./demo-quickstart.md)
-23. [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md)
-24. [SparkBot 与 Agents 工作台](./sparkbot-agents.md)
-25. [Capabilities 详解](./capabilities.md)
-26. [Tools 工具系统](./tools.md)
-27. [CLI 与 API 使用](./cli-and-api.md)
-28. [知识库详解](./knowledge-base.md)
-29. [题目工作流](./question-workflows.md)
-30. [试卷解析与仿题素材链路](./question-parsing-and-mimic.md)
-31. [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md)
-32. [前端工作台](./frontend.md)
-33. [服务层与数据流](./services.md)
-34. [设置与 Provider 配置](./settings-and-providers.md)
-35. [系统诊断与 Provider 健康检查](./system-diagnostics.md)
-36. [环境变量配置](./configuration.md)
-37. [科大讯飞能力接入说明](./iflytek-integration.md)
-38. [插件开发](./plugin-development.md)
-39. [赛题对齐与后续开发路线](./competition-roadmap.md)
-40. [AI Coding 工具使用说明](./ai-coding-statement.md)
-41. [开发与维护](./development.md)
+4. [智能体、RAG 与学习画像代码事实说明](./core-ai-code-facts.md)
+5. [功能级代码地图](./feature-code-map.md)
 
-## 文档定位
+如果你要准备简历、面试或答辩，优先读三条核心技术主线：
 
-| 文档 | 适合读者 | 内容 |
-| --- | --- | --- |
-| [快速开始](./getting-started.md) | 初次运行项目的人 | 本地环境、依赖安装、启动命令、常见入口 |
-| [项目地图](./project-map.md) | 新加入的开发者 | 后端、CLI、前端、测试和数据目录的代码索引 |
-| [系统架构](./architecture.md) | 维护者、架构设计者 | Entry Points、运行时、Tools、Capabilities、插件层 |
-| [运行时链路](./runtime-flow.md) | 后端开发者、集成方 | 一次 turn 从请求到事件流、持久化、记忆更新的完整过程 |
-| [会话、Turn 与事件持久化](./sessions-and-turns.md) | 后端开发者、前端集成方 | SQLite 会话模型、turn 生命周期、事件 seq、WebSocket 续流、消息汇总 |
-| [Notebook、Memory 与上下文引用](./notebook-memory-context.md) | 后端开发者、前端集成方、上下文能力维护者 | 主 Notebook JSON、题目本边界、两文件 Memory、引用分析、prompt 注入、前端/CLI 保存和排查 |
-| [学习画像设计调研与实现方案](./learner-profile-design.md) | 画像功能维护者、导学/评估开发者、比赛材料整理者 | 画像调研、统一数据模型、证据账本、前端画像中心、API 和分阶段实现计划 |
-| [学习画像开发前调研笔记](./learner-profile-research-notes.md) | 画像功能维护者、架构设计者、测试规划者 | 外部调研摘要、项目证据源盘点、事件词表、风险清单、测试矩阵和开发前检查 |
-| [学习画像 P1 只读统一画像实施方案](./learner-profile-p1-implementation.md) | 画像功能开发者、前端开发者、测试维护者 | P1 边界、数据结构、API 合约、聚合规则、前端页面结构、测试计划和开发顺序 |
-| [学习画像 P1 开发状态](./learner-profile-p1-status.md) | 画像功能开发者、联调者、验收者 | P1 已完成内容、当前 API、验证记录和下一步计划 |
-| [学习画像 P2 证据账本](./learner-profile-p2-evidence-ledger.md) | 画像功能开发者、导学/评估开发者、联调者 | 统一学习事件格式、证据账本 API、画像接入规则和后续模块接入点 |
-| [学习画像 P3 用户校准](./learner-profile-p3-calibration.md) | 画像功能开发者、前端开发者、导学/推荐开发者 | 画像确认、驳回、修正的 API、事件格式、前端入口和验证记录 |
-| [学习画像 P4 对话信号接入](./learner-profile-p4-chat-signals.md) | 画像功能开发者、运行时维护者、导学/推荐开发者 | 聊天中的目标、卡点、资源偏好如何低置信度写入统一画像证据账本 |
-| [学习画像 P5 Guide V2 导学接入统一画像](./learner-profile-p5-guide-integration.md) | 画像功能开发者、导学功能维护者、推荐策略开发者 | Guide V2 创建路线时如何读取统一画像、保留用户显式输入并补全导学画像 |
-| [学习画像 P6 学习效果评估融合](./learner-profile-p6-effect-assessment.md) | 画像功能开发者、导学评估维护者、比赛演示材料整理者 | 学习效果评估如何纳入统一画像、长期薄弱点、证据账本和前端解释 |
-| [学习效果评估闭环设计稿](./learning-effect-closed-loop-design.md) | 后端开发者、画像/导学维护者、比赛材料整理者 | 市面产品调研、学习事件模型、掌握度引擎、效果报告、干预策略和分阶段落地计划 |
-| [学习画像 P7 知识点掌握度沉淀](./learner-profile-p7-concept-mastery.md) | 画像功能开发者、题目/导学/评估开发者 | 题目事件如何携带知识点、画像如何按概念合并 mastery 与 weak point |
-| [学习画像 P8 一步行动建议](./learner-profile-p8-next-action.md) | 画像功能开发者、导学功能维护者、前端开发者 | 画像中心如何给出“现在只做这一步”，并把行动来源带入导学创建 |
-| [学习画像 P9 模型上下文注入](./learner-profile-p9-context-injection.md) | 运行时维护者、能力开发者、画像功能开发者 | 画像如何被压缩成模型上下文，注入 LangGraph 回合并覆盖 Chat/解题/出题/图解/动画 |
-| [导学空间与 Guide V2](./guided-learning.md) | 导学功能维护者、前后端集成方 | 旧版导学、Guide V2 学习画像、课程模板、任务证据闭环、资源生成、报告和 Notebook/题目本保存 |
-| [稳定课程 Demo 模板](./demo-course-templates.md) | 比赛材料整理者、录屏负责人、导学功能维护者 | 机器学习、ROS、高等数学三条可复现课程演示路线、任务链、兜底材料和扩展模板格式 |
-| [演示者 5 分钟入口](./demo-quickstart.md) | 录屏者、答辩者、现场演示者 | 最短演示路径、赛题五项映射、现场兜底和赛后材料整理 |
-| [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md) | 录屏负责人、答辩负责人、项目负责人 | 正式录制前检查、7 分钟分段讲法、页面动作、兜底策略和答辩优先回答 |
-| [SparkBot 与 Agents 工作台](./sparkbot-agents.md) | 长期智能体维护者、前端集成方、渠道开发者 | SparkBot 生命周期、工作区文件、渠道 schema、WebSocket 聊天、工具、heartbeat、cron、team 和排查路径 |
-| [Capabilities 详解](./capabilities.md) | 能力开发者、前后端集成方 | Chat、Deep Solve、Deep Question、Deep Research、Visualize、Math Animator 的配置、阶段和结果 |
-| [Tools 工具系统](./tools.md) | 工具开发者、能力维护者 | Tool 协议、注册表、内置工具、能力图调用方式、SparkBot 工具边界 |
-| [CLI 与 API 使用](./cli-and-api.md) | 使用者、集成方 | 命令行、WebSocket API、HTTP API、Python facade |
-| [知识库详解](./knowledge-base.md) | RAG 维护者、部署者 | 知识库目录、创建、上传、检索、进度、linked folder、embedding 指纹 |
-| [题目工作流](./question-workflows.md) | 题目功能维护者、前端开发者 | `deep_question`、兼容题目 WebSocket、仿题、题目本 API |
-| [试卷解析与仿题素材链路](./question-parsing-and-mimic.md) | 题目解析维护者、QuestionLab 开发者 | PDF 上传、MinerU 解析目录、题目 JSON、仿题模板、前端预览和排错 |
-| [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md) | 视觉能力维护者、OCR/知识库维护者、前端开发者 | 图像输入契约、讯飞 OCR、VisionSolverAgent、GeoGebra 工具、VisionPage 和排错 |
-| [前端工作台](./frontend.md) | 前端开发者 | 路由、API 客户端、聊天运行时、页面与后端契约 |
-| [服务层与数据流](./services.md) | 后端开发者、部署者 | 配置、LLM、Embedding、RAG、搜索、会话、记忆、Notebook、SparkBot、OCR |
-| [设置与 Provider 配置](./settings-and-providers.md) | 部署者、Provider 适配开发者 | 设置页 catalog、`.env`、LLM/Embedding/Search resolver、连接测试和新增 provider 步骤 |
-| [系统诊断与 Provider 健康检查](./system-diagnostics.md) | 运维者、Provider 适配开发者、设置页维护者 | `/api/v1/system/*`、设置页流式测试、Embedding adapter、讯飞向量签名和排错 |
-| [环境变量配置](./configuration.md) | 部署者、后端开发者 | LLM、Embedding、搜索、OCR、Docker、端口配置 |
-| [科大讯飞能力接入说明](./iflytek-integration.md) | 比赛材料整理者、部署者、答辩负责人 | 讯飞星火、Embedding、ONE SEARCH、OCR 在学习闭环中的使用位置、配置方式和失败回退 |
-| [插件开发](./plugin-development.md) | 能力扩展开发者 | `sparkweave/plugins/` 目录约定、manifest、Capability 实现 |
-| [赛题对齐与后续开发路线](./competition-roadmap.md) | 项目负责人、功能规划者、比赛材料整理者 | 五项赛题要求的实现现状、学习闭环目标、后续阶段计划和验收标准 |
-| [AI Coding 工具使用说明](./ai-coding-statement.md) | 比赛评委、项目负责人、提交材料整理者 | AI Coding 工具参与范围、人工审查方式、密钥边界和可追溯材料 |
-| [开发与维护](./development.md) | 项目贡献者 | 测试、检查、目录结构、提交前检查 |
+- [Agent 运行时与多智能体调度设计](./agent-runtime-design.md)
+- [RAG 系统设计与代码事实](./rag-system-design.md)
+- [学习画像与长期记忆设计](./learner-profile-memory-design.md)
+
+## 核心架构
+
+| 文档 | 用途 |
+| --- | --- |
+| [系统架构](./architecture.md) | Entry Points、运行时、Tools、Capabilities、插件层 |
+| [运行时链路](./runtime-flow.md) | 一次 turn 从请求到事件流、持久化、记忆更新的完整过程 |
+| [会话、Turn 与事件持久化](./sessions-and-turns.md) | SQLite 会话模型、turn 生命周期、事件 seq、WebSocket 续流 |
+| [服务层与数据流](./services.md) | 配置、LLM、Embedding、RAG、搜索、会话、记忆、Notebook、SparkBot、OCR |
+| [功能级代码地图](./feature-code-map.md) | 从用户功能反查前端页面、API 路由、CLI、服务层和数据落点 |
+
+## 三条 AI 主线
+
+| 文档 | 用途 |
+| --- | --- |
+| [智能体、RAG 与学习画像代码事实说明](./core-ai-code-facts.md) | 对齐代码事实，区分已实现能力和不能夸大的边界 |
+| [Agent 运行时与多智能体调度设计](./agent-runtime-design.md) | 统一 turn runtime、Chat 协调器、specialist 委派、工具调用、协作事件 |
+| [RAG 系统设计与代码事实](./rag-system-design.md) | Milvus 优先架构、检索策略、HyDE、Gated Agentic RAG、rerank、Context Pack、RAG 评测 |
+| [学习画像与长期记忆设计](./learner-profile-memory-design.md) | Memory 与统一学习画像分层、证据账本、画像聚合、上下文注入和用户校准 |
+
+## 用户功能
+
+| 文档 | 用途 |
+| --- | --- |
+| [前端工作台](./frontend.md) | 路由、API 客户端、聊天运行时、页面与后端契约 |
+| [Capabilities 详解](./capabilities.md) | Chat、Deep Solve、Deep Question、Deep Research、Visualize、Math Animator 的配置、阶段和结果 |
+| [Tools 工具系统](./tools.md) | Tool 协议、注册表、内置工具、能力图调用方式、SparkBot 工具边界 |
+| [Notebook、Memory 与上下文引用](./notebook-memory-context.md) | Notebook、题目本、两文件 Memory、引用分析和 prompt 注入 |
+| [导学空间与 Guide V2](./guided-learning.md) | Guide V2 学习画像、任务证据闭环、资源生成、报告和保存 |
+| [学习画像设计调研与实现方案](./learner-profile-design.md) | 画像数据模型、事件词表、前端信息架构和隐私边界 |
+| [学习效果评估闭环设计稿](./learning-effect-closed-loop-design.md) | 学习事件模型、掌握度引擎、效果报告、干预策略和落地计划 |
+| [题目工作流](./question-workflows.md) | 题目生成、仿题、交互式练习和题目本 API |
+| [试卷解析与仿题素材链路](./question-parsing-and-mimic.md) | PDF 上传、MinerU 解析、题目 JSON、仿题模板和排错 |
+| [视觉输入、OCR 与 GeoGebra 图像分析](./vision-ocr-geogebra.md) | 图像输入、OCR、图像题解析、GeoGebra 工具和前端入口 |
+| [SparkBot 与 Agents 工作台](./sparkbot-agents.md) | SparkBot 生命周期、工作区文件、渠道 schema、工具、heartbeat、cron、team |
+
+## RAG 与知识库
+
+| 文档 | 用途 |
+| --- | --- |
+| [知识库详解](./knowledge-base.md) | 知识库目录、创建、上传、检索、进度、linked folder、文档和向量块管理 |
+| [Milvus RAG 设计说明](./milvus-rag.md) | Milvus 默认向量库、本地/Standalone 模式、collection 元数据、兼容回退和验证命令 |
+| [RAG 升级设计与对比实验](./rag-improvement-design.md) | Evidence RAG Pipeline、hybrid/rerank/HyDE/Agentic RAG 调研与可复现实验 |
+| [示例 RAG 评测集](./examples/rag_eval_dataset.sample.jsonl) | 最小 JSONL 评测样例 |
+| [机器学习课程 RAG 评测集](./examples/rag_eval_dataset.ml_course.sample.jsonl) | 课程场景评测样例 |
+
+## 配置、部署与运维
+
+| 文档 | 用途 |
+| --- | --- |
+| [快速开始](./getting-started.md) | 本地环境、依赖安装、启动命令和常见入口 |
+| [CLI 与 API 使用](./cli-and-api.md) | 命令行、WebSocket API、HTTP API、Python facade |
+| [环境变量配置](./configuration.md) | LLM、Embedding、搜索、OCR、TTS、Docker、端口配置 |
+| [设置与 Provider 配置](./settings-and-providers.md) | 设置页 catalog、`.env`、Provider resolver、连接测试和新增 provider 步骤 |
+| [系统诊断与 Provider 健康检查](./system-diagnostics.md) | `/api/v1/system/*`、流式测试、Embedding adapter、搜索 fallback 和排错 |
+| [科大讯飞能力接入说明](./iflytek-integration.md) | 讯飞星火、Embedding、ONE SEARCH、OCR、TTS 在学习闭环中的使用位置和失败回退 |
+| [开发与维护](./development.md) | 测试、检查、目录结构、提交前检查和文档维护规则 |
+| [下一阶段执行计划](./next-iteration-plan.md) | 产品化收敛、真实 RAG 验收、知识库体验、Agentic RAG 解释和质量基准的默认推进路线 |
+| [SparkWeave 后续开发计划书](./sparkweave-execution-plan.md) | 后续开发阶段、质量门、执行记录和可视化专项最终完成状态 |
+
+## 比赛与展示
+
+| 文档 | 用途 |
+| --- | --- |
+| [赛题对齐与后续开发路线](./competition-roadmap.md) | 五项赛题要求的实现现状、学习闭环目标、后续阶段计划和验收标准 |
+| [比赛 7 分钟演示 Runbook](./competition-demo-runbook.md) | 正式录制前检查、7 分钟分段讲法、页面动作和兜底策略 |
+| [比赛可视化抓眼计划书](./competition-visualization-wow-plan.md) | 面向评委观感的演示驾驶舱、闭环轨道、多智能体接力和讯飞能力可视化专项路线 |
+| [比赛可视化专项完成证据](./competition-visualization-completion-report.md) | 可视化专项的完成结论、完成矩阵、前端落点、提交包证据和最终验证命令 |
+| [比赛可视化录屏与截图 Runbook](./competition-demo-visual-runbook.md) | `/demo` 评委演示台的 7 分钟录屏路线、PPT 截图位、答辩锚点和兜底策略 |
+| [比赛演示连通性检查记录](./competition-demo-connectivity-check.md) | 当前 `/demo`、前端服务和后端 API 的录屏前连通性状态与兜底建议 |
+| [AI 助教中心 SparkBot 演示 Runbook](./sparkbot-demo-runbook.md) | `/agents` 助教中心的一键 seed、7 分钟录屏路线和讯飞工具链讲法 |
+| [演示者 5 分钟入口](./demo-quickstart.md) | 最短演示路径、赛题五项映射和现场兜底 |
+| [稳定课程 Demo 模板](./demo-course-templates.md) | 可复现课程演示路线、任务链、兜底材料和扩展模板格式 |
+| [演示脚本：画像驱动导学闭环](./demo-script-profile-guide-loop.md) | 画像、导学、资源、评估闭环的录屏讲稿 |
+| [AI Coding 工具使用说明](./ai-coding-statement.md) | AI Coding 工具参与范围、人工审查方式、密钥边界和可追溯材料 |
+
+## 扩展开发
+
+| 文档 | 用途 |
+| --- | --- |
+| [插件开发](./plugin-development.md) | `sparkweave/plugins/` 目录约定、manifest、Capability 实现 |
 
 ## 文档维护原则
 
-- README 只保留项目亮点、快速入口和最常见命令。
-- 详细步骤、排错说明、配置矩阵放在 `docs/`。
-- 新增功能时，同步补充对应文档，尤其是环境变量、CLI 参数、API 合约和插件 manifest。
-- 文档中的命令默认从项目根目录执行，除非特别说明。
-- 架构图、流程图和截图统一放在 `docs/assets/`，再通过相对路径嵌入文档。
+- 首页 `README.md` 只保留项目亮点、快速入口和最常见命令。
+- `docs/README.md` 只做索引，不塞长篇方案。
+- 功能文档必须尽量绑定代码路径、API 路由和数据落点，避免宣传化描述。
+- 过期阶段日志、一次性开发计划和已被主文档吸收的小文档应及时删除。
+- 新增截图、流程图、架构图统一放在 `docs/assets/`，再通过相对路径嵌入。

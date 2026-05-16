@@ -443,7 +443,8 @@ def main():
     print("")
     if all_checks_passed:
         print_success("All required dependencies are installed!")
-        print_info("You can start SparkWeave with: python scripts/start_web.py")
+        print_info("Recommended startup: python scripts/start_docker.py")
+        print_info("Native dev fallback: python scripts/start_web.py")
     else:
         print_error("Some dependencies are missing!")
         print_info("Run: python scripts/start_tour.py")

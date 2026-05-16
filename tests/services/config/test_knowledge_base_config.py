@@ -1,4 +1,4 @@
-"""Tests for KnowledgeBaseConfigService stub + legacy-config migration."""
+"""Tests for KnowledgeBaseConfigService provider normalization."""
 
 from __future__ import annotations
 
@@ -24,27 +24,32 @@ def fresh_service(tmp_path: Path) -> KnowledgeBaseConfigService:
 
 
 class TestStubProviderApi:
-    def test_get_rag_provider_always_llamaindex(self, fresh_service) -> None:
-        assert fresh_service.get_rag_provider("any-kb") == "llamaindex"
+    def test_get_rag_provider_defaults_to_milvus(self, fresh_service) -> None:
+        assert fresh_service.get_rag_provider("any-kb") == "milvus"
 
-    def test_set_rag_provider_coerces_legacy_to_llamaindex(self, fresh_service) -> None:
+    def test_set_rag_provider_coerces_legacy_to_milvus(self, fresh_service) -> None:
         fresh_service.set_rag_provider("kb-1", "lightrag")
         cfg = fresh_service.get_kb_config("kb-1")
-        assert cfg["rag_provider"] == "llamaindex"
+        assert cfg["rag_provider"] == "milvus"
 
-    def test_set_rag_provider_coerces_unknown_to_llamaindex(self, fresh_service) -> None:
+    def test_set_rag_provider_coerces_unknown_to_milvus(self, fresh_service) -> None:
         fresh_service.set_rag_provider("kb-2", "totally-unknown")
         cfg = fresh_service.get_kb_config("kb-2")
+        assert cfg["rag_provider"] == "milvus"
+
+    def test_set_rag_provider_keeps_llamaindex_fallback(self, fresh_service) -> None:
+        fresh_service.set_rag_provider("kb-local", "llamaindex")
+        cfg = fresh_service.get_kb_config("kb-local")
         assert cfg["rag_provider"] == "llamaindex"
 
     def test_get_kb_config_overrides_provider_field(self, fresh_service) -> None:
-        """Even if a stale entry leaks `rag_provider: lightrag`, reads return llamaindex."""
+        """Even if a stale entry leaks `rag_provider: lightrag`, reads return milvus."""
         fresh_service._config.setdefault("knowledge_bases", {})["kb-3"] = {
             "path": "kb-3",
             "rag_provider": "lightrag",
         }
         cfg = fresh_service.get_kb_config("kb-3")
-        assert cfg["rag_provider"] == "llamaindex"
+        assert cfg["rag_provider"] == "milvus"
 
 
 class TestPayloadNormalizationOnLoad:
@@ -62,11 +67,11 @@ class TestPayloadNormalizationOnLoad:
 
         service = KnowledgeBaseConfigService(config_path=config_path)
         kb = service._config["knowledge_bases"]["old-kb"]
-        assert kb["rag_provider"] == "llamaindex"
+        assert kb["rag_provider"] == "milvus"
         assert kb["needs_reindex"] is True
 
         defaults = service._config["defaults"]
-        assert defaults["rag_provider"] == "llamaindex"
+        assert defaults["rag_provider"] == "milvus"
 
     def test_existing_llamaindex_kb_is_left_alone(self, tmp_path: Path) -> None:
         config_path = tmp_path / "kb_config.json"
@@ -108,7 +113,10 @@ class TestPayloadNormalizationOnLoad:
     def test_modern_storage_dir_does_not_trigger_reindex(self, tmp_path: Path) -> None:
         config_path = tmp_path / "kb_config.json"
         kb_dir = tmp_path / "modern-kb"
-        (kb_dir / "llamaindex_storage").mkdir(parents=True)
+        storage_dir = kb_dir / "llamaindex_storage"
+        storage_dir.mkdir(parents=True)
+        for file_name in ("docstore.json", "index_store.json", "default__vector_store.json"):
+            (storage_dir / file_name).write_text("{}", encoding="utf-8")
         (kb_dir / "rag_storage").mkdir(parents=True)  # legacy dir co-existing
 
         _write_kb_config(
@@ -133,8 +141,29 @@ class TestPersistence:
         service.set_kb_config("new-kb", {"rag_provider": "raganything", "description": "x"})
 
         on_disk = json.loads(config_path.read_text(encoding="utf-8"))
-        assert on_disk["knowledge_bases"]["new-kb"]["rag_provider"] == "llamaindex"
+        assert on_disk["knowledge_bases"]["new-kb"]["rag_provider"] == "milvus"
         assert on_disk["knowledge_bases"]["new-kb"]["description"] == "x"
+
+    def test_reload_reads_external_config_changes(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "kb_config.json"
+        service = KnowledgeBaseConfigService(config_path=config_path)
+        service.set_kb_config("old-kb", {"description": "old"})
+
+        _write_kb_config(
+            config_path,
+            {
+                "defaults": {"default_kb": "new-kb", "rag_provider": "milvus"},
+                "knowledge_bases": {
+                    "new-kb": {"path": "new-kb", "rag_provider": "milvus"},
+                },
+            },
+        )
+
+        reloaded = service.reload()
+
+        assert "old-kb" not in reloaded["knowledge_bases"]
+        assert "new-kb" in reloaded["knowledge_bases"]
+        assert service.get_default_kb() == "new-kb"
 
     def test_search_mode_is_preserved(self, fresh_service) -> None:
         fresh_service.set_search_mode("kb", "naive")

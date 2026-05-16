@@ -26,7 +26,6 @@ class ProgressStage(Enum):
     INITIALIZING = "initializing"  # Initializing
     PROCESSING_DOCUMENTS = "processing_documents"  # Processing documents
     PROCESSING_FILE = "processing_file"  # Processing single file
-    EXTRACTING_ITEMS = "extracting_items"  # Extracting numbered items
     COMPLETED = "completed"  # Completed
     ERROR = "error"  # Error
 
@@ -106,7 +105,6 @@ class ProgressTracker:
                 "initializing",
                 "processing_documents",
                 "processing_file",
-                "extracting_items",
             ]:
                 status = "processing"
             else:

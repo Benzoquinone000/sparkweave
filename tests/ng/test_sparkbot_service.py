@@ -12,6 +12,7 @@ import pytest
 
 from sparkweave.core.tool_protocol import ToolResult
 from sparkweave.services.sparkbot import (
+    COMPETITION_DEMO_BOT_ID,
     BotConfig,
     SparkBotAgentLoop,
     SparkBotCronSchedule,
@@ -31,6 +32,20 @@ from sparkweave.services.sparkbot import (
 from sparkweave.sparkbot.mcp import MCPToolWrapper
 from sparkweave.sparkbot.tools import WebFetchTool, build_sparkbot_agent_tool_registry
 from sparkweave.sparkbot.transcription import GroqTranscriptionProvider
+
+BASE_WORKSPACE_FILES = {
+    "SOUL.md",
+    "USER.md",
+    "TOOLS.md",
+    "AGENTS.md",
+    "HEARTBEAT.md",
+    "NOTES.md",
+    "COURSE.md",
+    "LESSONS.md",
+    "QUESTION_BANK.md",
+    "RUBRIC.md",
+    "RESOURCES.md",
+}
 
 
 @pytest.fixture
@@ -153,13 +168,60 @@ def test_sparkbot_workspace_files_seed_and_sync_persona(manager):
     manager.save_bot_config("demo", cfg)
 
     files = manager.read_all_bot_files("demo")
-    assert set(files) == {"SOUL.md", "USER.md", "TOOLS.md", "AGENTS.md", "HEARTBEAT.md"}
+    assert set(files) == BASE_WORKSPACE_FILES
     assert files["SOUL.md"] == "# Soul\n\nPatient math tutor."
     assert "learner" in files["USER.md"]
+    assert "learner notes" in files["NOTES.md"]
+    assert "course goals" in files["COURSE.md"]
 
     assert manager.write_bot_file("demo", "SOUL.md", "# Soul\n\nUpdated.") is True
     assert manager.load_bot_config("demo").persona == "# Soul\n\nUpdated."
+    assert manager.write_bot_file("demo", "NOTES.md", "# Notes\n\nNeed more examples.") is True
+    assert manager.read_bot_file("demo", "NOTES.md") == "# Notes\n\nNeed more examples."
+    assert manager.write_bot_file("demo", "COURSE.md", "# Course\n\nCustom course package.") is True
+    assert manager.read_bot_file("demo", "COURSE.md") == "# Course\n\nCustom course package."
     assert manager.write_bot_file("demo", "notes.txt", "nope") is False
+
+
+def test_sparkbot_competition_demo_seed_preserves_user_edits(manager):
+    result = manager.seed_competition_demo_bot()
+
+    assert result["bot_id"] == COMPETITION_DEMO_BOT_ID
+    assert result["created"] is True
+    assert set(result["workspace_files"]) == BASE_WORKSPACE_FILES
+    config = manager.load_bot_config(COMPETITION_DEMO_BOT_ID)
+    assert config is not None
+    assert config.name == "大模型与智能学习系统助教"
+    assert config.channels["web"]["enabled"] is True
+    files = manager.read_all_bot_files(COMPETITION_DEMO_BOT_ID)
+    assert "科大讯飞 TTS" in files["TOOLS.md"]
+    assert "学习画像智能体 -> 路径规划智能体" in files["AGENTS.md"]
+    assert "今日演示目标" in files["NOTES.md"]
+    assert "大模型与智能学习系统" in files["COURSE.md"]
+    assert "8 周课程安排" in files["LESSONS.md"]
+    assert "多智能体接力路线" in files["QUESTION_BANK.md"]
+    assert "赛题评分映射" in files["RUBRIC.md"]
+    assert "科大讯飞工具链讲法" in files["RESOURCES.md"]
+
+    assert manager.write_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md", "# Notes\n\nCustom demo notes.") is True
+    preserved = manager.seed_competition_demo_bot()
+    assert "NOTES.md" in preserved["skipped_files"]
+    assert manager.read_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md") == "# Notes\n\nCustom demo notes."
+
+    overwritten = manager.seed_competition_demo_bot(overwrite=True)
+    assert overwritten["overwritten"] is True
+    assert "NOTES.md" in overwritten["workspace_files"]
+    assert "今日演示目标" in (manager.read_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md") or "")
+
+
+def test_sparkbot_default_souls_include_competition_demo_tutor(manager):
+    manager.create_soul("custom", "Custom", "Keep this custom soul.")
+    souls = {item["id"]: item for item in manager.list_souls()}
+
+    assert souls["custom"]["content"] == "Keep this custom soul."
+    assert COMPETITION_DEMO_BOT_ID in souls
+    assert souls[COMPETITION_DEMO_BOT_ID]["name"] == "大模型与智能学习系统助教"
+    assert "多智能体协作" in souls[COMPETITION_DEMO_BOT_ID]["content"]
 
 
 def test_sparkbot_workspace_seeds_builtin_skills_without_overwrite(manager):

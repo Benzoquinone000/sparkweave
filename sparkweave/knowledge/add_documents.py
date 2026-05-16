@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Incrementally add documents to a llamaindex knowledge base."""
+"""Incrementally add documents to an existing knowledge base."""
 
 from __future__ import annotations
 
@@ -8,15 +8,17 @@ import asyncio
 from datetime import datetime
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
-from typing import List, Optional
 
 from dotenv import load_dotenv
 
 from sparkweave.logging import get_logger
-from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER
+from sparkweave.services.rag_support.factory import (
+    DEFAULT_PROVIDER,
+    get_pipeline,
+    normalize_provider_name,
+)
 
 logger = get_logger("KnowledgeInit")
 
@@ -36,14 +38,12 @@ class DocumentIndexingError(DocumentAddError):
 
 
 class DocumentAdder:
-    """Add documents to an existing llamaindex knowledge base."""
+    """Add documents to an existing knowledge base."""
 
     def __init__(
         self,
         kb_name: str,
         base_dir: str = DEFAULT_BASE_DIR,
-        api_key: str | None = None,
-        base_url: str | None = None,
         progress_tracker=None,
         rag_provider: str | None = None,
     ):
@@ -56,27 +56,40 @@ class DocumentAdder:
 
         self.raw_dir = self.kb_dir / "raw"
         self.llamaindex_storage_dir = self.kb_dir / "llamaindex_storage"
+        self.milvus_storage_dir = self.kb_dir / "milvus_storage"
         self.legacy_rag_storage_dir = self.kb_dir / "rag_storage"
         self.metadata_file = self.kb_dir / "metadata.json"
+        self.rag_provider = self._resolve_provider(rag_provider)
 
-        if not self.llamaindex_storage_dir.exists() and self.legacy_rag_storage_dir.exists():
+        if not self._storage_dir().exists() and self.legacy_rag_storage_dir.exists():
             raise ValueError(
                 f"Knowledge base '{kb_name}' uses legacy index format and requires reindex before incremental add"
             )
 
-        if not self.llamaindex_storage_dir.exists():
-            raise ValueError(f"Knowledge base not initialized (llamaindex): {kb_name}")
-
-        if rag_provider and rag_provider != DEFAULT_PROVIDER:
-            logger.warning(
-                f"Requested provider '{rag_provider}' ignored. Using '{DEFAULT_PROVIDER}' for consistency."
+        if not self._storage_dir().exists():
+            raise ValueError(
+                f"Knowledge base not initialized ({self.rag_provider}): {kb_name}"
             )
 
-        self.api_key = api_key
-        self.base_url = base_url
         self.progress_tracker = progress_tracker
 
         self.raw_dir.mkdir(parents=True, exist_ok=True)
+
+    def _resolve_provider(self, requested: str | None) -> str:
+        if requested:
+            return normalize_provider_name(requested)
+        if self.metadata_file.exists():
+            try:
+                metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+                return normalize_provider_name(metadata.get("rag_provider") or DEFAULT_PROVIDER)
+            except Exception:
+                pass
+        return DEFAULT_PROVIDER
+
+    def _storage_dir(self) -> Path:
+        if self.rag_provider == "llamaindex":
+            return self.llamaindex_storage_dir
+        return self.milvus_storage_dir
 
     def _get_file_hash(self, file_path: Path) -> str:
         sha256_hash = hashlib.sha256()
@@ -95,7 +108,7 @@ class DocumentAdder:
                 return {}
         return {}
 
-    def add_documents(self, source_files: List[str], allow_duplicates: bool = False) -> List[Path]:
+    def add_documents(self, source_files: list[str], allow_duplicates: bool = False) -> list[Path]:
         """Validate and stage files into raw/ before indexing."""
         logger.info(f"Validating documents for '{self.kb_name}'...")
 
@@ -133,14 +146,12 @@ class DocumentAdder:
 
         return files_to_process
 
-    async def process_new_documents(self, new_files: List[Path]) -> List[Path]:
-        """Index staged files via llamaindex incremental add."""
+    async def process_new_documents(self, new_files: list[Path]) -> list[Path]:
+        """Index staged files via the configured RAG provider."""
         if not new_files:
             return []
 
-        from sparkweave.services.rag_support.pipelines.llamaindex import LlamaIndexPipeline
-
-        pipeline = LlamaIndexPipeline(kb_base_dir=str(self.base_dir))
+        pipeline = get_pipeline(self.rag_provider, kb_base_dir=str(self.base_dir))
         processed_files: list[Path] = []
         total_files = len(new_files)
 
@@ -151,7 +162,7 @@ class DocumentAdder:
 
                     self.progress_tracker.update(
                         ProgressStage.PROCESSING_FILE,
-                        f"Indexing (LlamaIndex) {doc_file.name}",
+                        f"Indexing ({self.rag_provider}) {doc_file.name}",
                         current=idx,
                         total=total_files,
                     )
@@ -160,7 +171,7 @@ class DocumentAdder:
                 if success:
                     processed_files.append(doc_file)
                     self._record_successful_hash(doc_file)
-                    logger.info(f"Processed (LlamaIndex): {doc_file.name}")
+                    logger.info(f"Processed ({self.rag_provider}): {doc_file.name}")
                 else:
                     logger.error(f"Failed to index: {doc_file.name}")
             except Exception as e:
@@ -183,12 +194,6 @@ class DocumentAdder:
         with open(self.metadata_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    def extract_numbered_items_for_new_docs(self, processed_files: List[Path], batch_size: int = 20) -> None:
-        """Compatibility no-op: numbered-item extraction is deprecated."""
-        _ = batch_size
-        if processed_files:
-            logger.info("Skipping numbered items extraction for incremental add (feature removed)")
-
     def update_metadata(self, added_count: int) -> None:
         """Update metadata after incremental add."""
         metadata: dict = {}
@@ -199,7 +204,7 @@ class DocumentAdder:
             except Exception:
                 metadata = {}
 
-        metadata["rag_provider"] = DEFAULT_PROVIDER
+        metadata["rag_provider"] = self.rag_provider
         metadata["needs_reindex"] = False
         metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -209,7 +214,7 @@ class DocumentAdder:
                 "timestamp": metadata["last_updated"],
                 "action": "incremental_add",
                 "count": added_count,
-                "provider": DEFAULT_PROVIDER,
+                "provider": self.rag_provider,
             }
         )
         metadata["update_history"] = history
@@ -222,8 +227,6 @@ async def add_documents(
     kb_name: str,
     source_files: list[str],
     base_dir: str = DEFAULT_BASE_DIR,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
     allow_duplicates: bool = False,
 ) -> int:
     """Convenience function used by CLI wrappers."""
@@ -249,8 +252,6 @@ async def add_documents(
         adder = DocumentAdder(
             kb_name=kb_name,
             base_dir=base_dir,
-            api_key=api_key,
-            base_url=base_url,
             rag_provider=DEFAULT_PROVIDER,
         )
         new_files = adder.add_documents(source_files, allow_duplicates=allow_duplicates)
@@ -273,7 +274,6 @@ async def add_documents(
         processed = await adder.process_new_documents(new_files)
         if new_files and not processed:
             raise DocumentIndexingError("No staged documents were indexed successfully.")
-        adder.extract_numbered_items_for_new_docs(processed)
         adder.update_metadata(len(processed))
 
         manager.update_kb_status(
@@ -315,8 +315,6 @@ async def main() -> None:
     parser.add_argument("--docs", nargs="+", help="Files")
     parser.add_argument("--docs-dir", help="Directory")
     parser.add_argument("--base-dir", default=DEFAULT_BASE_DIR)
-    parser.add_argument("--api-key", default=os.getenv("LLM_API_KEY"))
-    parser.add_argument("--base-url", default=os.getenv("LLM_HOST"))
     parser.add_argument("--allow-duplicates", action="store_true")
 
     args = parser.parse_args()
@@ -338,8 +336,6 @@ async def main() -> None:
         kb_name=args.kb_name,
         source_files=doc_files,
         base_dir=args.base_dir,
-        api_key=args.api_key,
-        base_url=args.base_url,
         allow_duplicates=args.allow_duplicates,
     )
 

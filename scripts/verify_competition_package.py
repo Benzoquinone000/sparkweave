@@ -6,10 +6,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import tempfile
 from pathlib import Path
+import tempfile
 import zipfile
-
 
 REQUIRED_FILES = [
     "START_HERE.md",
@@ -19,9 +18,18 @@ REQUIRED_FILES = [
     "demo_materials/sparkweave-demo-deck.html",
     "demo_materials/sparkweave-competition-scorecard.md",
     "demo_materials/sparkweave-7min-recording-script.md",
+    "docs/competition-demo-connectivity-check.md",
+    "docs/competition-demo-visual-runbook.md",
+    "docs/competition-visualization-wow-plan.md",
+    "docs/competition-visualization-completion-report.md",
+    "docs/sparkweave-execution-plan.md",
     "assets/architecture.svg",
+    "runtime/scripts/start_docker.py",
     "runtime/scripts/start_web.py",
     "screenshots/screenshots-simplified-guide.png",
+    "screenshots/screenshots-competition-demo.png",
+    "screenshots/screenshots-competition-demo-mobile.png",
+    "screenshots/screenshots-sparkbot-demo-readiness.png",
 ]
 
 FORBIDDEN_FILES = {

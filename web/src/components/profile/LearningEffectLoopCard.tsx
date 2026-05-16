@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowRight, BarChart3, CheckCircle2, Clock3, GitBranch, Loader2, RotateCcw, Target } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpenCheck, CheckCircle2, Clock3, GitBranch, Loader2, RotateCcw, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +25,8 @@ export function LearningEffectLoopCard({ courseId = "" }: { courseId?: string })
   const primaryAction = useMemo(() => pickPrimaryAction(report), [report]);
   const weakConcepts = useMemo(() => pickWeakConcepts(report), [report]);
   const remediationLoop = report?.remediation_loop ?? null;
+  const studyBrief = report?.study_brief ?? null;
+  const explainability = report?.explainability ?? null;
   const score = Math.round(Number(report?.overall?.score ?? 0));
   const evidenceCount = Number(report?.summary?.event_count ?? 0);
 
@@ -85,6 +87,12 @@ export function LearningEffectLoopCard({ courseId = "" }: { courseId?: string })
       </div>
 
       <LearningEffectLearnerReceipt report={report} primaryAction={primaryAction} score={score} evidenceCount={evidenceCount} />
+
+      {studyBrief ? <StudyBriefCard brief={studyBrief} primaryAction={primaryAction} /> : null}
+
+      <LearningEffectKnowledgeEvidenceCard report={report} />
+
+      {explainability ? <LearningEffectExplanationCard explanation={explainability} /> : null}
 
       <LearningEffectVisualMap
         report={report}
@@ -151,6 +159,258 @@ export function LearningEffectLoopCard({ courseId = "" }: { courseId?: string })
         </div>
       ) : null}
     </motion.section>
+  );
+}
+
+function StudyBriefCard({
+  brief,
+  primaryAction,
+}: {
+  brief: NonNullable<LearningEffectReport["study_brief"]>;
+  primaryAction: LearningEffectNextAction | null;
+}) {
+  const agenda = (brief.agenda ?? []).slice(0, 3);
+  const criteria = (brief.success_criteria ?? []).slice(0, 3);
+  const avoid = (brief.avoid ?? []).slice(0, 2);
+  const firstAction = agenda.find((item) => item.action_href) ?? null;
+  const href = firstAction?.action_href || primaryAction?.href || "";
+  const label = firstAction?.action_label || (primaryAction ? "开始这一步" : "");
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-white p-3 shadow-sm" data-testid="learning-effect-study-brief">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-tint-yellow text-amber-700">
+              <Clock3 size={15} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">今天只做这一步</p>
+              <h3 className="text-base font-semibold text-ink">{brief.headline || "继续学习"}</h3>
+            </div>
+            <Badge tone="brand">{brief.mode_label || "学习安排"}</Badge>
+            <Badge tone="neutral">{brief.timebox_minutes || 10} 分钟</Badge>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            {brief.summary || "按当前画像只推进一个最小任务，完成后系统会更新下一步。"}
+          </p>
+        </div>
+        {href ? (
+          <a
+            href={href}
+            className="dt-interactive inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-ink bg-ink px-3 text-xs font-medium text-white hover:bg-charcoal"
+            data-testid="learning-effect-study-brief-action"
+          >
+            {label || "开始"}
+            <ArrowRight size={13} />
+          </a>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)]">
+        <div className="rounded-lg border border-line bg-canvas p-3">
+          <p className="text-xs font-semibold text-slate-500">学习步骤</p>
+          <div className="mt-2 grid gap-2">
+            {agenda.length ? (
+              agenda.map((step, index) => (
+                <div key={`${step.label || "step"}-${index}`} className="flex gap-3 rounded-lg border border-line bg-white px-3 py-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-tint-lavender text-xs font-semibold text-brand-purple">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-ink">{step.label || "学习步骤"}</p>
+                      <span className="text-xs text-slate-400">{step.minutes || 1} 分钟</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">{step.detail || "完成后留下学习证据。"}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-lg border border-line bg-white px-3 py-2 text-xs leading-5 text-slate-500">继续完成一条学习证据，系统会自动生成安排。</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="rounded-lg border border-line bg-canvas p-3">
+            <p className="text-xs font-semibold text-slate-500">完成标准</p>
+            <div className="mt-2 grid gap-1.5">
+              {criteria.length ? criteria.map((item) => <p key={item} className="text-xs leading-5 text-charcoal">- {item}</p>) : <p className="text-xs text-slate-500">完成后回写画像。</p>}
+            </div>
+          </div>
+          <div className="rounded-lg border border-line bg-canvas p-3">
+            <p className="text-xs font-semibold text-slate-500">先别做</p>
+            <div className="mt-2 grid gap-1.5">
+              {avoid.length ? avoid.map((item) => <p key={item} className="text-xs leading-5 text-charcoal">- {item}</p>) : <p className="text-xs text-slate-500">不要开太多任务。</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LearningEffectKnowledgeEvidenceCard({ report }: { report: LearningEffectReport }) {
+  const evidence = report.study_brief?.knowledge_evidence;
+  const context = report.knowledge_context;
+  const kbName = evidence?.kb_name || context?.kb_name || "";
+  if (!kbName) return null;
+
+  const ready = Boolean(evidence?.ready ?? context?.ready);
+  const metrics =
+    evidence?.metrics?.length
+      ? evidence.metrics
+      : [
+          { label: "资料", value: `${context?.document_count ?? 0} 份` },
+          { label: "状态", value: context?.status_label || "待检查" },
+        ];
+  const actionHref = evidence?.action_href || context?.action_href || "/knowledge";
+  const actionLabel = evidence?.action_label || context?.action_label || "打开资料库";
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="learning-effect-knowledge-evidence">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-white text-brand-blue">
+              <BookOpenCheck size={15} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">资料依据</p>
+              <h3 className="text-base font-semibold text-ink">{kbName}</h3>
+            </div>
+            <Badge tone={ready ? "success" : "warning"}>{evidence?.status_label || context?.status_label || "待检查"}</Badge>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            {evidence?.summary || context?.summary || "下一步执行时会优先检查可用资料库。"}
+          </p>
+        </div>
+        <a
+          href={actionHref}
+          className="dt-interactive inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-slate-700 hover:border-brand-purple-300 hover:text-brand-purple"
+          data-testid="learning-effect-knowledge-open"
+        >
+          {actionLabel}
+          <ArrowRight size={13} />
+        </a>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        {metrics.slice(0, 4).map((item) => (
+          <div key={`${item.label || "metric"}-${item.value || ""}`} className="rounded-lg border border-line bg-white px-3 py-2">
+            <p className="text-xs font-medium text-slate-500">{item.label || "指标"}</p>
+            <p className="mt-1 truncate text-sm font-semibold text-ink">{item.value || "-"}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LearningEffectExplanationCard({
+  explanation,
+}: {
+  explanation: NonNullable<LearningEffectReport["explainability"]>;
+}) {
+  const confidence = explanation.confidence ?? {};
+  const evidence = (explanation.evidence_used ?? []).slice(0, 4);
+  const rules = (explanation.decision_rules ?? []).slice(0, 3);
+  const factors = (explanation.attention_factors?.length ? explanation.attention_factors : explanation.score_breakdown ?? []).slice(0, 3);
+  const because = (explanation.action_rationale?.because ?? []).slice(0, 3);
+  const confidenceTone = confidence.level === "high" ? "success" : confidence.level === "none" || confidence.level === "low" ? "warning" : "brand";
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="learning-effect-explanation-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-white text-brand-purple">
+              <GitBranch size={15} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">为什么这样判断</p>
+              <h3 className="text-base font-semibold text-ink">{explanation.headline || "系统综合学习证据生成判断"}</h3>
+            </div>
+            <Badge tone={confidenceTone}>{confidence.label || "等待证据"}</Badge>
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            {explanation.summary || "系统会综合作答、资源使用、反思和错因闭环来解释当前评估。"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="rounded-lg border border-line bg-white p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-slate-500">用到了哪些证据</p>
+            {typeof confidence.score === "number" ? <span className="text-xs text-slate-400">可信度 {confidence.score}%</span> : null}
+          </div>
+          <div className="mt-2 grid gap-2">
+            {evidence.map((item) => (
+              <div key={`${item.label || "evidence"}-${item.value || ""}`} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-charcoal">{item.label || "学习证据"}</p>
+                  <Badge tone={explanationTone(item.tone)}>{item.value || "-"}</Badge>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail || "这条证据会参与当前判断。"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-line bg-white p-3">
+          <p className="text-xs font-semibold text-slate-500">判断规则</p>
+          <div className="mt-2 grid gap-2">
+            {rules.map((rule) => (
+              <div key={rule.label || rule.result} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-charcoal">{rule.label || "规则"}</p>
+                  <Badge tone={explanationTone(rule.status)}>{rule.status === "success" ? "通过" : rule.status === "warning" ? "需关注" : "观察"}</Badge>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{rule.result || rule.explanation || "系统会按规则更新判断。"}</p>
+                {rule.explanation ? <p className="mt-1 text-xs leading-5 text-slate-400">{rule.explanation}</p> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="rounded-lg border border-line bg-white p-3">
+          <p className="text-xs font-semibold text-slate-500">最影响判断的维度</p>
+          <div className="mt-2 grid gap-2">
+            {factors.map((factor) => {
+              const value = Math.max(0, Math.min(100, Math.round(Number(factor.score ?? 0))));
+              return (
+                <div key={factor.id || factor.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-charcoal">{factor.label || "评估维度"}</p>
+                    <span className="text-xs text-slate-500">{value}%</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-sm bg-white">
+                    <div className="h-full rounded-sm bg-brand-purple transition-all" style={{ width: `${Math.max(4, value)}%` }} />
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{factor.explanation || "这个维度会影响综合评分。"}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-line bg-white p-3">
+          <p className="text-xs font-semibold text-slate-500">为什么推荐这一步</p>
+          <h4 className="mt-1 text-sm font-semibold text-ink">{explanation.action_rationale?.title || "继续学习"}</h4>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {explanation.action_rationale?.reason || "系统会选择最小可执行动作，并在完成后回写画像。"}
+          </p>
+          <div className="mt-2 grid gap-1.5">
+            {because.map((item) => (
+              <p key={item} className="text-xs leading-5 text-charcoal">- {item}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -587,6 +847,13 @@ function nodeToneClass(tone?: string) {
   if (tone === "warning" || tone === "watch" || tone === "needs_support") return "bg-amber-50 text-amber-700";
   if (tone === "thin_evidence" || tone === "neutral") return "bg-white text-slate-500 border border-line";
   return "bg-tint-lavender text-brand-purple";
+}
+
+function explanationTone(tone?: string): "neutral" | "success" | "warning" | "brand" {
+  if (tone === "success" || tone === "good") return "success";
+  if (tone === "warning" || tone === "thin_evidence" || tone === "needs_support") return "warning";
+  if (tone === "brand" || tone === "watch") return "brand";
+  return "neutral";
 }
 
 function evidenceKindLabel(kind?: string) {

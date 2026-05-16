@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+import json
 import re
 import time
 from typing import Any
@@ -19,6 +20,16 @@ from sparkweave.services.learner_evidence import (
     LearnerEvidenceService,
     get_learner_evidence_service,
 )
+
+LEARNING_EFFECT_DIMENSION_WEIGHTS: dict[str, float] = {
+    "mastery": 0.27,
+    "progress": 0.14,
+    "stability": 0.16,
+    "evidence_quality": 0.17,
+    "engagement": 0.12,
+    "remediation": 0.09,
+    "resource_effectiveness": 0.05,
+}
 
 
 @dataclass
@@ -55,14 +66,21 @@ class NextBestAction:
     capability: str = "chat"
     prompt: str = ""
     config: dict[str, Any] = field(default_factory=dict)
+    knowledge_bases: list[str] = field(default_factory=list)
     writes_back: list[str] = field(default_factory=lambda: ["mastery", "profile"])
 
 
 class LearningEffectService:
     """Build reports, concept states, and interventions from learner evidence."""
 
-    def __init__(self, *, evidence_service: LearnerEvidenceService | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        evidence_service: LearnerEvidenceService | None = None,
+        knowledge_manager: Any | None = None,
+    ) -> None:
         self._evidence_service = evidence_service or get_learner_evidence_service()
+        self._knowledge_manager = knowledge_manager
 
     def health(self) -> dict[str, Any]:
         listing = self._evidence_service.list_events(limit=1)
@@ -131,21 +149,20 @@ class LearningEffectService:
         events.sort(key=_event_time)
         concepts = self._build_concepts(events)
         summary = self._summarize_events(events)
-        actions = self._build_next_actions(concepts, summary, course_id=course_id)
+        knowledge_context = self._build_knowledge_context(
+            course_id=course_id,
+            concepts=concepts,
+            summary=summary,
+        )
+        actions = self._build_next_actions(
+            concepts,
+            summary,
+            course_id=course_id,
+            knowledge_context=knowledge_context,
+        )
         remediation_loop = self._remediation_loop(events)
         dimensions = self._dimensions(events=events, concepts=concepts, summary=summary)
-        overall_score = _weighted_score(
-            dimensions,
-            {
-                "mastery": 0.27,
-                "progress": 0.14,
-                "stability": 0.16,
-                "evidence_quality": 0.17,
-                "engagement": 0.12,
-                "remediation": 0.09,
-                "resource_effectiveness": 0.05,
-            },
-        )
+        overall_score = _weighted_score(dimensions, LEARNING_EFFECT_DIMENSION_WEIGHTS)
         label = _overall_label(overall_score, evidence_count=len(events), open_mistakes=summary["open_mistake_count"])
         visualization = self._learning_effect_visualization(
             events=events,
@@ -165,6 +182,30 @@ class LearningEffectService:
             overall_score=overall_score,
             overall_label=label,
         )
+        study_brief = self._study_brief(
+            concepts=concepts,
+            summary=summary,
+            remediation_loop=remediation_loop,
+            actions=actions,
+            overall_score=overall_score,
+            overall_label=label,
+            learner_receipt=learner_receipt,
+            course_id=course_id,
+            knowledge_context=knowledge_context,
+        )
+        explainability = self._explain_report(
+            events=events,
+            concepts=concepts,
+            dimensions=dimensions,
+            summary=summary,
+            remediation_loop=remediation_loop,
+            actions=actions,
+            overall_score=overall_score,
+            overall_label=label,
+            learner_receipt=learner_receipt,
+            study_brief=study_brief,
+            knowledge_context=knowledge_context,
+        )
         return {
             "success": True,
             "generated_at": time.time(),
@@ -181,6 +222,9 @@ class LearningEffectService:
             "remediation_loop": remediation_loop,
             "visualization": visualization,
             "learner_receipt": learner_receipt,
+            "study_brief": study_brief,
+            "explainability": explainability,
+            "knowledge_context": knowledge_context,
             "next_actions": [asdict(item) for item in actions[:6]],
             "evidence_refs": self._evidence_refs(events, limit=10),
             "summary": summary,
@@ -214,7 +258,17 @@ class LearningEffectService:
         events = self._events(course_id=course_id, window=window, limit=500)
         concepts = self._build_concepts(events)
         summary = self._summarize_events(events)
-        actions = self._build_next_actions(concepts, summary, course_id=course_id)
+        knowledge_context = self._build_knowledge_context(
+            course_id=course_id,
+            concepts=concepts,
+            summary=summary,
+        )
+        actions = self._build_next_actions(
+            concepts,
+            summary,
+            course_id=course_id,
+            knowledge_context=knowledge_context,
+        )
         return {
             "success": True,
             "course_id": course_id,
@@ -235,6 +289,8 @@ class LearningEffectService:
         overall = dict(report.get("overall") or {})
         summary = dict(report.get("summary") or {})
         receipt = dict(report.get("learner_receipt") or {})
+        study_brief = dict(report.get("study_brief") or {})
+        explainability = dict(report.get("explainability") or {})
         remediation = dict(report.get("remediation_loop") or {})
         primary_action = dict((report.get("next_actions") or [{}])[0] or {})
         concepts = [dict(item) for item in report.get("concepts") or [] if isinstance(item, dict)]
@@ -307,6 +363,8 @@ class LearningEffectService:
             "score_label": receipt.get("score_label") or f"{overall.get('score', 0)} 分",
             "confidence_label": receipt.get("confidence_label") or "等待证据",
             "proof_points": proof_points,
+            "study_brief": study_brief,
+            "explainability": explainability,
             "weak_concepts": weak_concept_highlights,
             "dimension_highlights": dimensions[:4],
             "primary_action": {
@@ -493,6 +551,7 @@ class LearningEffectService:
         summary: dict[str, Any],
         *,
         course_id: str,
+        knowledge_context: dict[str, Any] | None = None,
     ) -> list[NextBestAction]:
         actions: list[NextBestAction] = []
         if not concepts and summary["event_count"] == 0:
@@ -509,7 +568,11 @@ class LearningEffectService:
                 )
             )
             for action in actions:
-                _attach_action_execution_payload(action, course_id=course_id)
+                _attach_action_execution_payload(
+                    action,
+                    course_id=course_id,
+                    knowledge_context=knowledge_context,
+                )
             return actions
 
         weak = [item for item in concepts if item.status in {"needs_foundation", "needs_support", "unknown"}]
@@ -609,7 +672,11 @@ class LearningEffectService:
 
         deduped: dict[str, NextBestAction] = {}
         for action in sorted(actions, key=lambda item: item.priority, reverse=True):
-            _attach_action_execution_payload(action, course_id=course_id)
+            _attach_action_execution_payload(
+                action,
+                course_id=course_id,
+                knowledge_context=knowledge_context,
+            )
             deduped.setdefault(action.id, action)
         return list(deduped.values())
 
@@ -758,6 +825,93 @@ class LearningEffectService:
                 }
             )
         return refs
+
+    def _build_knowledge_context(
+        self,
+        *,
+        course_id: str,
+        concepts: list[ConceptMasteryState],
+        summary: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Summarize the KB that should ground learning-effect actions."""
+
+        del summary  # Reserved for future course-to-KB routing signals.
+        focus = next(
+            (
+                item
+                for item in concepts
+                if item.status in {"needs_foundation", "needs_support", "unknown"} or item.open_mistake_count
+            ),
+            concepts[0] if concepts else None,
+        )
+        focus_title = focus.title if focus else "当前学习目标"
+
+        try:
+            manager = self._knowledge_manager
+            if manager is None:
+                from sparkweave.knowledge.manager import KnowledgeBaseManager
+
+                manager = KnowledgeBaseManager()
+            kb_names = [str(item).strip() for item in (manager.list_knowledge_bases() or []) if str(item).strip()]
+            if not kb_names:
+                return _empty_knowledge_context(
+                    focus_title=focus_title,
+                    status="missing",
+                    summary="还没有可用资料库。先上传课程资料后，学习建议就能带上可检索依据。",
+                )
+            kb_name = _select_learning_kb(manager, kb_names, course_id)
+            if not kb_name:
+                return _empty_knowledge_context(
+                    focus_title=focus_title,
+                    status="missing",
+                    summary="还没有选定资料库。设置默认资料库后，学习建议会自动引用相关材料。",
+                )
+
+            info = manager.get_info(kb_name) if hasattr(manager, "get_info") else {}
+            info = info if isinstance(info, dict) else {}
+            statistics = info.get("statistics") if isinstance(info.get("statistics"), dict) else {}
+            metadata = info.get("metadata") if isinstance(info.get("metadata"), dict) else {}
+            status = str(info.get("status") or statistics.get("status") or "unknown")
+            provider = str(metadata.get("rag_provider") or statistics.get("rag_provider") or "")
+            document_count = _safe_int_value(statistics.get("raw_documents"))
+            ready = status == "ready" and bool(statistics.get("rag_initialized"))
+            if bool(metadata.get("needs_reindex")) or bool(statistics.get("needs_reindex")):
+                status = "needs_reindex"
+                ready = False
+
+            eval_report = _load_latest_knowledge_eval(manager, kb_name)
+            eval_summary = _summarize_knowledge_eval(eval_report)
+            quality_label = str(eval_summary.get("quality_label") or "")
+            status_label = _knowledge_status_label(status=status, ready=ready, eval_summary=eval_summary)
+            summary_text = _knowledge_context_summary(
+                kb_name=kb_name,
+                ready=ready,
+                document_count=document_count,
+                status_label=status_label,
+                quality_label=quality_label,
+            )
+            action_label = "修复资料库" if status == "needs_reindex" else ("运行检索评测" if ready and not eval_summary.get("available") else "打开资料库")
+            return {
+                "available": bool(kb_name),
+                "ready": ready,
+                "status": status,
+                "status_label": status_label,
+                "kb_name": kb_name,
+                "provider": provider,
+                "document_count": document_count,
+                "focus_query": focus_title,
+                "summary": summary_text,
+                "action_label": action_label,
+                "action_href": "/knowledge",
+                "latest_eval": eval_summary,
+                "can_ground_actions": bool(ready and kb_name),
+            }
+        except Exception as exc:
+            return _empty_knowledge_context(
+                focus_title=focus_title,
+                status="error",
+                summary=f"资料库状态暂时无法读取：{_clean(exc, 120)}",
+            )
 
     def _learning_effect_visualization(
         self,
@@ -944,6 +1098,299 @@ class LearningEffectService:
             },
         }
 
+    def _study_brief(
+        self,
+        *,
+        concepts: list[ConceptMasteryState],
+        summary: dict[str, Any],
+        remediation_loop: dict[str, Any],
+        actions: list[NextBestAction],
+        overall_score: int,
+        overall_label: str,
+        learner_receipt: dict[str, Any],
+        course_id: str,
+        knowledge_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Return the smallest actionable plan a learner should see today."""
+
+        event_count = int(summary.get("event_count") or 0)
+        open_mistakes = int(summary.get("open_mistake_count") or 0)
+        pending_loop = int(remediation_loop.get("pending_remediation_count") or 0)
+        ready_loop = int(remediation_loop.get("ready_for_retest_count") or 0)
+        primary_action = actions[0] if actions else None
+        weak_concepts = [
+            item
+            for item in concepts
+            if item.status in {"needs_foundation", "needs_support", "unknown"} or item.open_mistake_count
+        ]
+        focus = weak_concepts[0] if weak_concepts else (concepts[0] if concepts else None)
+        focus_title = focus.title if focus else "当前学习目标"
+
+        if event_count <= 0:
+            mode = "baseline"
+            mode_label = "建立基线"
+            headline = "今天先做一次小诊断"
+            summary_text = "系统还不了解你的当前水平。先用 5 题诊断建立画像，再决定补图解、练习还是短视频。"
+            timebox = 10
+            main_href = primary_action.href if primary_action else _guide_href(course_id, "diagnostic")
+            main_capability = primary_action.capability if primary_action else "deep_question"
+            main_prompt = primary_action.prompt if primary_action else "请生成 5 道诊断题，先判断我的当前基础。"
+            agenda = [
+                _brief_step(
+                    "完成 5 题诊断",
+                    8,
+                    "只需要判断当前基础，不追求满分。",
+                    action_label="开始诊断",
+                    action_href=main_href,
+                    capability=main_capability,
+                    prompt=main_prompt,
+                ),
+                _brief_step("写一句卡点", 2, "用一句话说清最不确定的地方，系统会把它写入画像。"),
+            ]
+            criteria = ["完成诊断", "留下一个卡点", "生成第一条画像证据"]
+        elif pending_loop:
+            mode = "remediation"
+            mode_label = "补救错因"
+            headline = f"先补齐「{focus_title}」"
+            summary_text = f"当前还有 {pending_loop} 个错因没有闭环。今天只处理一个最关键卡点，避免同时开太多战线。"
+            timebox = max(8, min(20, int(primary_action.estimated_minutes if primary_action else 10) + 4))
+            agenda = [
+                _brief_step(
+                    primary_action.title if primary_action else f"补齐「{focus_title}」",
+                    int(primary_action.estimated_minutes if primary_action else 10),
+                    primary_action.reason if primary_action else "先补救错因，再进入复测。",
+                    action_label=_receipt_action_label(primary_action.type) if primary_action else "开始补救",
+                    action_href=primary_action.href if primary_action else _guide_href(course_id, "mistake_review"),
+                    capability=primary_action.capability if primary_action else "visualize",
+                    prompt=primary_action.prompt if primary_action else f"请用图解帮我补齐「{focus_title}」这个错因。",
+                ),
+                _brief_step("用一句话复述", 3, "复述“我之前错在哪里，现在怎么判断”。"),
+                _brief_step("回到导学提交", 2, "提交后系统会判断是否可以进入复测。"),
+            ]
+            criteria = ["能说清错因", "完成补救动作", "产生可复测证据"]
+        elif ready_loop:
+            mode = "retest"
+            mode_label = "复测确认"
+            headline = f"复测「{focus_title}」是否真正掌握"
+            summary_text = "补救已经完成，今天不要继续看资料，直接用小测确认是否能独立做对。"
+            timebox = max(8, min(16, int(primary_action.estimated_minutes if primary_action else 7) + 3))
+            agenda = [
+                _brief_step(
+                    primary_action.title if primary_action else f"复测「{focus_title}」",
+                    int(primary_action.estimated_minutes if primary_action else 7),
+                    primary_action.reason if primary_action else "用小测确认补救是否真正生效。",
+                    action_label="去复测",
+                    action_href=primary_action.href if primary_action else _guide_href(course_id, f"retest:{focus_title}"),
+                    capability=primary_action.capability if primary_action else "deep_question",
+                    prompt=primary_action.prompt if primary_action else f"请围绕「{focus_title}」生成 3 道复测题。",
+                ),
+                _brief_step("只看错题解析", 3, "如果复测出错，只处理错题，不再扩展新内容。"),
+            ]
+            criteria = ["独立完成复测", "错题能解释原因", "闭环状态更新"]
+        elif primary_action:
+            mode = str(primary_action.type or "continue")
+            mode_label = _brief_mode_label(mode)
+            headline = primary_action.title
+            summary_text = primary_action.reason or learner_receipt.get("reason") or f"{overall_label}，先推进一个最小任务。"
+            timebox = max(6, min(25, int(primary_action.estimated_minutes or 8) + 3))
+            agenda = [
+                _brief_step(
+                    primary_action.title,
+                    int(primary_action.estimated_minutes or 8),
+                    primary_action.reason,
+                    action_label=_receipt_action_label(primary_action.type),
+                    action_href=primary_action.href,
+                    capability=primary_action.capability,
+                    prompt=primary_action.prompt,
+                ),
+                *_supporting_brief_steps(primary_action, focus_title),
+            ]
+            criteria = _brief_success_criteria(primary_action.type, focus_title)
+        else:
+            mode = "maintain"
+            mode_label = "保持节奏"
+            headline = "今天做一次轻量复习"
+            summary_text = f"{overall_label}，当前没有必须立刻处理的薄弱点。用一个小复习保持稳定。"
+            timebox = 8
+            agenda = [
+                _brief_step(
+                    f"复习「{focus_title}」",
+                    6,
+                    "快速回忆核心概念，再做一个自测问题。",
+                    action_label="安排复习",
+                    action_href=_guide_href(course_id, f"review:{focus_title}"),
+                    capability="deep_question",
+                    prompt=f"请根据我的学习画像，为「{focus_title}」安排一个 5 分钟复习任务。",
+                ),
+                _brief_step("记录一句反思", 2, "写下还想继续深入的地方。"),
+            ]
+            criteria = ["完成一次复习", "保留反思证据", "进入下一节前状态稳定"]
+
+        return {
+            "headline": headline,
+            "summary": summary_text,
+            "mode": mode,
+            "mode_label": mode_label,
+            "focus": {
+                "concept_id": focus.concept_id if focus else "",
+                "title": focus_title,
+                "status": focus.status if focus else "unknown",
+                "status_label": _status_label(focus.status if focus else "unknown"),
+                "score": round(focus.score * 100) if focus else 0,
+            },
+            "timebox_minutes": timebox,
+            "score": overall_score,
+            "score_label": f"{overall_score} 分" if event_count else "待建立",
+            "confidence_label": learner_receipt.get("confidence_label") or "等待证据",
+            "agenda": agenda[:4],
+            "success_criteria": criteria[:4],
+            "avoid": _brief_avoid_list(mode=mode, open_mistakes=open_mistakes),
+            "writes_back": sorted({item for action in actions[:2] for item in action.writes_back} or {"profile", "mastery"}),
+            "primary_action_id": primary_action.id if primary_action else "",
+            "knowledge_evidence": _study_knowledge_evidence(
+                knowledge_context,
+                focus_title=focus_title,
+            ),
+        }
+
+    def _explain_report(
+        self,
+        *,
+        events: list[dict[str, Any]],
+        concepts: list[ConceptMasteryState],
+        dimensions: list[dict[str, Any]],
+        summary: dict[str, Any],
+        remediation_loop: dict[str, Any],
+        actions: list[NextBestAction],
+        overall_score: int,
+        overall_label: str,
+        learner_receipt: dict[str, Any],
+        study_brief: dict[str, Any],
+        knowledge_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Explain the assessment in user-facing language."""
+
+        event_count = int(summary.get("event_count") or 0)
+        answered_count = int(summary.get("answered_count") or 0)
+        resource_count = int(summary.get("resource_count") or 0)
+        scored_count = int(summary.get("scored_count") or 0)
+        open_mistakes = int(summary.get("open_mistake_count") or 0)
+        pending_loop = int(remediation_loop.get("pending_remediation_count") or 0)
+        ready_loop = int(remediation_loop.get("ready_for_retest_count") or 0)
+        closed_loop = int(remediation_loop.get("closed_count") or 0)
+        primary_action = actions[0] if actions else None
+        weak_concepts = [
+            item
+            for item in concepts
+            if item.status in {"needs_foundation", "needs_support", "unknown"} or item.open_mistake_count
+        ]
+        focus = weak_concepts[0] if weak_concepts else (concepts[0] if concepts else None)
+        confidence = _explain_confidence(event_count=event_count, scored_count=scored_count, source_count=len(summary.get("sources") or []))
+        score_breakdown = _score_breakdown(dimensions)
+        attention = [item for item in score_breakdown if int(item.get("score") or 0) < 60][:3]
+        support = [item for item in score_breakdown if int(item.get("score") or 0) >= 72][:2]
+
+        if event_count <= 0:
+            headline = "这不是低分，而是证据还不够"
+            summary_text = "系统现在只知道你还没有留下可评分学习证据，所以先建议做一次小诊断来建立画像基线。"
+        elif focus:
+            headline = f"主要判断依据是「{focus.title}」还需要处理"
+            summary_text = (
+                f"系统综合了 {event_count} 条证据，发现「{focus.title}」处于「{_status_label(focus.status)}」。"
+                f"当前建议先执行「{primary_action.title if primary_action else study_brief.get('headline') or '下一步学习任务'}」。"
+            )
+        else:
+            headline = f"当前状态是「{overall_label}」"
+            summary_text = (
+                f"系统综合了 {event_count} 条证据后给出 {overall_score} 分。"
+                f"下一步是「{primary_action.title if primary_action else study_brief.get('headline') or '保持节奏'}」。"
+            )
+
+        evidence_used = [
+            {
+                "label": "作答证据",
+                "value": f"{answered_count} 次",
+                "detail": f"正确率约 {round(float(summary.get('accuracy') or 0) * 100)}%，用于判断知识掌握。",
+                "tone": "brand" if answered_count else "thin_evidence",
+            },
+            {
+                "label": "资源行为",
+                "value": f"{resource_count} 个",
+                "detail": "图解、视频、笔记和保存行为会影响资源偏好与投入度。",
+                "tone": "brand" if resource_count else "neutral",
+            },
+            {
+                "label": "错因闭环",
+                "value": f"待补 {pending_loop} / 待测 {ready_loop} / 已闭 {closed_loop}",
+                "detail": f"仍有 {open_mistakes} 个错因信号会拉低闭环评分。",
+                "tone": "warning" if open_mistakes or pending_loop else "success",
+            },
+        ]
+        if focus:
+            evidence_used.append(
+                {
+                    "label": "当前焦点",
+                    "value": focus.title,
+                    "detail": f"{_status_label(focus.status)}，掌握度约 {round(focus.score * 100)}%，置信度约 {round(focus.confidence * 100)}%。",
+                    "tone": "warning" if focus.status in {"needs_foundation", "needs_support", "unknown"} else "brand",
+                }
+            )
+        knowledge_evidence = _explain_knowledge_evidence(knowledge_context)
+        if knowledge_evidence:
+            evidence_used.append(knowledge_evidence)
+
+        decision_rules = [
+            {
+                "label": "先看证据量",
+                "result": f"{event_count} 条证据，{scored_count} 条可评分。",
+                "status": "warning" if confidence["level"] in {"low", "none"} else "success",
+                "explanation": "证据越少，系统越倾向于推荐诊断而不是直接下结论。",
+            },
+            {
+                "label": "再看知识掌握",
+                "result": _dimension_result(score_breakdown, "mastery"),
+                "status": _dimension_rule_status(score_breakdown, "mastery"),
+                "explanation": "答题、任务完成和复测结果会共同影响掌握度。",
+            },
+            {
+                "label": "最后看错因是否闭环",
+                "result": f"待处理错因 {open_mistakes} 个。",
+                "status": "warning" if open_mistakes else "success",
+                "explanation": "答错后如果没有补救和复测，系统不会把它视为真正掌握。",
+            },
+        ]
+
+        action_rationale = {
+            "title": primary_action.title if primary_action else study_brief.get("headline") or "继续学习",
+            "reason": primary_action.reason if primary_action else learner_receipt.get("reason") or summary_text,
+            "because": _action_because(
+                primary_action=primary_action,
+                focus=focus,
+                event_count=event_count,
+                open_mistakes=open_mistakes,
+                confidence_label=confidence["label"],
+                knowledge_context=knowledge_context,
+            ),
+            "will_update": primary_action.writes_back if primary_action else study_brief.get("writes_back") or ["profile", "mastery"],
+        }
+
+        return {
+            "headline": headline,
+            "summary": summary_text,
+            "confidence": confidence,
+            "evidence_used": evidence_used,
+            "decision_rules": decision_rules,
+            "score_breakdown": score_breakdown,
+            "attention_factors": attention,
+            "supporting_factors": support,
+            "action_rationale": action_rationale,
+            "plain_language": [
+                "系统不是只看最后一次回答，而是综合作答、资源使用、反思和错因闭环。",
+                "证据不足时，系统会优先建议诊断；错因未闭环时，会优先建议补救或复测。",
+                "完成下一步后，新证据会写回同一个学习画像，下一次建议会随之变化。",
+            ],
+        }
+
     @staticmethod
     def _concept_summary(concepts: list[ConceptMasteryState]) -> dict[str, Any]:
         by_status: dict[str, int] = {}
@@ -972,6 +1419,38 @@ def _learning_effect_demo_markdown(summary: dict[str, Any]) -> str:
         if not isinstance(item, dict):
             continue
         lines.append(f"- **{item.get('label') or '证据'}**：{item.get('value') or ''}。{item.get('detail') or ''}".strip())
+
+    explainability = summary.get("explainability") if isinstance(summary.get("explainability"), dict) else {}
+    if explainability:
+        confidence = explainability.get("confidence") if isinstance(explainability.get("confidence"), dict) else {}
+        lines.extend(
+            [
+                "",
+                "## 为什么这样判断",
+                "",
+                f"- 解释：{explainability.get('summary') or explainability.get('headline') or '系统综合证据生成判断。'}",
+                f"- 可信度：{confidence.get('label') or '等待证据'}。{confidence.get('reason') or ''}".strip(),
+            ]
+        )
+        for rule in explainability.get("decision_rules") or []:
+            if isinstance(rule, dict):
+                lines.append(f"- {rule.get('label') or '规则'}：{rule.get('result') or ''}".strip())
+
+    study_brief = summary.get("study_brief") if isinstance(summary.get("study_brief"), dict) else {}
+    if study_brief:
+        lines.extend(
+            [
+                "",
+                "## 今日学习安排",
+                "",
+                f"- 主题：{study_brief.get('headline') or '继续学习'}",
+                f"- 时间盒：{study_brief.get('timebox_minutes') or 10} 分钟",
+                f"- 说明：{study_brief.get('summary') or '按当前画像只推进一个最小任务。'}",
+            ]
+        )
+        for step in study_brief.get("agenda") or []:
+            if isinstance(step, dict):
+                lines.append(f"- {step.get('label') or '学习步骤'}：{step.get('minutes') or 0} 分钟。{step.get('detail') or ''}".strip())
 
     action = summary.get("primary_action") if isinstance(summary.get("primary_action"), dict) else {}
     if action:
@@ -1011,6 +1490,420 @@ def _learning_effect_demo_markdown(summary: dict[str, Any]) -> str:
             lines.append(f"- {item}")
 
     return "\n".join(lines).strip() + "\n"
+
+
+def _brief_step(
+    label: str,
+    minutes: int,
+    detail: str,
+    *,
+    action_label: str = "",
+    action_href: str = "",
+    capability: str = "",
+    prompt: str = "",
+) -> dict[str, Any]:
+    return {
+        "label": _clean(label, 120) or "学习步骤",
+        "minutes": max(1, min(int(minutes or 1), 45)),
+        "detail": _clean(detail, 220),
+        "action_label": _clean(action_label, 40),
+        "action_href": _clean(action_href, 1200),
+        "capability": _clean(capability, 80),
+        "prompt": _clean(prompt, 600),
+    }
+
+
+def _brief_mode_label(mode: str) -> str:
+    return {
+        "diagnostic": "诊断起步",
+        "generate_visual": "图解补基",
+        "generate_practice": "练习验证",
+        "retest": "复测确认",
+        "mistake_review": "错因闭环",
+        "generate_resource": "资料补充",
+        "advance": "进阶迁移",
+        "baseline": "建立基线",
+        "remediation": "补救错因",
+        "maintain": "保持节奏",
+    }.get(str(mode or ""), "继续学习")
+
+
+def _supporting_brief_steps(action: NextBestAction, focus_title: str) -> list[dict[str, Any]]:
+    action_type = str(action.type or "")
+    if action_type == "generate_visual":
+        return [
+            _brief_step("复述图解", 2, "看完后用一句话说清核心关系。"),
+            _brief_step("做 1 题验证", 4, "用小题确认不是只看懂画面。", action_href=_guide_href("", f"practice:{focus_title}"), action_label="做练习"),
+        ]
+    if action_type == "generate_practice":
+        return [
+            _brief_step("提交答案", 2, "不要只在心里想，提交后系统才能回写画像。"),
+            _brief_step("看错因反馈", 3, "只处理本组最关键的一个错因。"),
+        ]
+    if action_type == "retest":
+        return [_brief_step("对照错题", 3, "如果复测出错，先解释错误原因，再决定是否补救。")]
+    if action_type == "mistake_review":
+        return [_brief_step("写错因句子", 3, "格式：我之前把 A 当成 B，现在判断依据是 C。")]
+    if action_type == "advance":
+        return [_brief_step("记录迁移场景", 3, "写下这个知识点可以用在哪个真实任务里。")]
+    return [_brief_step("留下反馈", 2, "完成后点记录或写一句反思，让系统更新下一步。")]
+
+
+def _brief_success_criteria(action_type: str, focus_title: str) -> list[str]:
+    if action_type == "generate_visual":
+        return [f"能口头解释「{focus_title}」", "完成 1 题验证", "资源偏好写回画像"]
+    if action_type == "generate_practice":
+        return ["完成并提交练习", "收到对错反馈", "下一步建议发生更新"]
+    if action_type == "retest":
+        return ["独立完成复测", "正确率达到 80% 左右", "错因状态被关闭或继续补救"]
+    if action_type == "mistake_review":
+        return ["说清一个错因", "完成补救动作", "进入复测等待"]
+    if action_type == "advance":
+        return ["完成一个迁移任务", "写下应用场景", "准备进入下一节"]
+    return ["完成当前动作", "留下学习证据", "画像与下一步同步更新"]
+
+
+def _brief_avoid_list(*, mode: str, open_mistakes: int) -> list[str]:
+    items = ["不要一次打开太多资料", "不要只看不提交"]
+    if mode in {"remediation", "mistake_review"} or open_mistakes:
+        items.insert(0, "先关一个错因，不要同时补多个点")
+    if mode in {"retest", "advance"}:
+        items.append("不要在复测前继续刷讲解")
+    return items[:3]
+
+
+def _select_learning_kb(manager: Any, kb_names: list[str], course_id: str) -> str:
+    candidates = []
+    raw_course = _clean(course_id, 120)
+    if raw_course:
+        candidates.extend(
+            [
+                raw_course,
+                raw_course.lower(),
+                raw_course.replace("_", "-"),
+                raw_course.replace("-", "_"),
+            ]
+        )
+    for candidate in candidates:
+        if candidate in kb_names:
+            return candidate
+    try:
+        default = _clean(manager.get_default(), 120) if hasattr(manager, "get_default") else ""
+        if default and default in kb_names:
+            return default
+    except Exception:
+        pass
+    return kb_names[0] if kb_names else ""
+
+
+def _empty_knowledge_context(*, focus_title: str, status: str, summary: str) -> dict[str, Any]:
+    status_label = "未连接" if status == "missing" else "需检查"
+    return {
+        "available": False,
+        "ready": False,
+        "status": status,
+        "status_label": status_label,
+        "kb_name": "",
+        "provider": "",
+        "document_count": 0,
+        "focus_query": focus_title,
+        "summary": summary,
+        "action_label": "打开资料库",
+        "action_href": "/knowledge",
+        "latest_eval": {"available": False},
+        "can_ground_actions": False,
+    }
+
+
+def _load_latest_knowledge_eval(manager: Any, kb_name: str) -> dict[str, Any] | None:
+    try:
+        kb_path = manager.get_knowledge_base_path(kb_name)
+        path = kb_path / "rag_eval" / "latest.json"
+        if not path.exists():
+            return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def _summarize_knowledge_eval(report: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(report, dict) or not report:
+        return {"available": False}
+    summary_rows = [item for item in report.get("summary") or [] if isinstance(item, dict)]
+    experiment = report.get("experiment_summary") if isinstance(report.get("experiment_summary"), dict) else {}
+    leader_name = _clean(experiment.get("quality_leader") or report.get("baseline_strategy") or "baseline", 120)
+    row = next((item for item in summary_rows if str(item.get("strategy") or "") == leader_name), None)
+    if row is None:
+        baseline = _clean(report.get("baseline_strategy") or "baseline", 120)
+        row = next((item for item in summary_rows if str(item.get("strategy") or "") == baseline), None)
+    if row is None and summary_rows:
+        row = summary_rows[0]
+    row = row or {}
+    source_hit = _safe_number(row.get("source_hit_rate"))
+    ndcg = _safe_number(row.get("avg_source_ndcg"))
+    success = _safe_number(row.get("success_rate"))
+    quality = source_hit if source_hit is not None else success
+    return {
+        "available": True,
+        "created_at": report.get("created_at"),
+        "case_count": _safe_int_value(report.get("case_count") or row.get("cases")),
+        "strategy": leader_name,
+        "decision": experiment.get("decision") or "",
+        "decision_label": experiment.get("label") or "",
+        "quality_label": _knowledge_quality_label(quality),
+        "source_hit_rate": source_hit,
+        "source_ndcg": ndcg,
+        "success_rate": success,
+        "diagnostic_headline": dict(report.get("diagnostic_summary") or {}).get("headline") or "",
+    }
+
+
+def _knowledge_quality_label(value: float | None) -> str:
+    if value is None:
+        return "已评测"
+    if value >= 0.85:
+        return "证据命中高"
+    if value >= 0.65:
+        return "证据可用"
+    return "需要补强"
+
+
+def _knowledge_status_label(*, status: str, ready: bool, eval_summary: dict[str, Any]) -> str:
+    if status == "needs_reindex":
+        return "需重建索引"
+    if not ready:
+        return "待检查"
+    if eval_summary.get("available"):
+        return str(eval_summary.get("quality_label") or "已评测")
+    return "可检索"
+
+
+def _knowledge_context_summary(
+    *,
+    kb_name: str,
+    ready: bool,
+    document_count: int,
+    status_label: str,
+    quality_label: str,
+) -> str:
+    if not ready:
+        return f"资料库「{kb_name}」当前为「{status_label}」，建议先完成修复或重建索引。"
+    if quality_label:
+        return f"资料库「{kb_name}」已可检索，包含 {document_count} 份资料；最近评测显示「{quality_label}」。"
+    return f"资料库「{kb_name}」已可检索，包含 {document_count} 份资料；建议补一次检索评测作为质量基线。"
+
+
+def _study_knowledge_evidence(
+    knowledge_context: dict[str, Any] | None,
+    *,
+    focus_title: str,
+) -> dict[str, Any] | None:
+    if not isinstance(knowledge_context, dict) or not knowledge_context.get("kb_name"):
+        return None
+    latest_eval = knowledge_context.get("latest_eval") if isinstance(knowledge_context.get("latest_eval"), dict) else {}
+    metrics: list[dict[str, str]] = [
+        {"label": "资料", "value": f"{_safe_int_value(knowledge_context.get('document_count'))} 份"},
+        {"label": "状态", "value": str(knowledge_context.get("status_label") or "待检查")},
+    ]
+    if latest_eval.get("available"):
+        source_hit = _safe_number(latest_eval.get("source_hit_rate"))
+        ndcg = _safe_number(latest_eval.get("source_ndcg"))
+        if source_hit is not None:
+            metrics.append({"label": "来源命中", "value": _format_percent(source_hit)})
+        if ndcg is not None:
+            metrics.append({"label": "证据排序", "value": _format_percent(ndcg)})
+    return {
+        "title": "资料依据",
+        "kb_name": knowledge_context.get("kb_name") or "",
+        "summary": knowledge_context.get("summary") or f"围绕「{focus_title}」执行下一步时会优先检查资料库。",
+        "status_label": knowledge_context.get("status_label") or "",
+        "focus_query": knowledge_context.get("focus_query") or focus_title,
+        "action_label": knowledge_context.get("action_label") or "打开资料库",
+        "action_href": knowledge_context.get("action_href") or "/knowledge",
+        "ready": bool(knowledge_context.get("ready")),
+        "metrics": metrics[:4],
+    }
+
+
+def _explain_knowledge_evidence(knowledge_context: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(knowledge_context, dict) or not knowledge_context.get("kb_name"):
+        return None
+    latest_eval = knowledge_context.get("latest_eval") if isinstance(knowledge_context.get("latest_eval"), dict) else {}
+    parts = [str(knowledge_context.get("summary") or "").strip()]
+    if latest_eval.get("available"):
+        source_hit = _safe_number(latest_eval.get("source_hit_rate"))
+        if source_hit is not None:
+            parts.append(f"来源命中约 {_format_percent(source_hit)}。")
+    return {
+        "label": "资料依据",
+        "value": str(knowledge_context.get("status_label") or knowledge_context.get("kb_name") or "资料库"),
+        "detail": " ".join(part for part in parts if part).strip(),
+        "tone": "success" if knowledge_context.get("ready") else "warning",
+    }
+
+
+def _knowledge_context_can_ground(knowledge_context: dict[str, Any] | None) -> bool:
+    return bool(
+        isinstance(knowledge_context, dict)
+        and knowledge_context.get("can_ground_actions")
+        and _clean(knowledge_context.get("kb_name"), 120)
+    )
+
+
+def _knowledge_action_instruction(knowledge_context: dict[str, Any] | None) -> str:
+    if not _knowledge_context_can_ground(knowledge_context):
+        return ""
+    kb_name = _clean((knowledge_context or {}).get("kb_name"), 120)
+    focus = _clean((knowledge_context or {}).get("focus_query"), 120)
+    latest_eval = (knowledge_context or {}).get("latest_eval")
+    latest_eval = latest_eval if isinstance(latest_eval, dict) else {}
+    quality = _clean(latest_eval.get("quality_label"), 80)
+    suffix = f"最近评测：{quality}。" if quality else "如果资料不足，请明确说明。"
+    return f"\n\n请优先检索并引用资料库「{kb_name}」中与「{focus or '当前主题'}」相关的材料；{suffix}"
+
+
+def _safe_int_value(value: Any) -> int:
+    try:
+        return max(0, int(float(value)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_number(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_percent(value: float) -> str:
+    return f"{round(max(0.0, min(1.0, float(value))) * 100)}%"
+
+
+def _explain_confidence(*, event_count: int, scored_count: int, source_count: int) -> dict[str, Any]:
+    if event_count <= 0:
+        return {
+            "level": "none",
+            "label": "等待证据",
+            "score": 0,
+            "reason": "还没有学习事件，系统只能建议先诊断。",
+        }
+    raw = _clamp(0.18 + min(event_count, 12) * 0.045 + min(scored_count, 8) * 0.07 + min(source_count, 5) * 0.05, 0.0, 1.0)
+    score = round(raw * 100)
+    if score >= 72:
+        level = "high"
+        label = "解释较可靠"
+    elif score >= 45:
+        level = "medium"
+        label = "初步可信"
+    else:
+        level = "low"
+        label = "证据偏少"
+    return {
+        "level": level,
+        "label": label,
+        "score": score,
+        "reason": f"基于 {event_count} 条事件、{scored_count} 条可评分证据和 {source_count} 类来源估算。",
+    }
+
+
+def _score_breakdown(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for dimension in dimensions:
+        id_ = str(dimension.get("id") or "")
+        score = max(0, min(100, int(dimension.get("score") or 0)))
+        weight = LEARNING_EFFECT_DIMENSION_WEIGHTS.get(id_, 0.0)
+        items.append(
+            {
+                "id": id_,
+                "label": dimension.get("label") or learning_effect_dimension_label(id_),
+                "score": score,
+                "weight": weight,
+                "weight_label": f"{round(weight * 100)}%",
+                "impact": round(score * weight, 1),
+                "status": dimension.get("status") or _effect_status(score),
+                "evidence": dimension.get("evidence") or "",
+                "explanation": _dimension_explanation(id_, score, str(dimension.get("evidence") or "")),
+            }
+        )
+    items.sort(key=lambda item: (int(item["score"]), -float(item["weight"])))
+    return items
+
+
+def learning_effect_dimension_label(id_: str) -> str:
+    return {
+        "mastery": "知识掌握",
+        "progress": "学习推进",
+        "stability": "稳定迁移",
+        "evidence_quality": "证据质量",
+        "engagement": "学习投入",
+        "remediation": "错因闭环",
+        "resource_effectiveness": "资源有效性",
+    }.get(id_, "评估维度")
+
+
+def _dimension_explanation(id_: str, score: int, evidence: str) -> str:
+    prefix = {
+        "mastery": "它反映你是否真的会做题和复测。",
+        "progress": "它反映学习任务是否在持续推进。",
+        "stability": "它反映知识点是否经过间隔复测后仍然稳定。",
+        "evidence_quality": "它反映系统判断是否有足够依据。",
+        "engagement": "它反映你是否真的使用了资源并完成任务。",
+        "remediation": "它反映错因是否完成补救和复测。",
+        "resource_effectiveness": "它反映资源是否带来后续练习或保存反馈。",
+    }.get(id_, "它是综合评估的一部分。")
+    if score < 50:
+        suffix = "目前偏低，所以会拉低综合判断。"
+    elif score < 72:
+        suffix = "目前处于观察区，系统会继续收集证据。"
+    else:
+        suffix = "目前是支撑项，会提高综合判断。"
+    return f"{prefix}{suffix} {evidence}".strip()
+
+
+def _dimension_result(score_breakdown: list[dict[str, Any]], id_: str) -> str:
+    item = next((entry for entry in score_breakdown if entry.get("id") == id_), None)
+    if not item:
+        return "暂无足够数据。"
+    return f"{item.get('label')} {item.get('score')} 分，权重 {item.get('weight_label')}。"
+
+
+def _dimension_rule_status(score_breakdown: list[dict[str, Any]], id_: str) -> str:
+    item = next((entry for entry in score_breakdown if entry.get("id") == id_), None)
+    score = int(item.get("score") or 0) if item else 0
+    if score >= 72:
+        return "success"
+    if score >= 50:
+        return "brand"
+    return "warning"
+
+
+def _action_because(
+    *,
+    primary_action: NextBestAction | None,
+    focus: ConceptMasteryState | None,
+    event_count: int,
+    open_mistakes: int,
+    confidence_label: str,
+    knowledge_context: dict[str, Any] | None = None,
+) -> list[str]:
+    reasons: list[str] = []
+    if event_count <= 0:
+        reasons.append("还没有可评分证据，直接推荐学习材料会不够准。")
+    if focus:
+        reasons.append(f"当前焦点「{focus.title}」是「{_status_label(focus.status)}」，掌握度约 {round(focus.score * 100)}%。")
+    if open_mistakes:
+        reasons.append(f"仍有 {open_mistakes} 个错因没有完成补救和复测。")
+    if primary_action:
+        reasons.append(f"这个动作预计 {primary_action.estimated_minutes or 8} 分钟，完成后会回写 {', '.join(primary_action.writes_back or ['profile'])}。")
+    if _knowledge_context_can_ground(knowledge_context):
+        kb_name = str((knowledge_context or {}).get("kb_name") or "").strip()
+        reasons.append(f"执行时会附带资料库「{kb_name}」，优先检索与当前卡点相关的材料。")
+    reasons.append(f"当前解释可信度：{confidence_label}。")
+    return reasons[:4]
 
 
 def _flatten_learning_event(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1562,14 +2455,27 @@ def _guide_href(course_id: str, intent: str) -> str:
     return "/guide?" + urlencode(params)
 
 
-def _chat_href(prompt: str, capability: str = "chat") -> str:
-    params = {"new": "1", "prompt": prompt}
+def _chat_href(
+    prompt: str,
+    capability: str = "chat",
+    knowledge_bases: list[str] | None = None,
+) -> str:
+    params: list[tuple[str, str]] = [("new", "1"), ("prompt", prompt)]
     if capability:
-        params["capability"] = capability
+        params.append(("capability", capability))
+    for kb_name in knowledge_bases or []:
+        clean_name = _clean(kb_name, 120)
+        if clean_name:
+            params.append(("kb", clean_name))
     return "/chat?" + urlencode(params)
 
 
-def _attach_action_execution_payload(action: NextBestAction, *, course_id: str) -> NextBestAction:
+def _attach_action_execution_payload(
+    action: NextBestAction,
+    *,
+    course_id: str,
+    knowledge_context: dict[str, Any] | None = None,
+) -> NextBestAction:
     """Attach a directly executable capability payload to a next-best action."""
 
     topic = _action_topic(action)
@@ -1588,7 +2494,8 @@ def _attach_action_execution_payload(action: NextBestAction, *, course_id: str) 
             "question_type": "mixed",
             "purpose": "diagnostic",
         }
-        action.href = _chat_href(action.prompt, action.capability)
+        _attach_knowledge_to_action(action, knowledge_context=knowledge_context)
+        action.href = _chat_href(action.prompt, action.capability, action.knowledge_bases)
         return action
     if action_type == "generate_visual":
         action.capability = "visualize"
@@ -1597,7 +2504,8 @@ def _attach_action_execution_payload(action: NextBestAction, *, course_id: str) 
             "重点画出概念关系、关键步骤、常见混淆点，并用一句话说明怎么读图。"
         )
         action.config = {"render_mode": "auto", "topic": topic, "purpose": "remediation_visual"}
-        action.href = _chat_href(action.prompt, action.capability)
+        _attach_knowledge_to_action(action, knowledge_context=knowledge_context)
+        action.href = _chat_href(action.prompt, action.capability, action.knowledge_bases)
         return action
     if action_type in {"generate_practice", "retest", "mistake_review"}:
         purpose = {
@@ -1618,7 +2526,8 @@ def _attach_action_execution_payload(action: NextBestAction, *, course_id: str) 
             "question_type": "mixed",
             "purpose": purpose,
         }
-        action.href = _chat_href(action.prompt, action.capability)
+        _attach_knowledge_to_action(action, knowledge_context=knowledge_context)
+        action.href = _chat_href(action.prompt, action.capability, action.knowledge_bases)
         return action
     if action_type in {"generate_resource", "advance"}:
         action.capability = "chat"
@@ -1627,13 +2536,35 @@ def _attach_action_execution_payload(action: NextBestAction, *, course_id: str) 
             "请只给一个任务，包含目标、10 分钟步骤、产出物和完成后的自测方式。"
         )
         action.config = {"purpose": action_type, "topic": topic}
-        action.href = _chat_href(action.prompt, action.capability)
+        _attach_knowledge_to_action(action, knowledge_context=knowledge_context)
+        action.href = _chat_href(action.prompt, action.capability, action.knowledge_bases)
         return action
     action.capability = action.capability or "chat"
     action.prompt = action.prompt or f"请根据我的学习画像，围绕「{topic}」安排下一步学习。"
     action.config = action.config or {"purpose": action_type or "next_action", "topic": topic}
-    action.href = action.href or _chat_href(action.prompt, action.capability)
+    _attach_knowledge_to_action(action, knowledge_context=knowledge_context)
+    action.href = action.href or _chat_href(action.prompt, action.capability, action.knowledge_bases)
     return action
+
+
+def _attach_knowledge_to_action(
+    action: NextBestAction,
+    *,
+    knowledge_context: dict[str, Any] | None,
+) -> None:
+    if not _knowledge_context_can_ground(knowledge_context):
+        return
+    kb_name = _clean((knowledge_context or {}).get("kb_name"), 120)
+    if not kb_name:
+        return
+    action.knowledge_bases = list(dict.fromkeys([*action.knowledge_bases, kb_name]))
+    if action.capability in {"chat", "deep_solve", "deep_question", "deep_research"}:
+        action.config.setdefault("retrieval_profile", "auto")
+        action.config.setdefault("agentic_rag", "auto")
+        action.config.setdefault("query_transform", "hyde")
+        instruction = _knowledge_action_instruction(knowledge_context)
+        if instruction and instruction not in action.prompt:
+            action.prompt = f"{action.prompt}{instruction}"
 
 
 def _action_topic(action: NextBestAction) -> str:

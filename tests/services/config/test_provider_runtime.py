@@ -70,6 +70,11 @@ def _empty_env(tmp_path: Path) -> EnvStore:
                 "LLM_API_KEY=",
                 "LLM_HOST=",
                 "LLM_API_VERSION=",
+                "IFLYTEK_APPID=",
+                "IFLYTEK_API_KEY=",
+                "IFLYTEK_API_SECRET=",
+                "IFLYTEK_API_PASSWORD=",
+                "SILICONFLOW_API_KEY=",
                 "SEARCH_PROVIDER=",
                 "SEARCH_API_KEY=",
                 "SEARCH_BASE_URL=",
@@ -338,6 +343,108 @@ def test_search_iflytek_spark_uses_api_password_env(tmp_path: Path) -> None:
     assert resolved.base_url == "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search"
 
 
+def test_env_store_renders_shared_iflytek_credentials_to_all_iflytek_services(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog(
+        llm_profile={
+            "id": "llm-p",
+            "name": "LLM",
+            "binding": "iflytek_spark_ws",
+            "base_url": "https://spark-api-open.xf-yun.com/x2/",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [{"id": "llm-m", "name": "spark-x", "model": "spark-x"}],
+        },
+        search_profile={
+            "id": "search-p",
+            "name": "Search",
+            "provider": "iflytek_spark",
+            "base_url": "",
+            "api_key": "",
+            "proxy": "",
+            "models": [],
+        },
+    )
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-ak",
+            "api_secret": "shared-sk",
+            "api_password": "",
+        },
+        "siliconflow": {"api_key": ""},
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["IFLYTEK_APPID"] == "shared-appid"
+    assert rendered["IFLYTEK_API_KEY"] == "shared-ak"
+    assert rendered["IFLYTEK_API_SECRET"] == "shared-sk"
+    assert rendered["IFLYTEK_API_PASSWORD"] == "shared-ak:shared-sk"
+    assert rendered["LLM_API_KEY"] == ""
+    assert rendered["SEARCH_API_KEY"] == ""
+    assert rendered["IFLYTEK_OCR_APPID"] == ""
+    assert rendered["IFLYTEK_TTS_API_KEY"] == ""
+
+
+def test_env_store_renders_shared_siliconflow_key_to_ocr_and_embedding(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["provider_credentials"] = {
+        "iflytek": {"app_id": "", "api_key": "", "api_secret": "", "api_password": ""},
+        "siliconflow": {"api_key": "sf-shared"},
+    }
+    catalog["services"]["embedding"] = {
+        "active_profile_id": "embedding-p",
+        "active_model_id": "embedding-m",
+        "profiles": [
+            {
+                "id": "embedding-p",
+                "name": "Embedding",
+                "binding": "openai",
+                "base_url": "https://api.siliconflow.cn/v1/embeddings",
+                "api_key": "",
+                "api_version": "",
+                "extra_headers": {},
+                "models": [
+                    {
+                        "id": "embedding-m",
+                        "name": "Qwen/Qwen3-Embedding-8B",
+                        "model": "Qwen/Qwen3-Embedding-8B",
+                        "dimension": "4096",
+                    }
+                ],
+            }
+        ],
+    }
+    catalog["services"]["ocr"] = {
+        "active_profile_id": "ocr-p",
+        "profiles": [
+            {
+                "id": "ocr-p",
+                "name": "OCR",
+                "provider": "siliconflow",
+                "strategy": "auto",
+                "base_url": "https://api.siliconflow.cn/v1",
+                "api_key": "",
+                "timeout": "30",
+                "max_pages": "20",
+                "dpi": "180",
+                "min_text_chars": "80",
+                "extra_headers": {"model": "deepseek-ai/DeepSeek-OCR"},
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SILICONFLOW_API_KEY"] == "sf-shared"
+    assert rendered["EMBEDDING_API_KEY"] == ""
+    assert rendered["SILICONFLOW_OCR_API_KEY"] == ""
+
+
 def test_search_iflytek_spark_missing_credentials(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for env_name in (
         "IFLYTEK_SEARCH_API_PASSWORD",
@@ -402,6 +509,73 @@ def test_env_store_renders_ocr_catalog_settings(tmp_path: Path) -> None:
     assert rendered["IFLYTEK_OCR_APPID"] == "ocr-app"
     assert rendered["IFLYTEK_OCR_API_KEY"] == "ocr-key"
     assert rendered["IFLYTEK_OCR_API_SECRET"] == "ocr-secret"
+
+
+def test_env_store_does_not_force_optional_ocr_knobs(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["services"]["ocr"] = {
+        "active_profile_id": "ocr-p",
+        "profiles": [
+            {
+                "id": "ocr-p",
+                "name": "OCR",
+                "provider": "iflytek",
+                "strategy": "auto",
+                "base_url": "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+                "api_key": "ocr-key",
+                "extra_headers": {
+                    "app_id": "ocr-app",
+                    "api_secret": "ocr-secret",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_OCR_TIMEOUT"] == ""
+    assert rendered["SPARKWEAVE_OCR_MAX_PAGES"] == ""
+    assert rendered["SPARKWEAVE_OCR_DPI"] == ""
+    assert rendered["SPARKWEAVE_OCR_MIN_TEXT_CHARS"] == ""
+
+
+def test_env_store_renders_siliconflow_ocr_catalog_settings(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["services"]["ocr"] = {
+        "active_profile_id": "ocr-p",
+        "profiles": [
+            {
+                "id": "ocr-p",
+                "name": "OCR",
+                "provider": "siliconflow",
+                "strategy": "ocr_first",
+                "base_url": "https://api.siliconflow.cn/v1",
+                "api_key": "sf-key",
+                "timeout": "60",
+                "max_pages": "8",
+                "dpi": "220",
+                "min_text_chars": "20",
+                "extra_headers": {
+                    "model": "deepseek-ai/DeepSeek-OCR",
+                    "prompt": "只输出文字",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_OCR_PROVIDER"] == "siliconflow"
+    assert rendered["SPARKWEAVE_PDF_OCR_STRATEGY"] == "ocr_first"
+    assert rendered["SILICONFLOW_OCR_API_KEY"] == "sf-key"
+    assert rendered["SILICONFLOW_OCR_BASE_URL"] == "https://api.siliconflow.cn/v1"
+    assert rendered["SILICONFLOW_OCR_MODEL"] == "deepseek-ai/DeepSeek-OCR"
+    assert rendered["SILICONFLOW_OCR_PROMPT"] == "只输出文字"
+    assert rendered["IFLYTEK_OCR_API_KEY"] == ""
 
 
 def test_env_store_renders_tts_catalog_settings(tmp_path: Path) -> None:

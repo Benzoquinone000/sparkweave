@@ -1,0 +1,6 @@
+short_description: "Search the knowledge base for relevant passages and grounded answers."
+when_to_use: "Use when the answer is likely covered by the uploaded knowledge base, such as definitions, formulas, concepts, or textbook explanations."
+input_format: "Natural-language query plus retrieval_profile: fast, concept, exact, code, formula, guide, or broad."
+guideline: "Before calling RAG, classify the user's retrieval intent and pass retrieval_profile; do not guess dense or hybrid index type."
+note: "Profile guide: fast=bare term/acronym/title or short lookup with no explanation request, concept=normal explanation, exact=source text/chapters/definitions, code=APIs/functions/errors, formula=proofs/derivations, guide=learning plans/weak points, broad=comparison/summary/multi-hop. If the first retrieval is weak, revise the query from another angle instead of giving up immediately."
+phase: "exploration"

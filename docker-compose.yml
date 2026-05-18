@@ -1,0 +1,175 @@
+# ============================================
+# SparkWeave Docker Compose - Split Hot Reload
+# ============================================
+# Default Docker mode is development-friendly:
+#   - backend: FastAPI / uvicorn --reload, mounted from local source
+#   - frontend: Vite dev server / HMR, mounted from local web/
+#   - milvus: local RAG stack
+#
+# Usage:
+#   docker compose up --build
+#   docker compose logs -f backend
+#   docker compose logs -f frontend
+# ============================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: python-base
+    container_name: sparkweave-backend
+    working_dir: /app
+    restart: unless-stopped
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        python -c "from pathlib import Path; from sparkweave.services.setup import init_user_directories; init_user_directories(Path('/app'))" || true
+        exec python -m uvicorn sparkweave.api.main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8001} --reload --reload-dir /app/sparkweave --reload-dir /app/sparkweave_cli
+    ports:
+      - "${BACKEND_PORT:-8001}:${BACKEND_PORT:-8001}"
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - BACKEND_PORT=${BACKEND_PORT:-8001}
+      - LLM_BINDING=${LLM_BINDING:-openai}
+      - LLM_MODEL=${LLM_MODEL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_HOST=${LLM_HOST}
+      - LLM_API_VERSION=${LLM_API_VERSION:-}
+      - DISABLE_SSL_VERIFY=${DISABLE_SSL_VERIFY:-false}
+      - EMBEDDING_BINDING=${EMBEDDING_BINDING:-openai}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-large}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
+      - EMBEDDING_HOST=${EMBEDDING_HOST}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-3072}
+      - EMBEDDING_API_VERSION=${EMBEDDING_API_VERSION:-}
+      - RAG_PROVIDER=${RAG_PROVIDER:-milvus}
+      - MILVUS_URI=${DOCKER_MILVUS_URI:-http://milvus:19530}
+      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
+      - MILVUS_COLLECTION_PREFIX=${MILVUS_COLLECTION_PREFIX:-sparkweave}
+      - MILVUS_SIMILARITY_METRIC=${MILVUS_SIMILARITY_METRIC:-IP}
+      - MILVUS_CONSISTENCY_LEVEL=${MILVUS_CONSISTENCY_LEVEL:-Strong}
+      - MILVUS_OVERWRITE_ON_INIT=${MILVUS_OVERWRITE_ON_INIT:-1}
+      - SEARCH_PROVIDER=${SEARCH_PROVIDER:-}
+      - SEARCH_API_KEY=${SEARCH_API_KEY:-}
+      - SEARCH_BASE_URL=${SEARCH_BASE_URL:-}
+      - WATCHFILES_FORCE_POLLING=true
+    volumes:
+      - ./sparkweave:/app/sparkweave
+      - ./sparkweave_cli:/app/sparkweave_cli
+      - ./scripts:/app/scripts
+      - ./requirements:/app/requirements:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./data/user:/app/data/user
+      - ./data/knowledge_bases:/app/data/knowledge_bases
+      - ./data/milvus:/app/data/milvus
+    networks:
+      - sparkweave-network
+
+  frontend:
+    image: node:22-slim
+    container_name: sparkweave-frontend
+    working_dir: /app/web
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
+          npm config set fetch-timeout 600000
+          npm config set fetch-retries 5
+          npm ci --legacy-peer-deps
+        fi
+        exec npm run dev -- --host 0.0.0.0 --port ${FRONTEND_PORT:-3782}
+    ports:
+      - "${FRONTEND_PORT:-3782}:${FRONTEND_PORT:-3782}"
+    environment:
+      - NODE_ENV=development
+      - FRONTEND_PORT=${FRONTEND_PORT:-3782}
+      - VITE_API_BASE=http://localhost:${BACKEND_PORT:-8001}
+      - NEXT_PUBLIC_API_BASE=http://localhost:${BACKEND_PORT:-8001}
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./web:/app/web
+      - sparkweave_node_modules:/app/web/node_modules
+    networks:
+      - sparkweave-network
+
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    container_name: sparkweave-milvus-etcd
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./data/milvus/etcd:/etcd
+    command: etcd -advertise-client-urls=http://milvus-etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - sparkweave-network
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: sparkweave-milvus-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - ./data/milvus/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - sparkweave-network
+
+  milvus:
+    image: milvusdb/milvus:v2.6.15
+    container_name: sparkweave-milvus
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+      MQ_TYPE: woodpecker
+    volumes:
+      - ./data/milvus/standalone:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "${MILVUS_PORT:-19530}:19530"
+      - "${MILVUS_WEBUI_PORT:-9091}:9091"
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+    networks:
+      - sparkweave-network
+
+volumes:
+  sparkweave_node_modules:
+
+networks:
+  sparkweave-network:
+    driver: bridge

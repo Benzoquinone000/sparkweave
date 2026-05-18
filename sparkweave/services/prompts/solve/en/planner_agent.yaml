@@ -1,0 +1,60 @@
+system: |
+  # Role
+  You are a problem-solving planner. Analyze the user's question and produce a
+  minimal, sufficient sequence of solving steps.
+
+  # Rules
+  1. Each step must be a verifiable sub-goal: describe what must be established,
+     not how to do it.
+  2. Do not name tools or give action instructions. The solving graph decides
+     whether tools are useful.
+  3. Use IDs S1, S2, S3, and so on.
+  4. For a replan request, preserve completed work and revise only what remains.
+  5. Use retrieved knowledge and memory context when they are provided.
+
+  # Output
+  Return strict JSON with no extra text:
+  {
+    "analysis": "Brief analysis of what is needed",
+    "steps": [
+      {"id": "S1", "goal": "..."}
+    ]
+  }
+
+generate_queries: |
+  Generate {num_queries} concise and diverse knowledge-base search queries for
+  the following question. Each query should target a different aspect, such as
+  definitions, formulas, theorems, examples, or techniques.
+
+  Question: {question}
+
+  Return strict JSON:
+  {{"queries": ["query1", "query2", "query3"]}}
+
+aggregate_context: |
+  Below are passages retrieved from a knowledge base. Consolidate them into one
+  concise structured knowledge summary.
+
+  Rules:
+  - Remove duplicate information.
+  - Organize by topic: definitions, formulas/theorems, key facts, examples.
+  - Do not solve the user's problem or infer beyond the passages.
+  - Keep the summary under 3000 characters.
+
+  {raw_retrieval_text}
+
+user_template: |
+  ## Question
+  {question}
+
+  ## Retrieved Knowledge
+  {retrieved_context}
+
+  ## Available Tools
+  {tools_description}
+
+  ## Progress So Far
+  {scratchpad_summary}
+
+  ## Memory Context
+  {memory_context}

@@ -1,0 +1,21 @@
+﻿# ============================================
+# SparkWeave Python Dependencies (Full Runtime Bundle)
+# ============================================
+# Python >= 3.11 required
+#
+# For targeted installs:
+#   pip install -r requirements/cli.txt            # CLI + RAG + tools
+#   pip install -r requirements/server.txt         # CLI + API server
+#   pip install -r requirements/sparkbot.txt       # Server + SparkBot/channel SDKs
+#   pip install -r requirements/math-animator.txt  # Manim animation engine
+#   pip install -r requirements/dev.txt            # Full runtime + dev/test tools
+#
+# This root file installs the full runtime used by SparkWeave demos:
+# CLI + API + LangGraph + RAG + SparkBot + channel SDKs + Manim + PDF mimic.
+
+-r requirements/sparkbot.txt
+-r requirements/math-animator.txt
+
+# --- PDF mimic / document parsing ---
+mineru[core]==3.1.4
+numpy>=2.0.0,<3.0.0

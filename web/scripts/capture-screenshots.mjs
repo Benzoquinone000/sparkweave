@@ -1,0 +1,647 @@
+import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import net from "node:net";
+import path from "node:path";
+
+import { chromium } from "@playwright/test";
+
+const root = process.cwd();
+
+const desktop = { width: 1440, height: 900 };
+const mobile = { width: 390, height: 844, isMobile: true, hasTouch: true };
+
+const desktopShots = [
+  { route: "/chat", files: ["screenshots-chat.png", "screenshots-refined-chat.png", "screenshots-simplified-chat.png", "screenshots-simplified-shell-chat-desktop.png"] },
+  { route: "/chat", files: ["screenshots-simplified-chat-drawer.png"], prepare: openChatContext },
+  { route: "/demo", files: ["screenshots-competition-demo.png"] },
+  { route: "/knowledge", files: ["screenshots-knowledge.png", "screenshots-finalcheck-knowledge.png", "screenshots-review-knowledge.png", "screenshots-simplified-final-knowledge.png", "screenshots-simplified-knowledge-desktop.png"] },
+  { route: "/memory", files: ["screenshots-simplified-memory.png"] },
+  { route: "/notebook", files: ["screenshots-simplified-notebook.png"] },
+  { route: "/guide", files: ["screenshots-guide.png", "screenshots-simplified-guide.png"] },
+  { route: "/question", files: ["screenshots-simplified-question.png", "screenshots-simplified-final-question.png"] },
+  { route: "/vision", files: ["screenshots-simplified-vision.png", "screenshots-simplified-final-vision.png"] },
+  { route: "/co-writer", files: ["screenshots-simplified-co-writer.png"] },
+  { route: "/playground", files: ["screenshots-simplified-playground.png"] },
+  { route: "/agents", files: ["screenshots-agents.png", "screenshots-finalcheck-agents.png", "screenshots-review-agents.png", "screenshots-simplified-agents-desktop.png"] },
+  { route: "/agents", files: ["screenshots-sparkbot-demo-readiness.png"], prepare: openAgentsWorkspace },
+  { route: "/settings", files: ["screenshots-settings.png", "screenshots-finalcheck-settings.png", "screenshots-review-settings.png", "screenshots-simplified-final-settings.png", "screenshots-simplified-settings-expanded.png", "screenshots-simplified-shell-settings-desktop.png"] },
+  { route: "/settings", files: ["screenshots-simplified-settings-collapsed.png"], prepare: collapseSidebar },
+];
+
+const mobileShots = [
+  { route: "/chat", files: ["screenshots-simplified-shell-chat-mobile.png"] },
+  { route: "/demo", files: ["screenshots-competition-demo-mobile.png"] },
+  { route: "/knowledge", files: ["screenshots-simplified-knowledge-mobile.png"] },
+];
+
+async function main() {
+  const onlyRoutes = parseOnlyRoutes();
+  const port = await findOpenPort(Number(process.env.SCREENSHOT_PORT || 43782));
+  const baseURL = `http://127.0.0.1:${port}`;
+  const server = await startServer(port, baseURL);
+  const browser = await chromium.launch();
+  try {
+    await captureGroup(browser, baseURL, desktop, filterShots(desktopShots, onlyRoutes));
+    await captureGroup(browser, baseURL, mobile, filterShots(mobileShots, onlyRoutes));
+  } finally {
+    await browser.close();
+    stopServer(server);
+  }
+}
+
+function parseOnlyRoutes() {
+  const raw = process.env.SCREENSHOT_ONLY || "";
+  const routes = raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (item.startsWith("/") ? item : `/${item}`));
+  return new Set(routes);
+}
+
+function filterShots(shots, onlyRoutes) {
+  if (!onlyRoutes.size) return shots;
+  return shots.filter((shot) => onlyRoutes.has(shot.route));
+}
+
+async function startServer(port, baseURL) {
+  const child = spawn(process.execPath, ["./scripts/dev.mjs"], {
+    cwd: root,
+    env: {
+      ...process.env,
+      FRONTEND_PORT: String(port),
+      VITE_API_BASE: baseURL,
+      NO_PROXY: appendNoProxy(process.env.NO_PROXY),
+      no_proxy: appendNoProxy(process.env.no_proxy),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  child.stdout.on("data", (data) => process.stdout.write(data));
+  child.stderr.on("data", (data) => process.stderr.write(data));
+  await waitForServer(`${baseURL}/chat`);
+  return child;
+}
+
+function stopServer(child) {
+  if (!child.killed) child.kill();
+}
+
+async function waitForServer(url) {
+  const started = Date.now();
+  while (Date.now() - started < 120_000) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return;
+    } catch {
+      // Vite is still warming up.
+    }
+    await sleep(500);
+  }
+  throw new Error(`Timed out waiting for ${url}`);
+}
+
+async function captureGroup(browser, baseURL, viewport, shots) {
+  const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+  try {
+    const page = await context.newPage();
+    await installApiMocks(page);
+    for (const shot of shots) {
+      await page.goto(`${baseURL}${shot.route}`, { waitUntil: "networkidle" });
+      await page.evaluate(() => globalThis.document.fonts.ready);
+      await shot.prepare?.(page);
+      await page.waitForTimeout(400);
+      for (const file of shot.files) {
+        const target = path.join(root, file);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await page.screenshot({ path: target, fullPage: false });
+        console.log(`[screenshots] wrote ${file}`);
+      }
+    }
+  } finally {
+    await context.close();
+  }
+}
+
+function findOpenPort(startPort) {
+  return new Promise((resolve, reject) => {
+    const tryPort = (port) => {
+      const server = net.createServer();
+      server.unref();
+      server.on("error", () => tryPort(port + 1));
+      server.listen(port, "127.0.0.1", () => {
+        const address = server.address();
+        server.close(() => {
+          if (typeof address === "object" && address?.port) resolve(address.port);
+          else reject(new Error("Could not resolve an open screenshot port"));
+        });
+      });
+    };
+    tryPort(startPort);
+  });
+}
+
+async function openChatContext(page) {
+  const button = page.getByRole("button", { name: "上下文" }).first();
+  if (await button.count()) {
+    await button.click();
+  }
+}
+
+async function collapseSidebar(page) {
+  const button = page.getByLabel("折叠侧栏").first();
+  if (await button.count()) {
+    await button.click();
+  }
+}
+
+async function openAgentsWorkspace(page) {
+  const tab = page.getByTestId("agent-workspace-tab-workspace").first();
+  if (await tab.count()) {
+    await tab.click();
+  }
+  const readiness = page.getByTestId("assistant-demo-readiness");
+  await readiness.waitFor({ state: "visible", timeout: 10_000 });
+  await readiness.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+}
+
+async function installApiMocks(page) {
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const pathname = url.pathname;
+    const method = request.method();
+
+    if (pathname === "/api/v1/system/status") return route.fulfill({ json: systemStatus });
+    if (pathname === "/api/v1/system/runtime-topology") return route.fulfill({ json: runtimeTopology });
+    if (pathname === "/api/v1/agent-config/agents") return route.fulfill({ json: agentConfigs });
+    if (pathname === "/api/v1/settings") return route.fulfill({ json: settings });
+    if (pathname === "/api/v1/settings/catalog") return route.fulfill({ json: { catalog: settings.catalog } });
+    if (pathname === "/api/v1/settings/tour/status") return route.fulfill({ json: { completed: true, needs_setup: false } });
+    if (pathname === "/api/v1/settings/themes") return route.fulfill({ json: { themes: [{ id: "light", name: "浅色工作台" }] } });
+    if (pathname === "/api/v1/settings/sidebar") return route.fulfill({ json: sidebarSettings });
+    if (pathname.startsWith("/api/v1/system/test/")) return route.fulfill({ json: { status: "ok", message: "服务可用" } });
+    if (pathname === "/api/v1/knowledge/list") return route.fulfill({ json: knowledgeBases });
+    if (pathname === "/api/v1/knowledge/health") return route.fulfill({ json: { status: "healthy", provider: "llamaindex", total_knowledge_bases: 2 } });
+    if (pathname === "/api/v1/knowledge/default") return route.fulfill({ json: { default_kb: "ai_textbook" } });
+    if (pathname === "/api/v1/knowledge/rag-providers") return route.fulfill({ json: { default_provider: "llamaindex", providers: ragProviders } });
+    if (pathname === "/api/v1/knowledge/configs") return route.fulfill({ json: knowledgeConfigs });
+    if (pathname.match(/^\/api\/v1\/knowledge\/[^/]+$/)) return route.fulfill({ json: knowledgeDetail });
+    if (pathname.endsWith("/progress")) return route.fulfill({ json: progress });
+    if (pathname.endsWith("/config")) return route.fulfill({ json: { config: knowledgeConfigs.knowledge_bases.ai_textbook } });
+    if (pathname.endsWith("/linked-folders")) return route.fulfill({ json: linkedFolders });
+    if (pathname === "/api/v1/dashboard/recent") return route.fulfill({ json: dashboardActivities });
+    if (pathname.startsWith("/api/v1/dashboard/")) return route.fulfill({ json: dashboardDetail });
+    if (pathname === "/api/v1/sessions") return route.fulfill({ json: { sessions } });
+    if (pathname.startsWith("/api/v1/sessions/")) return route.fulfill({ json: sessionDetail });
+    if (pathname === "/api/v1/notebook/list") return route.fulfill({ json: { notebooks, total: notebooks.length } });
+    if (pathname === "/api/v1/notebook/statistics") return route.fulfill({ json: { total_notebooks: 2, total_records: 8, total_questions: 12 } });
+    if (pathname === "/api/v1/notebook/health") return route.fulfill({ json: { status: "healthy", service: "notebook" } });
+    if (pathname.match(/^\/api\/v1\/notebook\/[^/]+$/)) return route.fulfill({ json: notebookDetail });
+    if (pathname === "/api/v1/learner-profile") return route.fulfill({ json: learnerProfile });
+    if (pathname === "/api/v1/learner-profile/refresh") return route.fulfill({ json: learnerProfile });
+    if (pathname === "/api/v1/learning-effect/report") return route.fulfill({ json: learningEffectReport });
+    if (pathname === "/api/v1/learning-effect/next-actions") return route.fulfill({ json: learningEffectNextActions });
+    if (pathname === "/api/v1/guide/v2/templates") return route.fulfill({ json: { templates: guideV2CourseTemplates } });
+    if (pathname === "/api/v1/guide/v2/sessions") return route.fulfill({ json: { sessions: [] } });
+    if (pathname === "/api/v1/question-notebook/categories") return route.fulfill({ json: questionCategories });
+    if (pathname === "/api/v1/question-notebook/entries") return route.fulfill({ json: { items: questionEntries, total: questionEntries.length } });
+    if (pathname.startsWith("/api/v1/question-notebook/entries/")) return route.fulfill({ json: questionEntries[0] });
+    if (pathname === "/api/v1/memory") return route.fulfill({ json: memory });
+    if (pathname === "/api/v1/plugins/list") return route.fulfill({ json: plugins });
+    if (pathname === "/api/v1/sparkbot") return route.fulfill({ json: sparkBots });
+    if (pathname === "/api/v1/sparkbot/recent") return route.fulfill({ json: sparkBotRecent });
+    if (pathname === "/api/v1/sparkbot/channels/schema") return route.fulfill({ json: channelSchemas });
+    if (pathname === "/api/v1/sparkbot/souls") return route.fulfill({ json: souls });
+    if (pathname.match(/^\/api\/v1\/sparkbot\/[^/]+\/files$/)) return route.fulfill({ json: sparkBotFiles });
+    if (pathname.match(/^\/api\/v1\/sparkbot\/[^/]+\/history$/)) return route.fulfill({ json: sparkBotHistory });
+    if (pathname.match(/^\/api\/v1\/sparkbot\/[^/]+$/)) return route.fulfill({ json: sparkBots[0] });
+    if (pathname === "/api/v1/guide/health") return route.fulfill({ json: { status: "healthy" } });
+    if (pathname === "/api/v1/guide/sessions") return route.fulfill({ json: { sessions: guideSessions } });
+    if (pathname.startsWith("/api/v1/guide/session/") && pathname.endsWith("/html")) return route.fulfill({ json: { html: "<main><h1>函数极限导学</h1><p>从直觉、定义到典型题。</p></main>" } });
+    if (pathname.startsWith("/api/v1/guide/session/") && pathname.endsWith("/pages")) return route.fulfill({ json: guidePages });
+    if (pathname.startsWith("/api/v1/guide/session/")) return route.fulfill({ json: guideDetail });
+    if (pathname === "/api/v1/co_writer/history") return route.fulfill({ json: { history: coWriterHistory, total: coWriterHistory.length } });
+    if (pathname.startsWith("/api/v1/co_writer/history/")) return route.fulfill({ json: coWriterHistory[0] });
+    if (pathname.startsWith("/api/v1/co_writer/tool_calls/")) return route.fulfill({ json: { calls: [] } });
+    if (pathname === "/api/v1/vision/analyze") return route.fulfill({ json: visionResult });
+    if (method !== "GET") return route.fulfill({ json: { success: true, status: "ok", task_id: "mock-task" } });
+    return route.fulfill({ json: {} });
+  });
+}
+
+function appendNoProxy(value) {
+  const items = new Set((value || "").split(",").map((item) => item.trim()).filter(Boolean));
+  ["127.0.0.1", "localhost", "::1"].forEach((host) => items.add(host));
+  return Array.from(items).join(",");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const systemStatus = {
+  backend: { status: "online", version: "SparkWeave" },
+  llm: { status: "configured", model: "Spark Lite" },
+  embeddings: { status: "configured", model: "bge-large-zh" },
+  search: { status: "configured", provider: "web" },
+  ocr: { status: "configured", provider: "iflytek" },
+  tts: { status: "configured", provider: "iflytek" },
+};
+
+const runtimeTopology = {
+  coordinator: { status: "online", label: "对话协调智能体" },
+  agents: [
+    { id: "deep_solve", label: "求解智能体", status: "ready" },
+    { id: "deep_question", label: "题目生成智能体", status: "ready" },
+    { id: "visualize", label: "知识可视化智能体", status: "ready" },
+    { id: "math_animator", label: "视频讲解智能体", status: "ready" },
+  ],
+};
+
+const agentConfigs = {
+  chat: { name: "对话协调智能体", enabled: true },
+  deep_solve: { name: "深度求解", enabled: true },
+  deep_question: { name: "交互式出题", enabled: true },
+  visualize: { name: "知识可视化", enabled: true },
+};
+
+const modelCatalog = {
+  version: 1,
+  services: {
+    llm: {
+      active_profile_id: "spark",
+      active_model_id: "spark-lite",
+      profiles: [
+        {
+          id: "spark",
+          name: "讯飞星火",
+          binding: "spark",
+          base_url: "https://spark-api-open.xf-yun.com",
+          api_key: "configured",
+          models: [{ id: "spark-lite", name: "Spark Lite", model: "spark-lite" }],
+        },
+      ],
+    },
+    embedding: {
+      active_profile_id: "local-bge",
+      active_model_id: "bge-large-zh",
+      profiles: [
+        {
+          id: "local-bge",
+          name: "本地向量",
+          binding: "local",
+          base_url: "http://127.0.0.1:8001",
+          api_key: "configured",
+          models: [{ id: "bge-large-zh", name: "BGE Large ZH", model: "bge-large-zh", dimension: "1024" }],
+        },
+      ],
+    },
+    search: {
+      active_profile_id: "web-search",
+      profiles: [
+        {
+          id: "web-search",
+          name: "联网搜索",
+          provider: "tavily",
+          base_url: "https://api.tavily.com",
+          api_key: "configured",
+          models: [],
+        },
+      ],
+    },
+  },
+};
+
+const settings = {
+  catalog: modelCatalog,
+  ui: { theme: "light", language: "zh" },
+  providers: {
+    llm: [{ value: "spark", label: "讯飞星火", base_url: "https://spark-api-open.xf-yun.com" }],
+    embedding: [{ value: "local", label: "本地向量", base_url: "http://127.0.0.1:8001", default_dim: "1024" }],
+    search: [{ value: "tavily", label: "Tavily", base_url: "https://api.tavily.com" }],
+  },
+};
+
+const sidebarSettings = {
+  description: "面向高校课程学习的多智能体个性化学习系统",
+  nav_order: [],
+};
+
+const knowledgeBases = [
+  { name: "ai_textbook", display_name: "AI 课程资料", document_count: 18, is_default: true, status: "ready" },
+  { name: "calculus_notes", display_name: "高等数学笔记", document_count: 12, is_default: false, status: "ready" },
+];
+
+const ragProviders = [
+  { name: "llamaindex", id: "llamaindex", label: "LlamaIndex", available: true, is_default: true },
+  { name: "mineru", id: "mineru", label: "MinerU PDF", available: true },
+];
+
+const knowledgeConfigs = {
+  knowledge_bases: {
+    ai_textbook: { name: "ai_textbook", search_mode: "hybrid", description: "人工智能导论课程资料", needs_reindex: false },
+    calculus_notes: { name: "calculus_notes", search_mode: "semantic", description: "极限、导数与积分", needs_reindex: false },
+  },
+};
+
+const knowledgeDetail = {
+  name: "ai_textbook",
+  display_name: "AI 课程资料",
+  status: "ready",
+  document_count: 18,
+  chunks: 246,
+  files: [{ name: "chapter_01_intro.pdf" }, { name: "rlhf_dpo_notes.md" }],
+};
+
+const progress = {
+  status: "completed",
+  stage: "completed",
+  message: "索引已完成",
+  percent: 100,
+  current: 18,
+  total: 18,
+};
+
+const linkedFolders = [
+  { id: "folder-1", folder_path: "C:\\courses\\ai", status: "linked", file_count: 18 },
+];
+
+const dashboardActivities = [
+  { id: "a1", type: "solve", capability: "deep_solve", title: "DPO 公式推导", summary: "完成偏好优化推导讲解", timestamp: 1_700_000_000, status: "done" },
+  { id: "a2", type: "visualize", capability: "visualize", title: "神经网络结构图", summary: "生成 Mermaid 与 SVG 结果", timestamp: 1_700_000_100, status: "done" },
+];
+
+const dashboardDetail = {
+  id: "a1",
+  title: "DPO 公式推导",
+  content: { messages: [{ role: "user", content: "讲解 DPO" }, { role: "assistant", content: "DPO 通过偏好对直接优化策略。" }] },
+};
+
+const sessions = [
+  { session_id: "session-1", title: "DPO 与 RLHF 对比", message_count: 8, updated_at: 1_700_000_000 },
+  { session_id: "session-2", title: "函数极限练习", message_count: 5, updated_at: 1_700_000_100 },
+];
+
+const sessionDetail = {
+  id: "session-1",
+  session_id: "session-1",
+  title: "DPO 与 RLHF 对比",
+  preferences: { capability: "deep_solve", tools: ["reason"], knowledge_bases: ["ai_textbook"], language: "zh" },
+  messages: [
+    { id: 1, role: "user", content: "请解释 DPO 的核心公式。", capability: "deep_solve", events: [], attachments: [] },
+    { id: 2, role: "assistant", content: "DPO 将奖励函数重参数化为当前策略与参考策略的对数概率比，从而绕过单独训练奖励模型和 PPO。", capability: "deep_solve", status: "done", events: [], attachments: [] },
+  ],
+};
+
+const notebooks = [
+  { id: "nb-ai", name: "AI 课程复盘", description: "沉淀问答、图解和练习结果", record_count: 6 },
+  { id: "nb-math", name: "高数错题盘", description: "保存极限与导数相关错题", record_count: 4 },
+];
+
+const notebookDetail = {
+  id: "nb-ai",
+  name: "AI 课程复盘",
+  description: "沉淀问答、图解和练习结果",
+  records: [
+    { id: "rec-1", record_id: "rec-1", title: "DPO 推导", summary: "偏好优化核心公式", user_query: "讲解 DPO", output: "DPO 损失函数与 Bradley-Terry 模型相关。", record_type: "chat" },
+  ],
+};
+
+const questionCategories = [{ id: 1, name: "函数极限" }, { id: 2, name: "AI 基础" }];
+const questionEntries = [
+  { id: 1, session_id: "session-2", question_id: "q1", question: "左右极限相等意味着什么？", question_type: "choice", correct_answer: "极限存在", explanation: "左右极限分别存在且相等。", bookmarked: true, is_correct: true, categories: questionCategories },
+];
+
+const memory = {
+  summary: "偏好：喜欢公式推导 + 图解。薄弱点：极限定义和概率模型。",
+  profile: "课程目标：掌握 AI 基础和数学推导。",
+  files: [
+    { filename: "summary", content: "偏好：喜欢公式推导 + 图解。" },
+    { filename: "profile", content: "课程目标：掌握 AI 基础。" },
+  ],
+};
+
+const plugins = {
+  tools: [{ name: "knowledge_search", description: "检索课程资料" }, { name: "math_animator", description: "生成教学动画" }],
+  capabilities: [{ name: "deep_solve" }, { name: "visualize" }, { name: "deep_question" }],
+};
+
+const sparkBots = [
+  { bot_id: "math_bot", name: "高数助教", description: "追问、复盘和错题讲解", status: "running", running: true, auto_start: true, persona: "耐心、善于追问和归纳的学习助教。" },
+];
+const sparkBotRecent = [{ bot_id: "math_bot", name: "高数助教", last_message: "今天继续练习极限。", updated_at: 1_700_000_000 }];
+const channelSchemas = {
+  global: {
+    secret_fields: ["transcription_api_key"],
+    json_schema: {
+      type: "object",
+      properties: {
+        send_progress: { type: "boolean", title: "Send progress", default: true },
+        send_tool_hints: { type: "boolean", title: "Send tool hints", default: true },
+        transcription_api_key: { type: "string", title: "Transcription API key", default: "" },
+      },
+    },
+  },
+  channels: {
+    web: {
+      name: "web",
+      display_name: "Web 对话",
+      json_schema: {
+        type: "object",
+        properties: {
+          enabled: { type: "boolean", title: "Enabled", default: true },
+          welcome_text: { type: "string", title: "Welcome text", default: "欢迎回来，今天从导数小测开始。" },
+        },
+      },
+      secret_fields: [],
+    },
+  },
+};
+const souls = [{ id: "patient_tutor", name: "耐心助教", content: "以启发式追问帮助学生学习。" }];
+const sparkBotFiles = [
+  { filename: "COURSE.md", content: "# 高等数学：极限与导数\n\n课程定位、目标、项目产物和考核结构。" },
+  { filename: "LESSONS.md", content: "# 8 周课时安排\n\n极限直观理解、导数与切线斜率、综合练习。" },
+  { filename: "QUESTION_BANK.md", content: "# 题库\n\n判断导数是否表示瞬时变化率，并解释理由。" },
+  { filename: "RUBRIC.md", content: "# Rubric\n\n能解释切线斜率、完成小测、复盘错因。" },
+  { filename: "RESOURCES.md", content: "# 资源索引\n\n科大讯飞星火、OCR、语音听写和 TTS 接入讲法。" },
+  { filename: "AGENTS.md", content: "# 多智能体路线\n\n画像、检索、讲解、练习、评估回写协作。" },
+  { filename: "TOOLS.md", content: "# 工具链\n\nRAG、讯飞 OCR、讯飞 TTS、语音听写和题目生成。" },
+  { filename: "NOTES.md", content: "# 演示笔记\n\n稳定提示词、录屏路线和兜底素材。" },
+  { filename: "SOUL.md", content: "# 高数助教\n持续复盘学生薄弱点。" },
+];
+const sparkBotHistory = [{ role: "assistant", content: "导数表示瞬时变化率，也可以看成函数图像在一点处的切线斜率。" }];
+
+const learningEffectActions = [
+  {
+    id: "derivative_quiz",
+    type: "generate_practice",
+    title: "完成导数小测",
+    reason: "最近对切线斜率的解释还不稳定，适合用 3 道短题确认。",
+    target_concepts: ["导数", "切线斜率"],
+    estimated_minutes: 8,
+    priority: 90,
+    href: "/question",
+    capability: "deep_question",
+    prompt: "请生成 3 道导数小测，并等我作答后分析错因。",
+    writes_back: ["mastery", "mistake_review"],
+  },
+];
+
+const learningEffectReport = {
+  success: true,
+  generated_at: 1_779_000_000,
+  course_id: "higher_math",
+  window: "14d",
+  overall: { score: 72, label: "巩固中", summary: "最近证据显示导数概念需要再练一次。" },
+  dimensions: [],
+  concepts: [],
+  open_mistakes: [],
+  study_brief: {
+    headline: "今天先做导数小测",
+    summary: "用 8 分钟确认瞬时变化率和切线斜率。",
+    timebox_minutes: 8,
+    knowledge_evidence: {
+      title: "高等数学资料库",
+      summary: "导数章节资料已可引用，今天优先围绕切线斜率组织小测和图解。",
+      status_label: "可引用",
+      focus_query: "导数与变化率",
+      ready: true,
+      metrics: [
+        { label: "资料", value: "5 份" },
+        { label: "状态", value: "可引用" },
+        { label: "焦点", value: "切线斜率" },
+      ],
+    },
+  },
+  knowledge_context: {
+    available: true,
+    ready: true,
+    status: "ready",
+    status_label: "可引用",
+    kb_name: "calculus_notes",
+    provider: "milvus",
+    document_count: 5,
+    focus_query: "导数与变化率",
+    summary: "课程资料、工作区文件和最近小测证据已就绪，可作为助教答疑和练习生成依据。",
+    action_label: "打开资料库",
+    action_href: "/knowledge",
+    can_ground_actions: true,
+  },
+  next_actions: learningEffectActions,
+  evidence_refs: [{ id: "ev-derivative-quiz", title: "导数小测", summary: "最近小测暴露切线斜率薄弱。", resource_type: "quiz" }],
+  summary: { event_count: 4, quiz_count: 1, resource_count: 2 },
+};
+
+const learningEffectNextActions = {
+  success: true,
+  course_id: "higher_math",
+  window: "14d",
+  items: learningEffectActions,
+  total: learningEffectActions.length,
+};
+
+const guideSessions = [{ session_id: "guide-1", title: "函数极限学习路径", status: "ready", current_index: 1 }];
+const guidePages = { pages: [{ index: 0, title: "直观理解" }, { index: 1, title: "形式化定义" }, { index: 2, title: "典型题训练" }] };
+const guideDetail = { session_id: "guide-1", title: "函数极限学习路径", status: "ready", current_index: 1, pages: guidePages.pages };
+const learnerProfile = {
+  version: 1,
+  generated_at: "2026-05-01T00:00:00.000Z",
+  confidence: 0.82,
+  overview: {
+    current_focus: "先补齐梯度下降的直观理解",
+    preferred_time_budget_minutes: 45,
+    summary: "最近更适合用图解和短练习把抽象概念落地。",
+  },
+  stable_profile: {
+    goals: ["掌握机器学习基础并完成一个可展示的小项目"],
+    preferences: ["图解", "练习", "公开视频"],
+    strengths: ["能跟着示例理解流程"],
+    constraints: ["希望每次只做一件事"],
+  },
+  learning_state: {
+    weak_points: [{ label: "概念边界不清", confidence: 0.76, evidence_count: 2 }],
+    mastery: [],
+  },
+  recommendations: ["先用一张图解释梯度下降，再做 3 道小题确认。"],
+  next_action: {
+    title: "前测补基：梯度下降的直观理解",
+    suggested_prompt: "我想用 10 分钟补齐梯度下降的直观理解，先看图解再做练习。",
+    estimated_minutes: 10,
+    source_type: "weak_point",
+    source_label: "概念边界不清",
+    confidence: 0.76,
+  },
+  sources: [],
+  evidence_preview: [],
+  data_quality: { source_count: 4, evidence_count: 8 },
+};
+const guideV2CourseTemplates = [
+  {
+    id: "ml_foundations",
+    title: "机器学习基础",
+    course_id: "ML101",
+    course_name: "机器学习基础",
+    description: "用稳定样例串起画像、路线、图解、练习和反馈。",
+    level: "beginner",
+    suggested_weeks: 1,
+    default_goal: "理解机器学习基础，并完成梯度下降和模型评估的入门练习。",
+    default_preferences: ["visual", "practice"],
+    default_time_budget_minutes: 45,
+    demo_seed: {
+      title: "稳定机器学习演示",
+      scenario: "从画像进入导学，生成图解，完成练习并回写反馈。",
+      task_chain: [
+        { task_id: "T1", title: "课程全景图" },
+        { task_id: "T4", title: "梯度下降图解" },
+        { task_id: "T6", title: "模型评估练习" },
+      ],
+    },
+  },
+  {
+    id: "robotics_ros_foundations",
+    title: "智能机器人与 ROS 基础",
+    course_id: "ROBOT101",
+    course_name: "智能机器人与 ROS 基础",
+    description: "从机器人系统组成、ROS 通信到小项目实践，适合展示完整高校课程。",
+    level: "beginner",
+    suggested_weeks: 4,
+    credits: 2,
+    estimated_minutes: 720,
+    default_goal: "系统学习智能机器人与 ROS 基础，完成话题通信、服务调用和导航入门实践。",
+    default_preferences: ["visual", "practice", "project"],
+    default_time_budget_minutes: 60,
+    tags: ["机器人", "ROS", "项目实践"],
+  },
+  {
+    id: "higher_math_limits_derivatives",
+    title: "高等数学极限与导数",
+    course_id: "MATH101",
+    course_name: "高等数学极限与导数",
+    description: "从函数直觉、极限定义到导数几何意义，适合展示公式、图解和 Manim 动画。",
+    level: "beginner",
+    suggested_weeks: 6,
+    credits: 2,
+    estimated_minutes: 420,
+    default_goal: "系统学习高等数学中的极限、连续和导数，并能用图像直觉解释典型题。",
+    default_preferences: ["visual", "practice", "video"],
+    default_time_budget_minutes: 40,
+    tags: ["高等数学", "极限", "导数"],
+  },
+];
+
+const coWriterHistory = [{ operation_id: "cw-1", title: "课程总结润色", selected_text: "DPO 是一种偏好优化方法。", edited_text: "DPO 是一种直接利用偏好数据优化策略的训练方法。" }];
+
+const visionResult = {
+  session_id: "vision-1",
+  has_image: true,
+  final_ggb_commands: [{ description: "圆 O", command: "Circle(O, 3)" }, { description: "线段 AB", command: "Segment(A, B)" }],
+  ggb_script: "Circle(O, 3)\nSegment(A, B)",
+  analysis_summary: { elements_count: 4, commands_count: 2 },
+};
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

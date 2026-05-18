@@ -1,0 +1,287 @@
+import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, PlayCircle, Search, Timer } from "lucide-react";
+
+import { Badge } from "@/components/ui/Badge";
+import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
+import { appendLearningEffectEvent } from "@/lib/api";
+import { invalidateLearningQueries } from "@/lib/queryInvalidation";
+import type { ExternalVideoResult } from "@/lib/types";
+
+function formatDuration(seconds?: number | null) {
+  if (!seconds || !Number.isFinite(seconds)) return "";
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} 分钟`;
+}
+
+const TRUSTED_EMBED_HOSTS = new Set([
+  "player.bilibili.com",
+  "www.youtube.com",
+  "youtube.com",
+  "www.youtube-nocookie.com",
+  "youtube-nocookie.com",
+]);
+
+function parseHttpUrl(url?: string, options?: { httpsOnly?: boolean }) {
+  const raw = (url || "").trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = new URL(raw);
+    if (options?.httpsOnly) return parsed.protocol === "https:" ? parsed : null;
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeExternalUrl(url?: string) {
+  return parseHttpUrl(url)?.toString() ?? "";
+}
+
+function safeImageUrl(url?: string) {
+  return safeExternalUrl(url);
+}
+
+function safeEmbedUrl(url?: string) {
+  const parsed = parseHttpUrl(url, { httpsOnly: true });
+  if (!parsed) return "";
+  return TRUSTED_EMBED_HOSTS.has(parsed.hostname.toLowerCase()) ? parsed.toString() : "";
+}
+
+function isFallbackVideo(video?: { kind?: string }) {
+  return video?.kind === "search_fallback";
+}
+
+export function ExternalVideoViewer({ result }: { result: ExternalVideoResult }) {
+  const queryClient = useQueryClient();
+  const videos = result.videos ?? [];
+  const featured = videos.find((item) => safeEmbedUrl(item.embed_url)) ?? videos.find((item) => !isFallbackVideo(item)) ?? videos[0];
+  const featuredIndex = Math.max(
+    0,
+    videos.findIndex((item) => item.url === featured?.url && item.title === featured?.title),
+  );
+  const embedUrl = safeEmbedUrl(featured?.embed_url);
+  const featuredUrl = safeExternalUrl(featured?.url);
+  const hasFallbackSearch = result.fallback_search || videos.some((item) => isFallbackVideo(item));
+  const chain = (result.tool_chain ?? result.agent_chain ?? []).filter((item) => item.label || item.detail).slice(0, 4);
+  const watchPlan = (result.watch_plan ?? []).filter(Boolean).slice(0, 3);
+  const recordedVideoUrls = useRef(new Set<string>());
+  const [viewedVideoUrls, setViewedVideoUrls] = useState<Set<string>>(() => new Set());
+
+  const recordVideoViewed = useCallback(
+    (video: (typeof videos)[number], index: number) => {
+      if (!video.url || recordedVideoUrls.current.has(video.url)) return;
+      recordedVideoUrls.current.add(video.url);
+      setViewedVideoUrls((prev) => new Set(prev).add(video.url || ""));
+      void appendLearningEffectEvent({
+        source: "resource",
+        source_id: `external_video:${video.url}`,
+        actor: "learner",
+        verb: "viewed",
+        object_type: "resource",
+        object_id: video.url,
+        title: video.title || "External learning video",
+        summary: video.why_recommended || video.summary || result.response || "",
+        resource_type: "external_video",
+        duration_seconds: video.duration_seconds ?? null,
+        confidence: 0.48,
+        weight: 0.6,
+        metadata: {
+          rank: index + 1,
+          platform: video.platform || "",
+          kind: video.kind || "video",
+          fallback_search: result.fallback_search || false,
+          query: result.queries?.[0] || "",
+          watch_plan: result.watch_plan ?? [],
+          reflection_prompt: result.reflection_prompt || "",
+          style_hint: result.style_hint || "",
+          learner_profile_hints: result.learner_profile_hints ?? {},
+          agent_chain: result.agent_chain ?? [],
+          tool_chain: result.tool_chain ?? [],
+        },
+      })
+        .then(() => {
+          invalidateLearningQueries(queryClient);
+        })
+        .catch(() => {
+          recordedVideoUrls.current.delete(video.url || "");
+          setViewedVideoUrls((prev) => {
+            const next = new Set(prev);
+            next.delete(video.url || "");
+            return next;
+          });
+        });
+    },
+    [
+      queryClient,
+      result.agent_chain,
+      result.fallback_search,
+      result.learner_profile_hints,
+      result.queries,
+      result.reflection_prompt,
+      result.response,
+      result.style_hint,
+      result.tool_chain,
+      result.watch_plan,
+    ],
+  );
+
+  return (
+    <div className="rounded-lg border border-line bg-surface p-2.5" data-testid="external-video-viewer">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="brand">{hasFallbackSearch ? "搜索入口" : "精选视频"}</Badge>
+        <Badge tone="neutral">{videos.length ? `${videos.length} 个推荐` : "等待结果"}</Badge>
+      </div>
+
+      {result.response ? <p className="mt-2.5 text-xs leading-5 text-charcoal">{result.response}</p> : null}
+      <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
+      {featured ? (
+        <div className="mt-3 rounded-lg border border-line bg-tint-yellow p-2.5" data-testid="external-video-watch-plan">
+          <p className="text-xs font-semibold text-ink">建议用法</p>
+          {watchPlan.length ? (
+            <ol className="mt-2 grid gap-1.5 text-xs leading-5 text-charcoal">
+              {watchPlan.map((step, index) => (
+                <li key={`${step}-${index}`} className="flex gap-2">
+                  <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-brand-purple">
+                    {index + 1}
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-1 text-xs leading-5 text-charcoal">
+              {hasFallbackSearch
+                ? "先打开一个平台搜索入口，选 1-2 个短讲解，看完后回到导学提交反思或做一组练习。"
+                : "先看第一个视频，暂停记下一句仍不懂的地方，再回到导学提交反思或做一组练习。"}
+            </p>
+          )}
+          {result.reflection_prompt ? (
+            <p className="mt-3 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-charcoal">
+              {result.reflection_prompt}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {chain.length ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-steel" data-testid="external-video-chain">
+          <span className="font-medium text-charcoal">工具处理</span>
+          {chain.map((item, index) => (
+            <span key={`${item.label || item.detail}-${index}`} className="rounded-md border border-line bg-white px-2 py-1">
+              {item.label || item.detail}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {embedUrl ? (
+        <div className="mt-3 max-w-xl overflow-hidden rounded-lg border border-line bg-white">
+          <div className="bg-black">
+            <iframe
+              title={featured?.title || "精选学习视频"}
+              src={embedUrl}
+              className="aspect-video w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="no-referrer"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+              data-testid="external-video-embed"
+            />
+          </div>
+          {featured && featuredUrl ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <p className="text-xs leading-5 text-steel">可以先在这里预览。看完后点一下，系统会把这种资源偏好写回画像。</p>
+              <button
+                type="button"
+                data-testid="external-video-mark-viewed"
+                onClick={() => recordVideoViewed({ ...featured, url: featuredUrl }, featuredIndex)}
+                disabled={viewedVideoUrls.has(featuredUrl)}
+                className="inline-flex min-h-8 items-center rounded-md border border-line bg-ink px-2 text-xs font-medium text-white transition hover:bg-brand-purple disabled:cursor-default disabled:bg-canvas disabled:text-steel"
+              >
+                {viewedVideoUrls.has(featuredUrl) ? "已记入画像依据" : "我看了这个，记入画像"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {videos.length ? (
+        <div className="mt-3 grid gap-2.5">
+          {videos.map((video, index) => {
+            const videoUrl = safeExternalUrl(video.url);
+            const thumbnailUrl = safeImageUrl(video.thumbnail);
+
+            return (
+              <article key={`${videoUrl || video.url || "video"}-${index}`} className="rounded-lg border border-line bg-white p-2.5">
+                <div className="grid gap-2.5 md:grid-cols-[7rem_minmax(0,1fr)]">
+                  {thumbnailUrl ? (
+                    <img
+                      src={thumbnailUrl}
+                      alt=""
+                      className="aspect-video w-full rounded-lg border border-line bg-surface object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-tint-lavender text-brand-purple">
+                      {isFallbackVideo(video) ? <Search size={24} /> : <PlayCircle size={24} />}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone={index === 0 ? "brand" : "neutral"}>
+                        {isFallbackVideo(video) ? "搜索入口" : index === 0 ? "建议先看" : video.platform || "视频"}
+                      </Badge>
+                      {video.platform ? <Badge tone="neutral">{video.platform}</Badge> : null}
+                      {formatDuration(video.duration_seconds) ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-steel">
+                          <Timer size={13} />
+                          {formatDuration(video.duration_seconds)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <h4 className="mt-1.5 line-clamp-2 text-sm font-semibold leading-5 text-ink">{video.title || "学习视频"}</h4>
+                    {video.why_recommended || video.summary ? (
+                      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-charcoal">
+                        {video.why_recommended || video.summary}
+                      </p>
+                    ) : null}
+                    {videoUrl ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          data-testid={`external-video-open-${index}`}
+                          onClick={() => recordVideoViewed({ ...video, url: videoUrl }, index)}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-md border border-line bg-white px-2 text-xs font-medium text-ink transition hover:border-brand-purple hover:text-brand-purple"
+                        >
+                          <ExternalLink size={13} />
+                          {isFallbackVideo(video) ? "打开搜索" : "打开观看"}
+                        </a>
+                        {viewedVideoUrls.has(videoUrl) ? (
+                          <span
+                            className="inline-flex min-h-8 items-center rounded-md border border-line bg-canvas px-2 text-xs text-slate-500"
+                            data-testid={`external-video-evidence-${index}`}
+                          >
+                            已记入画像依据
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+          <Search size={16} />
+          暂时没有找到稳定的视频链接，可以换一个更具体的关键词再试。
+        </div>
+      )}
+    </div>
+  );
+}

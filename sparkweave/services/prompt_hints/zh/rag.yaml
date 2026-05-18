@@ -1,0 +1,6 @@
+short_description: "在知识库中检索相关内容，并返回有依据的上下文。"
+when_to_use: "当答案大概率来自已上传知识库时使用，例如定义、公式、概念解释、教材内容或本地资料。"
+input_format: "自然语言查询，并传入 retrieval_profile：fast、concept、exact、code、formula、guide 或 broad。"
+guideline: "调用 RAG 前先判断用户的检索意图并传入 retrieval_profile；不要猜测底层索引是 dense 还是 hybrid。"
+note: "Profile 规则：fast=裸术语/缩写/标题或没有解释请求的短查询，concept=普通概念解释，exact=原文/章节/定义/引用，code=API/函数/报错，formula=公式/证明/推导，guide=学习路线/薄弱点，broad=对比/总结/多跳。第一次检索弱时，先换角度改写查询。"
+phase: "exploration"

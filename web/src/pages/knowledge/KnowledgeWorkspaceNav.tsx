@@ -1,0 +1,125 @@
+import { ChevronLeft } from "lucide-react";
+
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+
+import { KNOWLEDGE_ENTRY_ICON_CLASS, KNOWLEDGE_PANEL_COMPACT_CLASS } from "./styles";
+import type { KnowledgeWorkspace } from "./types";
+import { buildKnowledgeWorkspaceNavItems } from "./KnowledgeWorkspaceNavItems";
+
+export function KnowledgeWorkspaceNav({
+  active,
+  documentCount,
+  vectorCount,
+  diagnosticStatus,
+  recoveryBadge,
+  recoveryNeedsAttention,
+  evaluationAvailable,
+  testSourceCount,
+  folderCount,
+  taskActive,
+  onNavigate,
+}: {
+  active: KnowledgeWorkspace;
+  documentCount: number | string | null | undefined;
+  vectorCount: number | string | null | undefined;
+  diagnosticStatus: string;
+  recoveryBadge: string;
+  recoveryNeedsAttention: boolean;
+  evaluationAvailable: boolean;
+  testSourceCount?: number | string | null;
+  folderCount: number;
+  taskActive: boolean;
+  onNavigate: (workspace: KnowledgeWorkspace) => void;
+}) {
+  const items = buildKnowledgeWorkspaceNavItems({
+    documentCount,
+    vectorCount,
+    diagnosticStatus,
+    recoveryBadge,
+    recoveryNeedsAttention,
+    evaluationAvailable,
+    testSourceCount,
+    folderCount,
+    taskActive,
+  });
+
+  const activeItem = items.find((item) => item.id === active) ?? items[0];
+  const mainItems = items.filter((item) => item.group === "main" && (active !== "overview" || item.id !== "overview"));
+  const advancedItems = items.filter((item) => item.group === "advanced");
+  const visibleItems = active === "overview" ? mainItems : items;
+
+  return (
+    <section className={`mt-4 ${KNOWLEDGE_PANEL_COMPACT_CLASS}`} data-testid="knowledge-workspace-nav">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">{activeItem.title}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{activeItem.description}</p>
+        </div>
+        {active !== "overview" ? (
+          <Button
+            tone="secondary"
+            className="min-h-9 px-3 text-xs"
+            onClick={() => onNavigate("overview")}
+            data-testid="knowledge-workspace-back"
+          >
+            <ChevronLeft size={15} />
+            返回资料首页
+          </Button>
+        ) : null}
+      </div>
+      <div className={active === "overview" ? "mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4" : "mt-3 flex flex-wrap gap-2"}>
+        {visibleItems.map((item) => renderNavButton(item, active, onNavigate))}
+      </div>
+
+      {active === "overview" && advancedItems.length ? (
+        <details className="mt-3 rounded-lg border border-line bg-white px-3 py-2 [&>summary::-webkit-details-marker]:hidden">
+          <summary className="dt-interactive flex cursor-pointer items-center justify-between gap-3 text-xs font-medium text-slate-600">
+            <span>更多检查与设置</span>
+            <Badge tone="neutral">{advancedItems.length} 项</Badge>
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {advancedItems.map((item) => renderNavButton(item, active, onNavigate))}
+          </div>
+        </details>
+      ) : null}
+
+      {active === "overview" && typeof vectorCount !== "undefined" && vectorCount !== null ? (
+        <p className="mt-3 text-xs leading-5 text-slate-500">当前已有 {String(vectorCount)} 条可引用片段；日常使用只需要上传资料并开始提问。</p>
+      ) : null}
+    </section>
+  );
+}
+
+function renderNavButton(
+  item: ReturnType<typeof buildKnowledgeWorkspaceNavItems>[number],
+  active: KnowledgeWorkspace,
+  onNavigate: (workspace: KnowledgeWorkspace) => void,
+) {
+  const selected = item.id === active;
+  const overviewLayout = active === "overview";
+  return (
+    <button
+      key={item.id}
+      type="button"
+      onClick={() => onNavigate(item.id)}
+      className={
+        overviewLayout
+          ? `rounded-lg border p-3 text-left transition ${
+              selected ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-surface hover:border-brand-purple-300 hover:bg-white"
+            }`
+          : `inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs transition ${
+              selected ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
+            }`
+      }
+      data-testid={`knowledge-workspace-${item.id}`}
+    >
+      <span className={overviewLayout ? `${KNOWLEDGE_ENTRY_ICON_CLASS} ${item.accent}` : "text-brand-purple"}>{item.icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate font-semibold text-ink">{item.title}</span>
+        {overviewLayout ? <span className="mt-1 block text-xs leading-5 text-slate-500">{item.description}</span> : null}
+      </span>
+      <Badge tone={selected ? "brand" : item.tone}>{item.badge}</Badge>
+    </button>
+  );
+}

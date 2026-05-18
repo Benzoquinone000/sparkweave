@@ -1,0 +1,19 @@
+system: |
+  You are an Idea Agent for exam question design.
+  Propose diverse and high-value question directions grounded in knowledge.
+
+generate_ideas: |
+  Topic:
+  {user_topic}
+
+  User preference:
+  {preference}
+
+  Grounding knowledge:
+  {knowledge_context}
+
+  Existing concentrations already used in previous batches:
+  {existing_concentrations}
+
+  Generate exactly {num_ideas} candidate question ideas.
+  Return only JSON with an "ideas" array.

@@ -1,0 +1,605 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, Camera, CheckCircle2, Eye, FileImage, Loader2, Play, Save, ScanLine } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FieldShell, FileInput, TextArea, TextInput } from "@/components/ui/Field";
+import { Metric } from "@/components/ui/Metric";
+import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { useNotebookMutations, useNotebooks } from "@/hooks/useApiQueries";
+import { analyzeVisionImage, visionSolveSocketUrl } from "@/lib/api";
+import type { VisionAnalyzeResponse, VisionCommand } from "@/lib/types";
+
+type RunStatus = "idle" | "running" | "complete" | "error";
+
+type VisionEvent = {
+  type?: string;
+  data?: Record<string, unknown>;
+  content?: string;
+  [key: string]: unknown;
+};
+
+const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"]);
+const MAX_VISION_IMAGE_SIZE = 10 * 1024 * 1024;
+
+function readImageFile(file: File) {
+  return new Promise<{ base64: string; preview: string }>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.onload = () => {
+      const preview = String(reader.result || "");
+      resolve({
+        base64: preview,
+        preview,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function safeParseEvent(data: string): VisionEvent {
+  try {
+    const parsed = JSON.parse(data) as VisionEvent;
+    return parsed && typeof parsed === "object" ? parsed : { type: "message", content: data };
+  } catch {
+    return { type: "message", content: data };
+  }
+}
+
+function eventTitle(event: VisionEvent) {
+  const type = String(event.type || "message").toLowerCase();
+  if (type === "session") return "建立会话";
+  if (type === "analysis_start") return "开始识别图像";
+  if (type === "bbox_complete") return "图形元素已定位";
+  if (type === "analysis_complete") return "几何关系已分析";
+  if (type === "ggb_block") return "作图指令已生成";
+  if (type === "text") return "正在讲解";
+  if (type === "done") return "解题完成";
+  if (type === "error") return "解题异常";
+  return "过程更新";
+}
+
+function eventContent(event: VisionEvent) {
+  if (event.content) return event.content;
+  if (!event.data) return "";
+  const data = event.data;
+  if (typeof data.content === "string") return data.content;
+  if (typeof data.message === "string") return data.message;
+  if (typeof data.text === "string") return data.text;
+  if (typeof data.ggb_block === "object" && data.ggb_block) return "GeoGebra 指令块已生成";
+  if ("commands_count" in data) return `命令数：${String(data.commands_count)}`;
+  if ("elements_count" in data) return `识别元素：${String(data.elements_count)}`;
+  if ("constraints_count" in data || "relations_count" in data) {
+    return `约束 ${String(data.constraints_count ?? 0)} 条，关系 ${String(data.relations_count ?? 0)} 条`;
+  }
+  if ("status" in data) return `状态：${String(data.status)}`;
+  return "过程状态已更新";
+}
+
+function LogText({ line }: { line: string }) {
+  return <>{line}</>;
+}
+
+function commandsFromEvent(event: VisionEvent): VisionCommand[] {
+  const data = event.data;
+  if (!data) return [];
+  const finalCommands = data.final_commands;
+  if (Array.isArray(finalCommands)) return finalCommands as VisionCommand[];
+  const commands = data.commands;
+  if (Array.isArray(commands)) return commands as VisionCommand[];
+  return [];
+}
+
+function scriptFromCommands(commands: VisionCommand[]) {
+  return commands
+    .flatMap((item) => {
+      const lines: string[] = [];
+      if (item.description) lines.push(`# ${item.description}`);
+      if (item.command) lines.push(String(item.command));
+      return lines;
+    })
+    .join("\n");
+}
+
+function ggbScriptFromEvent(event: VisionEvent) {
+  const block = event.data?.ggb_block;
+  if (!block || typeof block !== "object") return "";
+  const content = (block as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
+}
+
+function statusLabel(status: RunStatus) {
+  if (status === "running") return "运行中";
+  if (status === "complete") return "已完成";
+  if (status === "error") return "异常";
+  return "待开始";
+}
+
+function buildNotebookOutput(input: {
+  question: string;
+  answer: string;
+  script: string;
+  commands: VisionCommand[];
+}) {
+  const parts = [`## 图像题目\n${input.question}`];
+  if (input.answer.trim()) parts.push(`## 讲解\n${input.answer.trim()}`);
+  if (input.script.trim()) parts.push(`## GeoGebra 指令\n\`\`\`ggbscript\n${input.script.trim()}\n\`\`\``);
+  if (input.commands.length) {
+    parts.push(
+      `## 指令摘要\n${input.commands
+        .map((item, index) => `${index + 1}. ${item.description || "指令"}：${item.command || ""}`)
+        .join("\n")}`,
+    );
+  }
+  return parts.join("\n\n");
+}
+
+export function VisionPage() {
+  const notebookMutations = useNotebookMutations();
+  const socketRef = useRef<WebSocket | null>(null);
+
+  const [question, setQuestion] = useState("根据图像分析这道几何题，并给出可用于 GeoGebra 复现的作图指令。");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageBase64, setImageBase64] = useState("");
+  const [preview, setPreview] = useState("");
+  const [status, setStatus] = useState<RunStatus>("idle");
+  const [activeRun, setActiveRun] = useState<"rest" | "live" | null>(null);
+  const [error, setError] = useState("");
+  const [events, setEvents] = useState<VisionEvent[]>([]);
+  const [analysis, setAnalysis] = useState<VisionAnalyzeResponse | null>(null);
+  const [liveCommands, setLiveCommands] = useState<VisionCommand[]>([]);
+  const [liveScript, setLiveScript] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [targetNotebookId, setTargetNotebookId] = useState("");
+
+  const commands = liveCommands.length ? liveCommands : analysis?.final_ggb_commands ?? [];
+  const ggbScript = liveScript || analysis?.ggb_script || scriptFromCommands(commands);
+  const hasSaveableVisionResult = Boolean(ggbScript || answer);
+  const notebooks = useNotebooks({ enabled: hasSaveableVisionResult || Boolean(targetNotebookId) });
+  const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
+  const selectedNotebookId = targetNotebookId || notebookItems[0]?.id || "";
+  const imageSource = preview || imageUrl;
+  const running = status === "running";
+  const output = buildNotebookOutput({ question, answer, script: ggbScript, commands });
+
+  const handleFile = async (file: File | null) => {
+    if (!file) return;
+    if (!SUPPORTED_IMAGE_MIME_TYPES.has(file.type)) {
+      setError("请上传 PNG、JPG、GIF 或 WebP 图片");
+      return;
+    }
+    if (file.size > MAX_VISION_IMAGE_SIZE) {
+      setError("图片不能超过 10 MB");
+      return;
+    }
+    try {
+      const image = await readImageFile(file);
+      setImageBase64(image.base64);
+      setPreview(image.preview);
+      setImageUrl("");
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "图片读取失败");
+    }
+  };
+
+  const ensureInput = () => {
+    if (!question.trim()) {
+      setError("请先填写题目或分析目标");
+      return false;
+    }
+    if (!imageBase64 && !imageUrl.trim()) {
+      setError("请上传图片或填写图片 URL");
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
+  const quickAnalyze = async () => {
+    if (!ensureInput()) return;
+    socketRef.current?.close();
+    setStatus("running");
+    setActiveRun("rest");
+    setEvents([]);
+    setAnalysis(null);
+    setAnswer("");
+    setLiveCommands([]);
+    setLiveScript("");
+    try {
+      const result = await analyzeVisionImage({
+        question: question.trim(),
+        image_base64: imageBase64 || null,
+        image_url: imageUrl.trim() || null,
+        session_id: `vision-${Date.now()}`,
+      });
+      setAnalysis(result);
+      setStatus("complete");
+    } catch (cause) {
+      setStatus("error");
+      setError(cause instanceof Error ? cause.message : "视觉解析失败");
+    } finally {
+      setActiveRun(null);
+    }
+  };
+
+  const startLiveSolve = () => {
+    if (!ensureInput()) return;
+    socketRef.current?.close();
+    setStatus("running");
+    setEvents([]);
+    setAnalysis(null);
+    setAnswer("");
+    setLiveCommands([]);
+    setLiveScript("");
+
+    const socket = new WebSocket(visionSolveSocketUrl());
+    setActiveRun("live");
+    socketRef.current = socket;
+    socket.onopen = () =>
+      socket.send(
+        JSON.stringify({
+          question: question.trim(),
+          image_base64: imageBase64 || null,
+          image_url: imageUrl.trim() || null,
+          session_id: `vision-${Date.now()}`,
+        }),
+      );
+    socket.onmessage = (message) => {
+      const event = safeParseEvent(String(message.data));
+      setEvents((current) => [...current.slice(-79), event]);
+      const nextCommands = commandsFromEvent(event);
+      if (nextCommands.length) setLiveCommands(nextCommands);
+      const nextScript = ggbScriptFromEvent(event);
+      if (nextScript) setLiveScript(nextScript);
+      if (event.type === "text" && typeof event.data?.content === "string") {
+        setAnswer((current) => `${current}${event.data?.content as string}`);
+      }
+      if (event.type === "done") {
+        setStatus("complete");
+        setActiveRun(null);
+      }
+      if (event.type === "error") {
+        setStatus("error");
+        setActiveRun(null);
+        setError(String(event.content || event.data?.content || "视觉解题失败"));
+      }
+    };
+    socket.onerror = () => {
+      setStatus("error");
+      setActiveRun(null);
+      setError("视觉解题通道连接失败");
+    };
+    socket.onclose = () => {
+      setActiveRun(null);
+      setStatus((current) => (current === "running" ? "complete" : current));
+    };
+  };
+
+  const stopLiveSolve = () => {
+    socketRef.current?.close();
+    socketRef.current = null;
+    setActiveRun(null);
+    setStatus((current) => (current === "running" ? "complete" : current));
+  };
+
+  const saveToNotebook = () => {
+    if (!selectedNotebookId || !output.trim()) return;
+    notebookMutations.addRecord.mutate({
+      notebook_ids: [selectedNotebookId],
+      record_type: "solve",
+      title: "图像题解析",
+      user_query: question.trim(),
+      output,
+      summary: `识别 ${analysis?.analysis_summary?.elements_count ?? "-"} 个元素，生成 ${commands.length} 条 GeoGebra 指令。`,
+      metadata: {
+        source: "vision_lab",
+        analysis,
+        commands,
+      },
+    });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto bg-canvas">
+      <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-3.5 px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+        <motion.section
+          className="rounded-lg border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22 }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3.5">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-brand-blue">图像解题</p>
+              <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">上传题图，直接得到讲解和作图指令</h1>
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">
+                适合几何图、函数图和带图数学题。先看解析结果，再按需保存到学习记录。
+              </p>
+            </div>
+            <Button
+              tone="primary"
+              onClick={() => document.querySelector<HTMLInputElement>('[data-testid="vision-file-input"]')?.click()}
+            >
+              <FileImage size={16} />
+              选择题图
+            </Button>
+          </div>
+        </motion.section>
+
+        <motion.section
+          className="flex flex-wrap gap-x-4 gap-y-1.5"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.04 }}
+        >
+          <Metric label="处理状态" value={statusLabel(status)} detail="识别与讲解" icon={<Eye size={19} />} />
+          <Metric label="作图指令" value={commands.length} detail={ggbScript ? "可复制到 GeoGebra" : "等待解析"} icon={<ScanLine size={19} />} />
+          <Metric label="题图" value={imageSource ? "已选择" : "未选择"} detail="支持上传或图片 URL" icon={<FileImage size={19} />} />
+        </motion.section>
+
+        <motion.section
+          className="grid gap-3.5 xl:grid-cols-[360px_minmax(0,1fr)]"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: 0.08 }}
+        >
+          <div className="space-y-4">
+            <Panel>
+              <PanelHeader title="先上传题图" description="填入题目目标后解析；想看完整推导，就选择边解边看。" />
+              <div className="mt-4 space-y-3">
+                <FieldShell label="题目或分析目标">
+                  <TextArea
+                    value={question}
+                    onChange={(event) => setQuestion(event.target.value)}
+                    className="min-h-28"
+                    data-testid="vision-question"
+                  />
+                </FieldShell>
+                <FieldShell label="上传图片">
+                  <FileInput
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
+                    data-testid="vision-file-input"
+                    buttonLabel="选择图片"
+                    emptyLabel="未选择图片"
+                  />
+                </FieldShell>
+                <FieldShell label="图片 URL">
+                  <TextInput
+                    value={imageUrl}
+                    onChange={(event) => {
+                      setImageUrl(event.target.value);
+                      setPreview("");
+                      setImageBase64("");
+                    }}
+                    placeholder="https://example.com/problem.png"
+                    data-testid="vision-image-url"
+                  />
+                </FieldShell>
+                <AnimatePresence mode="wait">
+                  {imageSource ? (
+                    <motion.img
+                      key="preview"
+                      src={imageSource}
+                      alt="待解析题目"
+                      className="max-h-56 w-full rounded-lg border border-line bg-white object-contain"
+                      data-testid="vision-image-preview"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    />
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <EmptyState icon={<Camera size={22} />} title="等待图片" description="选择一张题目截图，或填写图片 URL。" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {error ? (
+                    <motion.p
+                      className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.16 }}
+                    >
+                      {error}
+                    </motion.p>
+                  ) : null}
+                </AnimatePresence>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button tone="primary" onClick={() => void quickAnalyze()} disabled={running} data-testid="vision-quick-analyze">
+                    {running ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
+                    解析题图
+                  </Button>
+                  {running && activeRun === "live" ? (
+                    <Button tone="danger" onClick={stopLiveSolve}>
+                      停止解析
+                    </Button>
+                  ) : (
+                    <Button tone="secondary" onClick={startLiveSolve} disabled={running} data-testid="vision-live-solve">
+                      {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                      {running ? "解析中" : "边解边看"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="保存到学习记录" description="把图像题、讲解和作图指令保存下来，之后可以复盘。" />
+              <div className="mt-4 space-y-3">
+                <select
+                  value={targetNotebookId}
+                  onChange={(event) => setTargetNotebookId(event.target.value)}
+                  className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple-300"
+                >
+                  <option value="">
+                    {!hasSaveableVisionResult
+                      ? "解析完成后选择记录本"
+                      : notebooks.isLoading || notebooks.isFetching
+                        ? "正在读取记录本..."
+                        : notebookItems.length
+                          ? `默认：${notebookItems[0].name}`
+                          : "暂无记录本"}
+                  </option>
+                  {notebookItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  tone="secondary"
+                  onClick={saveToNotebook}
+                  disabled={!selectedNotebookId || (!ggbScript && !answer) || notebookMutations.addRecord.isPending}
+                  className="w-full"
+                  data-testid="vision-save"
+                >
+                  {notebookMutations.addRecord.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  保存到记录
+                </Button>
+                <AnimatePresence>
+                  {notebookMutations.addRecord.isSuccess ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.16 }}
+                    >
+                      <Badge tone="success">已保存</Badge>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="space-y-4">
+            <Panel>
+              <details className="[&>summary::-webkit-details-marker]:hidden">
+                <summary
+                  className="dt-interactive flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 py-1"
+                  data-testid="vision-events-toggle"
+                >
+                  <span>
+                    <span className="block text-base font-semibold text-ink">解题过程</span>
+                    <span className="mt-1 block text-sm text-slate-500">实时识别、关系分析和讲解记录。</span>
+                  </span>
+                  <Badge tone={events.length ? "brand" : "neutral"}>{events.length ? `${events.length} 条` : "等待"}</Badge>
+                </summary>
+                <div className="dt-event-feed mt-4 max-h-72 overflow-y-auto rounded-lg p-3 text-sm" data-testid="vision-events">
+                  <AnimatePresence initial={false} mode="wait">
+                    {!events.length ? (
+                      <motion.p key="empty" className="text-slate-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        普通解析不会产生流式轨迹；点击边解边看查看完整过程。
+                      </motion.p>
+                    ) : (
+                      <motion.div key="events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        <AnimatePresence initial={false}>
+                          {events.map((event, index) => (
+                            <motion.div
+                              key={`${event.type}-${index}-${eventContent(event).slice(0, 18)}`}
+                              className="dt-event-row"
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.14 }}
+                            >
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <Activity size={12} />
+                                <span><LogText line={eventTitle(event)} /></span>
+                              </div>
+                              {eventContent(event) ? <p className="mt-1 whitespace-pre-wrap break-words text-slate-700">{eventContent(event)}</p> : null}
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </details>
+            </Panel>
+
+            <Panel>
+              <PanelHeader
+                title="作图指令"
+                description="可复制到 GeoGebra，或作为学习记录保存。"
+                action={commands.length ? <Badge tone="brand">{commands.length} 条</Badge> : null}
+              />
+              <div className="mt-4">
+                <AnimatePresence mode="wait">
+                  {ggbScript ? (
+                    <motion.pre
+                      key="script"
+                      className="dt-code-surface max-h-72 overflow-auto rounded-lg p-3 text-xs leading-5"
+                      data-testid="vision-ggb-script"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      {ggbScript}
+                    </motion.pre>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <EmptyState icon={<ScanLine size={22} />} title="暂无指令" description="解析完成后，作图指令会显示在这里。" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="讲解" description="边解边看会输出结合图形的解题说明。" />
+              <div className="mt-4 border-t border-line pt-4 text-sm leading-7 text-slate-700" data-testid="vision-answer">
+                <AnimatePresence mode="wait">
+                  {answer ? (
+                    <motion.p
+                      key="answer"
+                      className="whitespace-pre-wrap"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      {answer}
+                    </motion.p>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      className="flex items-center gap-2 text-slate-500"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>解析完成后可先查看指令；边解边看会在这里输出完整讲解。</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </Panel>
+          </div>
+        </motion.section>
+      </div>
+    </div>
+  );
+}

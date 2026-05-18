@@ -1,0 +1,10 @@
+# Legacy compatibility file.
+#
+# The default docker-compose.yml now already runs split hot-reload services:
+#   - backend: uvicorn --reload
+#   - frontend: Vite HMR
+#
+# This file is intentionally empty so older commands still work:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services: {}

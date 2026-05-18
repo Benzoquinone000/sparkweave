@@ -1,0 +1,353 @@
+"""RAG/KB consistency tests for NG graph capabilities."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from sparkweave.core.contracts import StreamBus, StreamEventType, UnifiedContext
+from sparkweave.core.tool_protocol import ToolResult
+from sparkweave.graphs.chat import ChatGraph
+from sparkweave.graphs.deep_research import DeepResearchGraph
+from sparkweave.graphs.deep_solve import DeepSolveGraph
+
+
+class FakeModel:
+    def __init__(self, responses: list[Any]) -> None:
+        self.responses = list(responses)
+        self.bound_tool_names: list[str] = []
+
+    def bind_tools(self, tools: list[Any]) -> FakeModel:
+        self.bound_tool_names = [str(getattr(tool, "name", "")) for tool in tools]
+        return self
+
+    async def ainvoke(self, _messages: Any) -> Any:
+        response = self.responses.pop(0)
+        if isinstance(response, str):
+            from langchain_core.messages import AIMessage
+
+            return AIMessage(content=response)
+        return response
+
+
+class FakeToolRegistry:
+    def __init__(self, names: list[str]) -> None:
+        self._names = names
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def names(self) -> list[str]:
+        return list(self._names)
+
+    def get_tools(self, names: list[str]) -> list[Any]:
+        return [SimpleNamespace(name=name) for name in names]
+
+    async def execute(self, name: str, **kwargs: Any) -> ToolResult:
+        self.calls.append((name, kwargs))
+        return ToolResult(
+            content=f"{name} result",
+            sources=[{"type": name, "title": "Demo"}],
+            metadata={"ok": True},
+        )
+
+
+@pytest.mark.asyncio
+async def test_deep_solve_strips_rag_when_no_knowledge_base() -> None:
+    model = FakeModel(
+        [
+            '{"analysis":"Need algebra.","steps":[{"id":"S1","goal":"Solve"}]}',
+            "Use web if needed, but no RAG.",
+            "Draft answer.",
+            "Looks correct.",
+            "Final answer.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag", "web_search"])
+    bus = StreamBus()
+    graph = DeepSolveGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="solve x^2 = 4",
+        active_capability="deep_solve",
+        enabled_tools=["rag", "web_search"],
+        knowledge_bases=[],
+    )
+
+    await graph.run(context, bus)
+
+    assert "rag" not in model.bound_tool_names
+    assert "web_search" in model.bound_tool_names
+    assert registry.calls == []
+    warnings = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.PROGRESS
+        and event.metadata.get("reason") == "rag_without_kb"
+    ]
+    assert warnings
+
+
+@pytest.mark.asyncio
+async def test_chat_strips_rag_when_no_knowledge_base() -> None:
+    model = FakeModel(["No retrieval this turn."])
+    registry = FakeToolRegistry(["rag", "web_search"])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="hello",
+        enabled_tools=["rag", "web_search"],
+        knowledge_bases=[],
+    )
+
+    await graph.run(context, bus)
+
+    assert "rag" not in model.bound_tool_names
+    assert "web_search" in model.bound_tool_names
+    assert registry.calls == []
+    warnings = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.PROGRESS
+        and event.metadata.get("reason") == "rag_without_kb"
+    ]
+    assert warnings
+
+
+@pytest.mark.asyncio
+async def test_deep_solve_keeps_rag_when_knowledge_base_attached() -> None:
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel(
+        [
+            '{"analysis":"Need context.","steps":[{"id":"S1","goal":"Retrieve"}]}',
+            AIMessage(
+                content="Use RAG.",
+                tool_calls=[
+                    {
+                        "name": "rag",
+                        "args": {"query": "quadratic equations"},
+                        "id": "rag-1",
+                    }
+                ],
+            ),
+            "Draft with retrieved context.",
+            "Looks correct.",
+            "Final answer.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag", "web_search"])
+    bus = StreamBus()
+    graph = DeepSolveGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="solve x^2 = 4",
+        active_capability="deep_solve",
+        enabled_tools=["rag", "web_search"],
+        knowledge_bases=["my-kb"],
+    )
+
+    await graph.run(context, bus)
+
+    assert "rag" in model.bound_tool_names
+    assert registry.calls == [
+        ("rag", {"query": "quadratic equations", "kb_name": "my-kb"})
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chat_passes_rag_strategy_overrides_to_tool() -> None:
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel(
+        [
+            AIMessage(
+                content="Use knowledge.",
+                tool_calls=[
+                    {
+                        "name": "rag",
+                        "args": {"query": "PCA 推导"},
+                        "id": "rag-1",
+                    }
+                ],
+            ),
+            "Final answer with evidence.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag"])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="对比 PCA 推导和特征值分解",
+        enabled_tools=["rag"],
+        knowledge_bases=["ml-kb"],
+        config_overrides={
+            "prefetch_rag": False,
+            "agentic_rag": "auto",
+            "query_transform": "hyde",
+            "agentic_max_subqueries": 3,
+            "agentic_max_context_chars": 5000,
+            "agentic_max_sources": 8,
+            "agentic_min_relevant_coverage_ratio": 0.67,
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert len(registry.calls) == 1
+    name, kwargs = registry.calls[0]
+    assert name == "rag"
+    kwargs.pop("event_sink", None)
+    assert kwargs == {
+        "query": "PCA 推导",
+        "kb_name": "ml-kb",
+        "agentic_rag": "auto",
+        "query_transform": "hyde",
+        "agentic_max_subqueries": 3,
+        "agentic_max_context_chars": 5000,
+        "agentic_max_sources": 8,
+        "agentic_min_relevant_coverage_ratio": 0.67,
+    }
+
+
+@pytest.mark.asyncio
+async def test_deep_solve_passes_rag_strategy_overrides_to_tool() -> None:
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel(
+        [
+            '{"analysis":"Need context.","steps":[{"id":"S1","goal":"Retrieve"}]}',
+            AIMessage(
+                content="Use RAG.",
+                tool_calls=[
+                    {
+                        "name": "rag",
+                        "args": {},
+                        "id": "rag-1",
+                    }
+                ],
+            ),
+            "Draft with retrieved context.",
+            "Looks correct.",
+            "Final answer.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag"])
+    bus = StreamBus()
+    graph = DeepSolveGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="结合资料解释反向传播为什么需要链式法则",
+        active_capability="deep_solve",
+        enabled_tools=["rag"],
+        knowledge_bases=["ml-kb"],
+        config_overrides={
+            "agentic_rag": "force",
+            "query_transform": "hyde",
+            "agentic_max_subqueries": 4,
+            "agentic_max_context_chars": 8000,
+            "agentic_max_sources": 12,
+            "agentic_min_relevant_coverage_ratio": 0.8,
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert registry.calls == [
+        (
+            "rag",
+            {
+                "kb_name": "ml-kb",
+                "agentic_rag": "force",
+                "query_transform": "hyde",
+                "agentic_max_subqueries": 4,
+                "agentic_max_context_chars": 8000,
+                "agentic_max_sources": 12,
+                "agentic_min_relevant_coverage_ratio": 0.8,
+                "query": "结合资料解释反向传播为什么需要链式法则",
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_deep_research_drops_kb_source_when_no_knowledge_base() -> None:
+    model = FakeModel(
+        [
+            "A topic to research?",
+            "# Report\n\nWeb-backed report.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag", "web_search"])
+    bus = StreamBus()
+    graph = DeepResearchGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="A topic to research",
+        active_capability="deep_research",
+        enabled_tools=["rag", "web_search"],
+        knowledge_bases=[],
+        config_overrides={
+            "mode": "report",
+            "depth": "manual",
+            "sources": ["kb", "web"],
+            "confirmed_outline": [
+                {
+                    "title": "Subtopic 1",
+                    "overview": "Overview 1",
+                    "queries": ["topic web query"],
+                }
+            ],
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert registry.calls == [("web_search", {"query": "topic web query"})]
+    warnings = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.PROGRESS
+        and event.metadata.get("reason") == "kb_unavailable"
+    ]
+    assert warnings
+
+
+@pytest.mark.asyncio
+async def test_deep_research_with_only_kb_and_no_knowledge_base_uses_safe_fallback() -> None:
+    model = FakeModel(
+        [
+            "A topic to research?",
+            "# Report\n\nInternal-knowledge fallback.",
+        ]
+    )
+    registry = FakeToolRegistry(["rag"])
+    bus = StreamBus()
+    graph = DeepResearchGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="topic",
+        active_capability="deep_research",
+        enabled_tools=["rag"],
+        knowledge_bases=[],
+        config_overrides={
+            "mode": "report",
+            "depth": "manual",
+            "sources": ["kb"],
+            "confirmed_outline": [
+                {"title": "Subtopic 1", "overview": "Overview 1", "queries": ["kb query"]}
+            ],
+        },
+    )
+
+    await graph.run(context, bus)
+
+    assert registry.calls == []
+    warnings = [
+        event
+        for event in bus._history
+        if event.type == StreamEventType.PROGRESS
+        and event.metadata.get("reason") in {"kb_unavailable", "no_sources"}
+    ]
+    assert {event.metadata["reason"] for event in warnings} == {
+        "kb_unavailable",
+        "no_sources",
+    }
+    result = next(event for event in bus._history if event.type == StreamEventType.RESULT)
+    assert result.metadata["response"].startswith("# Report")
+

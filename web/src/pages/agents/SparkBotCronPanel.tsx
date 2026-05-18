@@ -43,7 +43,7 @@ export function SparkBotCronPanel({
   onRun: (job: SparkBotCronJob) => Promise<unknown>;
   onDelete: (job: SparkBotCronJob) => Promise<unknown>;
 }) {
-  const jobs = cron?.jobs ?? [];
+  const jobs = useMemo(() => cron?.jobs ?? [], [cron?.jobs]);
   const activeJobs = jobs.filter((job) => job.enabled).length;
   const nextJob = useMemo(
     () =>

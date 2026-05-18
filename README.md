@@ -5,109 +5,97 @@
 <h1 align="center">SparkWeave 星火织学</h1>
 
 <p align="center">
-  <strong>面向个性化学习的 Agent-Native 智能学习系统</strong>
+  <strong>面向真实学习场景的 Agent-Native 智能学习工作台</strong>
 </p>
 
 <p align="center">
-  用可追踪的智能体编排、证据驱动的学习画像与 Evidence RAG，把课程资料转化为答疑、练习、导学、可视化讲解和学习效果闭环。
+  SparkWeave 把课程资料、问答、练习、学习记录、学习画像和多智能体能力收进一个低噪声的学习入口，让用户先完成学习任务，而不是先理解工程系统。
 </p>
 
 <p align="center">
   <a href="https://github.com/Benzoquinone000/sparkweave/actions/workflows/ci.yml">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Benzoquinone000/sparkweave/ci.yml?branch=main&label=CI&style=flat-square" />
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.3-E60012?style=flat-square" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-2563EB?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-TypeScript-0F766E?style=flat-square" />
-  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-Agent_Runtime-7C3AED?style=flat-square" />
+  <img alt="Docker" src="https://img.shields.io/badge/Deploy-Docker_Compose-0F766E?style=flat-square" />
   <img alt="License" src="https://img.shields.io/badge/License-Apache--2.0-111827?style=flat-square" />
 </p>
 
 <p align="center">
-  <a href="#核心能力">核心能力</a> ·
-  <a href="#使用路径">使用路径</a> ·
+  <a href="#功能说明">功能说明</a> ·
+  <a href="#页面截图">页面截图</a> ·
+  <a href="#docker-部署">Docker 部署</a> ·
   <a href="#系统架构">系统架构</a> ·
-  <a href="#界面预览">界面预览</a> ·
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#设计文档">设计文档</a>
+  <a href="#项目结构">项目结构</a>
 </p>
 
 ## 项目定位
 
-SparkWeave 是一个面向真实学习场景的智能学习工作台。它不是单一聊天机器人，而是把 CLI、WebSocket API、Python SDK 接入同一套 Agent Runtime，让 Chat、RAG、学习画像、导学、题目生成和可视化能力在后台协同。
+SparkWeave 是一个个性化学习工作台。默认入口保持简洁：学习、资料、记录、设置。Agent、RAG、画像、诊断、演示和调试能力默认后台化，真正暴露给用户的是继续学习、上传资料、问资料、做练习和复盘记录。
 
-产品入口保持简单：学习、资料、记录、设置。工程能力默认后台化，用户只需要继续学习、上传资料、问资料或查看记录。
+后端使用 FastAPI、LangGraph、Milvus 和统一的 Agent Runtime；前端使用 React、TypeScript、TanStack Router 和 Vite。项目当前推荐且唯一写入 README 的启动方式是 Docker Compose。
 
-## 使用路径
+## 功能说明
 
-| 用户要做什么 | 推荐入口 | SparkWeave 在后台做什么 |
+| 功能 | 用户看到的价值 | 后台能力 |
 | --- | --- | --- |
-| 继续学习 | 学习 / Guide | 结合画像、课程资料和历史练习生成下一步任务 |
-| 上传并询问资料 | 资料 / Chat | 建立知识库、检索证据、生成带来源的回答 |
-| 复盘错题和笔记 | 记录 / Notebook | 保存题目、笔记、会话证据，并更新学习状态 |
-| 校准学习画像 | 记录 / Memory | 展示依据，支持确认、否定和修正画像判断 |
-| 调整模型与服务 | 设置 | 管理 LLM、Embedding、搜索、OCR、TTS 等 provider |
+| 个性化学习路线 | 打开首页就知道今天下一步学什么 | Guide、Learning Effect、Learner Profile |
+| 资料库 | 上传课程 PDF、笔记或资料后用于问答 | Milvus、Embedding、RAG 入库与检索 |
+| 问资料 | 围绕资料直接提问，回答保留证据链 | Chat Graph、Evidence RAG、Context Pack |
+| 练习生成 | 根据主题生成练习并沉淀错题 | Deep Question、Question Notebook |
+| 学习记录 | 保存对话、笔记、题目和资料引用 | Notebook、Session Store |
+| 学习画像 | 查看系统为什么这样推荐，并校准偏好 | Memory、Evidence Ledger、Learner Profile |
+| 课程助教 | 用课程文件驱动一个长期课程助手 | SparkBot、课程文件、历史对话 |
+| 写作助手 | 对选中文本做润色、扩写和改写 | Co-writer tool chain |
+| 图像解题 | 上传题图，提取结构并生成解题结果 | Vision pipeline、GeoGebra command |
+| 设置与诊断 | 配置模型、Embedding、搜索、OCR、TTS | Provider catalog、健康检查 |
+| 调试台 | 给开发者检查工具、能力和运行状态 | Plugin / capability playground |
 
-## 核心能力
+## 页面截图
 
-| 能力 | 对学习用户的价值 | 后台实现 |
-| --- | --- | --- |
-| Agent 编排 | 不需要手动选择工具，直接表达学习任务 | Tool + Capability 双层架构、统一 Orchestrator、LangGraph capability graph |
-| Evidence RAG | 问资料时看到答案依据，而不是只得到泛泛回答 | Milvus-first、retrieval policy、HyDE、Agentic 多路召回、rerank、Context Pack |
-| 学习画像 / 记忆 | 系统能记住目标、薄弱点、偏好和上下文 | Markdown Memory、Evidence Ledger、Learner Profile、Profile Context |
-| 学习闭环 | 对话、练习、资源、导学和评估能串成连续学习过程 | Guide V2、Notebook、Learning Effect、turn event 持久化 |
-| 多端入口 | 前端、CLI、SDK 和 WebSocket 使用同一套能力 | `SparkWeaveApp`、`/api/v1/ws`、Typer CLI |
+以下截图由当前前端重新生成，保存在 `web/` 目录。
 
-<p align="center">
-  <img src="docs/assets/agent-orchestration-overview.png" alt="SparkWeave 智能体编排主链路图" />
-</p>
-
-## 系统架构
-
-SparkWeave 的主链路是统一的 turn runtime：
-
-```text
-CLI / WebSocket / Python SDK
-  -> SparkWeaveApp / ChatOrchestrator
-  -> RuntimeRoutingTurnManager
-  -> LangGraphTurnRuntimeManager
-  -> UnifiedContext
-  -> LangGraphRunner
-  -> ChatGraph / 专业 Capability Graph
-  -> StreamEvent 持久化、订阅、重放
-```
-
-<p align="center">
-  <img src="docs/assets/rag-system-overview.png" alt="SparkWeave Evidence RAG 系统图" />
-</p>
-
-## 界面预览
-
-| 问资料 | 个性化导学 |
+| 学习 | 资料 |
 | --- | --- |
-| <img src="web/screenshots-refined-chat.png" alt="问资料截图" /> | <img src="web/screenshots-simplified-guide.png" alt="个性化导学截图" /> |
-| 默认聚焦提问、资料选择和来源证据。 | 根据画像生成任务、资源建议、练习反馈和下一步行动。 |
+| <img src="web/screenshots-guide.png" alt="学习页面截图" /> | <img src="web/screenshots-knowledge.png" alt="资料页面截图" /> |
+| 个性化学习入口，聚焦下一步任务、学习路线和反馈。 | 管理资料库、上传资料、查看索引状态并进入资料问答。 |
 
-| 资料工作区 | 学习画像 / 记忆 |
+| 记录 | 设置 |
 | --- | --- |
-| <img src="web/screenshots-simplified-final-knowledge.png" alt="资料工作区截图" /> | <img src="web/screenshots-simplified-memory.png" alt="学习画像与记忆截图" /> |
-| 上传、提问、处理记录是主入口，高级诊断后置。 | 展示长期偏好、薄弱点、证据来源和校准反馈。 |
+| <img src="web/screenshots-notebook.png" alt="记录页面截图" /> | <img src="web/screenshots-settings.png" alt="设置页面截图" /> |
+| 复盘笔记、题目、对话结果和资料引用。 | 管理模型、Embedding、搜索、OCR、TTS 与工作台偏好。 |
 
-| 课程助教 | 学习记录 |
+| 问问题 | 练习 |
 | --- | --- |
-| <img src="web/screenshots-simplified-agents-desktop.png" alt="课程助教截图" /> | <img src="web/screenshots-simplified-notebook.png" alt="学习记录截图" /> |
-| 基于课程资料、学习画像和最近练习生成今日任务。 | 保存笔记、题目、资料引用和学习过程，方便复盘。 |
+| <img src="web/screenshots-chat.png" alt="问问题页面截图" /> | <img src="web/screenshots-question.png" alt="练习页面截图" /> |
+| 简洁对话输入，支持资料上下文和智能体结果。 | 生成练习、查看题目记录并追踪答题结果。 |
 
-## 快速开始
+| 学习画像 | 课程助教 |
+| --- | --- |
+| <img src="web/screenshots-memory.png" alt="学习画像页面截图" /> | <img src="web/screenshots-agents.png" alt="课程助教页面截图" /> |
+| 展示偏好、薄弱点、证据来源和画像校准入口。 | 管理课程助教、课程文件、渠道与历史消息。 |
 
-准备环境：
+| 写作助手 | 图像解题 |
+| --- | --- |
+| <img src="web/screenshots-co-writer.png" alt="写作助手页面截图" /> | <img src="web/screenshots-vision.png" alt="图像解题页面截图" /> |
+| 对学习材料和答案文本进行改写、润色、扩写。 | 上传题图，生成结构化分析和可复用命令。 |
+
+| 调试台 | 移动端入口 |
+| --- | --- |
+| <img src="web/screenshots-playground.png" alt="调试台页面截图" /> | <img src="web/screenshots-mobile-guide.png" alt="移动端学习页面截图" /> |
+| 面向开发者的工具、能力和运行状态检查入口。 | 移动端保持学习入口优先，适合随手继续学习。 |
+
+## Docker 部署
+
+### 1. 准备环境
 
 - Git
-- Docker Desktop（含 Docker Compose v2）
+- Docker Desktop，或 Docker Engine + Docker Compose v2
+- 一个可用的 LLM API Key
+- 一个可用的 Embedding API Key，资料库和 RAG 需要它
 
-Provider auth (`openai-codex` OAuth login; `github-copilot` validates an existing Copilot auth session).
-
-1. 克隆项目并准备环境变量：
+Windows PowerShell：
 
 ```powershell
 git clone https://github.com/Benzoquinone000/sparkweave.git
@@ -115,41 +103,61 @@ cd sparkweave
 copy .env.example .env
 ```
 
-2. 打开 `.env`，至少填写模型和 embedding 配置。使用本机 LM Studio / Ollama / vLLM 时，容器内不能写 `localhost`，请把 host 改成 `host.docker.internal`，例如：
+macOS / Linux：
+
+```bash
+git clone https://github.com/Benzoquinone000/sparkweave.git
+cd sparkweave
+cp .env.example .env
+```
+
+### 2. 配置 `.env`
+
+最小可运行配置如下：
 
 ```dotenv
+BACKEND_PORT=8001
+FRONTEND_PORT=3782
+
 LLM_BINDING=openai
-LLM_MODEL=your-model
-LLM_API_KEY=your-key
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=your-llm-key
 LLM_HOST=https://api.openai.com/v1
 
 EMBEDDING_BINDING=openai
 EMBEDDING_MODEL=text-embedding-3-large
-EMBEDDING_API_KEY=your-key
+EMBEDDING_API_KEY=your-embedding-key
 EMBEDDING_HOST=https://api.openai.com/v1
+EMBEDDING_DIMENSION=3072
+
+RAG_PROVIDER=milvus
+DOCKER_MILVUS_URI=http://milvus:19530
 ```
 
-3. 构建并启动开发服务：
+如果 LLM 或 Embedding 服务跑在宿主机，例如 LM Studio、Ollama、vLLM，不要在容器里写 `localhost`。Windows / macOS 使用：
+
+```dotenv
+LLM_HOST=http://host.docker.internal:1234/v1
+EMBEDDING_HOST=http://host.docker.internal:1234/v1
+```
+
+Linux 可以改成宿主机局域网 IP，例如 `http://192.168.1.100:1234/v1`。
+
+### 3. 启动
+
+前台启动，适合首次部署和看日志：
 
 ```powershell
 docker compose up --build
 ```
 
-4. 查看状态和日志：
+后台启动：
 
 ```powershell
-docker compose ps
-docker compose logs -f backend
-docker compose logs -f frontend
+docker compose up -d --build
 ```
 
-5. 停止服务：
-
-```powershell
-docker compose down
-```
-
-默认入口：
+启动完成后访问：
 
 | 服务 | 地址 |
 | --- | --- |
@@ -158,69 +166,120 @@ docker compose down
 | API 文档 | http://localhost:8001/docs |
 | Milvus Web UI | http://localhost:9091/webui/ |
 
-常用 Docker 命令：
+### 4. 运维命令
 
 ```powershell
-docker compose up -d milvus
-docker compose logs -f milvus
-docker compose up --build
-```
-
-默认 Docker 启动就是前后端分离热启动：
-
-| 服务 | 地址 | 热更新 |
-| --- | --- | --- |
-| `backend` | http://localhost:8001 | `uvicorn --reload`，挂载 `sparkweave/`、`sparkweave_cli/` |
-| `frontend` | http://localhost:3782 | Vite HMR，挂载 `web/` |
-
-只看前端日志：
-
-```powershell
-docker compose logs -f frontend
-```
-
-只看后端日志：
-
-```powershell
+docker compose ps
 docker compose logs -f backend
+docker compose logs -f frontend
+docker compose restart backend
+docker compose restart frontend
+docker compose down
+```
+
+重新构建：
+
+```powershell
+docker compose build --no-cache
+docker compose up -d
+```
+
+清理容器和 Compose volume：
+
+```powershell
+docker compose down -v
+```
+
+`down -v` 会删除 Compose 管理的 volume，例如前端 `node_modules` 缓存；项目目录下的 `data/` 仍由本地文件夹保存。
+
+### 5. Docker 服务说明
+
+| 服务 | 作用 | 默认端口 |
+| --- | --- | --- |
+| `backend` | FastAPI 后端，`uvicorn --reload` 热更新 | `8001` |
+| `frontend` | Vite 前端，HMR 热更新 | `3782` |
+| `milvus` | 向量数据库，资料库检索默认依赖 | `19530`, `9091` |
+| `milvus-etcd` | Milvus 元数据服务 | 内部端口 |
+| `milvus-minio` | Milvus 对象存储 | 内部端口 |
+
+数据落点：
+
+| 路径 | 内容 |
+| --- | --- |
+| `data/user/` | 用户设置、记忆、画像、会话相关数据 |
+| `data/knowledge_bases/` | 本地资料库文件与处理结果 |
+| `data/milvus/` | Milvus etcd、minio、standalone 数据 |
+| `sparkweave_node_modules` | Docker Compose 管理的前端依赖缓存 |
+
+### 6. 常见问题
+
+| 问题 | 处理 |
+| --- | --- |
+| 前端第一次启动较慢 | `frontend` 容器会先执行 `npm ci`，首次等待即可 |
+| 端口被占用 | 在 `.env` 改 `BACKEND_PORT` 或 `FRONTEND_PORT` |
+| 容器访问不到本机模型 | 把 `localhost` 改为 `host.docker.internal` 或宿主机局域网 IP |
+| 上传资料后无法检索 | 确认 Embedding 配置和 Milvus 服务状态 |
+| Milvus 启动慢 | 首次启动需要初始化，查看 `docker compose logs -f milvus` |
+| `.env` 修改不生效 | 执行 `docker compose up -d --force-recreate` |
+
+## 系统架构
+
+```text
+学习入口 / 资料入口 / 记录入口 / 设置入口
+  -> React Web Workbench
+  -> FastAPI / WebSocket API
+  -> SparkWeaveApp / ChatOrchestrator
+  -> ToolRegistry + CapabilityRegistry
+  -> LangGraph capability graph
+  -> StreamEvent / Notebook / Memory / Milvus
+```
+
+<p align="center">
+  <img src="docs/assets/agent-orchestration-overview.png" alt="SparkWeave 智能体编排主链路图" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/rag-system-overview.png" alt="SparkWeave Evidence RAG 系统图" />
+</p>
+
+## 质量检查
+
+在 Docker 环境内检查：
+
+```powershell
+docker compose exec backend python scripts/check_release_safety.py
+docker compose exec backend python -m compileall -q sparkweave tests
+docker compose exec frontend npm run build
+```
+
+本地只更新前端截图时：
+
+```powershell
+cd web
+npm run screenshots
+```
+
+## 项目结构
+
+```text
+sparkweave/        后端服务、Agent Runtime、LangGraph 能力图与业务服务
+sparkweave_cli/    Typer CLI 入口，供内部能力复用
+web/               Vite + React + TypeScript 前端
+scripts/           检查、维护、截图和开发辅助脚本
+requirements/      后端依赖分层
+docs/              稳定设计文档和 PNG 架构图
+assets/            Logo 与项目素材
+data/              本地知识库、Milvus、记忆和用户数据
 ```
 
 ## 设计文档
 
-| 想了解 | 入口 |
+| 文档 | 说明 |
 | --- | --- |
-| 文档总览 | [docs/README.md](docs/README.md) |
-| 智能体编排 | [docs/agent-orchestration-design.md](docs/agent-orchestration-design.md) |
-| RAG 系统 | [docs/rag-system-design.md](docs/rag-system-design.md) |
-| 学习画像 / 记忆 | [docs/learner-profile-memory-design.md](docs/learner-profile-memory-design.md) |
-| RAG 评测样例 | [docs/examples/rag_eval_dataset.sample.jsonl](docs/examples/rag_eval_dataset.sample.jsonl) |
-| 机器学习课程评测样例 | [docs/examples/rag_eval_dataset.ml_course.sample.jsonl](docs/examples/rag_eval_dataset.ml_course.sample.jsonl) |
-
-## 目录结构
-
-```text
-sparkweave/        后端服务、Agent Runtime、LangGraph 能力图与业务服务
-sparkweave_cli/    Typer CLI 入口
-web/               Vite + React + TypeScript 前端
-scripts/           启动、检查、导出与维护脚本
-requirements/      CLI、Server、Dev、Math Animator 等分层依赖
-docs/              Agent 编排、RAG、学习画像与评测样例
-assets/            Logo 与系统素材
-data/              本地知识库、记忆、用户画像和运行数据
-```
-
-## 质量检查
-
-```powershell
-python scripts/check_install.py
-python scripts/check_release_safety.py
-python -m compileall -q sparkweave tests
-
-cd web
-npm run lint
-npm run check:api-contract
-npm run build
-```
+| [docs/README.md](docs/README.md) | 文档中心 |
+| [docs/agent-orchestration-design.md](docs/agent-orchestration-design.md) | 智能体编排设计 |
+| [docs/rag-system-design.md](docs/rag-system-design.md) | Evidence RAG 系统设计 |
+| [docs/learner-profile-memory-design.md](docs/learner-profile-memory-design.md) | 学习画像与记忆设计 |
 
 ## License
 

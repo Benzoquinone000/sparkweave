@@ -59,7 +59,7 @@ export function AgentsPage() {
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [activeFileName, setActiveFileName] = useState<string | null>("SOUL.md");
   const [newFileName, setNewFileName] = useState("");
-  const [chatDraft, setChatDraft] = useState("");
+  const [chatDraft, setChatDraft] = useState<{ id: number; text: string } | null>(null);
   const [removedBotIds, setRemovedBotIds] = useState<Set<string>>(() => new Set());
 
   const bots = useSparkBots();
@@ -91,10 +91,10 @@ export function AgentsPage() {
   });
   const activeBotSummary = activeBot.data ?? items.find((item) => item.bot_id === activeBotId);
   const running = items.filter((item) => item.running).length;
-  const defaultChannels = useMemo(defaultChannelsConfig, []);
-  const defaultTools = useMemo(defaultToolsConfig, []);
-  const defaultAgent = useMemo(defaultAgentConfig, []);
-  const defaultHeartbeat = useMemo(defaultHeartbeatConfig, []);
+  const defaultChannels = useMemo(() => defaultChannelsConfig(), []);
+  const defaultTools = useMemo(() => defaultToolsConfig(), []);
+  const defaultAgent = useMemo(() => defaultAgentConfig(), []);
+  const defaultHeartbeat = useMemo(() => defaultHeartbeatConfig(), []);
   const pending =
     mutations.create.isPending ||
     mutations.update.isPending ||
@@ -253,7 +253,7 @@ export function AgentsPage() {
               />
             </div>
             <div className="lg:col-span-2">
-              <SparkBotChatTest bot={activeBotSummary} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} />
+              <SparkBotChatTest key={`${activeBotId ?? "none"}:${chatDraft?.id ?? 0}`} bot={activeBotSummary} initialInput={chatDraft?.text ?? ""} />
             </div>
           </div>
         ) : null}
@@ -326,7 +326,7 @@ export function AgentsPage() {
                     tone="secondary"
                     onClick={() => {
                       setView("assistants");
-                      setChatDraft("/cron list");
+                      setChatDraft({ id: Date.now(), text: "/cron list" });
                     }}
                   >
                     <MessageSquareText size={16} />
@@ -568,7 +568,8 @@ function CreateBotPanel({
   pending: boolean;
   onCreate: (payload: { bot_id: string; name?: string; description?: string; persona?: string; auto_start?: boolean }) => Promise<SparkBotSummary>;
 }) {
-  const [botId, setBotId] = useState(DEFAULT_BOT_ID);
+  const suggestedBotId = useMemo(() => nextAvailableBotId(existingBotIds), [existingBotIds]);
+  const [customBotId, setCustomBotId] = useState("");
   const [botIdEdited, setBotIdEdited] = useState(false);
   const [name, setName] = useState("SparkBot 助教");
   const [description, setDescription] = useState("支持 MCP、skills、通道消息和定时任务的长期助教。");
@@ -576,14 +577,9 @@ function CreateBotPanel({
   const [autoStart, setAutoStart] = useState(true);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  const botId = botIdEdited ? customBotId : suggestedBotId;
   const trimmedBotId = botId.trim();
   const idExists = Boolean(trimmedBotId && existingBotIds.includes(trimmedBotId));
-
-  useEffect(() => {
-    if (botIdEdited) return;
-    if (trimmedBotId && !existingBotIds.includes(trimmedBotId)) return;
-    setBotId(nextAvailableBotId(existingBotIds));
-  }, [botIdEdited, existingBotIds, trimmedBotId]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -605,7 +601,7 @@ function CreateBotPanel({
       });
       setSaved(`已创建 ${created.bot_id}。`);
       setBotIdEdited(false);
-      setBotId(nextAvailableBotId([...existingBotIds, created.bot_id]));
+      setCustomBotId("");
     } catch (createError) {
       setSaved("");
       setError(createError instanceof Error ? createError.message : "创建 SparkBot 失败。");
@@ -624,7 +620,7 @@ function CreateBotPanel({
             value={botId}
             onChange={(event) => {
               setBotIdEdited(true);
-              setBotId(event.target.value);
+              setCustomBotId(event.target.value);
               setError("");
               setSaved("");
             }}
@@ -748,64 +744,31 @@ function SkillsManagerPanel({
   onUpload: (file: File, skillName?: string) => Promise<unknown>;
 }) {
   const skills = useSparkBotSkills(botId, { enabled: Boolean(botId) });
-  const [selectedName, setSelectedName] = useState("");
-  const selectedSkill = useSparkBotSkill(botId, selectedName || null, { enabled: Boolean(botId && selectedName) });
-  const [skillName, setSkillName] = useState("daily-review");
-  const [content, setContent] = useState(defaultSkillContent("daily-review"));
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const effectiveSelectedName = selectedName === null ? skills.data?.[0]?.name ?? "" : selectedName;
+  const selectedSkill = useSparkBotSkill(botId, effectiveSelectedName || null, { enabled: Boolean(botId && effectiveSelectedName) });
   const [uploadName, setUploadName] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!selectedName && skills.data?.length) {
-      setSelectedName(skills.data[0].name);
-    }
-  }, [selectedName, skills.data]);
-
-  useEffect(() => {
-    if (!selectedSkill.data) return;
-    setSkillName(selectedSkill.data.name);
-    setContent(selectedSkill.data.content || defaultSkillContent(selectedSkill.data.name));
-    setError("");
-    setSaved(false);
-  }, [selectedSkill.data]);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadSaved, setUploadSaved] = useState(false);
 
   const submitUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!uploadFile) {
-      setError("请选择一个 SKILL.md 或 zip 文件。");
+      setUploadError("请选择一个 SKILL.md 或 zip 文件。");
       return;
     }
     try {
-      setError("");
-      setSaved(false);
+      setUploadError("");
+      setUploadSaved(false);
       const result = (await onUpload(uploadFile, uploadName.trim() || undefined)) as SparkBotSkill | undefined;
       setUploadFile(null);
       setUploadName("");
       if (result?.name) setSelectedName(result.name);
-      setSaved(true);
+      setUploadSaved(true);
       void skills.refetch();
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "上传 skill 失败。");
-    }
-  };
-
-  const submitSave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!skillName.trim() || !content.trim()) {
-      setError("Skill 名称和内容不能为空。");
-      return;
-    }
-    try {
-      setError("");
-      setSaved(false);
-      await onSave(skillName.trim(), content);
-      setSelectedName(skillName.trim());
-      setSaved(true);
-      void skills.refetch();
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "保存 skill 失败。");
+      setUploadError(uploadError instanceof Error ? uploadError.message : "上传 skill 失败。");
     }
   };
 
@@ -836,6 +799,8 @@ function SkillsManagerPanel({
             上传
           </Button>
         </div>
+        {uploadError ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{uploadError}</p> : null}
+        {uploadSaved ? <p className="text-sm text-emerald-700">已上传。</p> : null}
       </form>
 
       <div className="mt-4 flex max-h-36 flex-wrap gap-2 overflow-y-auto">
@@ -845,7 +810,7 @@ function SkillsManagerPanel({
             type="button"
             onClick={() => setSelectedName(skill.name)}
             className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
-              selectedName === skill.name ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
+              effectiveSelectedName === skill.name ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
             }`}
             data-testid={`sparkbot-skill-${skill.name}`}
           >
@@ -858,30 +823,91 @@ function SkillsManagerPanel({
         ) : null}
       </div>
 
-      <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={submitSave}>
-        <FieldShell label="Skill 名称">
-          <TextInput value={skillName} onChange={(event) => setSkillName(event.target.value)} data-testid="sparkbot-skill-name" />
-        </FieldShell>
-        <FieldShell label="SKILL.md">
-          <TextArea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-72 font-mono text-xs" data-testid="sparkbot-skill-content" />
-        </FieldShell>
-        {selectedSkill.data?.missing_requirements ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{selectedSkill.data.missing_requirements}</p>
-        ) : null}
-        {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
-        {saved ? <p className="text-sm text-emerald-700">已保存。</p> : null}
-        <div className="flex flex-wrap gap-2">
-          <Button tone="secondary" type="button" onClick={() => { setSkillName("new-skill"); setContent(defaultSkillContent("new-skill")); setSelectedName(""); }}>
-            <Plus size={16} />
-            新建
-          </Button>
-          <Button tone="primary" type="submit" disabled={pending || !skillName.trim() || !content.trim()} data-testid="sparkbot-skill-save">
-            {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            保存到工作区
-          </Button>
-        </div>
-      </form>
+      <SkillEditor
+        key={effectiveSelectedName || "__new_skill__"}
+        selectedSkill={selectedSkill.data}
+        isNew={!effectiveSelectedName}
+        pending={pending}
+        onNew={() => setSelectedName("")}
+        onSave={async (skillName, content) => {
+          await onSave(skillName, content);
+          setSelectedName(skillName);
+          void skills.refetch();
+        }}
+      />
     </section>
+  );
+}
+
+function SkillEditor({
+  selectedSkill,
+  isNew,
+  pending,
+  onNew,
+  onSave,
+}: {
+  selectedSkill?: SparkBotSkill;
+  isNew: boolean;
+  pending: boolean;
+  onNew: () => void;
+  onSave: (skillName: string, content: string) => Promise<unknown>;
+}) {
+  const initialName = isNew ? "new-skill" : selectedSkill?.name || "daily-review";
+  const [skillName, setSkillName] = useState(initialName);
+  const [content, setContent] = useState(selectedSkill?.content || defaultSkillContent(initialName));
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const submitSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!skillName.trim() || !content.trim()) {
+      setError("Skill 名称和内容不能为空。");
+      return;
+    }
+    try {
+      setError("");
+      setSaved(false);
+      await onSave(skillName.trim(), content);
+      setSaved(true);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "保存 skill 失败。");
+    }
+  };
+
+  return (
+    <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={submitSave}>
+      <FieldShell label="Skill 名称">
+        <TextInput value={skillName} onChange={(event) => setSkillName(event.target.value)} data-testid="sparkbot-skill-name" />
+      </FieldShell>
+      <FieldShell label="SKILL.md">
+        <TextArea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-72 font-mono text-xs" data-testid="sparkbot-skill-content" />
+      </FieldShell>
+      {selectedSkill?.missing_requirements ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{selectedSkill.missing_requirements}</p>
+      ) : null}
+      {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
+      {saved ? <p className="text-sm text-emerald-700">已保存。</p> : null}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          tone="secondary"
+          type="button"
+          onClick={() => {
+            onNew();
+            setSkillName("new-skill");
+            setContent(defaultSkillContent("new-skill"));
+            setError("");
+            setSaved(false);
+          }}
+        >
+          <Plus size={16} />
+          新建
+        </Button>
+        <Button tone="primary" type="submit" disabled={pending || !skillName.trim() || !content.trim()} data-testid="sparkbot-skill-save">
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          保存到工作区
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -1049,11 +1075,7 @@ function WorkspaceFilesPanel({
   onSelectFile: (filename: string) => void;
   onSaveFile: (content: string) => Promise<unknown>;
 }) {
-  const [draft, setDraft] = useState(activeFile?.content ?? fallbackContent ?? "");
-
-  useEffect(() => {
-    setDraft(activeFile?.content ?? fallbackContent ?? "");
-  }, [activeFile?.content, fallbackContent, activeFileName]);
+  const editorContent = activeFile?.content ?? fallbackContent ?? "";
 
   return (
     <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-files-toggle">
@@ -1088,27 +1110,54 @@ function WorkspaceFilesPanel({
           ))}
         </div>
         {activeBotId && activeFileName ? (
-          <form
-            className="grid gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void onSaveFile(draft);
-            }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-mono text-sm font-semibold text-ink">{activeFileName}</p>
-              <Button tone="primary" type="submit" disabled={pending || loading} data-testid="sparkbot-file-save">
-                {pending || loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                保存
-              </Button>
-            </div>
-            <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-96 font-mono text-xs" data-testid="sparkbot-file-content" />
-          </form>
+          <WorkspaceFileEditor
+            key={`${activeFileName}:${editorContent}`}
+            filename={activeFileName}
+            initialContent={editorContent}
+            pending={pending}
+            loading={loading}
+            onSaveFile={onSaveFile}
+          />
         ) : (
           <div className="rounded-lg border border-dashed border-line bg-canvas p-6 text-sm text-slate-500">选择一个文件后编辑。</div>
         )}
       </div>
     </section>
+  );
+}
+
+function WorkspaceFileEditor({
+  filename,
+  initialContent,
+  pending,
+  loading,
+  onSaveFile,
+}: {
+  filename: string;
+  initialContent: string;
+  pending: boolean;
+  loading: boolean;
+  onSaveFile: (content: string) => Promise<unknown>;
+}) {
+  const [draft, setDraft] = useState(initialContent);
+
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSaveFile(draft);
+      }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-sm font-semibold text-ink">{filename}</p>
+        <Button tone="primary" type="submit" disabled={pending || loading} data-testid="sparkbot-file-save">
+          {pending || loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          保存
+        </Button>
+      </div>
+      <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-96 font-mono text-xs" data-testid="sparkbot-file-content" />
+    </form>
   );
 }
 
@@ -1121,19 +1170,7 @@ function BotProfilePanel({
   pending: boolean;
   onSave: (payload: Partial<Pick<SparkBotSummary, "name" | "description" | "persona" | "model" | "auto_start">>) => Promise<unknown>;
 }) {
-  const [name, setName] = useState(bot?.name || "");
-  const [description, setDescription] = useState(bot?.description || "");
-  const [model, setModel] = useState(bot?.model || "");
-  const [persona, setPersona] = useState(bot?.persona || "");
-  const [autoStart, setAutoStart] = useState(Boolean(bot?.auto_start));
-
-  useEffect(() => {
-    setName(bot?.name || "");
-    setDescription(bot?.description || "");
-    setModel(bot?.model || "");
-    setPersona(bot?.persona || "");
-    setAutoStart(Boolean(bot?.auto_start));
-  }, [bot?.bot_id, bot?.name, bot?.description, bot?.model, bot?.persona, bot?.auto_start]);
+  const formKey = bot ? [bot.bot_id, bot.name, bot.description, bot.model, bot.persona, String(Boolean(bot.auto_start))].join(":") : "empty";
 
   return (
     <section className="rounded-lg border border-line bg-white p-3" data-testid="bot-profile-editor">
@@ -1142,40 +1179,7 @@ function BotProfilePanel({
         <h2 className="text-base font-semibold text-ink">Bot 基础设置</h2>
       </div>
       {bot ? (
-        <form
-          className="mt-4 grid gap-3 border-t border-line pt-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onSave({ name, description, model, persona, auto_start: autoStart });
-          }}
-        >
-          <FieldShell label="名称">
-            <TextInput value={name} onChange={(event) => setName(event.target.value)} data-testid="bot-profile-name" />
-          </FieldShell>
-          <FieldShell label="说明">
-            <TextInput value={description} onChange={(event) => setDescription(event.target.value)} data-testid="bot-profile-description" />
-          </FieldShell>
-          <FieldShell label="模型">
-            <TextInput value={model} onChange={(event) => setModel(event.target.value)} placeholder="继承全局模型" data-testid="bot-profile-model" />
-          </FieldShell>
-          <label className="flex items-start gap-2 rounded-lg border border-line bg-canvas p-3 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={autoStart}
-              onChange={(event) => setAutoStart(event.target.checked)}
-              className="mt-1"
-              data-testid="bot-profile-auto-start"
-            />
-            <span>项目启动时自动启动这个 SparkBot</span>
-          </label>
-          <FieldShell label="人设">
-            <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-56" data-testid="bot-profile-persona" />
-          </FieldShell>
-          <Button tone="primary" type="submit" disabled={pending} data-testid="bot-profile-save">
-            {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            保存
-          </Button>
-        </form>
+        <BotProfileForm key={formKey} bot={bot} pending={pending} onSave={onSave} />
       ) : (
         <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">先选择一个 SparkBot。</p>
       )}
@@ -1183,27 +1187,71 @@ function BotProfilePanel({
   );
 }
 
+function BotProfileForm({
+  bot,
+  pending,
+  onSave,
+}: {
+  bot: SparkBotSummary;
+  pending: boolean;
+  onSave: (payload: Partial<Pick<SparkBotSummary, "name" | "description" | "persona" | "model" | "auto_start">>) => Promise<unknown>;
+}) {
+  const [name, setName] = useState(bot?.name || "");
+  const [description, setDescription] = useState(bot?.description || "");
+  const [model, setModel] = useState(bot?.model || "");
+  const [persona, setPersona] = useState(bot?.persona || "");
+  const [autoStart, setAutoStart] = useState(Boolean(bot?.auto_start));
+
+  return (
+    <form
+      className="mt-4 grid gap-3 border-t border-line pt-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSave({ name, description, model, persona, auto_start: autoStart });
+      }}
+    >
+      <FieldShell label="名称">
+        <TextInput value={name} onChange={(event) => setName(event.target.value)} data-testid="bot-profile-name" />
+      </FieldShell>
+      <FieldShell label="说明">
+        <TextInput value={description} onChange={(event) => setDescription(event.target.value)} data-testid="bot-profile-description" />
+      </FieldShell>
+      <FieldShell label="模型">
+        <TextInput value={model} onChange={(event) => setModel(event.target.value)} placeholder="继承全局模型" data-testid="bot-profile-model" />
+      </FieldShell>
+      <label className="flex items-start gap-2 rounded-lg border border-line bg-canvas p-3 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          checked={autoStart}
+          onChange={(event) => setAutoStart(event.target.checked)}
+          className="mt-1"
+          data-testid="bot-profile-auto-start"
+        />
+        <span>项目启动时自动启动这个 SparkBot</span>
+      </label>
+      <FieldShell label="人设">
+        <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-56" data-testid="bot-profile-persona" />
+      </FieldShell>
+      <Button tone="primary" type="submit" disabled={pending} data-testid="bot-profile-save">
+        {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+        保存
+      </Button>
+    </form>
+  );
+}
+
 function SparkBotChatTest({
   bot,
-  draft,
-  onDraftConsumed,
+  initialInput,
 }: {
   bot?: SparkBotSummary;
-  draft: string;
-  onDraftConsumed: () => void;
+  initialInput: string;
 }) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialInput);
   const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; content: string }>>([]);
   const [busy, setBusy] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const canSend = Boolean(bot?.bot_id && bot.running && !busy);
-
-  useEffect(() => {
-    if (draft) {
-      setInput(draft);
-      onDraftConsumed();
-    }
-  }, [draft, onDraftConsumed]);
 
   useEffect(
     () => () => {
@@ -1296,15 +1344,27 @@ function JsonEditor({
   testId?: string;
   onSave: (value: Record<string, unknown>) => Promise<unknown>;
 }) {
-  const [draft, setDraft] = useState(JSON.stringify(value, null, 2));
+  const initialDraft = useMemo(() => JSON.stringify(value, null, 2), [value]);
+
+  return <JsonEditorDraft key={initialDraft} title={title} initialDraft={initialDraft} pending={pending} testId={testId} onSave={onSave} />;
+}
+
+function JsonEditorDraft({
+  title,
+  initialDraft,
+  pending,
+  testId,
+  onSave,
+}: {
+  title: string;
+  initialDraft: string;
+  pending: boolean;
+  testId?: string;
+  onSave: (value: Record<string, unknown>) => Promise<unknown>;
+}) {
+  const [draft, setDraft] = useState(initialDraft);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setDraft(JSON.stringify(value, null, 2));
-    setError("");
-    setSaved(false);
-  }, [value]);
 
   return (
     <section className="rounded-lg border border-line bg-white p-3" data-testid={testId}>

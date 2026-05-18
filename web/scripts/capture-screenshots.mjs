@@ -11,27 +11,23 @@ const desktop = { width: 1440, height: 900 };
 const mobile = { width: 390, height: 844, isMobile: true, hasTouch: true };
 
 const desktopShots = [
-  { route: "/chat", files: ["screenshots-chat.png", "screenshots-refined-chat.png", "screenshots-simplified-chat.png", "screenshots-simplified-shell-chat-desktop.png"] },
-  { route: "/chat", files: ["screenshots-simplified-chat-drawer.png"], prepare: openChatContext },
-  { route: "/demo", files: ["screenshots-competition-demo.png"] },
-  { route: "/knowledge", files: ["screenshots-knowledge.png", "screenshots-finalcheck-knowledge.png", "screenshots-review-knowledge.png", "screenshots-simplified-final-knowledge.png", "screenshots-simplified-knowledge-desktop.png"] },
-  { route: "/memory", files: ["screenshots-simplified-memory.png"] },
-  { route: "/notebook", files: ["screenshots-simplified-notebook.png"] },
-  { route: "/guide", files: ["screenshots-guide.png", "screenshots-simplified-guide.png"] },
-  { route: "/question", files: ["screenshots-simplified-question.png", "screenshots-simplified-final-question.png"] },
-  { route: "/vision", files: ["screenshots-simplified-vision.png", "screenshots-simplified-final-vision.png"] },
-  { route: "/co-writer", files: ["screenshots-simplified-co-writer.png"] },
-  { route: "/playground", files: ["screenshots-simplified-playground.png"] },
-  { route: "/agents", files: ["screenshots-agents.png", "screenshots-finalcheck-agents.png", "screenshots-review-agents.png", "screenshots-simplified-agents-desktop.png"] },
-  { route: "/agents", files: ["screenshots-sparkbot-demo-readiness.png"], prepare: openAgentsWorkspace },
-  { route: "/settings", files: ["screenshots-settings.png", "screenshots-finalcheck-settings.png", "screenshots-review-settings.png", "screenshots-simplified-final-settings.png", "screenshots-simplified-settings-expanded.png", "screenshots-simplified-shell-settings-desktop.png"] },
-  { route: "/settings", files: ["screenshots-simplified-settings-collapsed.png"], prepare: collapseSidebar },
+  { route: "/guide", files: ["screenshots-guide.png"] },
+  { route: "/knowledge", files: ["screenshots-knowledge.png"] },
+  { route: "/notebook", files: ["screenshots-notebook.png"] },
+  { route: "/settings", files: ["screenshots-settings.png"] },
+  { route: "/chat", files: ["screenshots-chat.png"] },
+  { route: "/question", files: ["screenshots-question.png"] },
+  { route: "/memory", files: ["screenshots-memory.png"] },
+  { route: "/agents", files: ["screenshots-agents.png"] },
+  { route: "/co-writer", files: ["screenshots-co-writer.png"] },
+  { route: "/vision", files: ["screenshots-vision.png"] },
+  { route: "/playground", files: ["screenshots-playground.png"] },
 ];
 
 const mobileShots = [
-  { route: "/chat", files: ["screenshots-simplified-shell-chat-mobile.png"] },
-  { route: "/demo", files: ["screenshots-competition-demo-mobile.png"] },
-  { route: "/knowledge", files: ["screenshots-simplified-knowledge-mobile.png"] },
+  { route: "/guide", files: ["screenshots-mobile-guide.png"] },
+  { route: "/chat", files: ["screenshots-mobile-chat.png"] },
+  { route: "/knowledge", files: ["screenshots-mobile-knowledge.png"] },
 ];
 
 async function main() {
@@ -139,31 +135,6 @@ function findOpenPort(startPort) {
     };
     tryPort(startPort);
   });
-}
-
-async function openChatContext(page) {
-  const button = page.getByRole("button", { name: "上下文" }).first();
-  if (await button.count()) {
-    await button.click();
-  }
-}
-
-async function collapseSidebar(page) {
-  const button = page.getByLabel("折叠侧栏").first();
-  if (await button.count()) {
-    await button.click();
-  }
-}
-
-async function openAgentsWorkspace(page) {
-  const tab = page.getByTestId("agent-workspace-tab-workspace").first();
-  if (await tab.count()) {
-    await tab.click();
-  }
-  const readiness = page.getByTestId("assistant-demo-readiness");
-  await readiness.waitFor({ state: "visible", timeout: 10_000 });
-  await readiness.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
 }
 
 async function installApiMocks(page) {

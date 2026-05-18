@@ -120,8 +120,8 @@ function SignalBar({ axis }: { axis: Axis }) {
         <span className="text-sm font-semibold text-ink">{axis.label}</span>
         <span className="text-xs font-medium text-slate-500">{percent}%</span>
       </div>
-      <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-        <span className={`block h-full rounded-full ${barTone(axis.value)}`} style={{ width: `${Math.max(8, percent)}%` }} />
+      <div className="mt-1 h-2 overflow-hidden rounded-lg bg-slate-100">
+        <span className={`block h-full rounded-lg ${barTone(axis.value)}`} style={{ width: `${Math.max(8, percent)}%` }} />
       </div>
       <p className="mt-1 truncate text-xs text-slate-500">{axis.detail}</p>
     </div>

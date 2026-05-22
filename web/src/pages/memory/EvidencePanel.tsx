@@ -25,7 +25,7 @@ export function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot })
 
   return (
     <motion.section
-      className="space-y-3 rounded-lg border border-line bg-white p-4"
+      className="dt-dynamic-card space-y-3 rounded-lg border border-line bg-white p-4"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
@@ -33,8 +33,8 @@ export function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot })
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-ink">画像证据</h2>
-          <p className="mt-1 text-sm text-slate-500">每条画像判断都应该能回到真实学习记录。</p>
+          <h2 className="text-base font-semibold text-ink">记录来源</h2>
+          <p className="mt-1 text-sm text-slate-500">每条建议都应该能回到真实学习记录。</p>
         </div>
         {evidence.isFetching ? <Loader2 size={18} className="animate-spin text-brand-purple" /> : null}
       </div>
@@ -61,8 +61,8 @@ export function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot })
       ) : (
         <EmptyState
           icon={<Database size={24} />}
-          title="还没有画像证据"
-          description="完成导学任务、提交练习或保存笔记后，这里会展示画像形成的依据。"
+          title="还没有可用来源"
+          description="完成导学任务、提交练习或保存笔记后，这里会展示建议参考过的记录。"
         />
       )}
     </motion.section>
@@ -71,17 +71,17 @@ export function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot })
 
 function EvidenceBriefCard({ brief }: { brief: EvidenceBrief }) {
   return (
-    <div className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-4" data-testid="learner-evidence-brief">
+    <div className="dt-dynamic-result rounded-lg border border-brand-purple-300 bg-tint-lavender p-4" data-testid="learner-evidence-brief">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Badge tone="brand">证据结论</Badge>
+          <Badge tone="brand">记录小结</Badge>
           <h3 className="mt-2 text-base font-semibold text-ink">{brief.title}</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-charcoal">{brief.summary}</p>
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {brief.stats.map((item) => (
-          <div key={`${item.label}-${item.value}`} className="rounded-md border border-brand-purple-300 bg-white/80 px-3 py-2">
+          <div key={`${item.label}-${item.value}`} className="dt-dynamic-metric rounded-md border border-brand-purple-300 bg-white/80 px-3 py-2">
             <p className="text-[11px] font-medium text-slate-500">{item.label}</p>
             <p className="mt-1 truncate text-sm font-semibold text-ink">{item.value}</p>
           </div>
@@ -116,24 +116,24 @@ function buildEvidenceBrief(items: LearnerEvidencePreview[], profile?: LearnerPr
   const latestResource = latest ? resourceTypeLabel(metadataText(latest.metadata, "resource_type")) : "";
   const latestSource = latest ? evidenceSourceLabel(latest.source_label) : "";
 
-  let title = "证据正在帮系统收敛判断";
+  let title = "学习记录正在帮系统收敛判断";
   if (latestVerb === "看过" && latestResource) title = `最近在用${latestResource}补理解`;
-  else if (latestVerb === "答题") title = "最近留下了练习证据";
+  else if (latestVerb === "答题") title = "最近留下了练习记录";
   else if (latestVerb === "完成") title = "最近完成了一步导学任务";
-  else if (latestVerb === "确认画像" || latestVerb === "修正画像" || latestVerb === "否定画像") title = "最近主动校准了画像";
-  else if (latestSource) title = `最近证据来自${latestSource}`;
+  else if (latestVerb === "确认建议" || latestVerb === "修正建议" || latestVerb === "否定建议") title = "最近主动修正了建议";
+  else if (latestSource) title = `最近记录来自${latestSource}`;
 
   const summaryParts = [
-    total ? `当前画像累计参考 ${total} 条学习证据。` : "",
+    total ? `当前建议累计参考 ${total} 条学习记录。` : "",
     latest?.summary || latest?.title ? `最近一条是“${latest.summary || latest.title}”。` : "",
-    averageScore !== null ? `最近可评分证据均值约 ${Math.round(averageScore * 100)}%。` : "",
+    averageScore !== null ? `最近可评分记录均值约 ${Math.round(averageScore * 100)}%。` : "",
   ].filter(Boolean);
   const summary = summaryParts.length
     ? summaryParts.join("")
-    : "系统会优先看你真实做过、看过、答过和校准过的记录，而不是只凭一次对话下结论。";
+    : "系统会优先看你真实做过、看过、答过和修正过的记录，而不是只凭一次对话下结论。";
 
   const stats = [
-    { label: "累计证据", value: total ? `${total} 条` : `${items.length} 条` },
+    { label: "累计记录", value: total ? `${total} 条` : `${items.length} 条` },
     { label: "当前筛选", value: items.length ? `${items.length} 条` : "暂无" },
     { label: "最新记录", value: latest?.created_at ? formatDate(latest.created_at) : "暂无" },
   ];
@@ -190,9 +190,9 @@ function evidenceVerbLabel(value: string) {
     answered: "答题",
     completed: "完成",
     planned: "规划",
-    confirmed_profile: "确认画像",
-    corrected_profile: "修正画像",
-    rejected_profile: "否定画像",
+    confirmed_profile: "确认建议",
+    corrected_profile: "修正建议",
+    rejected_profile: "否定建议",
   };
   return map[value] || value;
 }
@@ -207,14 +207,14 @@ function evidenceSourceLabel(value: string) {
     guide_quiz: "练习反馈",
     notebook: "笔记本",
     question_notebook: "题库",
-    profile_calibration: "画像校准",
-    external_video_search: "公开视频智能体",
-    external_image_search: "公开图片智能体",
-    math_animator: "短视频智能体",
-    visualize: "图解智能体",
-    deep_question: "出题智能体",
-    deep_research: "研究智能体",
-    deep_solve: "解题智能体",
+    profile_calibration: "建议修正",
+    external_video_search: "公开视频",
+    external_image_search: "公开图片",
+    math_animator: "短视频",
+    visualize: "图解",
+    deep_question: "练习生成",
+    deep_research: "研究资料",
+    deep_solve: "解题记录",
   };
   return map[value] || value || "学习记录";
 }
@@ -241,7 +241,7 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
   const watchPlan = metadataTextList(item.metadata, "watch_plan");
   const reflectionPrompt = metadataText(item.metadata, "reflection_prompt");
   return (
-    <article className="rounded-lg border border-line bg-canvas p-3">
+    <article className="dt-dynamic-result rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs font-medium text-brand-purple">{sourceLabel}</p>
@@ -257,7 +257,7 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
       ) : null}
       {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-600">{item.summary}</p> : null}
       {watchPlan.length ? (
-        <div className="mt-3 rounded-md border border-brand-purple-300 bg-white px-3 py-2">
+        <div className="dt-dynamic-panel mt-3 rounded-md border border-brand-purple-300 bg-white px-3 py-2">
           <p className="text-xs font-medium text-brand-purple">观看计划</p>
           <ol className="mt-1 grid gap-1 text-xs leading-5 text-slate-600">
             {watchPlan.map((step, index) => (
@@ -269,7 +269,7 @@ function EvidenceItem({ item }: { item: LearnerEvidencePreview }) {
         </div>
       ) : null}
       {reflectionPrompt ? (
-        <p className="mt-2 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-slate-600">反思问题：{reflectionPrompt}</p>
+        <p className="dt-dynamic-panel mt-2 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-slate-600">反思问题：{reflectionPrompt}</p>
       ) : null}
       {item.score !== null && item.score !== undefined ? <p className="mt-2 text-xs text-slate-500">分数：{formatPercent(item.score)}</p> : null}
     </article>

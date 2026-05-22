@@ -119,7 +119,7 @@ export function ContextReferencesPanel({
                   aria-pressed={active}
                   data-testid={`context-history-${sessionId}`}
                   onClick={() => toggleHistory(sessionId)}
-                  className={`flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                  className={`dt-dynamic-result flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition ${
                     active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
                   }`}
                 >
@@ -140,7 +140,7 @@ export function ContextReferencesPanel({
               );
             })}
             {!selectableSessions.length ? (
-              <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无可引用的旧对话。</p>
+              <p className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无可引用的旧对话。</p>
             ) : null}
           </div>
         </div>
@@ -177,7 +177,7 @@ export function ContextReferencesPanel({
                   aria-pressed={active}
                   data-testid={`context-record-${activeNotebookId}-${recordId}`}
                   onClick={() => toggleNotebookRecord(record)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                  className={`dt-dynamic-result w-full rounded-lg border px-3 py-2 text-left transition ${
                     active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
                   }`}
                 >
@@ -203,13 +203,13 @@ export function ContextReferencesPanel({
               );
             })}
             {activeNotebookId && notebookDetail.isLoading ? (
-              <p className="rounded-lg bg-white p-3 text-xs text-slate-500">正在读取学习记录...</p>
+              <p className="dt-dynamic-empty rounded-lg bg-white p-3 text-xs text-slate-500">正在读取学习记录...</p>
             ) : null}
             {activeNotebookId && !notebookDetail.isLoading && !notebookDetail.data?.records?.length ? (
-              <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">这个记录本还没有记录。</p>
+              <p className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">这个记录本还没有记录。</p>
             ) : null}
             {!notebooks.length ? (
-              <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无记录本，先在记录页创建或保存一条结果。</p>
+              <p className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">暂无记录本，先在记录页创建或保存一条结果。</p>
             ) : null}
           </div>
         </div>

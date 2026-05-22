@@ -7,8 +7,6 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
-import sys
-
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -94,6 +92,25 @@ def main() -> int:
 
 
 def list_tracked_files(root: Path) -> list[str]:
+    root_is_git_toplevel = False
+    git_root_result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if git_root_result.returncode == 0:
+        git_root = Path(git_root_result.stdout.strip()).resolve()
+        root_is_git_toplevel = git_root == root
+
+    if not root_is_git_toplevel:
+        return [
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if path.is_file() and ".git" not in path.parts
+        ]
+
     result = subprocess.run(
         ["git", "ls-files"],
         cwd=root,

@@ -81,15 +81,17 @@ export function extractRagEvidence(events: StreamEvent[]): RagEvidence | null {
   const candidates: RagCandidate[] = [];
 
   for (const event of events) {
-    if (event.type === "tool_result" && isRagLikeRecord(event.metadata)) {
+    const eventMetadata = event.metadata ?? {};
+
+    if (event.type === "tool_result" && isRagLikeRecord(eventMetadata)) {
       candidates.push({
-        metadata: asRecord(event.metadata.result_metadata) ?? event.metadata,
-        sources: recordArray(event.metadata.sources),
+        metadata: asRecord(eventMetadata.result_metadata) ?? eventMetadata,
+        sources: recordArray(eventMetadata.sources),
       });
     }
 
     if (event.type !== "result") continue;
-    const traces = recordArray(event.metadata.tool_traces);
+    const traces = recordArray(eventMetadata.tool_traces);
     traces.forEach((trace) => {
       const metadata = asRecord(trace.metadata) ?? {};
       const sources = recordArray(trace.sources).length ? recordArray(trace.sources) : recordArray(metadata.sources);
@@ -210,7 +212,7 @@ function extractSubqueries(
         return normalizeSubquery({
           index: numberValue(item.index) ?? index + 1,
           query,
-          purpose: textValue(item.purpose) || "补充检索视角",
+          purpose: textValue(item.purpose) || "补充查找视角",
           result: item,
         });
       })
@@ -229,7 +231,7 @@ function extractSubqueries(
       return normalizeSubquery({
         index: numberValue(item.index) ?? index + 1,
         query,
-        purpose: textValue(item.purpose) || "补充检索视角",
+        purpose: textValue(item.purpose) || "补充查找视角",
         result,
       });
     })
@@ -244,7 +246,7 @@ function extractSubqueries(
       return normalizeSubquery({
         index: index + 1,
         query,
-        purpose: textValue(item.purpose) || "分路检索",
+        purpose: textValue(item.purpose) || "分路查找",
         result: item,
       });
     })

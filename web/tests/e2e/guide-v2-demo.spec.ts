@@ -63,8 +63,8 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await page.getByTestId("guide-demo-cue-action").click();
   await expect.poll(() => guide.resourcePayload?.resource_type).toBe("visual");
   await expect.poll(() => guide.resourcePayload?.prompt).toContain("gradient descent");
-  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("智能体接力");
-  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("画像");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("学习流程");
+  await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("学习记录");
   await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("图解");
 
   await page.getByTestId("guide-open-complete-task").click();
@@ -75,13 +75,17 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-learning-loop-receipt")).toBeVisible();
   await expect(page.getByTestId("guide-learning-loop-open-memory")).toBeVisible();
   await expect(page.getByTestId("guide-learning-loop-receipt-action")).toHaveAttribute("href", /capability=deep_question/);
-  await expect(page.getByTestId("guide-demo-recording-cue")).toContainText("看产出包");
+  await expect(page.getByTestId("guide-demo-recording-cue")).toContainText("看成果");
   await expect(page.getByTestId("guide-demo-wrap-up")).toBeVisible();
 
   await page.getByTestId("guide-demo-open-course-package").click();
   await expect(page.getByTestId("guide-course-package-panel")).toBeVisible();
-  await expect(page.getByTestId("guide-course-package-panel")).toContainText("稳定演示产出包");
+  await expect(page.getByTestId("guide-course-package-panel")).toContainText("稳定演示成果");
   await expect(page.getByTestId("guide-course-package-panel")).not.toContainText("Stable demo course package");
+  await expect(page.getByTestId("guide-iflytek-toolchain-card")).toBeVisible();
+  await expect(page.getByTestId("guide-iflytek-toolchain-card")).toContainText("科大讯飞工具链讲法");
+  await expect(page.getByTestId("guide-iflytek-toolchain-card")).toContainText("OCR / 公式识别 / 图片理解");
+  await expect(page.getByTestId("guide-iflytek-toolchain-card")).toContainText("星辰工作流");
   await expect(page.getByTestId("guide-demo-preflight-card")).toBeVisible();
   await expect(page.getByTestId("guide-demo-preflight-card")).toContainText("赛前一键检查");
   await expect(page.getByTestId("guide-demo-preflight-card")).toContainText("先补");
@@ -94,14 +98,15 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await expect(page.getByTestId("guide-presentation-outline-card")).toBeVisible();
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("演示 PPT 骨架");
   await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("项目价值");
+  await expect(page.getByTestId("guide-presentation-outline-card")).toContainText("讯飞工具链");
   await expect(page.getByTestId("guide-competition-alignment-card")).toBeVisible();
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("赛题五项对齐");
-  await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多智能体协同");
+  await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("多步骤协同");
   await expect(page.getByTestId("guide-competition-alignment-card")).toContainText("学习效果评估");
   await expect(page.getByTestId("guide-competition-requirement")).toHaveCount(5);
   await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toBeVisible();
-  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("多智能体协作蓝图");
-  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("对话协调智能体");
+  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("多步骤协作蓝图");
+  await expect(page.getByTestId("guide-agent-collaboration-blueprint")).toContainText("理解任务");
   await expect(page.getByTestId("guide-defense-qa-card")).toBeVisible();
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("答辩问答预案");
   await expect(page.getByTestId("guide-defense-qa-card")).toContainText("普通聊天机器人");
@@ -138,18 +143,18 @@ test("guide keeps resource alternatives on a separate page", async ({ page }, te
   await page.goto("/guide");
   await page.getByTestId("guide-demo-start").click();
 
-  await expect(page.getByText("系统建议先做这个")).toBeVisible();
-  await expect(page.getByTestId("guide-open-resource-choice")).toContainText("换一种材料");
+  await expect(page.getByText("现在先看这个")).toBeVisible();
+  await expect(page.getByTestId("guide-open-resource-choice")).toContainText("换一种学法");
   await expect(page.getByTestId("guide-resource-choice-quiz")).toHaveCount(0);
 
   await page.getByTestId("guide-open-resource-choice").click();
-  await expect(page.getByText("选择一种学习材料")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "换一种学法" })).toBeVisible();
   await expect(page.getByTestId("guide-resource-choice-visual")).toContainText("推荐");
   await expect(page.getByTestId("guide-resource-choice-quiz")).toContainText("练习");
 
   await page.getByTestId("guide-resource-choice-quiz").click();
   await expect.poll(() => guide.resourcePayload?.resource_type).toBe("quiz");
-  await expect(page.getByText("系统建议先做这个")).toBeVisible();
+  await expect(page.getByText("现在先看这个")).toBeVisible();
 });
 
 test("guide quiz shows feedback and writes the attempt back", async ({ page }, testInfo) => {
@@ -201,11 +206,11 @@ test("mobile guide v2 keeps the current task flow simple", async ({ page }, test
 
   await expect.poll(() => guide.createPayload?.source_action?.source).toBe("demo_seed");
   await expect(page.getByText("先做这一件事")).toBeVisible();
-  await expect(page.getByText("系统建议先做这个")).toBeVisible();
+  await expect(page.getByText("现在先看这个")).toBeVisible();
   await expect(page.getByTestId("guide-resource-choice-quiz")).toHaveCount(0);
 
   await page.getByTestId("guide-open-resource-choice").click();
-  await expect(page.getByText("选择一种学习材料")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "换一种学法" })).toBeVisible();
   await expect(page.getByTestId("guide-resource-choice-visual")).toContainText("推荐");
   await expect(page.getByTestId("guide-resource-choice-external_video")).toContainText("精选视频");
 
@@ -761,7 +766,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
           score: 75,
           ready_count: 5,
           seed_count: 2,
-          total_count: 8,
+          total_count: 9,
           next_action: "先生成一份可展示资源。",
           primary_gap: {
             id: "resource",
@@ -776,6 +781,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
             { id: "resource", label: "多智能体资源", status: "todo" },
             { id: "feedback", label: "练习反馈闭环", status: "seed" },
             { id: "report", label: "学习效果报告", status: "ready" },
+            { id: "iflytek_toolchain", label: "讯飞工具链证明", status: "ready" },
           ],
         },
         presentation_outline: {
@@ -801,10 +807,10 @@ async function mockGuideV2StableDemoApis(page: Page) {
             },
             {
               slide_no: 3,
-              title: "多智能体协同资源",
-              purpose: "说明智能体接力。",
-              evidence: "画像、图解、出题和评估智能体协同。",
-              speaker_note: "展示资源卡片。",
+              title: "多智能体协同与讯飞工具链",
+              purpose: "说明智能体接力和讯飞工具使用。",
+              evidence: "资源链路覆盖图解；讯飞能力落点包含星火、Embedding、OCR 和语音。",
+              speaker_note: "展示资源卡片，并说明讯飞能力如何进入学习链。",
             },
           ],
         },
@@ -836,10 +842,68 @@ async function mockGuideV2StableDemoApis(page: Page) {
               action: "按录屏检查顺序录制。",
             },
             {
+              item: "科大讯飞工具链证明",
+              status: "ready",
+              evidence: "成果包已整理讯飞能力落点和三段录屏讲法。",
+              action: "打开讯飞服务接入概览，说明星火、Embedding、OCR、语音和星辰工作流如何进入学习链。",
+            },
+            {
               item: "完整高校课程样例",
               status: "ready",
               evidence: "课程模板包含目标、任务和评价方式。",
               action: "随项目一并提交课程数据。",
+            },
+          ],
+        },
+        iflytek_toolchain: {
+          title: "科大讯飞工具链讲法",
+          summary: "把讯飞能力压成一条评委能听懂的学习链：输入先结构化，资料可追溯，辅导可生成，过程可评估。",
+          recording_tip: "开场讲接入，中段讲多模态输入进入 Agentic RAG 和智能辅导，收尾讲学习报告与资源推送闭环。",
+          items: [
+            {
+              id: "spark",
+              label: "星火大模型",
+              landing: "LLM provider `iflytek_spark_ws`",
+              demo_value: "对话式辅导、资源生成、学习处方。",
+              demo_action: "展示学习页里的问答、路线和课程资源生成结果。",
+            },
+            {
+              id: "embedding",
+              label: "星火 Embedding",
+              landing: "Embedding provider `iflytek_spark`",
+              demo_value: "课程资料向量化，支撑私域资料问答。",
+              demo_action: "展示资料库入库后，回答能带回来源证据。",
+            },
+            {
+              id: "vision",
+              label: "OCR / 公式识别 / 图片理解",
+              landing: "OCR、`iflytek_formula_ocr`、`iflytek_image_understanding`",
+              demo_value: "讲义截图、题图公式、板书和实验图先结构化，再进入智能辅导。",
+              demo_action: "上传图片或公式题，说明识别结果如何进入解题和检索链路。",
+            },
+            {
+              id: "workflow",
+              label: "星辰工作流",
+              landing: "`iflytek_workflow`",
+              demo_value: "把 PPT 大纲、课程资源生成或诊断报告封装成可复用流程。",
+              demo_action: "展示工作流工具调用结果，强调流程可复用、可替换。",
+            },
+          ],
+          demo_cues: [
+            {
+              label: "开场",
+              tone: "brand",
+              detail: "打开学习页的比赛演示驾驶舱，说明讯飞能力已经接到同一条学习链。",
+            },
+            {
+              label: "中段",
+              tone: "success",
+              detail: "展示资料上传、问资料、图片或公式题解析，强调多模态输入会先被讯飞能力结构化。",
+            },
+            {
+              label: "收尾",
+              tone: "success",
+              detail: "展示学习报告、练习反馈或星辰工作流结果，说明过程记录如何进入效果评估。",
             },
           ],
         },
@@ -916,7 +980,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
             {
               id: "resource_cluster",
               name: "资源生成智能体集群",
-              responsibility: "调用图解、出题和视频检索智能体。",
+              responsibility: "调用图解、出题和视频查找步骤。",
               output: "生成图解、练习和精选视频。",
             },
             {
@@ -965,7 +1029,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
             {
               minute: "0:00-0:45",
               screen: "打开学习画像和导学入口",
-              narration: "先说明学习者目标，再展示当前任务。",
+              narration: "先说明学习者目标，再展示当前任务和讯飞工具链讲法。",
               backup: "使用稳定 Demo 画像。",
             },
           ],

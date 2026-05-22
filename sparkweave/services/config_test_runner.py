@@ -83,7 +83,7 @@ class TestRun:
 
 
 class ConfigTestRunner:
-    """Run LLM, embedding, search, and OCR smoke tests in background threads."""
+    """Run service configuration checks in background threads."""
 
     _instance: "ConfigTestRunner | None" = None
 
@@ -143,6 +143,12 @@ class ConfigTestRunner:
                     asyncio.run(self._test_search(run, catalog))
                 elif service == "ocr":
                     asyncio.run(self._test_ocr(run, catalog))
+                elif service == "tts":
+                    asyncio.run(self._test_tts(run, catalog))
+                elif service == "asr":
+                    asyncio.run(self._test_asr(run, catalog))
+                elif service == "speech_eval":
+                    asyncio.run(self._test_speech_eval(run, catalog))
                 else:
                     raise ValueError(f"Unsupported service: {service}")
             if not run.cancelled and run.status == "running":
@@ -296,6 +302,84 @@ class ConfigTestRunner:
             provider=provider,
             text_preview=text.strip()[:160],
             detected_chars=len(text.strip()),
+        )
+
+    async def _test_tts(self, run: TestRun, catalog: dict[str, Any]) -> None:
+        from sparkweave.services.tts import (
+            TTS_SMOKE_TEST_TEXT,
+            XfyunTtsConfig,
+            synthesize_speech_with_fallback,
+        )
+
+        config = XfyunTtsConfig.from_env()
+        if config is None:
+            run.emit("warning", "iFlytek TTS is not configured; checking offline fallback.")
+        else:
+            run.emit("info", "Resolved TTS provider `iflytek`.")
+            run.emit("info", f"Request target: {config.url}")
+            run.emit("info", f"Voice: {config.voice}; sample_rate={config.sample_rate}.")
+        result = await synthesize_speech_with_fallback(TTS_SMOKE_TEST_TEXT, config=config)
+        run.emit(
+            "response",
+            "TTS fallback response received." if result.voice == "offline-iflytek-fallback" else "TTS response received.",
+            voice=result.voice,
+            content_type=result.content_type,
+            audio_bytes=len(result.audio or b""),
+            sid=result.sid,
+        )
+        if not result.audio:
+            raise ValueError("TTS returned empty audio.")
+
+    async def _test_asr(self, run: TestRun, catalog: dict[str, Any]) -> None:
+        from sparkweave.services.iflytek_offline import offline_fallback_enabled
+        from sparkweave.services.speech import XfyunAsrConfig
+
+        config = XfyunAsrConfig.from_env()
+        if config is None:
+            if offline_fallback_enabled():
+                run.emit(
+                    "response",
+                    "ASR offline fallback is ready. It will preserve the learner flow and ask for text confirmation.",
+                    provider="offline_iflytek_fallback:asr",
+                )
+                return
+            raise ValueError("ASR credentials are not configured")
+
+        run.emit("info", "Resolved ASR provider `iflytek`.")
+        run.emit("info", f"Request target: {config.url}")
+        run.emit(
+            "response",
+            "ASR configuration is ready. Upload or record audio in the learning workspace to run transcription.",
+            language=config.language,
+            accent=config.accent,
+            domain=config.domain,
+            vad_eos=config.vad_eos,
+        )
+
+    async def _test_speech_eval(self, run: TestRun, catalog: dict[str, Any]) -> None:
+        from sparkweave.services.iflytek_offline import offline_fallback_enabled
+        from sparkweave.services.speech import XfyunSpeechEvalConfig
+
+        config = XfyunSpeechEvalConfig.from_env()
+        if config is None:
+            if offline_fallback_enabled():
+                run.emit(
+                    "response",
+                    "Speech evaluation offline fallback is ready. It returns heuristic scores for demo continuity.",
+                    provider="offline_iflytek_fallback:speech_eval",
+                )
+                return
+            raise ValueError("Speech evaluation credentials are not configured")
+
+        run.emit("info", "Resolved speech evaluation provider `iflytek`.")
+        run.emit("info", f"Request target: {config.url}")
+        run.emit(
+            "response",
+            "Speech evaluation configuration is ready. Complete a spoken task to generate scoring evidence.",
+            category=config.category,
+            language=config.language,
+            group=config.group,
+            accent=config.accent,
         )
 
 

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { defaultConfigForCapability } from "@/lib/capabilities";
 import { unifiedRuntimeSocketUrl } from "@/lib/api";
 import { getCapabilityFromEvent, getResultEventText } from "@/lib/chatMessages";
+import type { ChatCanvasContext } from "@/lib/chatCanvas";
 import type { CapabilityId, ChatAttachment, ChatMessage, NotebookReference, SessionDetail, StreamEvent } from "@/lib/types";
 
 type RuntimeStatus = "idle" | "connecting" | "streaming" | "error";
@@ -15,6 +16,7 @@ interface SendOptions {
   attachments: ChatAttachment[];
   language: "zh" | "en";
   config?: Record<string, unknown>;
+  canvasContext?: ChatCanvasContext | null;
   notebookReferences?: NotebookReference[];
   historyReferences?: string[];
 }
@@ -155,6 +157,7 @@ export function useChatRuntime() {
             knowledge_bases: options.knowledgeBases,
             notebook_references: options.notebookReferences ?? [],
             history_references: options.historyReferences ?? [],
+            canvas_context: options.canvasContext ?? null,
             attachments: options.attachments,
             language: options.language,
             session_id: sessionId,

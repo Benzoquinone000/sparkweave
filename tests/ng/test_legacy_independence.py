@@ -1,52 +1,42 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 import tomllib
 
-
-def test_ng_package_has_no_direct_legacy_imports() -> None:
-    package_root = Path(__file__).resolve().parents[2] / "sparkweave"
-    direct_import = re.compile(r"^\s*(from|import)\s+sparkweave(\.|\s|$)")
-    offenders: list[str] = []
-
-    for path in package_root.rglob("*.py"):
-        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if direct_import.match(line):
-                offenders.append(f"{path.relative_to(package_root.parent)}:{line_no}: {line.strip()}")
-
-    assert offenders == []
+from scripts import check_ng_replacement
 
 
-def test_legacy_source_tree_is_not_present() -> None:
+def test_active_tree_has_no_legacy_replacement_violations() -> None:
+    assert check_ng_replacement.scan() == []
+
+
+def test_active_source_tree_and_frontend_are_present() -> None:
     project_root = Path(__file__).resolve().parents[2]
 
-    assert not (project_root / "sparkweave").exists()
+    assert (project_root / "sparkweave").is_dir()
+    assert (project_root / "web").is_dir()
+    assert not (project_root / "web" / ("." + "next")).exists()
 
 
-def test_launch_configs_do_not_mount_copy_or_watch_legacy_package() -> None:
+def test_launch_configs_point_at_active_package_and_vite_frontend() -> None:
     project_root = Path(__file__).resolve().parents[2]
     dev_compose = (project_root / "docker-compose.dev.yml").read_text(encoding="utf-8")
     dockerfile = (project_root / "Dockerfile").read_text(encoding="utf-8")
-    ci_workflow = (project_root / ".github" / "workflows" / "tests.yml").read_text(
+    ci_workflow = (project_root / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
 
-    assert "./sparkweave:/app/sparkweave" in dev_compose
-    assert "./sparkweave:/app/sparkweave" not in dev_compose
-    assert "COPY sparkweave/ ./sparkweave/" in dockerfile
-    assert "COPY sparkweave/ ./sparkweave/" not in dockerfile
-    assert '"sparkweave/**"' in ci_workflow
-    assert '"sparkweave/**"' not in ci_workflow
-    assert "mv sparkweave _sparkweave_disabled_for_ng_test" in ci_workflow
+    assert "sparkweave" in dockerfile
+    assert "web" in dockerfile
+    assert "Vite" in dockerfile
+    assert "npm run check:replacement" in ci_workflow
+    assert "services: {}" in dev_compose
 
 
-def test_python_package_discovery_excludes_legacy_package() -> None:
+def test_python_package_discovery_includes_active_package() -> None:
     project_root = Path(__file__).resolve().parents[2]
     pyproject = tomllib.loads((project_root / "pyproject.toml").read_text(encoding="utf-8"))
 
     package_find = pyproject["tool"]["setuptools"]["packages"]["find"]
 
     assert package_find["include"] == ["sparkweave*", "sparkweave_cli*"]
-    assert "sparkweave*" not in package_find["include"]
-

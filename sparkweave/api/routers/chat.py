@@ -17,10 +17,10 @@ from sparkweave.api.session_bridge import (
 )
 from sparkweave.core.contracts import StreamEventType
 from sparkweave.core.input_limits import (
+    MAX_CHAT_LABEL_CHARS,
     MAX_CHAT_MESSAGE_CHARS,
     MAX_CHAT_REFERENCES_JSON_CHARS,
     MAX_CHAT_SESSION_ID_CHARS,
-    MAX_CHAT_LABEL_CHARS,
     bounded_json,
     bounded_text,
 )

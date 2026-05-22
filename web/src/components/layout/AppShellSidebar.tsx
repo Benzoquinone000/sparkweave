@@ -78,7 +78,7 @@ export function ExpandedSidebar({
           className="dt-interactive dt-notion-block mt-1.5 flex min-h-9 w-full items-center gap-2.5 px-2.5 text-left text-xs text-charcoal"
         >
           <MoreHorizontal size={15} />
-          <span className="min-w-0 truncate">更多工具</span>
+          <span className="min-w-0 truncate">更多入口</span>
         </button>
       </div>
 
@@ -135,7 +135,7 @@ export function CollapsedSidebar({
                 active ? `${accent.active} shadow-sm` : "text-steel hover:bg-white hover:text-ink"
               }`}
             >
-              <span className={`h-2 w-2 ${accent.dot}`} style={{ borderRadius: "50%" }} />
+              <span className={`h-2 w-2 rounded-sm ${accent.dot}`} />
             </Link>
           );
         })}
@@ -143,8 +143,8 @@ export function CollapsedSidebar({
           type="button"
           onClick={onOpenMore}
           className="dt-interactive relative flex h-9 w-9 items-center justify-center rounded-lg text-steel hover:bg-white hover:text-ink"
-          aria-label="更多工具"
-          title="更多工具"
+          aria-label="更多入口"
+          title="更多入口"
         >
         <MoreHorizontal size={15} />
         </button>
@@ -157,7 +157,7 @@ export function CollapsedSidebar({
                 key={item.label}
                 type="button"
                 onClick={onOpenInspector}
-                className="dt-interactive flex h-9 w-9 items-center justify-center rounded-lg text-steel hover:bg-white hover:text-brand-purple"
+                className="dt-interactive flex h-9 w-9 items-center justify-center rounded-lg text-steel hover:bg-white hover:text-ink"
                 data-testid={item.testId}
                 aria-label={item.label}
                 title={item.label}
@@ -210,7 +210,7 @@ function SidebarPrimaryLinks({ currentPath }: { currentPath: string }) {
                 transition={{ duration: 0.18, ease: "easeOut" }}
               />
             ) : null}
-            <span className={`relative h-2 w-2 shrink-0 ${accent.dot}`} style={{ borderRadius: "50%" }} />
+            <span className={`relative h-2 w-2 shrink-0 rounded-sm ${accent.dot}`} />
             <span className="relative min-w-0 truncate">{item.label}</span>
           </Link>
         );
@@ -284,7 +284,7 @@ function SidebarHistory({
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-line bg-white/92 px-3 py-3 text-xs text-steel">
+        <div className="rounded-lg border border-line bg-white/90 px-3 py-3 text-xs text-steel">
           <p className="font-semibold text-charcoal">{normalizedQuery ? "没有匹配的问答" : "还没有学习记录"}</p>
           <p className="mt-1 leading-5">
             {normalizedQuery ? "换个关键词试试。" : "先打开学习，或围绕资料问一个问题。"}
@@ -304,7 +304,7 @@ function SidebarDock({
 }) {
   return (
     <div className="border-t border-line/70 px-2.5 py-2.5">
-      <div className="grid grid-cols-3 gap-1 rounded-lg border border-line/70 bg-white/55 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg border border-line/70 bg-white/50 p-1">
         {SIDEBAR_DOCK_ITEMS.map((item) => {
           if (!item.to) {
             return (
@@ -312,7 +312,7 @@ function SidebarDock({
                 key={item.label}
                 type="button"
                 onClick={onOpenInspector}
-                className="dt-interactive flex min-h-11 flex-col items-center justify-center gap-1 rounded-md text-steel hover:bg-white hover:text-brand-purple"
+                className="dt-interactive flex min-h-11 flex-col items-center justify-center gap-1 rounded-md text-steel hover:bg-white hover:text-ink"
                 data-testid={item.testId}
                 aria-label={item.label}
                 title={item.label}

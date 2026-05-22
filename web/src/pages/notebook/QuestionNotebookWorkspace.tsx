@@ -97,7 +97,7 @@ export function QuestionNotebookWorkspace({
       </Button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Badge tone="brand">题目本</Badge>
+          <Badge tone="brand">错题本</Badge>
           <h2 className="mt-3 text-lg font-semibold text-ink">收藏题目与错题复盘</h2>
           <p className="mt-1 text-sm text-slate-500">集中查看题目、答案、解析和分类。</p>
         </div>

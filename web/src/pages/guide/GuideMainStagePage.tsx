@@ -217,7 +217,7 @@ export function GuideMainStagePage({
 
 function GuideStageLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

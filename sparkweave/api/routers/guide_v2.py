@@ -58,6 +58,17 @@ NotebookIdField = Annotated[
     str,
     Field(min_length=1, max_length=MAX_NOTEBOOK_ID_CHARS, pattern=NOTEBOOK_ID_PATTERN),
 ]
+_SAFE_PATH_SEGMENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_AUDIO_ASSET_CONTENT_TYPES = {
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/pcm",
+    "audio/ogg",
+    "audio/speex",
+    "application/octet-stream",
+}
 
 
 class CreateGuideV2SessionRequest(BaseModel):
@@ -704,7 +715,8 @@ async def save_artifact(
 
 @router.get("/sessions/{session_id}/tasks/{task_id}/artifacts/{artifact_id}/asset")
 async def get_artifact_asset(session_id: str, task_id: str, artifact_id: str):
-    session = get_guide_v2_manager().get_session(session_id)
+    manager = get_guide_v2_manager()
+    session = manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     task = _find_task(session, task_id)
@@ -715,16 +727,27 @@ async def get_artifact_asset(session_id: str, task_id: str, artifact_id: str):
         raise HTTPException(status_code=404, detail="Artifact not found")
     result = artifact.get("result") if isinstance(artifact.get("result"), dict) else {}
     audio = result.get("audio") if isinstance(result.get("audio"), dict) else {}
-    asset_path_raw = str(audio.get("asset_path") or "").strip()
-    if not asset_path_raw:
-        raise HTTPException(status_code=404, detail="Artifact asset not found")
-    asset_path = Path(asset_path_raw)
-    if not asset_path.exists() or not asset_path.is_file():
-        raise HTTPException(status_code=404, detail="Artifact file missing")
+    asset_path = _resolve_audio_asset_path(
+        manager,
+        session_id=session_id,
+        task_id=task_id,
+        audio=audio,
+    )
+    content_type = (
+        str(audio.get("content_type") or "application/octet-stream")
+        .split(";", 1)[0]
+        .strip()
+        .lower()
+    )
+    if content_type not in _AUDIO_ASSET_CONTENT_TYPES:
+        content_type = "application/octet-stream"
     return FileResponse(
         asset_path,
-        media_type=str(audio.get("content_type") or "application/octet-stream"),
-        filename=str(audio.get("filename") or asset_path.name),
+        media_type=content_type,
+        filename=_safe_attachment_filename(
+            str(audio.get("filename") or asset_path.name),
+            fallback=asset_path.name,
+        ),
     )
 
 
@@ -946,6 +969,63 @@ def _find_artifact(task: dict, artifact_id: str) -> dict | None:
         (item for item in task.get("artifact_refs", []) if str(item.get("id")) == artifact_id),
         None,
     )
+
+
+def _safe_path_segment(value: str, *, fallback: str) -> str:
+    segment = _SAFE_PATH_SEGMENT_RE.sub("_", value).strip("._-")
+    return segment[:80] or fallback
+
+
+def _safe_attachment_filename(value: str, *, fallback: str) -> str:
+    filename = Path(value).name
+    filename = "".join(
+        ch if ch.isprintable() and ch not in {'"', "\\", "\r", "\n"} else "_"
+        for ch in filename
+    )
+    filename = filename.strip(" .\t")[:180]
+    return filename or fallback
+
+
+def _resolve_audio_asset_path(
+    manager: GuideV2Manager,
+    *,
+    session_id: str,
+    task_id: str,
+    audio: dict,
+) -> Path:
+    asset_path_raw = str(audio.get("asset_path") or "").strip()
+    if not asset_path_raw:
+        raise HTTPException(status_code=404, detail="Artifact asset not found")
+
+    base_dir = manager.output_dir.resolve()
+    artifacts_root = (base_dir / "artifacts").resolve()
+    expected_root = (
+        artifacts_root
+        / _safe_path_segment(session_id, fallback="session")
+        / _safe_path_segment(task_id, fallback="task")
+    ).resolve()
+    candidate = Path(asset_path_raw)
+    if not candidate.is_absolute():
+        candidate = base_dir / candidate
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        logger.warning("Guide v2 asset path could not be resolved: %s", exc)
+        raise HTTPException(status_code=404, detail="Artifact file missing") from None
+    if not resolved.is_file():
+        raise HTTPException(status_code=404, detail="Artifact file missing")
+    try:
+        resolved.relative_to(artifacts_root)
+        resolved.relative_to(expected_root)
+    except ValueError:
+        logger.warning(
+            "Rejected guide v2 asset outside expected artifact directory: session=%s task=%s path=%s",
+            session_id,
+            task_id,
+            resolved,
+        )
+        raise HTTPException(status_code=404, detail="Artifact asset not found") from None
+    return resolved
 
 
 def _decorate_artifact_payload(session_id: str, task_id: str, artifact: dict) -> dict:

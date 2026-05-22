@@ -1,0 +1,6 @@
+short_description: "Use iFlytek image understanding to inspect screenshots, diagrams, board photos, or lab images before tutoring."
+when_to_use: "Use when the learner uploads a multimodal course image, diagram, experiment photo, screenshot, or visual problem that needs interpretation."
+input_format: "image_base64 accepts a data URI or raw base64 image; prompt describes what to inspect or explain."
+guideline: "Extract visual objects, text, relations, and uncertainty first, then combine with RAG, formula OCR, or reasoning tools. Be explicit when the image is unclear."
+note: "Image understanding is perception evidence and should be checked against the prompt, sources, and reasoning steps."
+phase: "perception"

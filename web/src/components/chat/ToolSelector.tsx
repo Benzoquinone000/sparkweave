@@ -23,6 +23,8 @@ export function ToolSelector({
           <button
             key={tool.id}
             type="button"
+            data-testid={`tool-toggle-${tool.id}`}
+            aria-pressed={active}
             onClick={() => toggle(tool.id)}
             className={`dt-interactive flex min-h-9 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${
               active

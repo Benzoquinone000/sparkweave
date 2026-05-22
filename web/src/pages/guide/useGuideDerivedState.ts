@@ -159,10 +159,10 @@ export function useGuideDerivedState({
       : guideStage === "diagnostic"
         ? "先用几道问题校准起点，后面的任务才不会太难或太浅。"
         : guideStage === "feedback"
-          ? "刚刚的学习证据已经记录。先看反馈，再决定继续还是补救。"
+          ? "刚刚的学习记录已经保存。先看反馈，再决定继续还是补救。"
           : guideStage === "complete"
             ? "这条路线已经走完，可以查看报告、导出课程包，或者开启新的目标。"
-            : "现在只需要盯住这一件事：完成当前任务，并留下能被系统判断的学习证据。";
+            : "现在只需要盯住这一件事：完成当前任务，并留下能被系统判断的学习记录。";
   const trendNotice = useMemo(
     () => buildGuideTrendNotice(learnerProfile, guideStage),
     [guideStage, learnerProfile],

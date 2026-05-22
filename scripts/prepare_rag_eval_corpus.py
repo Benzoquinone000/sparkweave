@@ -9,7 +9,7 @@ knowledge-base HTTP API used by the frontend.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from html.parser import HTMLParser
 import json
 from pathlib import Path
@@ -19,7 +19,6 @@ import time
 from typing import Any
 
 import httpx
-
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8001"
 DEFAULT_OUTPUT_DIR = Path("data/eval_corpora/ml-course")

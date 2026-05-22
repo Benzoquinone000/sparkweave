@@ -150,12 +150,23 @@ IMAGE_SEARCH_TERMS = (
     "视觉素材",
     "image search",
     "find image",
+    "find an image",
+    "find picture",
     "recommend image",
+    "recommend picture",
+    "show image",
+    "show me an image",
     "image resource",
+    "picture resource",
     "picture reference",
+    "image reference",
+    "reference image",
+    "image diagram",
+    "diagram image",
     "diagram reference",
     "illustration reference",
     "visual resource",
+    "visual reference",
 )
 QUESTION_TERMS = (
     "出题",
@@ -217,6 +228,60 @@ NO_DELEGATE_TERMS = (
     "no diagram",
     "no tools",
 )
+DIRECT_CHAT_NO_TOOL_TERMS = (
+    "不用工具",
+    "不要用工具",
+    "不要调用工具",
+    "不用调用工具",
+    "不用调用",
+    "不要调用",
+    "只回答",
+    "直接回答",
+    "just answer",
+    "no tools",
+    "without tools",
+    "don't use tools",
+    "do not use tools",
+)
+NO_CANVAS_TERMS = (
+    "不要打开画布",
+    "不用画布",
+    "不要用画布",
+    "不要画布",
+    "别打开画布",
+    "在聊天里写",
+    "直接写在聊天里",
+    "no canvas",
+    "without canvas",
+    "don't open canvas",
+    "do not open canvas",
+)
+NO_RETRIEVAL_TERMS = (
+    "不要联网",
+    "不用联网",
+    "别联网",
+    "不要搜索",
+    "不用搜索",
+    "别搜索",
+    "不要检索",
+    "不用检索",
+    "不要查资料",
+    "不查资料",
+    "不要用知识库",
+    "不用知识库",
+    "不要引用资料",
+    "no search",
+    "without search",
+    "don't search",
+    "do not search",
+    "no web",
+    "without web",
+    "offline",
+    "no retrieval",
+    "without retrieval",
+    "no rag",
+    "without rag",
+)
 PROFILE_GUIDED_TERMS = (
     "继续",
     "开始学习",
@@ -236,6 +301,65 @@ PROFILE_GUIDED_TERMS = (
     "next step",
     "what should i learn",
     "what should i do next",
+)
+CANVAS_EDIT_TERMS = (
+    "画布",
+    "这份",
+    "这篇",
+    "当前文档",
+    "当前草稿",
+    "这个文档",
+    "这个草稿",
+    "文档",
+    "草稿",
+    "修改",
+    "润色",
+    "续写",
+    "改写",
+    "压缩",
+    "扩写",
+    "调整",
+    "完善",
+    "整理",
+    "polish",
+    "revise",
+    "rewrite",
+    "shorten",
+    "expand",
+    "continue",
+    "this draft",
+    "this document",
+    "canvas",
+    "current draft",
+    "current document",
+)
+CANVAS_CREATE_TERMS = (
+    "画布",
+    "文档",
+    "草稿",
+    "写一份",
+    "起草",
+    "撰写",
+    "学习计划",
+    "复习计划",
+    "研究报告",
+    "报告",
+    "提纲",
+    "讲稿",
+    "笔记",
+    "方案",
+    "draft",
+    "document",
+    "canvas",
+    "write a",
+    "create a",
+    "draft a",
+    "study plan",
+    "learning plan",
+    "report",
+    "outline",
+    "notes",
+    "proposal",
 )
 
 COORDINATOR_INTENT_SYSTEM_PROMPT = """\
@@ -263,10 +387,17 @@ Available routes:
 - external_image_search: find/recommend existing public images, diagrams,
   illustrations, visual references, or image assets. This is a direct tool
   under chat, not a specialist capability.
+- canvas: open/update the right-side editable document canvas. This is a chat
+  tool, not a specialist capability.
 
 Decision rules:
-1. Respect explicit user constraints first: if the user says direct answer, no
-   tools, no diagram, or no delegation, choose chat.
+1. Respect explicit user constraints first: if the user says direct answer or
+   no tools, choose chat with no tools. If the user says no canvas, do not
+   include the canvas tool. If the user says no search, no retrieval, no web,
+   offline, or no RAG, do not include retrieval tools such as rag, web_search,
+   paper_search, external_video_search, or external_image_search. If the user
+   says no diagram or no delegation, choose chat unless another explicit route
+   is requested.
 2. Do not route to a specialist just because a topic is mathematical. Use
    deep_solve only when the learner asks to solve/prove/derive/calculate/check.
 3. Distinguish generated video from existing video search:
@@ -282,15 +413,35 @@ Decision rules:
    explanation.
 7. Keep routing user-centered: choose the path that produces the next useful
    learning action, not the most complex engineering capability.
+8. If `canvas_context.present` is true and the learner asks to revise, polish,
+   continue, summarize, shorten, expand, or otherwise edit the current canvas
+   document, choose chat so the main conversation can update the document. If
+   they ask to create a new diagram, quiz, video, or external resource from the
+   canvas, route to the appropriate specialist/tool.
+9. If the learner asks to write, draft, create, or revise a substantial
+   editable document such as a study plan, report, outline, notes, proposal, or
+   manuscript, choose chat and include the canvas tool. Do not use canvas for
+   ordinary short explanations or small snippets.
+
+Examples:
+- "帮我找一个梯度下降公开视频" -> capability chat, direct_tool external_video_search.
+- "请生成一个梯度下降动画视频" -> capability math_animator.
+- "Find a diagram reference for backpropagation" -> capability chat,
+  direct_tool external_image_search.
+- "Show me a diagram of gradient descent" -> capability visualize.
+- "Generate 5 multiple choice questions" -> capability deep_question.
+- "Write a study plan draft" -> capability chat, tools ["canvas"].
+- "直接解释一下，不用工具" -> capability chat, tools [].
+- "写一份学习计划，不要打开画布" -> capability chat, tools without canvas.
 
 JSON schema:
 {
   "capability": "chat | deep_solve | deep_question | deep_research | visualize | math_animator",
-  "direct_tool": "external_video_search | external_image_search |",
+  "direct_tool": "external_video_search | external_image_search | null",
   "confidence": 0.0,
   "reason": "short reason",
   "rewritten_user_message": "optional clearer task for the selected agent",
-  "tools": ["rag", "web_search", "paper_search", "external_video_search", "external_image_search"],
+  "tools": ["canvas", "rag", "web_search", "paper_search", "external_video_search", "external_image_search"],
   "config": {
     "render_mode": "auto | mermaid | chartjs | svg",
     "output_mode": "video | image",
@@ -343,8 +494,26 @@ class LearningCapabilityRouter:
         text = self.normalized_text(context)
         if not text:
             return CoordinatorDecision(reason="Empty user request.")
+        canvas_disabled = self.contains_any(text, NO_CANVAS_TERMS)
+        retrieval_disabled = self.contains_any(text, NO_RETRIEVAL_TERMS)
+        if self.contains_any(text, DIRECT_CHAT_NO_TOOL_TERMS):
+            return CoordinatorDecision(
+                reason="The learner asked for a direct answer without tools.",
+                tools=[],
+            )
         if self.contains_any(text, NO_DELEGATE_TERMS):
             return CoordinatorDecision(reason="The learner asked for a direct answer.")
+
+        if retrieval_disabled and (
+            self.looks_like_external_video_request(text)
+            or self.looks_like_external_image_request(text)
+        ):
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.82,
+                reason="The learner asked not to search or retrieve external resources.",
+                tools=self.without_retrieval_tools(context),
+            )
 
         if self.looks_like_external_video_request(text):
             return CoordinatorDecision(
@@ -388,6 +557,41 @@ class LearningCapabilityRouter:
                 config=self.visualize_config(context, text),
             )
 
+        if canvas_disabled and (
+            self.looks_like_canvas_create_request(text)
+            or (self.has_canvas_context(context) and self.looks_like_canvas_edit_request(text))
+        ):
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.84,
+                reason="The learner asked for an editable document but explicitly disabled the canvas tool.",
+                tools=self.without_canvas_tools(context),
+            )
+
+        if self.has_canvas_context(context) and self.looks_like_canvas_edit_request(text):
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.86,
+                reason="The learner is continuing or revising the current canvas document in the main conversation.",
+                tools=self.canvas_tools(context),
+            )
+
+        if self.looks_like_canvas_create_request(text):
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.78,
+                reason="The learner asked for a substantial editable document, so chat should use the canvas tool.",
+                tools=self.canvas_tools(context),
+            )
+
+        if retrieval_disabled and self.contains_any(text, RESEARCH_TERMS):
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.74,
+                reason="The learner asked for planning or research but explicitly disabled retrieval tools.",
+                tools=self.without_retrieval_tools(context),
+            )
+
         if self.contains_any(text, RESEARCH_TERMS):
             return CoordinatorDecision(
                 capability="deep_research",
@@ -408,6 +612,22 @@ class LearningCapabilityRouter:
         profile_guided = self.profile_guided_decision(context, text)
         if profile_guided is not None:
             return profile_guided
+
+        if retrieval_disabled:
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.64,
+                reason="The learner explicitly disabled retrieval tools for this chat turn.",
+                tools=self.without_retrieval_tools(context),
+            )
+
+        if canvas_disabled:
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=0.66,
+                reason="The learner explicitly disabled the canvas tool for this chat turn.",
+                tools=self.without_canvas_tools(context),
+            )
 
         return CoordinatorDecision()
 
@@ -462,6 +682,7 @@ class LearningCapabilityRouter:
             "memory_context_excerpt": self.hint_text(context.memory_context, limit=600),
             "notebook_context_excerpt": self.hint_text(context.notebook_context, limit=500),
             "history_context_excerpt": self.hint_text(context.history_context, limit=500),
+            "canvas_context": self.classifier_canvas_context(context),
             "prior_rule_decision": {
                 "capability": prior.capability,
                 "direct_tool": prior.direct_tool,
@@ -493,9 +714,35 @@ class LearningCapabilityRouter:
 
         reason = self.hint_text(payload.get("reason"), limit=260) or "LLM intent classifier selected this route."
         rewritten = self.hint_text(payload.get("rewritten_user_message"), limit=420)
+        text = self.normalized_text(context)
+        no_tools_requested = self.contains_any(text, DIRECT_CHAT_NO_TOOL_TERMS)
+        no_canvas_requested = self.contains_any(text, NO_CANVAS_TERMS)
+        no_retrieval_requested = self.contains_any(text, NO_RETRIEVAL_TERMS)
+        if no_tools_requested:
+            return CoordinatorDecision(
+                capability="chat",
+                confidence=confidence,
+                reason="The learner explicitly asked for a direct answer without tools.",
+                config={
+                    "llm_classified": True,
+                    "llm_classifier_confidence": confidence,
+                    "constraint": "no_tools",
+                },
+                tools=[],
+            )
+
         tools = self._normalize_tool_names(payload.get("tools"))
         config = self._config_from_classifier_payload(context, capability, payload, rewritten)
         direct_tool = str(payload.get("direct_tool") or "").strip().lower()
+        if no_retrieval_requested and (
+            direct_tool in direct_tool_capabilities or capability == "deep_research"
+        ):
+            direct_tool = ""
+            capability = "chat"
+            tools = self._remove_retrieval_tool_names(
+                tools if tools is not None else self.without_retrieval_tools(context)
+            )
+            config = {}
         if direct_tool in direct_tool_capabilities:
             prompt = rewritten or context.user_message
             direct_tool_config = (
@@ -511,10 +758,23 @@ class LearningCapabilityRouter:
             tools = [direct_tool]
             capability = "chat"
 
+        if no_canvas_requested:
+            tools = self._remove_canvas_tool_names(
+                tools if tools is not None else self.without_canvas_tools(context)
+            )
+        if no_retrieval_requested:
+            tools = self._remove_retrieval_tool_names(
+                tools if tools is not None else self.without_retrieval_tools(context)
+            )
+
         if rewritten:
             config["_coordinator_user_message"] = rewritten
         config["llm_classified"] = True
         config["llm_classifier_confidence"] = confidence
+        if no_canvas_requested:
+            config["constraint"] = "no_canvas"
+        if no_retrieval_requested:
+            config["constraint"] = "no_retrieval"
         if payload.get("profile_hints_applied"):
             config["profile_guided"] = True
 
@@ -566,13 +826,40 @@ class LearningCapabilityRouter:
             "reason",
             "brainstorm",
             "geogebra_analysis",
+            "canvas",
         }
         tools: list[str] = []
         for item in value:
             name = str(item or "").strip()
             if name in allowed and name not in tools:
                 tools.append(name)
-        return tools or None
+        if tools:
+            return tools
+        return [] if not value else None
+
+    @staticmethod
+    def _remove_canvas_tool_names(tools: list[str] | None) -> list[str]:
+        canvas_aliases = {"canvas", "document_canvas", "editable_canvas"}
+        return [
+            tool
+            for tool in dict.fromkeys(tools or [])
+            if str(tool or "").strip().lower() not in canvas_aliases
+        ]
+
+    @staticmethod
+    def _remove_retrieval_tool_names(tools: list[str] | None) -> list[str]:
+        retrieval_aliases = {
+            "rag",
+            "web_search",
+            "paper_search",
+            "external_video_search",
+            "external_image_search",
+        }
+        return [
+            tool
+            for tool in dict.fromkeys(tools or [])
+            if str(tool or "").strip().lower() not in retrieval_aliases
+        ]
 
     def _config_from_classifier_payload(
         self,
@@ -740,6 +1027,70 @@ class LearningCapabilityRouter:
         return text.strip().lower()
 
     @staticmethod
+    def has_canvas_context(context: UnifiedContext) -> bool:
+        raw = context.metadata.get("canvas_context") if isinstance(context.metadata, dict) else None
+        return isinstance(raw, dict) and bool(str(raw.get("content") or "").strip())
+
+    @classmethod
+    def looks_like_canvas_edit_request(cls, text: str) -> bool:
+        return cls.contains_any(text, CANVAS_EDIT_TERMS)
+
+    @classmethod
+    def looks_like_canvas_create_request(cls, text: str) -> bool:
+        if not cls.contains_any(text, CANVAS_CREATE_TERMS):
+            return False
+        return cls.contains_any(
+            text,
+            (
+                "写",
+                "生成",
+                "创建",
+                "起草",
+                "撰写",
+                "整理",
+                "做一份",
+                "帮我做",
+                "帮我写",
+                "write",
+                "create",
+                "draft",
+                "prepare",
+                "compose",
+                "make",
+            ),
+        )
+
+    @staticmethod
+    def canvas_tools(context: UnifiedContext) -> list[str]:
+        tools = list(dict.fromkeys(context.enabled_tools or []))
+        if "canvas" not in tools:
+            tools.insert(0, "canvas")
+        return tools
+
+    @staticmethod
+    def without_canvas_tools(context: UnifiedContext) -> list[str]:
+        return LearningCapabilityRouter._remove_canvas_tool_names(context.enabled_tools or [])
+
+    @staticmethod
+    def without_retrieval_tools(context: UnifiedContext) -> list[str]:
+        return LearningCapabilityRouter._remove_retrieval_tool_names(context.enabled_tools or [])
+
+    @classmethod
+    def classifier_canvas_context(cls, context: UnifiedContext) -> dict[str, Any]:
+        raw = context.metadata.get("canvas_context") if isinstance(context.metadata, dict) else None
+        if not isinstance(raw, dict):
+            return {"present": False}
+        content = str(raw.get("content") or "").strip()
+        if not content:
+            return {"present": False}
+        return {
+            "present": True,
+            "title": cls.hint_text(raw.get("title"), limit=160),
+            "content_excerpt": cls.hint_text(content, limit=700),
+            "truncated": bool(raw.get("truncated")),
+        }
+
+    @staticmethod
     def contains_any(text: str, terms: tuple[str, ...]) -> bool:
         return any(term.lower() in text for term in terms)
 
@@ -787,7 +1138,19 @@ class LearningCapabilityRouter:
             text,
             flags=re.IGNORECASE,
         )
-        if not LearningCapabilityRouter.contains_any(text, VIDEO_SEARCH_TERMS) and not video_search_pattern:
+        english_video_search_pattern = re.search(
+            r"\b(find|recommend|search|show|list|suggest|look\s+up)\b.{0,40}"
+            r"\b(public\s+)?(video|lecture|course|lesson|youtube|bilibili)\b"
+            r"|\b(public\s+)?(video|lecture|course|lesson|youtube|bilibili)\b.{0,40}"
+            r"\b(find|recommend|search|show|list|suggest|link|resource)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if (
+            not LearningCapabilityRouter.contains_any(text, VIDEO_SEARCH_TERMS)
+            and not video_search_pattern
+            and not english_video_search_pattern
+        ):
             return False
         generate_markers = (
             "生成视频",
@@ -821,7 +1184,9 @@ class LearningCapabilityRouter:
         )
         generate_pattern = re.search(r"(生成|制作|做).{0,8}(视频|短视频|动画)", text, flags=re.IGNORECASE)
         if (LearningCapabilityRouter.contains_any(text, generate_markers) or generate_pattern) and not (
-            LearningCapabilityRouter.contains_any(text, find_markers) or video_search_pattern
+            LearningCapabilityRouter.contains_any(text, find_markers)
+            or video_search_pattern
+            or english_video_search_pattern
         ):
             return False
         return True
@@ -829,12 +1194,22 @@ class LearningCapabilityRouter:
     @staticmethod
     def looks_like_external_image_request(text: str) -> bool:
         image_search_pattern = re.search(
-            r"(找|推荐|检索|搜|公开|资源|链接|素材|参考|配|find|recommend|search).{0,14}(图片|图像|图示|图解|示意图|插图|配图|picture|image|illustration|diagram)"
-            r"|(?:图片|图像|图示|图解|示意图|插图|配图|picture|image|illustration|diagram).{0,14}(找|推荐|检索|搜|资源|链接|公开|素材|参考|find|recommend|search|reference|resource)",
+            r"(找|推荐|检索|搜|公开|资源|链接|素材|参考|配|find|recommend|search|list|suggest|look\s+up).{0,18}(图片|图像|图示|图解|示意图|插图|配图|picture|image|illustration|diagram)"
+            r"|(?:图片|图像|图示|图解|示意图|插图|配图|picture|image|illustration|diagram).{0,18}(找|推荐|检索|搜|资源|链接|公开|素材|参考|find|recommend|search|list|suggest|reference|resource)",
             text,
             flags=re.IGNORECASE,
         )
-        if not LearningCapabilityRouter.contains_any(text, IMAGE_SEARCH_TERMS) and not image_search_pattern:
+        english_image_show_pattern = re.search(
+            r"\bshow\b.{0,45}\b(public\s+)?(image|picture|illustration|reference\s+image|visual\s+reference|image\s+diagram|diagram\s+image)\b"
+            r"|\b(public\s+)?(image|picture|illustration|reference\s+image|visual\s+reference|image\s+diagram|diagram\s+image)\b.{0,45}\b(show|link|resource|reference)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if (
+            not LearningCapabilityRouter.contains_any(text, IMAGE_SEARCH_TERMS)
+            and not image_search_pattern
+            and not english_image_show_pattern
+        ):
             return False
         generate_markers = (
             "生成图片",
@@ -875,7 +1250,9 @@ class LearningCapabilityRouter:
         )
         generate_pattern = re.search(r"(生成|制作|画|做).{0,8}(图片|图像|图解|示意图|流程图|插图)", text, flags=re.IGNORECASE)
         if (LearningCapabilityRouter.contains_any(text, generate_markers) or generate_pattern) and not (
-            LearningCapabilityRouter.contains_any(text, find_markers) or image_search_pattern
+            LearningCapabilityRouter.contains_any(text, find_markers)
+            or image_search_pattern
+            or english_image_show_pattern
         ):
             return False
         return True

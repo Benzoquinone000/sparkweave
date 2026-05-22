@@ -1,15 +1,24 @@
 export const SERVICES = [
   { id: "llm" as const, label: "问答模型" },
-  { id: "embedding" as const, label: "向量模型" },
+  { id: "embedding" as const, label: "资料理解" },
   { id: "search" as const, label: "联网搜索" },
-  { id: "ocr" as const, label: "OCR 识别" },
+  { id: "ocr" as const, label: "图片文字识别" },
+  { id: "tts" as const, label: "语音讲解" },
+  { id: "asr" as const, label: "语音输入" },
+  { id: "speech_eval" as const, label: "口语评测" },
 ];
 
 export const SYSTEM_PROBES = [
   { id: "llm" as const, label: "问答模型", detail: "测试问答模型" },
-  { id: "embeddings" as const, label: "向量模型", detail: "测试向量模型" },
+  { id: "embeddings" as const, label: "资料理解", detail: "测试资料理解服务" },
   { id: "search" as const, label: "联网搜索", detail: "测试搜索服务" },
-  { id: "ocr" as const, label: "OCR 识别", detail: "测试扫描 PDF 识别服务" },
+  { id: "ocr" as const, label: "图片文字识别", detail: "测试扫描 PDF 识别服务" },
+  { id: "formula_ocr" as const, label: "公式识别", detail: "测试讯飞公式识别服务" },
+  { id: "image_understanding" as const, label: "图片理解", detail: "测试讯飞图片理解服务" },
+  { id: "tts" as const, label: "语音讲解", detail: "测试语音讲解服务" },
+  { id: "asr" as const, label: "语音输入", detail: "检查语音输入配置" },
+  { id: "speech_eval" as const, label: "口语评测", detail: "检查口语评测配置" },
+  { id: "iflytek_workflow" as const, label: "讯飞工作流", detail: "测试星辰工作流调用" },
 ];
 
 export const LEGACY_TEXT_SEPARATOR = "\u001F";
@@ -31,7 +40,7 @@ export function formatSettingsTestEvent(kind: string, data: { message?: string; 
   if (normalized === "failed" || normalized === "error") return withLegacyText(`检测失败：${friendlyServiceError(message)}`, legacy);
   if (normalized === "cancelled") return withLegacyText("已取消当前服务检测。", legacy);
   if (/snapshot|active profile|configuration/i.test(message)) return withLegacyText("正在读取当前配置。", legacy);
-  if (/resolved|provider/i.test(message)) return withLegacyText("正在选择服务供应商。", legacy);
+  if (/resolved|provider/i.test(message)) return withLegacyText("正在选择服务来源。", legacy);
   if (/target|request|endpoint|url/i.test(message)) return withLegacyText("正在连接服务接口。", legacy);
   if (/handshake|ready|ok|success/i.test(message)) return withLegacyText("服务响应正常。", legacy);
   return withLegacyText(`${label}：检测进行中。`, legacy);
@@ -43,6 +52,7 @@ export function friendlyServiceError(message: string) {
   if (/401|apikey|api key|secret|signature|unauthorized/i.test(message)) return "密钥或鉴权信息不正确";
   if (/429|rate limit|too many requests|quota|insufficient/i.test(message)) return "调用额度或频率受限";
   if (/500|502|503|internal server|bad gateway|service unavailable/i.test(message)) return "服务端暂时异常，稍后再试";
+  if (/no speech|not return a score|no.*recognized|empty.*transcript/i.test(message)) return "没有识别到有效语音，请靠近麦克风再试";
   if (/not configured|missing .*provider|missing_search_provider|search_provider/i.test(message)) return "还没有完成服务配置";
   if (/model.*not|invalid model|model not found|unsupported model/i.test(message)) return "模型名称可能不正确";
   if (/base_url|endpoint|url|not found|404/i.test(message)) return "服务地址可能不正确";
@@ -54,9 +64,15 @@ export function systemProbeDisplayName(service: SystemProbeId) {
   return (
     {
       llm: "问答模型",
-      embeddings: "向量模型",
+      embeddings: "资料理解",
       search: "联网搜索",
-      ocr: "OCR 识别",
+      ocr: "图片文字识别",
+      formula_ocr: "公式识别",
+      image_understanding: "图片理解",
+      tts: "语音讲解",
+      asr: "语音输入",
+      speech_eval: "口语评测",
+      iflytek_workflow: "讯飞工作流",
     }[service] || service
   );
 }
@@ -65,9 +81,15 @@ export function serviceDisplayName(name: string) {
   return (
     {
       llm: "问答模型",
-      embedding: "向量模型",
+      embedding: "资料理解",
       search: "联网搜索",
-      ocr: "OCR 识别",
+      ocr: "图片文字识别",
+      formula_ocr: "公式识别",
+      image_understanding: "图片理解",
+      tts: "语音讲解",
+      asr: "语音输入",
+      speech_eval: "口语评测",
+      iflytek_workflow: "讯飞工作流",
     }[name] || name
   );
 }

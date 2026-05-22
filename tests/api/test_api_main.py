@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import importlib
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 from starlette.websockets import WebSocketDisconnect
 
 
@@ -80,6 +80,12 @@ def test_public_outputs_force_active_content_to_download(tmp_path) -> None:
     assert response.headers["content-disposition"] == 'attachment; filename="report.html"'
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["content-security-policy"].startswith("sandbox")
+
+
+def test_public_output_download_filename_strips_header_unsafe_chars() -> None:
+    api_main = importlib.import_module("sparkweave.api.main")
+
+    assert api_main._safe_header_filename('report"\r\nX-Bad: 1.html') == "report___X-Bad: 1.html"
 
 
 def test_security_headers_are_added(monkeypatch) -> None:

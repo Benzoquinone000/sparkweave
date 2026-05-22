@@ -81,27 +81,35 @@ export function RagSearchSetupForm({
         />
       ) : null}
 
-      <RagSearchPresetPanel presetId={presetId} onPresetApply={onPresetApply} />
       <RagSearchQueryField query={query} onQueryChange={onQueryChange} />
-      <RagSearchBasicSettingsGrid
-        profile={profile}
-        mode={mode}
-        agentic={agentic}
-        topK={topK}
-        onProfileChange={onProfileChange}
-        onModeChange={onModeChange}
-        onAgenticChange={onAgenticChange}
-        onTopKChange={onTopKChange}
-      />
-      <RagSearchAgenticSettingsPanel
-        agentic={agentic}
-        agenticMaxContextChars={agenticMaxContextChars}
-        agenticMaxSources={agenticMaxSources}
-        agenticMinRelevantCoverage={agenticMinRelevantCoverage}
-        onAgenticMaxContextCharsChange={onAgenticMaxContextCharsChange}
-        onAgenticMaxSourcesChange={onAgenticMaxSourcesChange}
-        onAgenticMinRelevantCoverageChange={onAgenticMinRelevantCoverageChange}
-      />
+      <RagSearchPresetPanel presetId={presetId} onPresetApply={onPresetApply} />
+      <details className="rounded-lg border border-line bg-canvas p-3 [&>summary::-webkit-details-marker]:hidden">
+        <summary className="dt-interactive flex cursor-pointer flex-wrap items-center justify-between gap-2 text-sm font-semibold text-ink">
+          <span>查找细节</span>
+          <span className="text-xs font-normal leading-5 text-slate-500">需要查看来源链时再展开</span>
+        </summary>
+        <div className="mt-3 grid gap-3 border-t border-line pt-3">
+          <RagSearchBasicSettingsGrid
+            profile={profile}
+            mode={mode}
+            agentic={agentic}
+            topK={topK}
+            onProfileChange={onProfileChange}
+            onModeChange={onModeChange}
+            onAgenticChange={onAgenticChange}
+            onTopKChange={onTopKChange}
+          />
+          <RagSearchAgenticSettingsPanel
+            agentic={agentic}
+            agenticMaxContextChars={agenticMaxContextChars}
+            agenticMaxSources={agenticMaxSources}
+            agenticMinRelevantCoverage={agenticMinRelevantCoverage}
+            onAgenticMaxContextCharsChange={onAgenticMaxContextCharsChange}
+            onAgenticMaxSourcesChange={onAgenticMaxSourcesChange}
+            onAgenticMinRelevantCoverageChange={onAgenticMinRelevantCoverageChange}
+          />
+        </div>
+      </details>
       <RagSearchFormActions
         query={query}
         result={result}

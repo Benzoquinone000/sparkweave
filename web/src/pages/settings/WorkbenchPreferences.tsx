@@ -104,7 +104,7 @@ export function WorkbenchPreferences({
               <TextArea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="min-h-24"
+                className="min-h-20"
                 placeholder="例如：AI 学习工作台"
               />
             </FieldShell>
@@ -125,7 +125,7 @@ export function WorkbenchPreferences({
                 value={startOrder}
                 onChange={(event) => setStartOrder(event.target.value)}
                 aria-label="Start 区域"
-                className="min-h-48 font-mono text-xs"
+                className="min-h-40 font-mono text-xs"
               />
             </FieldShell>
             <FieldShell label="学习研究区">
@@ -133,7 +133,7 @@ export function WorkbenchPreferences({
                 value={learnOrder}
                 onChange={(event) => setLearnOrder(event.target.value)}
                 aria-label="Learn / Research 区域"
-                className="min-h-48 font-mono text-xs"
+                className="min-h-40 font-mono text-xs"
               />
             </FieldShell>
           </div>

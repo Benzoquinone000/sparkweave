@@ -3,8 +3,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from sparkweave.sparkbot.tools import ExecTool, _validate_url
-from sparkweave.sparkbot.tools import WebFetchTool
+from sparkweave.sparkbot.tools import ExecTool, WebFetchTool, _validate_url
 
 
 def test_exec_tool_blocks_windows_recursive_delete(tmp_path) -> None:

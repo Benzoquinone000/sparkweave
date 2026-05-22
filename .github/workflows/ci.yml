@@ -70,5 +70,11 @@ jobs:
       - name: Check design contract
         run: npm run check:design
 
+      - name: Check API contract
+        run: npm run check:api-contract
+
+      - name: Check active workspace replacement
+        run: npm run check:replacement
+
       - name: Build
         run: npm run build

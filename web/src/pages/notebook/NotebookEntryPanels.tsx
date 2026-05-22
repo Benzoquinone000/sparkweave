@@ -57,7 +57,7 @@ export function CreateNotebookPanel({
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
             maxLength={NOTEBOOK_LIMITS.description}
-          placeholder="这个记录本打算沉淀什么？"
+            placeholder="这个记录本打算沉淀什么？"
             data-testid="notebook-create-description"
           />
         </FieldShell>
@@ -113,8 +113,8 @@ export function ManualRecordPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Badge tone={hasNotebook ? "brand" : "neutral"}>{notebookName || "未选择记录本"}</Badge>
-          <h2 className="mt-3 text-lg font-semibold text-ink">补充一条学习记录</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">适合补课堂笔记、错因、复盘结论。写完后会进入当前记录本。</p>
+          <h2 className="mt-3 text-lg font-semibold text-ink">写一条学习记录</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">适合沉淀课堂笔记、错因和复盘结论。写完后会进入当前记录本。</p>
         </div>
       </div>
       <form className="mt-5 grid gap-3" onSubmit={onSubmit}>
@@ -133,7 +133,7 @@ export function ManualRecordPanel({
             onChange={(event) => onOutputChange(event.target.value)}
             maxLength={NOTEBOOK_LIMITS.output}
             placeholder="关键推理、错因、小结..."
-            className="min-h-44"
+            className="min-h-36"
             data-testid="notebook-manual-output"
           />
         </FieldShell>

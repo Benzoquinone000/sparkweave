@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="dt-app-root h-screen overflow-hidden text-ink">
-      <div className="flex h-full">
+      <div className="relative z-10 flex h-full">
         <nav
           aria-label="主导航"
           className={`dt-sidebar-paper hidden shrink-0 border-r border-line-soft transition-[width] duration-200 lg:flex lg:flex-col ${
@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-11 shrink-0 items-center justify-between border-b border-line bg-white px-2.5 lg:hidden">
+          <header className="dt-topbar-paper flex h-11 shrink-0 items-center justify-between border-b border-line bg-white px-2.5 lg:hidden">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -127,6 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <motion.aside
               className="dt-sidebar-paper flex h-full w-[276px] max-w-[92vw] flex-col border-r border-line shadow-panel"
+              data-testid="mobile-nav-drawer"
               initial={{ x: -320 }}
               animate={{ x: 0 }}
               exit={{ x: -320 }}

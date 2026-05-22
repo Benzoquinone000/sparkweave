@@ -62,7 +62,7 @@ export function KnowledgeDiagnosticsPanel({
             <div>
               <p className="text-sm font-semibold text-ink">连接检查</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                {fetching ? "正在检查检索连接、索引记录和模型配置..." : error ? formatDiagnosticError(error) : formatRagDiagnosticSummary(report)}
+                {fetching ? "正在检查资料连接、引用片段和模型配置..." : error ? formatDiagnosticError(error) : formatRagDiagnosticSummary(report)}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

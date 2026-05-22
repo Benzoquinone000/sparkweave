@@ -124,8 +124,99 @@ def test_system_ocr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch
 
     assert response.status_code == 200
     body = response.json()
-    assert body["success"] is False
-    assert body["message"] == "OCR not configured"
+    assert body["success"] is True
+    assert body["message"] == "OCR offline fallback is ready"
+    assert body["model"] == "offline_iflytek_fallback:ocr"
+
+
+def test_system_status_marks_iflytek_fallback_services(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module, "get_llm_config", lambda: SimpleNamespace(model="chat"))
+    monkeypatch.setattr(system_module, "get_embedding_config", lambda: SimpleNamespace(model="embedding"))
+    monkeypatch.setattr(system_module, "resolve_search_runtime_config", lambda: _search_config())
+    monkeypatch.setattr(system_module, "resolve_ocr_config", lambda: None)
+    monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: None))
+    monkeypatch.setattr(system_module.XfyunAsrConfig, "from_env", classmethod(lambda cls: None))
+    monkeypatch.setattr(system_module.XfyunSpeechEvalConfig, "from_env", classmethod(lambda cls: None))
+    monkeypatch.setattr(system_module.IflytekWorkflowConfig, "from_env", lambda: None)
+    monkeypatch.setattr(system_module.IflytekFormulaConfig, "from_env", lambda: None)
+    monkeypatch.setattr(system_module.IflytekVisionConfig, "from_env", lambda: None)
+    monkeypatch.setattr(system_module, "offline_fallback_enabled", lambda: True)
+
+    with TestClient(_build_app()) as client:
+        response = client.get("/api/v1/system/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    for key in ("ocr", "tts", "asr", "speech_eval", "iflytek_workflow", "formula_ocr", "image_understanding"):
+        assert body[key]["status"] == "fallback"
+        assert body[key]["fallback"] is True
+        assert body[key]["provider"].startswith("offline_iflytek_fallback")
+
+
+def test_system_iflytek_workflow_probe_uses_configured_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(flow_id="flow-demo")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module.IflytekWorkflowConfig, "from_env", lambda: config)
+
+    async def _fake_call(prompt: str, **kwargs):
+        calls.append({"prompt": prompt, **kwargs})
+        return {"content": "ok"}
+
+    monkeypatch.setattr(system_module, "call_iflytek_workflow", _fake_call)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/iflytek_workflow")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek_workflow:flow-demo"
+    assert calls[0]["config"] is config
+
+
+def test_system_formula_ocr_probe_uses_configured_service(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(ent="teach-photo-print", provider="iflytek_formula")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module.IflytekFormulaConfig, "from_env", lambda: config)
+
+    async def _fake_recognize(image: bytes, **kwargs):
+        calls.append({"image": image, **kwargs})
+        return {"text": "$x+1=2$"}
+
+    monkeypatch.setattr(system_module, "recognize_formula_image", _fake_recognize)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/formula_ocr")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek_formula:teach-photo-print"
+    assert calls[0]["config"] is config
+
+
+def test_system_image_understanding_probe_uses_configured_service(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = SimpleNamespace(domain="imagev3", provider="iflytek_image_understanding")
+    calls: list[dict] = []
+    monkeypatch.setattr(system_module.IflytekVisionConfig, "from_env", lambda: config)
+
+    async def _fake_understand(image: bytes, **kwargs):
+        calls.append({"image": image, **kwargs})
+        return {"content": "ok"}
+
+    monkeypatch.setattr(system_module, "understand_image", _fake_understand)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/image_understanding")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek_image:imagev3"
+    assert calls[0]["config"] is config
+    assert calls[0]["mime_type"] == "image/png"
 
 
 def test_system_ocr_preview_recognizes_uploaded_image(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -248,8 +339,85 @@ def test_system_tts_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch
 
     assert response.status_code == 200
     body = response.json()
-    assert body["success"] is False
-    assert body["message"] == "TTS not configured"
+    assert body["success"] is True
+    assert body["message"] == "TTS offline fallback is ready"
+    assert body["model"] == "offline_iflytek_fallback:offline-iflytek-fallback"
+
+
+def test_system_asr_probe_checks_iflytek_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(language="zh_cn", domain="iat")
+    monkeypatch.setattr(system_module.XfyunAsrConfig, "from_env", classmethod(lambda cls: config))
+    calls: list[dict] = []
+
+    async def _fake_transcribe(audio: bytes, **kwargs):
+        calls.append({"audio": audio, **kwargs})
+        return SimpleNamespace(text="", sid="asr-smoke")
+
+    monkeypatch.setattr(system_module, "transcribe_audio_with_iflytek", _fake_transcribe)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/asr")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek:zh_cn/iat"
+    assert "connection successful" in body["message"]
+    assert calls
+    assert calls[0]["audio"].startswith(b"RIFF")
+    assert calls[0]["config"] is config
+    assert calls[0]["audio_encoding"] == "raw"
+
+
+def test_system_asr_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module.XfyunAsrConfig, "from_env", classmethod(lambda cls: None))
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/asr")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "ASR offline fallback is ready"
+    assert body["model"] == "offline_iflytek_fallback:asr"
+
+
+def test_system_speech_eval_probe_checks_iflytek_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = SimpleNamespace(category="read_sentence", language="zh_cn")
+    monkeypatch.setattr(system_module.XfyunSpeechEvalConfig, "from_env", classmethod(lambda cls: config))
+    calls: list[dict] = []
+
+    async def _fake_evaluate(audio: bytes, **kwargs):
+        calls.append({"audio": audio, **kwargs})
+        return SimpleNamespace(normalized_score=0.92, dimensions={"total": 92.0}, sid="ise-smoke")
+
+    monkeypatch.setattr(system_module, "evaluate_speech_with_iflytek", _fake_evaluate)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/speech_eval")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["model"] == "iflytek:read_sentence/zh_cn"
+    assert body["message"] == "Speech evaluation connection successful"
+    assert calls
+    assert calls[0]["audio"].startswith(b"RIFF")
+    assert calls[0]["config"] is config
+    assert calls[0]["reference_text"] == system_module.SPEECH_EVAL_SMOKE_REFERENCE
+
+
+def test_system_speech_eval_probe_reports_missing_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module.XfyunSpeechEvalConfig, "from_env", classmethod(lambda cls: None))
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/test/speech_eval")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Speech evaluation offline fallback is ready"
+    assert body["model"] == "offline_iflytek_fallback:speech_eval"
 
 
 def test_system_tts_preview_returns_audio(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -279,6 +447,30 @@ def test_system_tts_preview_returns_audio(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.headers["x-sparkweave-tts-voice"] == "x5_lingxiaoxuan_flow"
 
 
+def test_system_tts_preview_marks_offline_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: None))
+
+    async def _fake_tts(text: str, **kwargs):
+        return SimpleNamespace(
+            audio=b"wavbytes",
+            content_type="audio/wav",
+            encoding="raw",
+            sample_rate=16000,
+            voice="offline-iflytek-fallback",
+            sid=None,
+            phonetic_text="offline fallback: not configured",
+        )
+
+    monkeypatch.setattr(system_module, "synthesize_speech_with_iflytek", _fake_tts)
+
+    with TestClient(_build_app()) as client:
+        response = client.post("/api/v1/system/tts-preview", json={"text": "hello"})
+
+    assert response.status_code == 200
+    assert response.headers["x-sparkweave-tts-fallback"] == "true"
+    assert response.headers["x-sparkweave-tts-fallback-reason"] == "offline fallback: not configured"
+
+
 def test_system_tts_preview_rejects_empty_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system_module.XfyunTtsConfig, "from_env", classmethod(lambda cls: SimpleNamespace()))
 
@@ -300,4 +492,3 @@ def test_system_tts_preview_rejects_long_text(monkeypatch: pytest.MonkeyPatch) -
 
     assert response.status_code == 413
     assert str(system_module.MAX_TTS_PREVIEW_CHARS) in response.text
-

@@ -22,15 +22,15 @@ export type RagSearchRecovery = {
 
 export function describeRagSearchStatus(result: RagSearchTestResult, sourceCount: number, contentChars: number) {
   if (result.success === false) {
-    return { tone: "warning" as const, label: "检索失败", shortLabel: "失败" };
+    return { tone: "warning" as const, label: "查找失败", shortLabel: "失败" };
   }
   if (sourceCount <= 0) {
-    return { tone: "neutral" as const, label: "未找到证据", shortLabel: "0 条证据" };
+    return { tone: "neutral" as const, label: "未找到来源", shortLabel: "0 条来源" };
   }
   if (isWeakRagSearchResult(result, sourceCount, contentChars)) {
-    return { tone: "warning" as const, label: "证据偏弱", shortLabel: `${sourceCount} 条证据` };
+    return { tone: "warning" as const, label: "来源偏弱", shortLabel: `${sourceCount} 条来源` };
   }
-  return { tone: "success" as const, label: "检索完成", shortLabel: `${sourceCount} 条证据` };
+  return { tone: "success" as const, label: "已找到来源", shortLabel: `${sourceCount} 条来源` };
 }
 
 export function buildRagSearchRecovery(result: RagSearchTestResult, sourceCount: number, contentChars: number): RagSearchRecovery | null {
@@ -43,23 +43,23 @@ export function buildRagSearchRecovery(result: RagSearchTestResult, sourceCount:
     return {
       tone: "warning",
       badge: "先修复",
-      title: readinessLabel ? `检索未完成：${readinessLabel}` : "这次检索没有完成",
+      title: readinessLabel ? `查找未完成：${readinessLabel}` : "这次没有完成查找",
       description: readinessSummary
         ? `${readinessSummary}${readinessAction ? ` 下一步：${readinessAction}` : ""}`
-        : "先回到提问预检，换一个更稳妥的方案复测；如果仍失败，再进入诊断页看是哪一步没有拿到资料。",
-      primary: hasReadiness ? { label: "检查连接", action: "diagnostics" } : { label: "调整检索", action: "setup" },
-      secondary: hasReadiness ? { label: "调整检索", action: "setup" } : { label: "查看检索过程", action: "agentic" },
+        : "先回到试问页，换一个更稳妥的方案复测；如果仍失败，再进入检查页看是哪一步没有拿到资料。",
+      primary: hasReadiness ? { label: "检查连接", action: "diagnostics" } : { label: "调整查找", action: "setup" },
+      secondary: hasReadiness ? { label: "调整查找", action: "setup" } : { label: "查看来源链路", action: "agentic" },
     };
   }
 
   if (sourceCount <= 0) {
     return {
       tone: "neutral",
-      badge: "需补证据",
+      badge: "需补来源",
       title: "还没有找到可引用资料",
-      description: "如果资料已经完成索引，可以先套用深度追问方案，扩大问题拆分和来源上限；如果仍为空，再回到资料管理检查文档入库。",
-      primary: { label: "套用深度追问方案", action: "deep" },
-      secondary: { label: "调整检索", action: "setup" },
+      description: "如果资料已经整理完成，可以先套用复杂问题方案，扩大问题拆分和来源上限；如果仍为空，再回到资料管理检查文档入库。",
+      primary: { label: "套用复杂问题方案", action: "deep" },
+      secondary: { label: "调整查找", action: "setup" },
     };
   }
 
@@ -67,10 +67,10 @@ export function buildRagSearchRecovery(result: RagSearchTestResult, sourceCount:
     return {
       tone: "warning",
       badge: "建议复测",
-      title: "证据已经召回，但还不够扎实",
-      description: "建议增加来源上限或上下文预算，确认关键片段真的进入回答材料，再让聊天使用这个资料库回答。",
-      primary: { label: "调整检索", action: "setup" },
-      secondary: { label: "查看证据列表", action: "sources" },
+      title: "已经找到来源，但还不够扎实",
+      description: "建议增加来源上限或回答材料上限，确认关键片段真的进入回答材料，再让聊天使用这个资料库回答。",
+      primary: { label: "调整查找", action: "setup" },
+      secondary: { label: "查看来源列表", action: "sources" },
     };
   }
 

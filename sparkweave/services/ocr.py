@@ -248,6 +248,33 @@ def recognize_image(
     return recognize_image_with_iflytek(image, encoding=encoding, config=resolved)
 
 
+def recognize_image_with_fallback(
+    image: bytes,
+    *,
+    encoding: str = "png",
+    config: OcrProviderConfig | None = None,
+) -> str:
+    try:
+        return recognize_image(image, encoding=encoding, config=config)
+    except OcrUnavailable as exc:
+        from sparkweave.services.iflytek_offline import describe_image, offline_fallback_enabled
+
+        if not offline_fallback_enabled():
+            raise
+        descriptor = describe_image(image, mime_type=f"image/{encoding}")
+        size_text = (
+            f"{descriptor.width}x{descriptor.height}"
+            if descriptor.width and descriptor.height
+            else f"{descriptor.bytes} bytes"
+        )
+        return (
+            "离线 OCR 替补已启用：当前无法调用图片文字识别服务。"
+            f"已接收 {descriptor.format} 图片（{size_text}）。"
+            "请补充图片中的文字，或恢复讯飞/备用 OCR 服务后重新识别。"
+            f"\n\n降级原因：{str(exc)[:300]}"
+        )
+
+
 def recognize_image_with_iflytek(image: bytes, *, encoding: str = "png", config: XfyunOcrConfig | None = None) -> str:
     """Recognize text in a single image using iFlytek OCR.
 
@@ -751,6 +778,7 @@ __all__ = [
     "ocr_pdf_with_iflytek",
     "ocr_pdf_with_siliconflow",
     "recognize_image",
+    "recognize_image_with_fallback",
     "recognize_image_with_iflytek",
     "recognize_image_with_siliconflow",
     "resolve_ocr_config",

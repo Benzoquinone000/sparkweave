@@ -206,7 +206,7 @@ export function NotebookPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto max-w-[1080px] space-y-3.5">
         <NotebookHomeHeader
           hasNotebook={Boolean(activeNotebookId)}
@@ -280,7 +280,7 @@ export function NotebookPage() {
             ) : null}
 
             {view === "questions" ? (
-              <Suspense fallback={<NotebookViewLoading label="正在准备题目本" />}>
+              <Suspense fallback={<NotebookViewLoading label="正在准备错题本" />}>
                 <QuestionNotebookWorkspace
                   sectionRef={questionSectionRef}
                   categories={categories.data ?? []}
@@ -396,7 +396,7 @@ function NotebookHomeHeader({
   onRecord: () => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-3.5 shadow-[0_8px_24px_rgba(15,15,15,0.03)]">
+    <section className="dt-page-header dt-page-header-accent-orange p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-3.5">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-steel">记录</p>

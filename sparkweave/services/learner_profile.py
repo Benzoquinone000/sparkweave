@@ -518,19 +518,23 @@ class LearnerProfileService:
             source_id = f"evidence.{source}" if source else "evidence"
             title = _normalize_label(event.get("title") or event.get("object_id") or "学习活动")
             score = _as_float(event.get("score"), None)
+            metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+            is_offline_fallback = bool(metadata.get("fallback")) or source.startswith("offline_")
             object_type = str(event.get("object_type") or "")
             object_id = str(event.get("object_id") or event.get("node_id") or title)
             concept_labels = _event_concept_labels(event)
             event_confidence = _clamp(_as_float(event.get("confidence"), 0.5) or 0.5, 0.0, 1.0)
+            profile_confidence = min(event_confidence, 0.28) if is_offline_fallback else event_confidence
+            profile_weight = (_as_float(event.get("weight"), 1.0) or 1.0) * (0.25 if is_offline_fallback else 1.0)
             builder.add_weighted_evidence(
                 source_id=source_id,
-                confidence=event_confidence,
+                confidence=profile_confidence,
                 created_at=event.get("created_at"),
                 verb=str(event.get("verb") or ""),
                 object_type=object_type,
                 resource_type=str(event.get("resource_type") or ""),
-                score=score,
-                weight=_as_float(event.get("weight"), 1.0) or 1.0,
+                score=None if is_offline_fallback else score,
+                weight=profile_weight,
             )
             if source == "profile_calibration" or object_type == "profile_claim":
                 builder.apply_calibration(event)
@@ -571,13 +575,13 @@ class LearnerProfileService:
                 if mistake_label.startswith("concept:"):
                     continue
                 builder.add_weak_point(mistake_label, "evidence", reason="证据账本记录的错误类型", confidence=0.72)
-            if event.get("is_correct") is False or (score is not None and score < 0.65):
+            if not is_offline_fallback and (event.get("is_correct") is False or (score is not None and score < 0.65)):
                 for label in concept_labels or [title]:
                     builder.add_weak_point(label, "evidence", reason="证据账本中的低分/错误记录", confidence=0.7)
-            elif score is not None and score >= 0.85:
+            elif not is_offline_fallback and score is not None and score >= 0.85:
                 for label in concept_labels or [title]:
                     builder.add_strength(label, "evidence", 0.62)
-            if score is not None and object_id:
+            if not is_offline_fallback and score is not None and object_id:
                 for label in concept_labels or [object_id]:
                     group_id = _slug(label)
                     if not group_id:
@@ -1714,6 +1718,9 @@ def _event_preview_metadata(
         "kind",
         "query",
         "fallback_search",
+        "fallback",
+        "fallback_reason",
+        "provider",
         "watch_plan",
         "reflection_prompt",
         "style_hint",

@@ -9,7 +9,7 @@ import { EvalMini } from "./GuideMetrics";
 
 export function SourceActionNotice({ action }: { action: Record<string, unknown> | null }) {
   if (!action) return null;
-  const title = readString(action, "title") || "学习画像建议";
+  const title = readString(action, "title") || "学习建议";
   const sourceLabel = readString(action, "source_label");
   const suggestedPrompt = readString(action, "suggested_prompt");
   const kind = readString(action, "kind");
@@ -22,7 +22,7 @@ export function SourceActionNotice({ action }: { action: Record<string, unknown>
         ? "效果评估接力"
         : kind === "mastery" || kind === "mastery_check" || kind === "mastery_support"
           ? "掌握度接力"
-          : "画像推荐";
+          : "学习建议";
   return (
     <motion.div
       className="rounded-lg border border-line bg-tint-lavender px-4 py-3"
@@ -31,24 +31,24 @@ export function SourceActionNotice({ action }: { action: Record<string, unknown>
       transition={{ duration: 0.18 }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">画像已带入</Badge>
+        <Badge tone="brand">已参考记录</Badge>
         <Badge tone="neutral">{kindLabel}</Badge>
         {Number.isFinite(minutes) && minutes > 0 ? <Badge tone="neutral">{Math.round(minutes)} 分钟</Badge> : null}
-        {Number.isFinite(confidence) && confidence > 0 ? <Badge tone="neutral">依据 {Math.round(Math.min(confidence, 1) * 100)}%</Badge> : null}
+        {Number.isFinite(confidence) && confidence > 0 ? <Badge tone="neutral">把握 {Math.round(Math.min(confidence, 1) * 100)}%</Badge> : null}
       </div>
       <h3 className="mt-3 text-sm font-semibold text-ink">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-charcoal">
-        {sourceLabel ? `这次先围绕「${sourceLabel}」安排学习。` : "这次会直接按画像建议安排学习。"}
+        {sourceLabel ? `这次先围绕「${sourceLabel}」安排学习。` : "这次会直接按学习建议安排学习。"}
         你可以直接创建路线，系统会先做前测，再给资源和练习。
       </p>
       {suggestedPrompt ? <p className="mt-2 rounded-md bg-white/75 px-3 py-2 text-sm leading-6 text-charcoal">{suggestedPrompt}</p> : null}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs leading-5 text-steel">不准也没关系，画像页随时能改。</p>
+        <p className="text-xs leading-5 text-steel">不准也没关系，学习记录页随时能改。</p>
         <a
           href="/memory"
           className="inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-white px-3 text-xs font-medium text-ink transition hover:border-brand-purple hover:text-brand-purple"
         >
-          回到画像页
+          回到记录页
         </a>
       </div>
     </motion.div>

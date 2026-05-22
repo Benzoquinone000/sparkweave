@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import base64
+from email.utils import formatdate
 import hashlib
 import hmac
 import json
-from email.utils import formatdate
 from typing import Any, AsyncGenerator
 from urllib.parse import urlencode, urlparse
 
 import websockets
-
 
 DEFAULT_IFLYTEK_WS_MODEL = "spark-x2"
 

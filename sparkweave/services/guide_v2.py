@@ -31,12 +31,15 @@ from sparkweave.services.guide_support.models import (
 from sparkweave.services.learning_effect import LearningEffectService, get_learning_effect_service
 from sparkweave.services.llm import complete as llm_complete
 from sparkweave.services.paths import get_path_service
-from sparkweave.services.tts import synthesize_speech_with_iflytek
+from sparkweave.services.tts import (
+    synthesize_speech_with_fallback as synthesize_speech_with_iflytek,
+)
 from sparkweave.services.video_search import recommend_learning_videos
 
 CompletionFn = Callable[..., Awaitable[str]]
 CapabilityRunnerFn = Callable[[str, Any], Awaitable[dict[str, Any]]]
 GuideResourceEventSink = Callable[[str, dict[str, Any]], None]
+_SAFE_STORAGE_SEGMENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class GuideV2Manager:
@@ -67,6 +70,11 @@ class GuideV2Manager:
         self.llm_options = dict(llm_options or {})
         self.logger = get_logger("GuideV2")
         self._sessions: dict[str, GuideSessionV2] = {}
+
+    @staticmethod
+    def _safe_storage_segment(value: str, *, fallback: str) -> str:
+        segment = _SAFE_STORAGE_SEGMENT_RE.sub("_", value).strip("._-")
+        return segment[:80] or fallback
 
     async def create_session(self, request: GuideV2CreateInput) -> dict[str, Any]:
         goal = request.goal.strip()
@@ -1864,6 +1872,7 @@ class GuideV2Manager:
             evaluation=evaluation,
             report=report if report.get("success") else {},
         )
+        iflytek_toolchain = self._course_iflytek_toolchain()
         presentation_outline = self._course_presentation_outline(
             session=session,
             evaluation=evaluation,
@@ -1872,6 +1881,7 @@ class GuideV2Manager:
             learning_style=learning_style,
             demo_blueprint=demo_blueprint,
             demo_seed_pack=demo_seed_pack,
+            iflytek_toolchain=iflytek_toolchain,
         )
         competition_submission = self._course_competition_submission(
             session=session,
@@ -1881,6 +1891,7 @@ class GuideV2Manager:
             demo_blueprint=demo_blueprint,
             demo_fallback_kit=demo_fallback_kit,
             demo_seed_pack=demo_seed_pack,
+            iflytek_toolchain=iflytek_toolchain,
         )
         recording_script = self._course_recording_script(
             session=session,
@@ -1888,6 +1899,7 @@ class GuideV2Manager:
             demo_blueprint=demo_blueprint,
             presentation_outline=presentation_outline,
             competition_submission=competition_submission,
+            iflytek_toolchain=iflytek_toolchain,
         )
         demo_preflight = self._course_demo_preflight(
             session=session,
@@ -1898,6 +1910,7 @@ class GuideV2Manager:
             presentation_outline=presentation_outline,
             recording_script=recording_script,
             competition_submission=competition_submission,
+            iflytek_toolchain=iflytek_toolchain,
         )
         ai_coding_statement = self._course_ai_coding_statement(
             session=session,
@@ -1955,6 +1968,7 @@ class GuideV2Manager:
             "competition_alignment": competition_alignment,
             "agent_collaboration_blueprint": agent_collaboration_blueprint,
             "defense_qa": defense_qa,
+            "iflytek_toolchain": iflytek_toolchain,
             "learning_report": {
                 "overall_score": evaluation.get("overall_score", 0),
                 "readiness": evaluation.get("readiness", "not_started"),
@@ -2028,7 +2042,12 @@ class GuideV2Manager:
                     learner_profile_hints=learner_profile_hints,
                 )
                 tts_result = await synthesize_speech_with_iflytek(script_text)
-                assets_dir = self.output_dir / "artifacts" / session_id / task_id
+                assets_dir = (
+                    self.output_dir
+                    / "artifacts"
+                    / self._safe_storage_segment(session_id, fallback="session")
+                    / self._safe_storage_segment(task_id, fallback="task")
+                )
                 assets_dir.mkdir(parents=True, exist_ok=True)
                 suffix = ".mp3" if "mpeg" in (tts_result.content_type or "") or tts_result.encoding == "lame" else ".bin"
                 filename = f"audio_{uuid.uuid4().hex[:10]}{suffix}"
@@ -3603,8 +3622,12 @@ class GuideV2Manager:
         criteria = item.get("success_criteria") or []
         if not isinstance(criteria, list):
             criteria = [str(criteria)]
+        task_id = self._safe_storage_segment(
+            str(item.get("task_id") or f"T{index}"),
+            fallback=f"T{index}",
+        )
         return LearningTask(
-            task_id=str(item.get("task_id") or f"T{index}"),
+            task_id=task_id,
             node_id=node_id,
             type=str(item.get("type") or "explain").strip() or "explain",
             title=title,
@@ -6753,6 +6776,7 @@ class GuideV2Manager:
         learning_style: dict[str, Any],
         demo_blueprint: dict[str, Any],
         demo_seed_pack: dict[str, Any],
+        iflytek_toolchain: dict[str, Any],
     ) -> dict[str, Any]:
         """Build a compact PPT outline for the competition defense deck."""
 
@@ -6779,6 +6803,9 @@ class GuideV2Manager:
         style_summary = learning_style.get("summary") or "系统根据目标、薄弱点和偏好组织学习推进方式。"
         score = int(evaluation.get("overall_score") or 0)
         progress = int(evaluation.get("progress") or 0)
+        iflytek_items = [item for item in iflytek_toolchain.get("items") or [] if isinstance(item, dict)]
+        iflytek_summary = str(iflytek_toolchain.get("summary") or "").strip()
+        iflytek_labels = "、".join(str(item.get("label") or "") for item in iflytek_items[:4] if item.get("label"))
 
         slides = [
             {
@@ -6804,10 +6831,11 @@ class GuideV2Manager:
             },
             {
                 "slide_no": 4,
-                "title": "多智能体协同生成资源",
-                "purpose": "对应赛题的多智能体资源生成要求。",
-                "evidence": f"资源链路覆盖：{resource_line}。",
-                "speaker_note": "讲清画像智能体、资源智能体、出题智能体和评估智能体如何接力。",
+                "title": "多智能体协同与讯飞工具链",
+                "purpose": "对应赛题的多智能体资源生成和科大讯飞工具使用要求。",
+                "evidence": f"资源链路覆盖：{resource_line}；讯飞能力落点：{iflytek_labels or '星火、Embedding、OCR、语音和工作流'}。",
+                "speaker_note": iflytek_summary
+                or "讲清画像智能体、资源智能体、出题智能体和评估智能体如何接力，并说明讯飞能力如何进入学习链。",
             },
             {
                 "slide_no": 5,
@@ -6850,6 +6878,7 @@ class GuideV2Manager:
         demo_blueprint: dict[str, Any],
         presentation_outline: dict[str, Any],
         competition_submission: dict[str, Any],
+        iflytek_toolchain: dict[str, Any],
     ) -> dict[str, Any]:
         """Create a 7-minute recording script from the demo route and deck outline."""
 
@@ -6857,6 +6886,9 @@ class GuideV2Manager:
         slides = [item for item in presentation_outline.get("slides") or [] if isinstance(item, dict)]
         next_action = competition_submission.get("next_action") or presentation_outline.get("next_action") or ""
         action_brief = dict(report.get("action_brief") or {})
+        iflytek_cues = [item for item in iflytek_toolchain.get("demo_cues") or [] if isinstance(item, dict)]
+        iflytek_mid_cue = str((iflytek_cues[1] if len(iflytek_cues) > 1 else {}).get("detail") or "").strip()
+        iflytek_close_cue = str((iflytek_cues[-1] if iflytek_cues else {}).get("detail") or "").strip()
         fallback_segments = [
             {
                 "minute": "0:00-0:45",
@@ -6873,7 +6905,7 @@ class GuideV2Manager:
             {
                 "minute": "2:00-4:00",
                 "screen": "生成或展示图解、练习、视频等资源",
-                "narration": "讲清楚画像智能体、资源智能体和评估智能体如何接力。",
+                "narration": iflytek_mid_cue or "讲清楚画像智能体、资源智能体和评估智能体如何接力，并说明讯飞多模态能力如何进入学习链。",
                 "backup": "优先使用课程包里的稳定资源或 Notebook 历史产物。",
             },
             {
@@ -6885,7 +6917,7 @@ class GuideV2Manager:
             {
                 "minute": "5:30-7:00",
                 "screen": "打开学习报告、PPT 骨架和比赛提交清单",
-                "narration": action_brief.get("summary") or "最后收束到学习效果评估、演示材料和比赛提交物。",
+                "narration": iflytek_close_cue or action_brief.get("summary") or "最后收束到学习效果评估、演示材料和比赛提交物。",
                 "backup": str(next_action or "提交前再跑一次完整演示和项目测试。"),
             },
         ]
@@ -6907,6 +6939,8 @@ class GuideV2Manager:
                 segments.extend(fallback_segments[len(segments) :])
         else:
             segments = fallback_segments
+        if iflytek_mid_cue and not any("讯飞" in str(item.get("narration") or "") for item in segments):
+            segments[2]["narration"] = iflytek_mid_cue
         return {
             "title": "7 分钟录屏讲稿",
             "summary": "把演示路线压缩成可直接照着录的分段讲稿，避免现场临时组织语言。",
@@ -6926,6 +6960,7 @@ class GuideV2Manager:
         presentation_outline: dict[str, Any],
         recording_script: dict[str, Any],
         competition_submission: dict[str, Any],
+        iflytek_toolchain: dict[str, Any],
     ) -> dict[str, Any]:
         """Summarize whether the current course package is ready for competition recording."""
 
@@ -6936,6 +6971,8 @@ class GuideV2Manager:
         submission_checklist = [
             item for item in competition_submission.get("checklist") or [] if isinstance(item, dict)
         ]
+        iflytek_items = [item for item in iflytek_toolchain.get("items") or [] if isinstance(item, dict)]
+        iflytek_cues = [item for item in iflytek_toolchain.get("demo_cues") or [] if isinstance(item, dict)]
 
         def status(ready: bool, seed: bool = False) -> str:
             if ready:
@@ -6994,6 +7031,13 @@ class GuideV2Manager:
                 "status": status(bool(recording_script.get("segments"))),
                 "evidence": f"已准备 {len(recording_script.get('segments') or [])} 段录屏讲稿。",
                 "action": "按录屏讲稿准备每段画面和兜底产物。",
+            },
+            {
+                "id": "iflytek_toolchain",
+                "label": "讯飞工具链证明",
+                "status": status(bool(iflytek_items and iflytek_cues)),
+                "evidence": f"已整理 {len(iflytek_items)} 类讯飞能力落点和 {len(iflytek_cues)} 段录屏讲法。",
+                "action": "补齐星火、Embedding、搜索、OCR、公式识别、图片理解、语音或星辰工作流的演示说明。",
             },
             {
                 "id": "submission",
@@ -7420,6 +7464,77 @@ class GuideV2Manager:
         }
 
     @staticmethod
+    def _course_iflytek_toolchain() -> dict[str, Any]:
+        """Return a stable iFLYTEK proof chain for competition demos."""
+
+        return {
+            "title": "科大讯飞工具链讲法",
+            "summary": "把讯飞能力压成一条评委能听懂的学习链：输入先结构化，资料可追溯，辅导可生成，过程可评估。",
+            "recording_tip": "开场讲接入，中段讲多模态输入进入 Agentic RAG 和智能辅导，收尾讲学习报告与资源推送闭环。",
+            "items": [
+                {
+                    "id": "spark",
+                    "label": "星火大模型",
+                    "landing": "LLM provider `iflytek_spark_ws`",
+                    "demo_value": "对话式辅导、资源生成、学习处方。",
+                    "demo_action": "展示学习页里的问答、路线和课程资源生成结果。",
+                },
+                {
+                    "id": "embedding",
+                    "label": "星火 Embedding",
+                    "landing": "Embedding provider `iflytek_spark`",
+                    "demo_value": "课程资料向量化，支撑私域资料问答。",
+                    "demo_action": "展示资料库入库后，回答能带回来源证据。",
+                },
+                {
+                    "id": "search",
+                    "label": "ONE SEARCH",
+                    "landing": "Search provider `iflytek_spark`",
+                    "demo_value": "补充公开资料、公开视频和外部学习资源。",
+                    "demo_action": "展示资源推荐或外部视频证据卡。",
+                },
+                {
+                    "id": "vision",
+                    "label": "OCR / 公式识别 / 图片理解",
+                    "landing": "OCR、`iflytek_formula_ocr`、`iflytek_image_understanding`",
+                    "demo_value": "讲义截图、题图公式、板书和实验图先结构化，再进入智能辅导。",
+                    "demo_action": "上传图片或公式题，说明识别结果如何进入解题和检索链路。",
+                },
+                {
+                    "id": "speech",
+                    "label": "ASR / TTS / 语音评测",
+                    "landing": "讯飞语音听写、TTS、ISE",
+                    "demo_value": "口述问题、语音讲解和口语练习反馈形成多模态学习记录。",
+                    "demo_action": "展示语音输入、讲解音频或语音评测结果如何写回报告。",
+                },
+                {
+                    "id": "workflow",
+                    "label": "星辰工作流",
+                    "landing": "`iflytek_workflow`",
+                    "demo_value": "把 PPT 大纲、课程资源生成或诊断报告封装成可复用流程。",
+                    "demo_action": "展示工作流工具调用结果，强调流程可复用、可替换。",
+                },
+            ],
+            "demo_cues": [
+                {
+                    "label": "开场",
+                    "tone": "brand",
+                    "detail": "打开学习页的比赛演示驾驶舱，说明星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和星辰工作流已经接到同一条学习链。",
+                },
+                {
+                    "label": "中段",
+                    "tone": "success",
+                    "detail": "展示资料上传、问资料、图片或公式题解析，强调多模态输入会先被讯飞能力结构化，再进入 Agentic RAG、智能辅导和资源生成。",
+                },
+                {
+                    "label": "收尾",
+                    "tone": "success",
+                    "detail": "展示学习报告、练习反馈、语音讲解或星辰工作流结果，说明系统把过程记录转成学习效果评估和下一步资源推送。",
+                },
+            ],
+        }
+
+    @staticmethod
     def _course_competition_submission(
         *,
         session: GuideSessionV2,
@@ -7429,6 +7544,7 @@ class GuideV2Manager:
         demo_blueprint: dict[str, Any],
         demo_fallback_kit: dict[str, Any],
         demo_seed_pack: dict[str, Any],
+        iflytek_toolchain: dict[str, Any],
     ) -> dict[str, Any]:
         """Map the course package to concrete competition deliverables."""
 
@@ -7441,6 +7557,8 @@ class GuideV2Manager:
         has_seed = bool(demo_seed_pack.get("task_chain") or demo_seed_pack.get("resource_prompts"))
         has_report = bool(report.get("action_brief") or report.get("effect_assessment"))
         has_template = bool(metadata.get("course_id") or metadata.get("learning_outcomes"))
+        iflytek_items = [item for item in iflytek_toolchain.get("items") or [] if isinstance(item, dict)]
+        iflytek_cues = [item for item in iflytek_toolchain.get("demo_cues") or [] if isinstance(item, dict)]
 
         def status(ready: bool, seed: bool = False) -> str:
             if ready:
@@ -7465,6 +7583,12 @@ class GuideV2Manager:
                 "status": status(demo_score >= 60, has_seed),
                 "evidence": f"录屏路线已围绕「{course_name}」生成，并准备了兜底材料。",
                 "action": "按录屏检查顺序演示：画像、导学、资源、练习、报告、产出包。",
+            },
+            {
+                "item": "科大讯飞工具链证明",
+                "status": status(bool(iflytek_items and iflytek_cues)),
+                "evidence": f"成果包已整理 {len(iflytek_items)} 类讯飞能力落点，并给出 7 分钟三段讲法。",
+                "action": "录屏时打开讯飞服务接入概览，说明星火、Embedding、搜索、OCR、语音和星辰工作流如何进入学习链。",
             },
             {
                 "item": "完整高校课程样例",
@@ -7651,6 +7775,9 @@ class GuideV2Manager:
         seed_prompts = [item for item in seed_pack.get("resource_prompts") or [] if isinstance(item, dict)]
         seed_artifacts = [item for item in seed_pack.get("sample_artifacts") or [] if isinstance(item, dict)]
         rehearsal_notes = [str(item) for item in seed_pack.get("rehearsal_notes") or []]
+        iflytek_toolchain = dict(package.get("iflytek_toolchain") or {})
+        iflytek_items = [item for item in iflytek_toolchain.get("items") or [] if isinstance(item, dict)]
+        iflytek_demo_cues = [item for item in iflytek_toolchain.get("demo_cues") or [] if isinstance(item, dict)]
         presentation_outline = dict(package.get("presentation_outline") or {})
         presentation_slides = [item for item in presentation_outline.get("slides") or [] if isinstance(item, dict)]
         competition_submission = dict(package.get("competition_submission") or {})
@@ -7822,6 +7949,27 @@ class GuideV2Manager:
                 lines.extend(["", "### 演示兜底", ""])
                 for item in demo_fallbacks[:4]:
                     lines.append(f"- {item}")
+        if iflytek_toolchain:
+            lines.extend(
+                [
+                    "",
+                    f"## {iflytek_toolchain.get('title') or '科大讯飞工具链讲法'}",
+                    "",
+                ]
+            )
+            lines.append(f"- 摘要：{iflytek_toolchain.get('summary') or '-'}")
+            lines.append(f"- 录屏提示：{iflytek_toolchain.get('recording_tip') or '-'}")
+            if iflytek_items:
+                lines.extend(["", "### 能力落点", ""])
+                for item in iflytek_items:
+                    lines.append(
+                        f"- {item.get('label') or '-'}：{item.get('demo_value') or '-'}"
+                        f"；落点：{item.get('landing') or '-'}；录屏动作：{item.get('demo_action') or '-'}"
+                    )
+            if iflytek_demo_cues:
+                lines.extend(["", "### 7 分钟讲法", ""])
+                for item in iflytek_demo_cues:
+                    lines.append(f"- {item.get('label') or '-'}：{item.get('detail') or '-'}")
         if demo_preflight:
             lines.extend(["", "## 赛前一键检查", ""])
             lines.append(f"- 状态：{md_status(demo_preflight.get('status'))}")

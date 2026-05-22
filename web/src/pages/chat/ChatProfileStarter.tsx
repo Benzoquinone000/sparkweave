@@ -60,35 +60,36 @@ export function ChatProfileStarter({
 
   return (
     <motion.div
-      className="mx-auto w-full max-w-3xl py-3 sm:py-4"
+      className="mx-auto w-full max-w-[820px] py-1 sm:py-2"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
       data-testid="chat-profile-starter"
     >
-      <section className="rounded-lg border border-line bg-white p-3.5 shadow-[0_6px_18px_rgba(15,15,15,0.03)] sm:p-4">
-        <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1fr)_250px]">
+      <section className="px-1 sm:px-2">
+        <p className="mb-2 text-xs font-semibold text-steel">今天先做这一步</p>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-steel">现在可以问</p>
-            <h2 className="mt-1.5 max-w-2xl text-xl font-semibold leading-tight text-ink sm:text-2xl">
+            <h2 className="dt-gemini-title mt-1.5 max-w-2xl text-lg font-semibold leading-tight text-ink sm:text-xl">
               {hasKnowledgeContext ? "你想问这份资料的哪一部分？" : "你想先解决什么问题？"}
             </h2>
-            <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-500">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               {hasKnowledgeContext
-                ? "直接输入问题即可。需要限定资料库、学习记录或回答方式时，点右下方的“资料与偏好”。"
-                : "可以直接提问；如果问题来自课件或论文，先上传资料，回答会更有依据。"}
+                ? "直接输入问题即可。需要限定资料库、学习记录或回答偏好时，点右下方的“资料与偏好”。"
+                : "可以直接提问；如果问题来自课件或论文，先上传资料，回答会更有来源可查。"}
             </p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2 grid gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
               {actions.map((item) => (
                 <QuickActionButton key={item.id} action={item} disabled={disabled} onQuickSend={onQuickSend} />
               ))}
             </div>
           </div>
 
-          <div className="rounded-lg border border-line bg-[#fbfbfa] p-3">
+          <div className="rounded-lg border border-line bg-white/90 p-2.5 shadow-[0_1px_2px_rgba(15,15,15,0.03)] sm:p-3">
             <p className="text-xs font-semibold text-steel">当前建议</p>
             <h3 className="mt-1.5 text-sm font-semibold leading-5 text-ink">{title}</h3>
-            <p className="mt-1.5 line-clamp-4 text-xs leading-5 text-slate-500">{summary}</p>
+            <p className="mt-1.5 hidden line-clamp-4 text-xs leading-5 text-slate-500 sm:block">{summary}</p>
             <div className="mt-2.5 flex flex-wrap gap-1.5 text-xs text-slate-500">
               <span className="rounded-md border border-line bg-white px-2 py-1">{Math.max(3, minutes)} 分钟</span>
               {directStartKnowledgeBases.length ? (
@@ -107,7 +108,7 @@ export function ChatProfileStarter({
                   type="button"
                   data-testid="chat-profile-start"
                   disabled={disabled}
-                  className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="dt-interactive inline-flex min-h-8 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-ink shadow-[0_1px_2px_rgba(15,15,15,0.025)] hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-9 sm:text-sm"
                   onClick={() =>
                     onQuickSend(directStartPrompt, directStartCapability, directStartConfig, {
                       knowledgeBases: selectedKnowledgeBases.length ? selectedKnowledgeBases : undefined,
@@ -117,14 +118,14 @@ export function ChatProfileStarter({
                   whileTap={disabled ? undefined : { scale: 0.99 }}
                 >
                   <BookOpenCheck size={16} />
-                  {hasRecommendation ? "按画像继续" : "概括资料"}
+                  {hasRecommendation ? "按建议继续" : "概括资料"}
                 </motion.button>
               ) : (
                 <motion.a
                   href="/guide"
                   data-testid="chat-profile-start"
-                  className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-ink px-3 text-sm font-medium text-white"
-                  whileHover={{ y: -1 }}
+                  className="dt-interactive inline-flex min-h-8 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-ink shadow-[0_1px_2px_rgba(15,15,15,0.025)] hover:bg-canvas sm:min-h-9 sm:text-sm"
+                  whileHover={{ y: -0.5 }}
                   whileTap={{ scale: 0.99 }}
                 >
                   <Route size={16} />
@@ -134,8 +135,8 @@ export function ChatProfileStarter({
               <motion.a
                 href={hasKnowledgeContext ? learningEffectAction?.href || guideHref(profile) : "/knowledge/create"}
                 data-testid="chat-profile-guide"
-                className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-medium text-charcoal hover:bg-canvas"
-                whileHover={{ y: -1 }}
+                className="dt-interactive inline-flex min-h-8 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-charcoal hover:bg-canvas sm:min-h-9 sm:text-sm"
+                whileHover={{ y: -0.5 }}
                 whileTap={{ scale: 0.99 }}
               >
                 {hasKnowledgeContext ? <Route size={16} /> : <UploadCloud size={16} />}
@@ -155,12 +156,12 @@ function quickActionsForProfile(profile: LearnerProfileSnapshot | undefined, has
     {
       id: "explain",
       label: hasKnowledgeContext ? "解释资料" : "讲清卡点",
-      description: hasKnowledgeContext ? "用资料里的依据解释概念。" : "用直觉、例子和一个自测题解释。",
+      description: hasKnowledgeContext ? "用资料里的来源解释概念。" : "用直觉、例子和一个自测题解释。",
       icon: Lightbulb,
       capability: "chat" as const,
       prompt: hasKnowledgeContext
-        ? "请结合已选择资料，解释我最应该先理解的核心概念。先讲直觉，再列出资料依据，最后给一个自测问题。"
-        : `请结合我的学习画像，用 5 分钟能读完的方式讲清楚：${topic}。先解释直觉，再给一个例子，最后给我一个自测问题。`,
+        ? "请结合已选择资料，解释我最应该先理解的核心概念。先讲直觉，再列出资料来源，最后给一个自测问题。"
+        : `请结合我的学习记录，用 5 分钟能读完的方式讲清楚：${topic}。先解释直觉，再给一个例子，最后给我一个自测问题。`,
     },
     {
       id: "practice",
@@ -224,7 +225,7 @@ function QuickActionButton({
       type="button"
       disabled={disabled}
       data-testid={`chat-profile-action-${action.id}`}
-      className={`dt-interactive flex min-h-12 items-start gap-2.5 rounded-lg border p-2 text-left text-ink disabled:cursor-not-allowed disabled:opacity-50 ${tone.card}`}
+      className={`dt-interactive flex min-h-11 items-start gap-2 rounded-lg border p-2 text-left text-ink shadow-[0_1px_2px_rgba(15,15,15,0.025)] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-14 sm:gap-2.5 sm:p-2.5 ${tone.card}`}
       onClick={() => onQuickSend(action.prompt, action.capability, action.config)}
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.99 }}
@@ -234,7 +235,7 @@ function QuickActionButton({
       </span>
       <span className="min-w-0">
         <span className="block text-xs font-semibold text-ink">{action.label}</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">{action.description}</span>
+        <span className="mt-1 hidden line-clamp-2 text-xs leading-5 text-slate-500 sm:block">{action.description}</span>
       </span>
     </motion.button>
   );
@@ -243,21 +244,21 @@ function QuickActionButton({
 function quickActionTone(actionId: string) {
   const tones: Record<string, { card: string; icon: string }> = {
     explain: {
-      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
-      icon: "bg-tint-sky text-brand-blue",
+      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
+      icon: "border border-line bg-white text-steel",
     },
     practice: {
-      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
-      icon: "bg-tint-yellow text-brand-orange",
+      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
+      icon: "border border-line bg-white text-steel",
     },
     video: {
-      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
-      icon: "bg-tint-rose text-brand-pink",
+      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
+      icon: "border border-line bg-white text-steel",
     },
     visual: {
-      card: "border-line bg-white hover:border-[#c8c4be] hover:bg-canvas",
-      icon: "bg-tint-mint text-brand-teal",
+      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
+      icon: "border border-line bg-white text-steel",
     },
   };
-  return tones[actionId] ?? { card: "border-line bg-white hover:border-brand-purple-300", icon: "bg-canvas text-brand-purple" };
+  return tones[actionId] ?? { card: "border-line bg-white/90 hover:border-[#d5dbe5]", icon: "border border-line bg-white text-steel" };
 }

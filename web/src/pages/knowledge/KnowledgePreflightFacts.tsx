@@ -35,12 +35,12 @@ export function RagPreflightFacts({
   const docker = isRecord(preflight?.docker) ? preflight?.docker : {};
   const diagnostic = isRecord(preflight?.diagnostic) ? preflight?.diagnostic : {};
   const checkTone = ready ? "success" : error ? "danger" : "warning";
-  const label = fetching ? "环境预检中" : error ? "环境预检失败" : preflight?.label || "环境预检";
+  const label = fetching ? "环境检查中" : error ? "环境检查失败" : preflight?.label || "环境检查";
   const summary = fetching
-    ? "正在确认检索服务、知识库索引和本地运行环境。"
+    ? "正在确认资料服务、引用片段和本地运行环境。"
     : error
       ? formatDiagnosticError(error)
-      : preflight?.summary || "预检会在创建验收知识库前确认环境是否可用。";
+      : preflight?.summary || "环境检查会在创建资料库前确认服务是否可用。";
 
   return (
     <div className="mt-3 rounded-lg border border-line bg-surface p-3" data-testid="knowledge-preflight-panel">
@@ -60,17 +60,17 @@ export function RagPreflightFacts({
           {ready ? (
             <Button tone="primary" className="min-h-8 px-3 text-xs" onClick={onOpenTest}>
               <Search size={14} />
-              提问预检
+              先试问
             </Button>
           ) : (
             <Button tone="primary" className="min-h-8 px-3 text-xs" onClick={onOpenRecovery}>
               <Wrench size={14} />
-              打开修复向导
+              打开整理向导
             </Button>
           )}
           <Button tone="secondary" className="min-h-8 bg-white px-3 text-xs" disabled={reindexing} onClick={onReindex}>
             {reindexing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            重建索引
+            重新整理资料
           </Button>
         </div>
       </div>
@@ -88,7 +88,7 @@ export function RagPreflightFacts({
 
       {commands.length ? (
         <div className="mt-3 rounded-lg border border-line bg-white p-3">
-          <p className="text-xs font-semibold text-ink">开发环境修复命令</p>
+          <p className="text-xs font-semibold text-ink">本地环境处理命令</p>
           <div className="mt-2 grid gap-2">
             {commands.map((command) => (
               <code key={command} className="block break-all rounded-md bg-surface px-2 py-1 text-xs leading-5 text-slate-700">

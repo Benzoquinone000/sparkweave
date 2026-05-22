@@ -23,11 +23,11 @@ export function formatErrorMessage(error: unknown) {
 
 export function knowledgeProviderLabel(value: unknown) {
   const raw = String(value || "").trim();
-  if (!raw) return "智能索引";
+  if (!raw) return "智能资料库";
   const normalized = raw.toLowerCase();
-  if (normalized.includes("milvus")) return "智能索引";
-  if (normalized.includes("llamaindex")) return "智能索引";
-  if (normalized.includes("mineru")) return "文档解析索引";
+  if (normalized.includes("milvus")) return "智能资料库";
+  if (normalized.includes("llamaindex")) return "智能资料库";
+  if (normalized.includes("mineru")) return "文档解析";
   return raw;
 }
 
@@ -44,7 +44,7 @@ export function formatProgressStage(stage: string | undefined) {
     failed: "失败",
     running: "处理中",
     processing: "处理中",
-    indexing: "建立索引",
+    indexing: "整理资料",
     completed: "已完成",
     queued: "排队中",
     uploaded: "已上传",
@@ -84,13 +84,13 @@ export function summarizeKnowledgePayload(payload: Record<string, unknown>) {
 
 function labelKnowledgeSummaryField(key: string) {
   const labels: Record<string, string> = {
-    rag_provider: "检索引擎",
-    provider: "检索引擎",
-    embedding_model: "检索模型",
+    rag_provider: "查找服务",
+    provider: "查找服务",
+    embedding_model: "查找模型",
     embedding_dim: "模型维度",
     embedding_dimension: "模型维度",
     chunk_count: "片段数",
-    node_count: "索引节点",
+    node_count: "引用片段",
     document_count: "文档数",
     file_count: "文件数",
     updated_at: "最近更新",
@@ -136,31 +136,31 @@ export function ragDiagnosticTone(
 }
 
 export function formatRagDiagnosticSummary(report?: RagDiagnostic) {
-  if (!report) return "点击检查后，会确认检索连接、索引记录和模型配置。";
+  if (!report) return "点击检查后，会确认资料连接、引用片段和模型配置。";
   if (report.status === "ok") {
     return report.collection_name
-      ? `检索连接正常，索引「${report.collection_name}」可用。`
-      : `检索连接正常，可见 ${report.collection_count ?? 0} 个索引。`;
+      ? `资料连接正常，资料库「${report.collection_name}」可用。`
+      : `资料连接正常，可见 ${report.collection_count ?? 0} 个资料库。`;
   }
   if (report.status === "warning") {
     const warning = report.checks?.find((check) => String(check.status).toLowerCase() === "warning");
-    return warning?.message || "索引可继续使用，但建议检查索引记录、名称或检索服务部署方式。";
+    return warning?.message || "资料库可继续使用，但建议检查引用片段、名称或资料服务部署方式。";
   }
   if (report.status === "error") {
     const error = report.checks?.find((check) => String(check.status).toLowerCase() === "error");
-    return error?.message || "检索连接失败，请检查服务地址和依赖。";
+    return error?.message || "资料连接失败，请检查服务地址和依赖。";
   }
   return `${knowledgeProviderLabel(report.provider || "milvus")} 已配置，点击检查连接可做完整验证。`;
 }
 
 export function formatRagCheckName(name: unknown) {
   const labels: Record<string, string> = {
-    marker: "索引标记",
-    collection: "索引集合",
+    marker: "资料标记",
+    collection: "资料集合",
     connection: "连接",
     dependency: "依赖",
     provider: "引擎",
-    milvus_lite: "本地检索库",
+    milvus_lite: "本地资料库",
   };
   const key = String(name || "");
   return labels[key] || key || "检查项";
@@ -168,5 +168,5 @@ export function formatRagCheckName(name: unknown) {
 
 export function formatDiagnosticError(error: unknown) {
   if (error instanceof Error) return error.message;
-  return "诊断请求失败，请稍后重试。";
+  return "检查请求失败，请稍后重试。";
 }

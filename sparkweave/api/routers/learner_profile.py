@@ -7,7 +7,10 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from sparkweave.services.learner_evidence import build_profile_calibration_event, get_learner_evidence_service
+from sparkweave.services.learner_evidence import (
+    build_profile_calibration_event,
+    get_learner_evidence_service,
+)
 from sparkweave.services.learner_profile import get_learner_profile_service
 
 router = APIRouter()

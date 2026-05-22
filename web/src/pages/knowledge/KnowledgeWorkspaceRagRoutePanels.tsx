@@ -56,7 +56,7 @@ export function KnowledgeWorkspaceRagRoutePanels({
       ) : null}
 
       {activeKb && workspace === "recovery" ? (
-        <Suspense fallback={<RagRouteLoading label="正在准备修复向导" />}>
+        <Suspense fallback={<RagRouteLoading label="正在准备整理向导" />}>
           <KnowledgeRecoveryPanel
             visible
             activeKb={activeKb}
@@ -69,7 +69,7 @@ export function KnowledgeWorkspaceRagRoutePanels({
       ) : null}
 
       {activeKb && workspace === "quality" ? (
-        <Suspense fallback={<RagRouteLoading label="正在准备 RAG 质量评测" />}>
+        <Suspense fallback={<RagRouteLoading label="正在准备来源检查" />}>
           <RagEvaluationCard
             report={quality.report}
             available={quality.available}
@@ -85,7 +85,7 @@ export function KnowledgeWorkspaceRagRoutePanels({
       ) : null}
 
       {activeKb && workspace === "test" ? (
-        <Suspense fallback={<RagRouteLoading label="正在准备检索测试" />}>
+        <Suspense fallback={<RagRouteLoading label="正在准备资料试问" />}>
           <RagSearchTestPanel
             activeKb={activeKb}
             query={ragTest.query}
@@ -122,7 +122,7 @@ export function KnowledgeWorkspaceRagRoutePanels({
 
 function RagRouteLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

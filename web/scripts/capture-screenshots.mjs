@@ -11,10 +11,10 @@ const desktop = { width: 1440, height: 900 };
 const mobile = { width: 390, height: 844, isMobile: true, hasTouch: true };
 
 const desktopShots = [
-  { route: "/guide", files: ["screenshots-guide.png"] },
-  { route: "/knowledge", files: ["screenshots-knowledge.png"] },
+  { route: "/guide", files: ["screenshots-guide.png"], settleMs: 5500 },
+  { route: "/knowledge", files: ["screenshots-knowledge.png"], settleMs: 6500 },
   { route: "/notebook", files: ["screenshots-notebook.png"] },
-  { route: "/settings", files: ["screenshots-settings.png"] },
+  { route: "/settings", files: ["screenshots-settings.png"], settleMs: 8000 },
   { route: "/chat", files: ["screenshots-chat.png"] },
   { route: "/question", files: ["screenshots-question.png"] },
   { route: "/memory", files: ["screenshots-memory.png"] },
@@ -25,9 +25,9 @@ const desktopShots = [
 ];
 
 const mobileShots = [
-  { route: "/guide", files: ["screenshots-mobile-guide.png"] },
+  { route: "/guide", files: ["screenshots-mobile-guide.png"], settleMs: 5500 },
   { route: "/chat", files: ["screenshots-mobile-chat.png"] },
-  { route: "/knowledge", files: ["screenshots-mobile-knowledge.png"] },
+  { route: "/knowledge", files: ["screenshots-mobile-knowledge.png"], settleMs: 6500 },
 ];
 
 async function main() {
@@ -106,7 +106,7 @@ async function captureGroup(browser, baseURL, viewport, shots) {
       await page.goto(`${baseURL}${shot.route}`, { waitUntil: "networkidle" });
       await page.evaluate(() => globalThis.document.fonts.ready);
       await shot.prepare?.(page);
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(Number(process.env.SCREENSHOT_SETTLE_MS || shot.settleMs || 900));
       for (const file of shot.files) {
         const target = path.join(root, file);
         await fs.mkdir(path.dirname(target), { recursive: true });

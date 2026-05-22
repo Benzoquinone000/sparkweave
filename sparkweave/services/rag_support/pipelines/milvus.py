@@ -393,8 +393,8 @@ class MilvusPipeline:
     def _extract_docx_text(self, file_path: Path) -> str:
         """Extract paragraphs from a DOCX file using only the standard library."""
         try:
-            import zipfile
             import xml.etree.ElementTree as ET
+            import zipfile
 
             with zipfile.ZipFile(file_path) as archive:
                 xml_bytes = archive.read("word/document.xml")

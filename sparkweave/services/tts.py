@@ -133,6 +133,14 @@ def is_iflytek_tts_configured() -> bool:
     return XfyunTtsConfig.from_env() is not None
 
 
+def is_tts_or_offline_fallback_available() -> bool:
+    if is_iflytek_tts_configured():
+        return True
+    from sparkweave.services.iflytek_offline import offline_fallback_enabled
+
+    return offline_fallback_enabled()
+
+
 async def synthesize_speech_with_iflytek(
     text: str,
     *,
@@ -213,6 +221,34 @@ async def synthesize_speech_with_iflytek(
         sid=sid or None,
         phonetic_text="".join(pybuf_parts).strip() or None,
     )
+
+
+async def synthesize_speech_with_fallback(
+    text: str,
+    *,
+    config: XfyunTtsConfig | None = None,
+) -> TtsSynthesisResult:
+    try:
+        return await synthesize_speech_with_iflytek(text, config=config)
+    except TtsUnavailable as exc:
+        from sparkweave.services.iflytek_offline import (
+            fallback_reason_text,
+            make_offline_tts_audio,
+            offline_fallback_enabled,
+        )
+
+        if not offline_fallback_enabled():
+            raise
+        audio = make_offline_tts_audio(text, sample_rate=16_000)
+        return TtsSynthesisResult(
+            audio=audio,
+            content_type="audio/wav",
+            encoding="offline_wav",
+            sample_rate=16_000,
+            voice="offline-iflytek-fallback",
+            sid=f"offline-tts-{len(audio)}",
+            phonetic_text=f"offline fallback: {fallback_reason_text(exc)}",
+        )
 
 
 def _build_tts_payload(config: XfyunTtsConfig, text: str) -> dict[str, Any]:
@@ -343,5 +379,7 @@ __all__ = [
     "XFYUN_TTS_VOICE",
     "XfyunTtsConfig",
     "is_iflytek_tts_configured",
+    "is_tts_or_offline_fallback_available",
+    "synthesize_speech_with_fallback",
     "synthesize_speech_with_iflytek",
 ]

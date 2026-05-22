@@ -1,14 +1,23 @@
 # SparkWeave 文档中心
 
-这里保留当前仓库中稳定、可维护的核心工程文档。根目录 [README.md](../README.md) 负责项目首屏说明；本页用现有 PNG 图把三条主线串起来。
+这里保留当前仓库中稳定、可维护的核心工程文档。根目录 [README.md](../README.md) 负责项目首屏说明；本页用现有 PNG 图和开发规范把项目主线串起来。
+参赛交付、7 分钟讲法、AI Coding 说明和 Docker 部署入口统一维护在根目录 README，避免 docs 目录再次堆积临时材料。
+
+所有核心文档都按代码事实维护：关键结论必须能对应真实路径、函数、API、数据文件、脚本、测试或前端组件；未落地内容只能放在“限制与待实现”，不能写成当前能力。
 
 ## 文档地图
 
 | 主线 | 图示 | 文档 |
 | --- | --- | --- |
 | Agent 编排 | ![SparkWeave 智能体编排主链路](./assets/agent-orchestration-overview.png) | [智能体编排设计](./agent-orchestration-design.md) |
-| Evidence RAG | ![SparkWeave RAG 系统总览](./assets/rag-system-overview.png) | [RAG 系统设计](./rag-system-design.md) |
+| Agentic Evidence RAG | ![SparkWeave RAG 系统总览](./assets/rag-system-overview.png) | [RAG 系统设计](./rag-system-design.md) |
 | 学习画像 / 记忆 | ![学习画像与记忆系统总览](./assets/learner-profile-memory-overview.png) | [学习画像 / 记忆设计](./learner-profile-memory-design.md) |
+| 开发规范 | - | [开发指南](./development-guide.md) |
+| 配置规范 | - | [配置指南](./configuration-guide.md) |
+| API 规范 | - | [API 开发规范](./api-development-guide.md) |
+| 测试规范 | - | [测试规范](./testing-guide.md) |
+| 前端设计规范 | - | [前端设计规范](./frontend-design-guide.md) |
+| 数据存储规范 | - | [数据存储规范](./data-storage-guide.md) |
 
 ## RAG 图集
 

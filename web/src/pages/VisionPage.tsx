@@ -58,7 +58,7 @@ function eventTitle(event: VisionEvent) {
   if (type === "text") return "正在讲解";
   if (type === "done") return "解题完成";
   if (type === "error") return "解题异常";
-  return "过程更新";
+  return "进度更新";
 }
 
 function eventContent(event: VisionEvent) {
@@ -68,8 +68,8 @@ function eventContent(event: VisionEvent) {
   if (typeof data.content === "string") return data.content;
   if (typeof data.message === "string") return data.message;
   if (typeof data.text === "string") return data.text;
-  if (typeof data.ggb_block === "object" && data.ggb_block) return "GeoGebra 指令块已生成";
-  if ("commands_count" in data) return `命令数：${String(data.commands_count)}`;
+  if (typeof data.ggb_block === "object" && data.ggb_block) return "作图指令已生成";
+  if ("commands_count" in data) return `指令数：${String(data.commands_count)}`;
   if ("elements_count" in data) return `识别元素：${String(data.elements_count)}`;
   if ("constraints_count" in data || "relations_count" in data) {
     return `约束 ${String(data.constraints_count ?? 0)} 条，关系 ${String(data.relations_count ?? 0)} 条`;
@@ -111,7 +111,7 @@ function ggbScriptFromEvent(event: VisionEvent) {
 }
 
 function statusLabel(status: RunStatus) {
-  if (status === "running") return "运行中";
+  if (status === "running") return "解析中";
   if (status === "complete") return "已完成";
   if (status === "error") return "异常";
   return "待开始";
@@ -140,7 +140,7 @@ export function VisionPage() {
   const notebookMutations = useNotebookMutations();
   const socketRef = useRef<WebSocket | null>(null);
 
-  const [question, setQuestion] = useState("根据图像分析这道几何题，并给出可用于 GeoGebra 复现的作图指令。");
+  const [question, setQuestion] = useState("根据图像分析这道几何题，并给出可复现的作图指令。");
   const [imageUrl, setImageUrl] = useState("");
   const [imageBase64, setImageBase64] = useState("");
   const [preview, setPreview] = useState("");
@@ -293,7 +293,7 @@ export function VisionPage() {
       title: "图像题解析",
       user_query: question.trim(),
       output,
-      summary: `识别 ${analysis?.analysis_summary?.elements_count ?? "-"} 个元素，生成 ${commands.length} 条 GeoGebra 指令。`,
+      summary: `识别 ${analysis?.analysis_summary?.elements_count ?? "-"} 个元素，生成 ${commands.length} 条作图指令。`,
       metadata: {
         source: "vision_lab",
         analysis,
@@ -303,10 +303,10 @@ export function VisionPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-canvas">
+    <div className="dt-dynamic-page h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-3.5 px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
         <motion.section
-          className="rounded-lg border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+          className="dt-page-header dt-page-header-accent-blue p-3.5"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
@@ -336,7 +336,7 @@ export function VisionPage() {
           transition={{ duration: 0.22, delay: 0.04 }}
         >
           <Metric label="处理状态" value={statusLabel(status)} detail="识别与讲解" icon={<Eye size={19} />} />
-          <Metric label="作图指令" value={commands.length} detail={ggbScript ? "可复制到 GeoGebra" : "等待解析"} icon={<ScanLine size={19} />} />
+          <Metric label="作图指令" value={commands.length} detail={ggbScript ? "可复制使用" : "等待解析"} icon={<ScanLine size={19} />} />
           <Metric label="题图" value={imageSource ? "已选择" : "未选择"} detail="支持上传或图片 URL" icon={<FileImage size={19} />} />
         </motion.section>
 
@@ -354,7 +354,7 @@ export function VisionPage() {
                   <TextArea
                     value={question}
                     onChange={(event) => setQuestion(event.target.value)}
-                    className="min-h-28"
+                    className="min-h-20"
                     data-testid="vision-question"
                   />
                 </FieldShell>
@@ -502,7 +502,7 @@ export function VisionPage() {
                   <AnimatePresence initial={false} mode="wait">
                     {!events.length ? (
                       <motion.p key="empty" className="text-slate-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                        普通解析不会产生流式轨迹；点击边解边看查看完整过程。
+                        普通解析只返回结果；点击边解边看可以查看实时记录。
                       </motion.p>
                     ) : (
                       <motion.div key="events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -534,7 +534,7 @@ export function VisionPage() {
             <Panel>
               <PanelHeader
                 title="作图指令"
-                description="可复制到 GeoGebra，或作为学习记录保存。"
+                description="可复制使用，也可以作为学习记录保存。"
                 action={commands.length ? <Badge tone="brand">{commands.length} 条</Badge> : null}
               />
               <div className="mt-4">
@@ -591,7 +591,7 @@ export function VisionPage() {
                       transition={{ duration: 0.18 }}
                     >
                       <CheckCircle2 size={16} />
-                      <span>解析完成后可先查看指令；边解边看会在这里输出完整讲解。</span>
+                      <span>解析完成后可先查看作图指令；边解边看会在这里输出完整讲解。</span>
                     </motion.div>
                   )}
                 </AnimatePresence>

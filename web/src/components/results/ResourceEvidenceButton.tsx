@@ -15,8 +15,8 @@ type ResourceEvidencePayload = Partial<LearnerEvidenceEvent> & {
 
 export function ResourceEvidenceButton({
   payload,
-  label = "有帮助，记入画像",
-  recordedLabel = "已记入学习证据",
+  label = "有帮助，记入学习记录",
+  recordedLabel = "已记入学习记录",
   testId,
 }: {
   payload: ResourceEvidencePayload;
@@ -44,7 +44,7 @@ export function ResourceEvidenceButton({
       setRecorded(true);
       invalidateLearningQueries(queryClient);
     } catch (recordError) {
-      setError(recordError instanceof Error ? recordError.message : "学习证据记录失败");
+      setError(recordError instanceof Error ? recordError.message : "学习记录保存失败");
     } finally {
       setRecording(false);
     }

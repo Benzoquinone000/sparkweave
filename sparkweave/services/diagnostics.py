@@ -2,10 +2,31 @@
 
 from __future__ import annotations
 
+import re
+
+
+_ASSIGNMENT_SECRET_RE = re.compile(
+    r"(?i)\b(api[_-]?key|api[_-]?secret|api[_-]?password|authorization|access[_-]?token|refresh[_-]?token|token|secret|password)\b"
+    r"(\s*[:=]\s*)([\"']?)([^\"'\s,;}&]+)([\"']?)"
+)
+_QUERY_SECRET_RE = re.compile(
+    r"(?i)([?&](?:api[_-]?key|api[_-]?secret|api[_-]?password|access[_-]?token|refresh[_-]?token|token|secret|password)=)[^&\s]+"
+)
+_BEARER_SECRET_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/:-]{6,}")
+
+
+def redact_sensitive_text(text: object) -> str:
+    """Remove obvious credential values from operator-facing diagnostics."""
+
+    value = str(text or "")
+    value = _QUERY_SECRET_RE.sub(r"\1[REDACTED]", value)
+    value = _BEARER_SECRET_RE.sub("Bearer [REDACTED]", value)
+    return _ASSIGNMENT_SECRET_RE.sub(r"\1\2\3[REDACTED]\5", value)
+
 
 def explain_provider_error(service: str, error: BaseException | str) -> str:
     """Return a short operator-facing explanation for common provider errors."""
-    text = str(error)
+    text = redact_sensitive_text(error)
     lower = text.lower()
     service_name = service.strip().lower()
 

@@ -14,6 +14,7 @@ MAX_CHAT_ATTACHMENT_BASE64_CHARS = 14_000_000
 MAX_CHAT_ATTACHMENT_FILENAME_CHARS = 180
 MAX_CHAT_ATTACHMENT_MIME_CHARS = 120
 MAX_CHAT_ATTACHMENT_URL_CHARS = 2_048
+MAX_CHAT_CANVAS_CONTEXT_CHARS = 60_000
 MAX_CHAT_CONFIG_JSON_CHARS = 100_000
 MAX_CHAT_REFERENCES_JSON_CHARS = 40_000
 
@@ -110,6 +111,42 @@ def normalize_attachments(value: Any) -> list[dict[str, str]]:
     return records
 
 
+def normalize_canvas_context(value: Any) -> dict[str, Any]:
+    if value in (None, "", False):
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError("canvas_context must be an object")
+    updated_at = value.get("updated_at") or value.get("updatedAt") or ""
+    if not isinstance(updated_at, (str, int, float)):
+        updated_at = ""
+    content = bounded_text(
+        value.get("content") or "",
+        field_name="canvas_context.content",
+        max_chars=MAX_CHAT_CANVAS_CONTEXT_CHARS,
+    )
+    if not content:
+        return {}
+    return {
+        "id": bounded_text(
+            value.get("id") or "",
+            field_name="canvas_context.id",
+            max_chars=MAX_CHAT_LABEL_CHARS,
+        ),
+        "message_id": bounded_text(
+            value.get("message_id") or value.get("messageId") or "",
+            field_name="canvas_context.message_id",
+            max_chars=MAX_CHAT_LABEL_CHARS,
+        ),
+        "title": bounded_text(
+            value.get("title") or "",
+            field_name="canvas_context.title",
+            max_chars=MAX_CHAT_LABEL_CHARS,
+        ),
+        "content": content,
+        "updated_at": updated_at,
+    }
+
+
 def normalize_turn_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Normalize and bound a runtime start-turn payload before execution."""
     if not isinstance(payload, dict):
@@ -143,6 +180,7 @@ def normalize_turn_payload(payload: dict[str, Any]) -> dict[str, Any]:
         field_name="history_references",
         max_chars=MAX_CHAT_SESSION_ID_CHARS,
     )
+    normalized["canvas_context"] = normalize_canvas_context(payload.get("canvas_context"))
     normalized["attachments"] = normalize_attachments(payload.get("attachments"))
 
     config = payload.get("config") if isinstance(payload.get("config"), dict) else {}

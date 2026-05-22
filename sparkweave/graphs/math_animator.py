@@ -33,9 +33,15 @@ from sparkweave.llm import chat_messages, create_chat_model
 from sparkweave.services import (
     TtsUnavailable,
     get_path_service,
-    is_iflytek_tts_configured,
+)
+from sparkweave.services import (
+    is_tts_or_offline_fallback_available as is_iflytek_tts_configured,
+)
+from sparkweave.services import (
     math_animator as math_services,
-    synthesize_speech_with_iflytek,
+)
+from sparkweave.services import (
+    synthesize_speech_with_fallback as synthesize_speech_with_iflytek,
 )
 
 MATH_ANIMATOR_SYSTEM_PROMPT = """\

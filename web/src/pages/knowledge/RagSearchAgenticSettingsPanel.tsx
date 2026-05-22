@@ -21,12 +21,12 @@ export function RagSearchAgenticSettingsPanel({
   onAgenticMinRelevantCoverageChange: (value: number) => void;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-canvas p-3">
+    <div className="rounded-lg border border-line bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-ink">深度检索设置</p>
+          <p className="text-sm font-semibold text-ink">来源策略</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            控制多路检索的上下文大小、来源上限和质量门槛，便于排查“资料已入库但回答找不到依据”的问题。
+            调整回答材料长度、来源数量和覆盖要求，确认资料放入后是否能稳定找到。
           </p>
         </div>
         <Badge tone={agentic === "off" ? "neutral" : agentic === "force" ? "brand" : "success"}>
@@ -34,7 +34,7 @@ export function RagSearchAgenticSettingsPanel({
         </Badge>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <FieldShell label="上下文预算">
+        <FieldShell label="回答材料">
           <SelectInput
             value={String(agenticMaxContextChars)}
             onChange={(event) => onAgenticMaxContextCharsChange(Number(event.target.value) || 5000)}
@@ -58,7 +58,7 @@ export function RagSearchAgenticSettingsPanel({
             <option value="16">16 条</option>
           </SelectInput>
         </FieldShell>
-        <FieldShell label="相关覆盖阈值">
+        <FieldShell label="覆盖要求">
           <SelectInput
             value={String(agenticMinRelevantCoverage)}
             onChange={(event) => onAgenticMinRelevantCoverageChange(Number(event.target.value) || 0.67)}

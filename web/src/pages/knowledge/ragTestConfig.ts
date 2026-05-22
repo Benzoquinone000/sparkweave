@@ -19,8 +19,8 @@ export type RagTestPanelView = "setup" | "summary" | "agentic" | "context" | "so
 export const RAG_TEST_PRESETS: RagTestPreset[] = [
   {
     id: "quick",
-    label: "快速排查",
-    description: "先确认基础召回是否可用。",
+    label: "快速确认",
+    description: "先看资料能否被稳定引用。",
     profile: "auto",
     mode: "hybrid",
     agentic: "off",
@@ -31,8 +31,8 @@ export const RAG_TEST_PRESETS: RagTestPreset[] = [
   },
   {
     id: "balanced",
-    label: "稳妥默认",
-    description: "适合日常知识库问答。",
+    label: "日常问资料",
+    description: "适合课件、笔记和论文问答。",
     profile: "auto",
     mode: "hybrid",
     agentic: "auto",
@@ -43,8 +43,8 @@ export const RAG_TEST_PRESETS: RagTestPreset[] = [
   },
   {
     id: "deep",
-    label: "深度追问",
-    description: "复杂问题优先拆分检索。",
+    label: "复杂问题",
+    description: "自动拆分问题，再合并多路来源。",
     profile: "broad",
     mode: "hybrid",
     agentic: "force",
@@ -71,22 +71,22 @@ export function matchRagTestPreset(settings: RagTestSettings) {
 
 export function formatRagTestPanelTitle(view: RagTestPanelView) {
   const labels: Record<RagTestPanelView, string> = {
-    setup: "提问预检",
-    summary: "检索结果",
-    agentic: "深度检索过程",
-    context: "召回上下文",
-    sources: "证据列表",
+    setup: "先试问一次",
+    summary: "查找结果",
+    agentic: "来源链路",
+    context: "回答材料",
+    sources: "来源列表",
   };
   return labels[view];
 }
 
 export function formatRagTestPanelDescription(view: RagTestPanelView) {
   const labels: Record<RagTestPanelView, string> = {
-    setup: "这里只检查资料库能否找到依据，不调用聊天生成。先选择方案，再查看实际召回了哪些证据。",
-    summary: "这里先给出结果概览，再进入更细的过程、上下文或来源页面。",
-    agentic: "查看多路检索如何拆分问题、评估质量、修复薄弱分支。",
-    context: "查看最终送入模型的参考文本，判断关键证据是否真的进入回答材料。",
-    sources: "逐条检查来源片段、相关度和命中关键词，定位索引或分块问题。",
+    setup: "先输入一个真实学习问题，系统只检查能否找到来源，不生成完整回答。",
+    summary: "先看来源是否够用，再进入链路、回答材料或来源页面。",
+    agentic: "查看系统如何拆分问题、合并来源并补强薄弱部分。",
+    context: "查看将用于回答的资料片段，判断关键来源是否真的进入回答材料。",
+    sources: "逐条检查来源片段、相关度和关键词，定位资料整理或切片问题。",
   };
   return labels[view];
 }

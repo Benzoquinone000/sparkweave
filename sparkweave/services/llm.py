@@ -41,26 +41,32 @@ API_PROVIDER_PRESETS = {
         "name": "OpenAI",
         "base_url": "https://api.openai.com/v1",
         "requires_key": True,
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "models": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-4.1-mini"],
     },
     "anthropic": {
         "name": "Anthropic",
         "base_url": "https://api.anthropic.com/v1",
         "requires_key": True,
         "binding": "anthropic",
-        "models": ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+        "models": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
     },
     "deepseek": {
         "name": "DeepSeek",
         "base_url": "https://api.deepseek.com",
         "requires_key": True,
-        "models": ["deepseek-chat", "deepseek-reasoner"],
+        "models": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
     },
     "openrouter": {
         "name": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
         "requires_key": True,
         "models": [],
+    },
+    "iflytek_maas_coding": {
+        "name": "iFlytek MaaS Coding",
+        "base_url": "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2",
+        "requires_key": True,
+        "models": ["astron-code-latest"],
     },
 }
 
@@ -104,6 +110,8 @@ CLOUD_DOMAINS = [
     ".fireworks.ai",
     ".groq.com",
     ".perplexity.ai",
+    ".xf-yun.com",
+    ".xfyun.cn",
 ]
 
 LOCAL_PORTS = [
@@ -181,6 +189,13 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, object]] = {
         "system_in_messages": True,
     },
     "iflytek_spark_ws": {
+        "supports_response_format": False,
+        "supports_streaming": True,
+        "supports_tools": False,
+        "supports_vision": False,
+        "system_in_messages": True,
+    },
+    "iflytek_maas_coding": {
         "supports_response_format": False,
         "supports_streaming": True,
         "supports_tools": False,

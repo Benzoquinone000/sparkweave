@@ -2,6 +2,7 @@ import {
   BarChart3,
   BookOpenCheck,
   BrainCircuit,
+  FilePenLine,
   FileQuestion,
   FlaskConical,
   GraduationCap,
@@ -30,18 +31,30 @@ export interface CapabilityDefinition {
 export const CAPABILITIES: CapabilityDefinition[] = [
   {
     id: "chat",
-    label: "即时答疑",
-    shortLabel: "对话",
-    description: "面向日常学习、资料追问和推理解释的轻量模式。",
+    label: "自动导学",
+    shortLabel: "自动",
+    description: "直接说学习目标，系统自动选择资料查找、解题、出题、图片/视频查找或动画生成。",
     icon: MessageSquareText,
-    tools: ["rag", "web_search", "external_video_search", "external_image_search", "paper_search", "code_execution", "reason"],
+    tools: [
+      "canvas",
+      "rag",
+      "web_search",
+      "external_video_search",
+      "external_image_search",
+      "iflytek_workflow",
+      "iflytek_formula_ocr",
+      "iflytek_image_understanding",
+      "paper_search",
+      "code_execution",
+      "reason",
+    ],
     config: {},
   },
   {
     id: "deep_solve",
     label: "深度求解",
     shortLabel: "求解",
-    description: "规划、调用工具、验证并写出结构化解答。",
+    description: "规划求解，必要时查找资料验证，并写出结构化解答。",
     icon: BrainCircuit,
     tools: ["rag", "web_search", "code_execution", "reason"],
     config: { detailed_answer: true },
@@ -66,7 +79,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
     id: "deep_research",
     label: "深度研究",
     shortLabel: "研究",
-    description: "拆解主题、检索证据并生成学习报告。",
+    description: "拆解主题、查找资料并生成学习报告。",
     icon: Search,
     tools: ["rag", "web_search", "paper_search", "code_execution"],
     config: {
@@ -88,7 +101,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
     id: "math_animator",
     label: "数学动画",
     shortLabel: "动画",
-    description: "生成 Manim 代码与动画渲染结果。",
+    description: "生成动画脚本与视频结果。",
     icon: SquareFunction,
     tools: [],
     config: {
@@ -102,13 +115,17 @@ export const CAPABILITIES: CapabilityDefinition[] = [
 ];
 
 export const TOOL_OPTIONS = [
-  { id: "rag", label: "知识库", icon: BookOpenCheck },
-  { id: "web_search", label: "联网检索", icon: Search },
+  { id: "rag", label: "资料库", icon: BookOpenCheck },
+  { id: "canvas", label: "文档画布", icon: FilePenLine },
+  { id: "web_search", label: "联网查找", icon: Search },
   { id: "external_video_search", label: "精选视频", icon: Video },
   { id: "external_image_search", label: "精选图片", icon: Images },
-  { id: "paper_search", label: "论文检索", icon: GraduationCap },
-  { id: "code_execution", label: "代码执行", icon: FlaskConical },
-  { id: "reason", label: "深度推理", icon: Sparkles },
+  { id: "iflytek_workflow", label: "讯飞工作流", icon: Sparkles },
+  { id: "iflytek_formula_ocr", label: "讯飞公式识别", icon: SquareFunction },
+  { id: "iflytek_image_understanding", label: "讯飞图片理解", icon: Images },
+  { id: "paper_search", label: "论文查找", icon: GraduationCap },
+  { id: "code_execution", label: "代码演算", icon: FlaskConical },
+  { id: "reason", label: "认真推导", icon: Sparkles },
   { id: "brainstorm", label: "头脑风暴", icon: PenTool },
 ];
 
@@ -117,14 +134,35 @@ export function getCapability(id: CapabilityId) {
 }
 
 export function capabilityLabel(id: string | null | undefined) {
-  if (id === "external_video_search") return "精选视频工具";
-  if (id === "external_image_search") return "精选图片工具";
+  if (id === "external_video_search") return "精选视频";
+  if (id === "external_image_search") return "精选图片";
+  if (id === "iflytek_workflow") return "讯飞工作流";
+  if (id === "iflytek_formula_ocr") return "讯飞公式识别";
+  if (id === "iflytek_image_understanding") return "讯飞图片理解";
   const capability = CAPABILITIES.find((item) => item.id === id);
   return capability?.label || id || "聊天";
 }
 
 export function defaultToolsForCapability(id: CapabilityId) {
-  return getCapability(id).tools.slice(0, id === "chat" ? 3 : 3);
+  const tools = getCapability(id).tools;
+  if (id === "chat") {
+    return tools.filter((tool) =>
+      [
+        "canvas",
+        "rag",
+        "web_search",
+        "external_video_search",
+        "external_image_search",
+        "iflytek_workflow",
+        "iflytek_formula_ocr",
+        "iflytek_image_understanding",
+        "paper_search",
+        "code_execution",
+        "reason",
+      ].includes(tool),
+    );
+  }
+  return tools.slice();
 }
 
 export function defaultConfigForCapability(id: CapabilityId, content: string) {

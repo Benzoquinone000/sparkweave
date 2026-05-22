@@ -48,7 +48,7 @@ export function KnowledgeProgressPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-tint-lavender px-3 py-3" data-testid="knowledge-progress-toggle">
         <div>
-          <h2 className="text-base font-semibold text-ink">索引进度</h2>
+          <h2 className="text-base font-semibold text-ink">处理进度</h2>
           <p className="mt-1 text-sm text-slate-500">导入资料后查看处理过程。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

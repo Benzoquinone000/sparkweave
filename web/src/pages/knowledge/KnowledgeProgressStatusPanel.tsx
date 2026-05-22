@@ -63,7 +63,7 @@ function formatTaskType(value: string) {
   const labels: Record<string, string> = {
     kb_create: "创建资料库",
     kb_upload: "上传资料",
-    kb_reindex: "重建索引",
+    kb_reindex: "重新整理资料",
     kb_sync_folder: "同步文件夹",
     kb_test: "测试任务",
   };

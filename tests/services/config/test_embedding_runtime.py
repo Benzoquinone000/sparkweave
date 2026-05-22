@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from sparkweave.services import config as config_module
-from sparkweave.services.config import EnvStore, ModelCatalogService, resolve_embedding_runtime_config
+from sparkweave.services.config import (
+    EnvStore,
+    ModelCatalogService,
+    resolve_embedding_runtime_config,
+)
 
 
 def _build_catalog(

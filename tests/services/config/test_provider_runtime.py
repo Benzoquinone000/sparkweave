@@ -8,6 +8,7 @@ import pytest
 
 from sparkweave.services.config import (
     EnvStore,
+    ModelCatalogService,
     resolve_llm_runtime_config,
     resolve_search_runtime_config,
 )
@@ -74,6 +75,7 @@ def _empty_env(tmp_path: Path) -> EnvStore:
                 "IFLYTEK_API_KEY=",
                 "IFLYTEK_API_SECRET=",
                 "IFLYTEK_API_PASSWORD=",
+                "IFLYTEK_MAAS_API_PASSWORD=",
                 "SILICONFLOW_API_KEY=",
                 "SEARCH_PROVIDER=",
                 "SEARCH_API_KEY=",
@@ -244,6 +246,31 @@ def test_llm_api_base_keyword_gateway(tmp_path: Path) -> None:
     assert resolved.extra_headers == {"APP-Code": "x"}
 
 
+def test_llm_iflytek_maas_coding_resolves_from_base_and_env_key(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    with env.path.open("a", encoding="utf-8") as handle:
+        handle.write("IFLYTEK_MAAS_API_PASSWORD=maas-password\n")
+
+    catalog = _build_catalog(
+        llm_profile={
+            "id": "llm-p",
+            "name": "LLM",
+            "binding": "",
+            "base_url": "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [{"id": "llm-m", "name": "astron", "model": "astron-code-latest"}],
+        }
+    )
+    resolved = resolve_llm_runtime_config(catalog=catalog, env_store=env)
+    assert resolved.provider_name == "iflytek_maas_coding"
+    assert resolved.provider_mode == "direct"
+    assert resolved.model == "astron-code-latest"
+    assert resolved.api_key == "maas-password"
+    assert resolved.effective_url == "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2"
+
+
 def test_llm_local_fallback(tmp_path: Path) -> None:
     catalog = _build_catalog(
         llm_profile={
@@ -386,6 +413,261 @@ def test_env_store_renders_shared_iflytek_credentials_to_all_iflytek_services(tm
     assert rendered["SEARCH_API_KEY"] == ""
     assert rendered["IFLYTEK_OCR_APPID"] == ""
     assert rendered["IFLYTEK_TTS_API_KEY"] == ""
+    assert rendered["IFLYTEK_ASR_API_KEY"] == ""
+    assert rendered["IFLYTEK_SPEECH_EVAL_API_SECRET"] == ""
+
+
+def test_env_store_renders_iflytek_speech_services_from_catalog(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-ak",
+            "api_secret": "shared-sk",
+            "api_password": "",
+        },
+        "siliconflow": {"api_key": ""},
+    }
+    catalog["services"]["asr"] = {
+        "active_profile_id": "asr-p",
+        "profiles": [
+            {
+                "id": "asr-p",
+                "name": "ASR",
+                "provider": "iflytek",
+                "base_url": "wss://iat-api.xfyun.cn/v2/iat",
+                "api_key": "",
+                "timeout": "45",
+                "extra_headers": {
+                    "language": "zh_cn",
+                    "accent": "mandarin",
+                    "domain": "iat",
+                    "vad_eos": "2400",
+                },
+                "models": [],
+            }
+        ],
+    }
+    catalog["services"]["speech_eval"] = {
+        "active_profile_id": "speech-eval-p",
+        "profiles": [
+            {
+                "id": "speech-eval-p",
+                "name": "Speech Evaluation",
+                "provider": "iflytek",
+                "base_url": "wss://ise-api.xfyun.cn/v2/open-ise",
+                "api_key": "",
+                "timeout": "50",
+                "extra_headers": {
+                    "category": "read_chapter",
+                    "language": "zh_cn",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_ASR_PROVIDER"] == "iflytek"
+    assert rendered["SPARKWEAVE_ASR_TIMEOUT"] == "45"
+    assert rendered["IFLYTEK_ASR_API_KEY"] == ""
+    assert rendered["IFLYTEK_ASR_VAD_EOS"] == "2400"
+    assert rendered["SPARKWEAVE_SPEECH_EVAL_PROVIDER"] == "iflytek"
+    assert rendered["SPARKWEAVE_SPEECH_EVAL_TIMEOUT"] == "50"
+    assert rendered["IFLYTEK_SPEECH_EVAL_API_KEY"] == ""
+    assert rendered["IFLYTEK_SPEECH_EVAL_CATEGORY"] == "read_chapter"
+
+
+def test_env_store_renders_independent_iflytek_speech_credentials(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-ak",
+            "api_secret": "shared-sk",
+            "api_password": "",
+        },
+        "siliconflow": {"api_key": ""},
+    }
+    catalog["services"]["asr"] = {
+        "active_profile_id": "asr-p",
+        "profiles": [
+            {
+                "id": "asr-p",
+                "name": "ASR",
+                "provider": "iflytek",
+                "base_url": "wss://iat-api.xfyun.cn/v2/iat",
+                "api_key": "asr-ak",
+                "timeout": "45",
+                "extra_headers": {
+                    "app_id": "asr-appid",
+                    "api_secret": "asr-sk",
+                    "language": "zh_cn",
+                    "accent": "mandarin",
+                    "domain": "iat",
+                    "vad_eos": "2400",
+                },
+                "models": [],
+            }
+        ],
+    }
+    catalog["services"]["speech_eval"] = {
+        "active_profile_id": "speech-eval-p",
+        "profiles": [
+            {
+                "id": "speech-eval-p",
+                "name": "Speech Evaluation",
+                "provider": "iflytek",
+                "base_url": "wss://ise-api.xfyun.cn/v2/open-ise",
+                "api_key": "eval-ak",
+                "timeout": "50",
+                "extra_headers": {
+                    "app_id": "eval-appid",
+                    "api_secret": "eval-sk",
+                    "category": "read_chapter",
+                    "language": "zh_cn",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["IFLYTEK_APPID"] == "shared-appid"
+    assert rendered["IFLYTEK_API_KEY"] == "shared-ak"
+    assert rendered["IFLYTEK_ASR_APPID"] == "asr-appid"
+    assert rendered["IFLYTEK_ASR_API_KEY"] == "asr-ak"
+    assert rendered["IFLYTEK_ASR_API_SECRET"] == "asr-sk"
+    assert rendered["IFLYTEK_SPEECH_EVAL_APPID"] == "eval-appid"
+    assert rendered["IFLYTEK_SPEECH_EVAL_API_KEY"] == "eval-ak"
+    assert rendered["IFLYTEK_SPEECH_EVAL_API_SECRET"] == "eval-sk"
+
+
+def test_model_catalog_strips_only_duplicate_shared_iflytek_credentials(tmp_path: Path) -> None:
+    service = ModelCatalogService(path=tmp_path / "model_catalog.json")
+    catalog = _build_catalog()
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-ak",
+            "api_secret": "shared-sk",
+            "api_password": "",
+        },
+        "siliconflow": {"api_key": ""},
+    }
+    catalog["services"]["asr"] = {
+        "active_profile_id": "asr-p",
+        "profiles": [
+            {
+                "id": "asr-p",
+                "name": "ASR",
+                "provider": "iflytek",
+                "base_url": "wss://iat-api.xfyun.cn/v2/iat",
+                "api_key": "asr-ak",
+                "extra_headers": {"app_id": "asr-appid", "api_secret": "asr-sk"},
+                "models": [],
+            }
+        ],
+    }
+    catalog["services"]["speech_eval"] = {
+        "active_profile_id": "speech-eval-p",
+        "profiles": [
+            {
+                "id": "speech-eval-p",
+                "name": "Speech Evaluation",
+                "provider": "iflytek",
+                "base_url": "wss://ise-api.xfyun.cn/v2/open-ise",
+                "api_key": "shared-ak",
+                "extra_headers": {"app_id": "shared-appid", "api_secret": "shared-sk"},
+                "models": [],
+            }
+        ],
+    }
+
+    changed = service._strip_shared_credentials_from_profiles(catalog)
+
+    asr = catalog["services"]["asr"]["profiles"][0]
+    speech_eval = catalog["services"]["speech_eval"]["profiles"][0]
+    assert changed is True
+    assert asr["api_key"] == "asr-ak"
+    assert asr["extra_headers"]["app_id"] == "asr-appid"
+    assert asr["extra_headers"]["api_secret"] == "asr-sk"
+    assert speech_eval["api_key"] == ""
+    assert speech_eval["extra_headers"]["app_id"] == ""
+    assert speech_eval["extra_headers"]["api_secret"] == ""
+
+
+def test_env_store_renders_iflytek_visual_services_from_catalog(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-ak",
+            "api_secret": "shared-sk",
+            "api_password": "",
+        },
+        "siliconflow": {"api_key": ""},
+    }
+    catalog["services"]["formula_ocr"] = {
+        "active_profile_id": "formula-p",
+        "profiles": [
+            {
+                "id": "formula-p",
+                "name": "Formula",
+                "provider": "iflytek",
+                "base_url": "https://rest-api.xfyun.cn/v2/itr",
+                "api_key": "",
+                "timeout": "35",
+                "extra_headers": {
+                    "app_id": "",
+                    "api_secret": "",
+                    "ent": "teach-photo-hand",
+                    "aue": "raw",
+                },
+                "models": [],
+            }
+        ],
+    }
+    catalog["services"]["image_understanding"] = {
+        "active_profile_id": "image-p",
+        "profiles": [
+            {
+                "id": "image-p",
+                "name": "Image",
+                "provider": "iflytek",
+                "base_url": "wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image",
+                "api_key": "",
+                "timeout": "50",
+                "extra_headers": {
+                    "app_id": "",
+                    "api_secret": "",
+                    "protocol": "spark_image",
+                    "domain": "imagev3",
+                    "max_tokens": "1024",
+                    "temperature": "0.1",
+                    "top_k": "3",
+                    "uid": "sparkweave-test",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_FORMULA_OCR_PROVIDER"] == "iflytek"
+    assert rendered["IFLYTEK_FORMULA_API_KEY"] == ""
+    assert rendered["IFLYTEK_FORMULA_ENT"] == "teach-photo-hand"
+    assert rendered["IFLYTEK_FORMULA_TIMEOUT"] == "35"
+    assert rendered["SPARKWEAVE_IMAGE_UNDERSTANDING_PROVIDER"] == "iflytek"
+    assert rendered["IFLYTEK_VISION_API_KEY"] == ""
+    assert rendered["IFLYTEK_VISION_MAX_TOKENS"] == "1024"
+    assert rendered["IFLYTEK_VISION_UID"] == "sparkweave-test"
 
 
 def test_env_store_renders_shared_siliconflow_key_to_ocr_and_embedding(tmp_path: Path) -> None:

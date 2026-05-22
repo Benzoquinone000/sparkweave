@@ -90,7 +90,7 @@ export function KnowledgeActiveOverviewPanel({
     : null;
 
   return (
-    <section className={KNOWLEDGE_PANEL_LOOSE_CLASS}>
+    <section className={KNOWLEDGE_PANEL_LOOSE_CLASS} data-testid="knowledge-detail-panel">
       <KnowledgeOverviewHeader
         activeKb={activeKb}
         reindexing={reindexing}

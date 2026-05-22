@@ -4,19 +4,28 @@ SparkBot management API.
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel, ValidationError
 
 from sparkweave.services.sparkbot import (
     BotConfig,
     ChannelsConfig,
-    SparkBotCronSchedule,
     SparkBotAgentConfig,
+    SparkBotCronSchedule,
     SparkBotHeartbeatConfig,
     SparkBotInstance,
     SparkBotToolsConfig,
@@ -492,7 +501,10 @@ async def read_bot_file(bot_id: str, filename: str):
 
 @router.put("/{bot_id}/files/{filename}")
 async def write_bot_file(bot_id: str, filename: str, payload: FileUpdateRequest):
-    ok = get_sparkbot_manager().write_bot_file(bot_id, filename, payload.content)
+    try:
+        ok = get_sparkbot_manager().write_bot_file(bot_id, filename, payload.content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     if not ok:
         raise HTTPException(status_code=400, detail=f"Not an editable file: {filename}")
     return {"filename": filename, "saved": True}

@@ -5,7 +5,7 @@ const MAX_RAG_TEST_QUERY_CHARS = 2_000;
 const RAG_TEST_QUERY_SUGGESTIONS = [
   {
     label: "概括主题",
-    query: "请概括这个资料库最核心的学习主题，并给出依据。",
+    query: "请概括这个资料库最核心的学习主题，并说明来源。",
   },
   {
     label: "提取概念",
@@ -25,17 +25,17 @@ export function RagSearchQueryField({
   onQueryChange: (value: string) => void;
 }) {
   return (
-    <FieldShell label="问题" hint={`${query.length}/${MAX_RAG_TEST_QUERY_CHARS}`}>
+    <FieldShell label="想问资料什么？" hint={`${query.length}/${MAX_RAG_TEST_QUERY_CHARS}`}>
       <TextArea
         value={query}
         maxLength={MAX_RAG_TEST_QUERY_CHARS}
         onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="输入一个你希望资料库回答的问题，或先选择下方模板"
-        className="min-h-24"
+        placeholder="输入一个真实学习问题，系统会先检查能否找到可靠来源"
+        className="min-h-20"
         data-testid="knowledge-rag-test-query"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs leading-5 text-steel">快速填入</span>
+        <span className="text-xs leading-5 text-steel">示例</span>
         {RAG_TEST_QUERY_SUGGESTIONS.map((item) => (
           <button
             key={item.label}

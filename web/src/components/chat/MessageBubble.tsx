@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Check, Copy, FileText, Save, UserRound } from "lucide-react";
+import { Bot, Check, Copy, FilePenLine, FileText, Save, UserRound } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 
 import { RagRetrievalStatus } from "@/components/chat/RagRetrievalStatus";
@@ -15,6 +15,7 @@ import {
   extractVisualizeResult,
 } from "@/lib/capabilityResults";
 import { capabilityLabel } from "@/lib/capabilities";
+import { getCanvasDocumentFromMessage, type ChatCanvasDocument } from "@/lib/chatCanvas";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
 import { hasNotebookAssetOutput } from "@/lib/notebookAssets";
 import { extractQuizQuestions } from "@/lib/quiz";
@@ -31,10 +32,12 @@ const RagEvidenceChain = lazy(() =>
 
 export function MessageBubble({
   message,
+  onOpenCanvas,
   onSave,
   sessionId,
 }: {
   message: ChatMessage;
+  onOpenCanvas?: (document: ChatCanvasDocument) => void;
   onSave?: (message: ChatMessage) => void;
   sessionId?: string | null;
 }) {
@@ -55,6 +58,11 @@ export function MessageBubble({
   const externalImageResult = !isUser ? extractExternalImageResult(resultEvent?.metadata) : null;
   const hasNarratedMathVideo = Boolean(mathAnimatorResult?.audio_narration?.video?.asset_url);
   const canSaveAsset = !isUser && hasNotebookAssetOutput(message);
+  const canvasDocument = useMemo(
+    () => (!isUser ? getCanvasDocumentFromMessage(message, { mode: "manual" }) : null),
+    [isUser, message],
+  );
+  const showAssistantActions = !isUser && (Boolean(displayContent) || canSaveAsset || Boolean(canvasDocument));
 
   return (
     <motion.article
@@ -78,8 +86,19 @@ export function MessageBubble({
             {effectiveCapability ? <Badge tone="neutral">{capabilityLabel(effectiveCapability)}</Badge> : null}
             {hasNarratedMathVideo ? <Badge tone="success">带旁白成片</Badge> : null}
             {message.attachments?.length ? <Badge tone="warning">{message.attachments.length} 个附件</Badge> : null}
-            {!isUser && (displayContent || canSaveAsset) ? (
-              <div className="ml-auto flex gap-2">
+            {showAssistantActions ? (
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                {onOpenCanvas && canvasDocument ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenCanvas(canvasDocument)}
+                    aria-label="在画布中编辑"
+                    className="inline-flex min-h-7 items-center gap-1 rounded-md border border-line bg-white px-2 text-xs text-steel transition hover:border-[#c8c4be] hover:text-brand-purple"
+                  >
+                    <FilePenLine size={13} />
+                    画布
+                  </button>
+                ) : null}
                 {displayContent ? <CopyButton content={displayContent} /> : null}
                 {onSave && canSaveAsset ? (
                   <button

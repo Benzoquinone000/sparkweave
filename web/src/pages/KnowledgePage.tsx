@@ -74,6 +74,7 @@ export function KnowledgePage() {
     [backendDefaultName, bases],
   );
   const [selectedKb, setSelectedKb] = useState(() => knowledgeBaseNameFromSearch(location.search));
+  const routeTaskId = searchParamValue(location.search, "task");
   const view = routeState.view;
   const workspace = routeState.workspace;
   const [createName, setCreateName] = useState("");
@@ -163,6 +164,14 @@ export function KnowledgePage() {
     activeKb,
     onTerminalProgress: refetchActiveKnowledgeArtifacts,
   });
+
+  useEffect(() => {
+    if (!routeTaskId || taskId === routeTaskId) return;
+    const kbName = activeKb || selectedKb;
+    if (!kbName) return;
+    const timer = window.setTimeout(() => beginTask(routeTaskId, kbName), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeKb, beginTask, routeTaskId, selectedKb, taskId]);
   const taskStatus = useKnowledgeTaskStatus(taskId);
   const activeConfig = kbConfig.data?.config;
   const liveProgress = wsProgress ?? taskProgress ?? progress.data;
@@ -262,12 +271,12 @@ export function KnowledgePage() {
   }, [activeKb, navigate]);
 
   const navigateToWorkspace = useCallback(
-    (nextWorkspace: KnowledgeWorkspace, kbName = activeKb) => {
+    (nextWorkspace: KnowledgeWorkspace, kbName = activeKb, nextTaskId?: string | null) => {
       if (nextWorkspace === "overview") {
         void navigate({ to: "/knowledge", search: knowledgeSearch(kbName) });
         return;
       }
-      void navigate({ to: "/knowledge/$workspace", params: { workspace: nextWorkspace }, search: knowledgeSearch(kbName) });
+      void navigate({ to: "/knowledge/$workspace", params: { workspace: nextWorkspace }, search: knowledgeSearch(kbName, nextTaskId) });
     },
     [activeKb, navigate],
   );
@@ -373,9 +382,11 @@ export function KnowledgePage() {
       files: createFiles,
       ragProvider: activeProvider || undefined,
     });
-    beginTask(result.task_id ?? null, result.name || trimmedName);
-    setSelectedKb(result.name || trimmedName);
-    navigateToWorkspace("progress", result.name || trimmedName);
+    const nextTaskId = result.task_id ?? null;
+    const nextKbName = result.name || trimmedName;
+    beginTask(nextTaskId, nextKbName);
+    setSelectedKb(nextKbName);
+    navigateToWorkspace("progress", nextKbName, nextTaskId);
     setCreateName("");
     setCreateFiles([]);
   };
@@ -388,8 +399,9 @@ export function KnowledgePage() {
       files: uploadFiles,
       ragProvider: activeProvider || undefined,
     });
-    beginTask(result.task_id ?? null, activeKb);
-    navigateToWorkspace("progress");
+    const nextTaskId = result.task_id ?? null;
+    beginTask(nextTaskId, activeKb);
+    navigateToWorkspace("progress", activeKb, nextTaskId);
     setUploadFiles([]);
   };
 
@@ -400,8 +412,9 @@ export function KnowledgePage() {
       ragProvider: activeProvider || undefined,
       backup: true,
     });
-    beginTask(result.task_id ?? null, activeKb);
-    navigateToWorkspace("progress");
+    const nextTaskId = result.task_id ?? null;
+    beginTask(nextTaskId, activeKb);
+    navigateToWorkspace("progress", activeKb, nextTaskId);
   };
 
   const runActiveRagEvaluation = async () => {
@@ -412,7 +425,7 @@ export function KnowledgePage() {
       provider: activeConfig?.rag_provider || kbDetail.data?.rag_provider || activeProvider || undefined,
       cases: buildQuickRagEvaluationCases(activeKb),
     });
-    pushTaskLog(`检索评测已完成：${report.strategy_count ?? 0} 个策略，${report.case_count ?? 0} 个样本。`);
+    pushTaskLog(`资料质量检查已完成：${report.strategy_count ?? 0} 个方案，${report.case_count ?? 0} 个样本。`);
     await ragEvaluation.refetch();
   };
 
@@ -461,15 +474,16 @@ export function KnowledgePage() {
   const syncFolder = async (folderId: string) => {
     if (!activeKb) return;
     const result = await mutations.syncFolder.mutateAsync({ kbName: activeKb, folderId });
-    beginTask(result.task_id ?? null, activeKb);
-    if (result.task_id) navigateToWorkspace("progress");
+    const nextTaskId = result.task_id ?? null;
+    beginTask(nextTaskId, activeKb);
+    if (nextTaskId) navigateToWorkspace("progress", activeKb, nextTaskId);
     if (!result.task_id && result.message) {
       setTaskLogs((current) => [result.message || "文件夹暂无需要同步的变化。", ...current].slice(0, 80));
     }
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto flex max-w-[980px] flex-col gap-3.5">
         <Header
           eyebrow="资料"
@@ -506,7 +520,7 @@ export function KnowledgePage() {
             {view === "create" ? (
               <Suspense
                 fallback={
-                  <KnowledgeWorkspaceLoading title="正在准备资料库创建页" description="上传入口和 provider 选项马上就绪。" />
+                  <KnowledgeWorkspaceLoading title="正在准备资料库创建页" description="上传入口和查找服务选项马上就绪。" />
                 }
               >
                 <KnowledgeCreatePanel
@@ -528,7 +542,7 @@ export function KnowledgePage() {
             {view === "browse" ? (
               <Suspense
                 fallback={
-                  <KnowledgeWorkspaceLoading title="正在准备资料库工作区" description="索引状态、连接检查和资料管理正在加载。" />
+                  <KnowledgeWorkspaceLoading title="正在准备资料工作台" description="资料状态、连接检查和管理入口正在加载。" />
                 }
               >
                 <KnowledgeWorkspaceContent
@@ -565,7 +579,7 @@ export function KnowledgePage() {
                   onDiagnose: openDiagnostics,
                   onSetDefault: () => activeKb && void mutations.setDefault.mutateAsync(activeKb),
                   onDelete: () => {
-                    if (activeKb && window.confirm(`删除知识库 ${activeKb}？`)) void mutations.remove.mutateAsync(activeKb);
+                    if (activeKb && window.confirm(`删除资料库 ${activeKb}？`)) void mutations.remove.mutateAsync(activeKb);
                   },
                 }}
                 diagnostics={{
@@ -713,7 +727,7 @@ export function KnowledgePage() {
 
 function KnowledgeWorkspaceLoading({ title, description }: { title: string; description: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-5">
+    <section className="rounded-lg border border-line bg-white/90 p-5">
       <div className="flex flex-col gap-2">
         <span className="text-sm font-semibold text-ink">{title}</span>
         <span className="text-sm leading-6 text-slate-500">{description}</span>
@@ -737,7 +751,7 @@ function Header({
   description: string;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white px-3.5 py-3.5 shadow-[0_8px_24px_rgba(15,15,15,0.03)]">
+    <section className="dt-page-header dt-page-header-accent-blue px-3.5 py-3.5">
       <p className="text-xs font-semibold text-steel">{eyebrow}</p>
       <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">
         {title}
@@ -758,8 +772,11 @@ function knowledgeRouteStateFromPath(pathname: string): { view: KnowledgeView; w
   return { view: "browse", workspace: "overview" };
 }
 
-function knowledgeSearch(kbName: string) {
-  return kbName ? { kb: kbName } : {};
+function knowledgeSearch(kbName: string, taskId?: string | null) {
+  return {
+    ...(kbName ? { kb: kbName } : {}),
+    ...(taskId ? { task: taskId } : {}),
+  };
 }
 
 function knowledgeBaseNameFromSearch(search: unknown) {

@@ -2,7 +2,7 @@ export const RAG_EVAL_PRESETS = [
   {
     id: "quick_check",
     label: "快速体检",
-    description: "最快确认资料能否被检索，适合上传或重建索引后立即检查。",
+    description: "最快确认资料能否被问到，适合上传或重新整理后立即检查。",
     detail: "2 个策略 · 3 个样本 · 通常几十秒内",
     buttonLabel: "运行快速体检",
     runningLabel: "体检中",
@@ -10,7 +10,7 @@ export const RAG_EVAL_PRESETS = [
   {
     id: "default",
     label: "标准体检",
-    description: "覆盖基础、宽召回和严格召回，适合日常回归检查。",
+    description: "覆盖基础、宽范围查找和精准查找，适合日常回归检查。",
     detail: "3 个策略 · 3 个样本 · 适合日常验证",
     buttonLabel: "运行标准体检",
     runningLabel: "评测中",
@@ -18,8 +18,8 @@ export const RAG_EVAL_PRESETS = [
   {
     id: "rag_upgrade",
     label: "完整对比",
-    description: "加入混合重排、HyDE 和 Agentic 检索，适合正式调优或演示前。",
-    detail: "6 个策略 · 会调用较重流程 · 可能持续数分钟",
+    description: "加入问题改写、多路查找和重排对比，适合正式调优或演示前。",
+    detail: "6 个方案 · 会调用较重流程 · 可能持续数分钟",
     buttonLabel: "运行完整对比",
     runningLabel: "完整评测中",
   },
@@ -81,13 +81,13 @@ export function ragDeltaTone(value: number | null | undefined): "success" | "war
 export function formatStrategyName(value: string) {
   const labels: Record<string, string> = {
     adaptive_policy: "自适应策略",
-    agentic_hyde: "深度改写检索",
+    agentic_hyde: "深度改写查找",
     baseline: "基础策略",
-    dense_strict: "精确语义检索",
-    dense_wide: "宽松语义检索",
-    hybrid_keyword_rerank: "混合检索重排",
-    hyde_hybrid_rerank: "问题改写混合检索",
-    wide_context: "宽上下文",
+    dense_strict: "精确语义查找",
+    dense_wide: "宽松语义查找",
+    hybrid_keyword_rerank: "混合查找重排",
+    hyde_hybrid_rerank: "问题改写混合查找",
+    wide_context: "更多回答材料",
   };
   return labels[value] || value.replaceAll("_", " ");
 }

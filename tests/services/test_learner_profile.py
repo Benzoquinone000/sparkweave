@@ -239,6 +239,46 @@ async def test_learner_profile_reads_formal_evidence_ledger(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_learner_profile_keeps_offline_speech_eval_out_of_mastery(tmp_path) -> None:
+    evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
+    evidence.append_event(
+        {
+            "source": "iflytek_speech_eval",
+            "verb": "evaluated",
+            "object_type": "oral_practice",
+            "object_id": "gradient-descent-explain",
+            "title": "梯度下降口语说明",
+            "summary": "离线替补生成的口语评测结果。",
+            "resource_type": "audio",
+            "score": 0.2,
+            "confidence": 0.82,
+            "metadata": {
+                "fallback": True,
+                "fallback_reason": "not configured",
+                "provider": "offline_iflytek_fallback:speech_eval",
+            },
+            "created_at": 1_777_000_000,
+        }
+    )
+    service = LearnerProfileService(
+        memory_service=_Memory(),
+        guide_manager=_Guide(),
+        session_store=_Store(),
+        notebook_manager=_Notebook(),
+        evidence_service=evidence,
+        output_dir=tmp_path,
+    )
+
+    profile = await service.refresh(include_sources=["evidence"])
+
+    assert not profile["learning_state"]["weak_points"]
+    assert not profile["learning_state"]["mastery"]
+    preview = profile["evidence_preview"][0]
+    assert preview["metadata"]["fallback"] is True
+    assert preview["metadata"]["fallback_reason"] == "not configured"
+
+
+@pytest.mark.asyncio
 async def test_learner_profile_prefers_public_video_after_viewing_video_evidence(tmp_path) -> None:
     evidence = LearnerEvidenceService(output_dir=tmp_path / "evidence")
     evidence.append_event(

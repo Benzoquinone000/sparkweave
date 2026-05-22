@@ -30,6 +30,15 @@ study plans; `broad` for comparisons, summaries, or multi-hop questions.
 Prefer `concept` only when the intent is genuinely uncertain. Do not guess the
 underlying dense/hybrid index type.
 
+When the learner needs a substantial editable artifact, call the `canvas` tool
+instead of placing the whole document only in the chat stream. Good canvas uses:
+study plans, reports, long-form notes, outlines, drafts, rewrites, polished
+versions, or updates to the current canvas document. Do not call `canvas` for
+ordinary short explanations, simple answers, quizzes, diagrams, videos, image
+searches, or small snippets. If Canvas context is present and the learner asks
+to revise, continue, shorten, expand, polish, or rewrite it, call `canvas` with
+the complete updated Markdown document.
+
 Keep the answer user-facing. Do not expose internal graph nodes, hidden state,
 raw tool schemas, or implementation details. If information is uncertain, say
 what you need or state the assumption briefly.
@@ -174,6 +183,12 @@ def message_text(message: Any) -> str:
 
 def _system_prompt_with_context(context: UnifiedContext, system_prompt: str) -> str:
     parts = [system_prompt.strip()]
+    tool_policy = _format_turn_tool_policy(context)
+    if tool_policy:
+        parts.append(tool_policy)
+    canvas_context = _canvas_context_from_metadata(context)
+    if canvas_context:
+        parts.append(_format_canvas_context(canvas_context))
     if context.memory_context:
         parts.append(f"Memory context:\n{context.memory_context.strip()}")
     if context.notebook_context:
@@ -183,4 +198,61 @@ def _system_prompt_with_context(context: UnifiedContext, system_prompt: str) -> 
     if context.knowledge_bases:
         parts.append("Selected knowledge bases: " + ", ".join(context.knowledge_bases))
     return "\n\n".join(part for part in parts if part)
+
+
+def _format_turn_tool_policy(context: UnifiedContext) -> str:
+    enabled_tools = [
+        name
+        for name in dict.fromkeys(str(item or "").strip() for item in (context.enabled_tools or []))
+        if name
+    ]
+    if not enabled_tools:
+        return (
+            "Turn tool policy:\n"
+            "No tools are enabled for this turn. Do not call tools; answer directly in chat."
+        )
+
+    parts = [
+        "Turn tool policy:",
+        "You may only call tools listed here for this turn: " + ", ".join(enabled_tools) + ".",
+    ]
+    if "canvas" not in enabled_tools:
+        parts.append(
+            "The canvas tool is not enabled for this turn. Do not open or update the right-side "
+            "canvas; if the learner asks for a draft, write it directly in chat."
+        )
+    if "rag" not in enabled_tools:
+        parts.append(
+            "The rag tool is not enabled for this turn. Do not claim that you searched the "
+            "knowledge base."
+        )
+    return "\n".join(parts)
+
+
+def _canvas_context_from_metadata(context: UnifiedContext) -> dict[str, Any]:
+    raw = context.metadata.get("canvas_context") if isinstance(context.metadata, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    content = str(raw.get("content") or "").strip()
+    if not content:
+        return {}
+    return {
+        "title": str(raw.get("title") or "Current canvas document").strip(),
+        "content": content,
+    }
+
+
+def _format_canvas_context(canvas_context: dict[str, Any]) -> str:
+    title = canvas_context.get("title") or "Current canvas document"
+    content = canvas_context.get("content") or ""
+    return (
+        "Canvas context:\n"
+        "The learner currently has this editable document open in the right-side canvas. "
+        "When the latest request says this draft, this document, continue it, revise it, "
+        "polish it, shorten it, expand it, or refers to the canvas, treat the content below "
+        "as the current working draft. If the learner asks for a rewrite, return a complete "
+        "Markdown version that can replace the canvas content unless they ask only for comments.\n\n"
+        f"Title: {title}\n\n"
+        f"{content}"
+    )
 

@@ -7,7 +7,7 @@ export function Panel({
   children: ReactNode;
   className?: string;
 }) {
-  return <section className={`dt-soft-enter dt-notion-card p-3 ${className}`}>{children}</section>;
+  return <section className={`dt-soft-enter dt-notion-card dt-dynamic-card p-3 ${className}`}>{children}</section>;
 }
 
 export function PanelHeader({

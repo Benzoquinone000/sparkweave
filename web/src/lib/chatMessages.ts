@@ -38,7 +38,12 @@ export function getResultEventText(event?: StreamEvent | null) {
 export function getCapabilityFromEvent(event?: StreamEvent | null): CapabilityId | null {
   if (!event) return null;
   const metadata = event.metadata ?? {};
-  const metadataCapability = metadata.target_capability ?? metadata.tool_name ?? metadata.capability;
+  const metadataCapability =
+    metadata.target_capability ??
+    metadata.direct_tool ??
+    metadata.selected_route ??
+    metadata.tool_name ??
+    metadata.capability;
   if (isCapabilityId(metadataCapability)) return metadataCapability;
   if (isCapabilityId(event.source)) return event.source;
   return null;

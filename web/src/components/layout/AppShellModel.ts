@@ -1,4 +1,4 @@
-import { History, MessageSquareText, Settings, type LucideIcon } from "lucide-react";
+import { History, MessageSquareText, type LucideIcon } from "lucide-react";
 
 import type { SessionSummary } from "@/lib/types";
 
@@ -23,7 +23,6 @@ export const SIDEBAR_DOCK_ITEMS: Array<{
 }> = [
   { label: "动态", icon: History, testId: "open-inspector" },
   { to: "/chat", label: "问问题", icon: MessageSquareText },
-  { to: "/settings", label: "设置", icon: Settings },
 ];
 
 export const PRIMARY_SIDEBAR_ITEMS = [
@@ -99,8 +98,8 @@ export function moreFeatureHint(path: string) {
   if (path === "/agents") return "让课程助教接着推进";
   if (path === "/co-writer") return "润色、扩写和改写";
   if (path === "/vision") return "上传图片并解题";
-  if (path === "/playground") return "开发者调试入口";
-  return "打开工具";
+  if (path === "/playground") return "先试跑，再放进学习流程";
+  return "打开入口";
 }
 
 function normalizeTimestamp(value: number | undefined) {

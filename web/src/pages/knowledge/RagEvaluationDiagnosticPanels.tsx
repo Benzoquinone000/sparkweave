@@ -43,7 +43,7 @@ export function RagDiagnosticRowsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-semibold text-ink">需要优先检查的样本</p>
-          <p className="mt-1 text-xs text-slate-500">把异常结果翻译成可执行的检索优化动作。</p>
+          <p className="mt-1 text-xs text-slate-500">把异常结果翻译成可执行的资料优化动作。</p>
         </div>
         <Badge tone="warning">{rows.length} 条</Badge>
       </div>
@@ -68,7 +68,7 @@ export function RagDiagnosticRowsPanel({
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
                 <span>来源 {String(row.source_count ?? "-")}</span>
                 <span>关键词 {formatRagEvalRate(readNumber(row, "keyword_recall"))}</span>
-                <span>上下文 {String(row.context_chars ?? 0)} 字</span>
+                <span>回答材料 {String(row.context_chars ?? 0)} 字</span>
               </div>
             </div>
           );

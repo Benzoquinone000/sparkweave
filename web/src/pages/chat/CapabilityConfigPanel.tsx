@@ -62,7 +62,7 @@ export function CapabilityConfigPanel({
                 value={String(config.preference ?? "")}
                 onChange={(event) => patch({ preference: event.target.value })}
                 placeholder="例如：偏重概念辨析，答案要有详细解析。"
-                className="min-h-20"
+                className="min-h-16"
               />
             </FieldShell>
           </>
@@ -91,7 +91,7 @@ export function CapabilityConfigPanel({
               <div className="mt-2 flex flex-wrap gap-2">
                 {[
                   ["web", "联网"],
-                  ["kb", "知识库"],
+                  ["kb", "资料库"],
                   ["papers", "论文"],
                 ].map(([value, label]) => {
                   const active = Array.isArray(config.sources) && config.sources.map(String).includes(value);
@@ -116,12 +116,12 @@ export function CapabilityConfigPanel({
         ) : null}
 
         {capability === "visualize" ? (
-          <FieldShell label="渲染模式">
+          <FieldShell label="图解形式">
             <SelectInput value={String(config.render_mode ?? "auto")} onChange={(event) => patch({ render_mode: event.target.value })}>
               <option value="auto">自动</option>
-              <option value="svg">SVG</option>
-              <option value="mermaid">Mermaid</option>
-              <option value="chartjs">Chart.js</option>
+              <option value="svg">图形</option>
+              <option value="mermaid">流程图</option>
+              <option value="chartjs">数据图表</option>
             </SelectInput>
           </FieldShell>
         ) : null}
@@ -148,7 +148,7 @@ export function CapabilityConfigPanel({
                 value={String(config.style_hint ?? "")}
                 onChange={(event) => patch({ style_hint: event.target.value })}
                 placeholder="例如：干净课堂风，突出公式变形过程。"
-                className="min-h-20"
+                className="min-h-16"
               />
             </FieldShell>
           </>

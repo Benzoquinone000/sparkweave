@@ -83,9 +83,9 @@ export function GuideLearningFeedbackCard({
             <p className="text-sm font-semibold text-brand-purple">这一步已经完成</p>
             <Badge tone={feedbackTone(feedback.tone)}>{feedback.score_percent == null ? "已记录" : `${Math.round(feedback.score_percent)} 分`}</Badge>
           </div>
-          <h2 className="mt-3 text-lg font-semibold text-ink">{feedback.title || "学习证据已记录"}</h2>
+          <h2 className="mt-3 text-lg font-semibold text-ink">{feedback.title || "学习记录已保存"}</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {feedback.summary || "系统已经根据这次学习证据更新了下一步安排。"}
+            {feedback.summary || "系统已经根据这次学习记录更新了下一步安排。"}
           </p>
         </div>
         {feedback.next_task_title ? <Badge tone="brand">下一步</Badge> : <Badge tone="success">完成</Badge>}
@@ -143,7 +143,7 @@ export function GuideLearningFeedbackCard({
           href="/memory"
           className="inline-flex min-h-9 items-center justify-center rounded-md px-3 text-xs font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-purple"
         >
-          {profileRefreshing ? "画像同步中" : "看看画像怎么变了"}
+          {profileRefreshing ? "记录同步中" : "看看学习记录怎么变了"}
         </a>
       </div>
     </motion.section>
@@ -176,7 +176,7 @@ export function GuidePrescriptionFeedbackNotice({
           </div>
           <p className="mt-3 text-sm font-semibold text-ink">{feedback.title || "处方练习已回写"}</p>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            {feedback.summary || "系统已经根据这次处方练习更新学习报告和画像证据。"}
+            {feedback.summary || "系统已经根据这次处方练习更新学习报告和学习记录。"}
           </p>
         </div>
       </div>
@@ -187,7 +187,7 @@ export function GuidePrescriptionFeedbackNotice({
         </Button>
         <Button tone="secondary" className="min-h-9 px-3 text-xs" onClick={onOpenMemory}>
           <Brain size={14} />
-          查看画像变化
+          查看记录变化
         </Button>
       </div>
     </motion.div>
@@ -218,7 +218,7 @@ function MinimalRemediationTaskCard({
             {task.concept ? <Badge tone="neutral">{task.concept}</Badge> : null}
           </div>
           <h3 className="mt-2 text-base font-semibold text-ink">{task.title || "先补齐这一小块"}</h3>
-          <p className="mt-1 text-sm leading-6 text-charcoal">{task.reason || "先完成一个很小的补救闭环，再继续下一步。"}</p>
+          <p className="mt-1 text-sm leading-6 text-charcoal">{task.reason || "先完成一个很小的补救复盘，再继续下一步。"}</p>
         </div>
         <Button
           tone="secondary"

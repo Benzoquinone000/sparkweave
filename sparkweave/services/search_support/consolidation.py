@@ -8,8 +8,8 @@ Strategies (chosen automatically):
 """
 
 import asyncio
-import logging
 from collections.abc import Mapping
+import logging
 from typing import Any
 
 from jinja2 import BaseLoader, Environment

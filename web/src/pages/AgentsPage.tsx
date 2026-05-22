@@ -42,13 +42,13 @@ import { AgentWorkspaceTabs, SparkBotRecentPanel, type AgentWorkspaceView } from
 import { SparkBotCronPanel } from "./agents/SparkBotCronPanel";
 
 const DEFAULT_BOT_ID = "sparkbot-assistant";
-const DEFAULT_PERSONA = `# SparkBot 助教
+const DEFAULT_PERSONA = `# 课程助教
 
-你是长期运行的 SparkBot 助教。
+你是长期运行的课程助教。
 
 工作重点：
-- 通过 MCP 与 workspace skills 调用真实工具。
-- 面向飞书、QQ、Slack、Discord 等通道处理消息。
+- 结合课程资料、最近学习记录和课程资料文件处理问题。
+- 面向飞书、QQ、Slack、Discord 等消息入口处理消息。
 - 通过定时任务主动巡检、日报、复盘和提醒。
 - 默认给出可执行结果，只在必要时解释过程。`;
 
@@ -118,30 +118,30 @@ export function AgentsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-canvas/40 px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto max-w-[1080px] space-y-3.5">
         <motion.section
-          className="rounded-lg border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+          className="dt-page-header dt-page-header-accent-purple p-3.5"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
         >
           <div className="flex flex-wrap items-start justify-between gap-3.5">
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-brand-purple">SparkBot 助教</p>
-              <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">定时任务驱动的通道 Agent</h1>
+              <p className="text-xs font-semibold text-brand-purple">课程助教</p>
+              <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">让课程助教按时推进</h1>
               <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">
-                核心入口保留定时任务、MCP 与 skills、飞书 / QQ 等通道，以及必要的机器人运行管理。
+                把定时提醒、群聊回复和资料同步收在这里；日常学习入口仍回到学习、资料和记录。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button tone="primary" onClick={() => setView("schedule")}>
                 <CalendarClock size={16} />
-                定时任务
+                定时提醒
               </Button>
               <Button tone="secondary" onClick={() => setView("workspace")}>
                 <PlugZap size={16} />
-                通道与技能
+                资料与群聊
               </Button>
             </div>
           </div>
@@ -305,13 +305,13 @@ export function AgentsPage() {
                 onSave={(payload) => mutations.update.mutateAsync({ botId: activeBotId, payload })}
               />
               <JsonEditor
-                title="Agent 运行参数"
+                title="回复策略"
                 value={activeBot.data?.agent ?? defaultAgent}
                 pending={mutations.update.isPending}
                 onSave={(agent) => mutations.update.mutateAsync({ botId: activeBotId, payload: { agent } })}
               />
               <JsonEditor
-                title="Heartbeat"
+                title="提醒策略"
                 value={activeBot.data?.heartbeat ?? defaultHeartbeat}
                 pending={mutations.update.isPending}
                 onSave={(heartbeat) => mutations.update.mutateAsync({ botId: activeBotId, payload: { heartbeat } })}
@@ -319,18 +319,18 @@ export function AgentsPage() {
               <section className="rounded-lg border border-line bg-white p-3">
                 <div className="flex items-center gap-2">
                   <MessageSquareText size={18} className="text-brand-purple" />
-                  <h2 className="text-base font-semibold text-ink">命令调试</h2>
+                  <h2 className="text-base font-semibold text-ink">快捷检查</h2>
                 </div>
                 <div className="mt-4 border-t border-line pt-4">
                   <Button
                     tone="secondary"
                     onClick={() => {
                       setView("assistants");
-                      setChatDraft({ id: Date.now(), text: "/cron list" });
+                      setChatDraft({ id: Date.now(), text: "列出当前提醒任务" });
                     }}
                   >
                     <MessageSquareText size={16} />
-                    打开 /cron list
+                    查看提醒列表
                   </Button>
                 </div>
               </section>
@@ -366,7 +366,7 @@ function BotRail({
   return (
     <div className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">当前机器人</p>
+        <p className="text-sm font-semibold text-ink">当前助教</p>
         <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={onOpenBots}>
           管理
         </Button>
@@ -400,7 +400,7 @@ function BotRail({
             onClick={onOpenBots}
             className="min-w-[220px] rounded-lg border border-dashed border-line bg-white px-3 py-2 text-left text-sm text-slate-500"
           >
-            {loading ? "正在读取 SparkBot..." : "创建一个 SparkBot 后开始配置定时任务。"}
+            {loading ? "正在读取助教..." : "创建一个助教后开始配置定时提醒。"}
           </button>
         ) : null}
       </div>
@@ -421,10 +421,10 @@ function AssistantStats({
 }) {
   return (
     <div className="grid gap-2 text-sm">
-      <AssistantFact label="当前 Bot" value={bot?.name || bot?.bot_id || "未选择"} />
+      <AssistantFact label="当前助教" value={bot?.name || bot?.bot_id || "未选择"} />
       <AssistantFact label="运行状态" value={running ? `${running} 个在线` : "未启动"} />
-      <AssistantFact label="定时任务" value={`${jobs} 个`} />
-      <AssistantFact label="工作区文件" value={`${files} 个`} />
+      <AssistantFact label="提醒任务" value={`${jobs} 个`} />
+      <AssistantFact label="资料文件" value={`${files} 个`} />
     </div>
   );
 }
@@ -443,12 +443,12 @@ function NoBotCallout({ onCreate }: { onCreate: () => void }) {
     <section className="rounded-lg border border-dashed border-line bg-white p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-ink">还没有可用的 SparkBot</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">先创建机器人，再配置通道、MCP、skills 和定时任务。</p>
+          <h2 className="text-base font-semibold text-ink">还没有课程助教</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">先创建助教，再配置提醒、消息入口和资料工作区。</p>
         </div>
         <Button tone="primary" onClick={onCreate}>
           <Bot size={16} />
-          打开创建表单
+          创建助教
         </Button>
       </div>
     </section>
@@ -481,7 +481,7 @@ function BotRoster({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Bot size={18} className="text-brand-purple" />
-          <h2 className="text-base font-semibold text-ink">机器人</h2>
+          <h2 className="text-base font-semibold text-ink">课程助教</h2>
         </div>
         <Button tone="secondary" onClick={onRefresh} disabled={loading}>
           {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -499,14 +499,14 @@ function BotRoster({
             onStart={() => void onStart(bot.bot_id)}
             onStop={() => void onStop(bot.bot_id)}
             onDestroy={() => {
-              if (window.confirm(`彻底删除 SparkBot ${bot.bot_id}？`)) void onDestroy(bot.bot_id);
+              if (window.confirm(`彻底删除助教 ${bot.bot_id}？`)) void onDestroy(bot.bot_id);
             }}
           />
         ))}
       </div>
       {!bots.length ? (
         <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm leading-6 text-slate-500">
-          还没有 SparkBot。右侧创建一个后，就可以配置 MCP、skills、通道和定时任务。
+          还没有课程助教。右侧创建一个后，就可以配置提醒、消息入口和资料工作区。
         </p>
       ) : null}
     </section>
@@ -536,7 +536,7 @@ function SparkBotCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate font-semibold text-ink">{bot.name || bot.bot_id}</p>
-            <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{bot.description || bot.model || "SparkBot 通道助教"}</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">{bot.description || bot.model || "课程助教"}</p>
           </div>
           <Badge tone={bot.running ? "success" : "neutral"}>{bot.running ? "运行中" : "停止"}</Badge>
         </div>
@@ -571,8 +571,8 @@ function CreateBotPanel({
   const suggestedBotId = useMemo(() => nextAvailableBotId(existingBotIds), [existingBotIds]);
   const [customBotId, setCustomBotId] = useState("");
   const [botIdEdited, setBotIdEdited] = useState(false);
-  const [name, setName] = useState("SparkBot 助教");
-  const [description, setDescription] = useState("支持 MCP、skills、通道消息和定时任务的长期助教。");
+  const [name, setName] = useState("课程助教");
+  const [description, setDescription] = useState("支持课程资料、群聊消息和定时提醒的长期助教。");
   const [persona, setPersona] = useState(DEFAULT_PERSONA);
   const [autoStart, setAutoStart] = useState(true);
   const [error, setError] = useState("");
@@ -586,7 +586,7 @@ function CreateBotPanel({
     if (!trimmedBotId) return;
     if (idExists) {
       setSaved("");
-      setError(`Bot ID "${trimmedBotId}" 已存在。请选择左侧卡片启动它，或换一个新的 Bot ID。`);
+      setError(`助教标识 "${trimmedBotId}" 已存在。请选择左侧卡片启动它，或换一个新的助教标识。`);
       return;
     }
     try {
@@ -604,7 +604,7 @@ function CreateBotPanel({
       setCustomBotId("");
     } catch (createError) {
       setSaved("");
-      setError(createError instanceof Error ? createError.message : "创建 SparkBot 失败。");
+      setError(createError instanceof Error ? createError.message : "创建助教失败。");
     }
   };
 
@@ -612,10 +612,10 @@ function CreateBotPanel({
     <section className="rounded-lg border border-line bg-white p-3" data-testid="sparkbot-create-toggle">
       <div className="flex items-center gap-2">
         <Bot size={18} className="text-brand-purple" />
-        <h2 className="text-base font-semibold text-ink">创建 SparkBot</h2>
+        <h2 className="text-base font-semibold text-ink">创建课程助教</h2>
       </div>
       <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={submit}>
-        <FieldShell label="Bot ID">
+        <FieldShell label="助教标识">
           <TextInput
             value={botId}
             onChange={(event) => {
@@ -629,7 +629,7 @@ function CreateBotPanel({
         </FieldShell>
         {idExists ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-            这个 Bot ID 已经存在。创建新机器人请换一个 ID；已有机器人请在左侧列表直接启动或配置。
+            这个助教标识已经存在。创建新助教请换一个标识；已有助教请在左侧列表直接启动或配置。
           </p>
         ) : null}
         <FieldShell label="名称">
@@ -640,10 +640,10 @@ function CreateBotPanel({
         </FieldShell>
         <label className="flex items-start gap-2 rounded-lg border border-line bg-canvas p-3 text-sm text-slate-600">
           <input type="checkbox" checked={autoStart} onChange={(event) => setAutoStart(event.target.checked)} className="mt-1" />
-          <span>创建后启动</span>
+          <span>创建后立即启用</span>
         </label>
-        <FieldShell label="人设">
-          <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-44" data-testid="assistant-create-persona" />
+        <FieldShell label="助教设定">
+          <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-28" data-testid="assistant-create-persona" />
         </FieldShell>
         {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
         {saved ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{saved}</p> : null}
@@ -691,13 +691,13 @@ function ChannelMcpPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <PlugZap size={18} className="text-brand-purple" />
-            <h2 className="text-base font-semibold text-ink">通道、MCP 与 Skills</h2>
+            <h2 className="text-base font-semibold text-ink">资料与群聊</h2>
           </div>
           <Badge tone={bot?.running ? "success" : "neutral"}>{bot?.running ? "运行中" : "停止"}</Badge>
         </div>
         <div className="mt-4 grid gap-3 border-t border-line pt-4">
-          <ChannelBadges title="已启用通道" values={configuredChannels} fallback="未启用" />
-          <ChannelBadges title="可用通道" values={availableChannels.length ? availableChannels : ["feishu", "qq", "slack", "discord"]} />
+          <ChannelBadges title="已连接入口" values={configuredChannels} fallback="未启用" />
+          <ChannelBadges title="可连接入口" values={availableChannels.length ? availableChannels : ["feishu", "qq", "slack", "discord"]} />
         </div>
       </section>
 
@@ -705,14 +705,14 @@ function ChannelMcpPanel({
       <McpServersEditor tools={tools} pending={pending} onSave={onSaveTools} />
 
       <JsonEditor
-        title="通道配置"
+        title="消息入口规则"
         value={channels}
         pending={pending}
         testId="sparkbot-global-channel-editor"
         onSave={onSaveChannels}
       />
       <JsonEditor
-        title="工具高级 JSON"
+        title="外部连接规则"
         value={tools}
         pending={pending}
         onSave={onSaveTools}
@@ -755,7 +755,7 @@ function SkillsManagerPanel({
   const submitUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!uploadFile) {
-      setUploadError("请选择一个 SKILL.md 或 zip 文件。");
+      setUploadError("请选择一个流程 Markdown 文件或 zip 包。");
       return;
     }
     try {
@@ -768,7 +768,7 @@ function SkillsManagerPanel({
       setUploadSaved(true);
       void skills.refetch();
     } catch (uploadError) {
-      setUploadError(uploadError instanceof Error ? uploadError.message : "上传 skill 失败。");
+      setUploadError(uploadError instanceof Error ? uploadError.message : "上传流程文件失败。");
     }
   };
 
@@ -777,13 +777,13 @@ function SkillsManagerPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileText size={18} className="text-brand-purple" />
-          <h2 className="text-base font-semibold text-ink">Skills</h2>
+          <h2 className="text-base font-semibold text-ink">助教流程</h2>
         </div>
         <Badge tone="neutral">{skills.data?.length ?? 0}</Badge>
       </div>
 
       <form className="mt-4 grid gap-2 border-t border-line pt-4" onSubmit={submitUpload}>
-        <FieldShell label="上传 skill" hint="支持单个 SKILL.md 或包含 SKILL.md 的 zip">
+        <FieldShell label="上传流程文件" hint="支持单个 Markdown 文件，或包含流程文件的 zip 包">
           <input
             type="file"
             accept=".md,.zip"
@@ -793,7 +793,7 @@ function SkillsManagerPanel({
           />
         </FieldShell>
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <TextInput value={uploadName} onChange={(event) => setUploadName(event.target.value)} placeholder="可选：skill 名称" data-testid="sparkbot-skill-upload-name" />
+          <TextInput value={uploadName} onChange={(event) => setUploadName(event.target.value)} placeholder="可选：流程名称" data-testid="sparkbot-skill-upload-name" />
           <Button tone="secondary" type="submit" disabled={pending || !uploadFile} data-testid="sparkbot-skill-upload-submit">
             {pending ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             上传
@@ -815,11 +815,11 @@ function SkillsManagerPanel({
             data-testid={`sparkbot-skill-${skill.name}`}
           >
             <span className="block font-medium">{skill.name}</span>
-            <span className="mt-1 block text-xs text-slate-500">{skill.source || "workspace"} · {skill.available === false ? "缺依赖" : "可用"}</span>
+            <span className="mt-1 block text-xs text-slate-500">{formatSkillSource(skill.source)} · {skill.available === false ? "缺依赖" : "可用"}</span>
           </button>
         ))}
         {!skills.data?.length && !skills.isFetching ? (
-          <p className="rounded-lg border border-dashed border-line bg-canvas p-3 text-sm text-slate-500">暂无 skills，可以上传一个 SKILL.md。</p>
+          <p className="rounded-lg border border-dashed border-line bg-canvas p-3 text-sm text-slate-500">还没有助教流程。上传或新建一个，用来约定提醒、复盘和群聊回复方式。</p>
         ) : null}
       </div>
 
@@ -852,7 +852,7 @@ function SkillEditor({
   onNew: () => void;
   onSave: (skillName: string, content: string) => Promise<unknown>;
 }) {
-  const initialName = isNew ? "new-skill" : selectedSkill?.name || "daily-review";
+  const initialName = isNew ? "daily-review" : selectedSkill?.name || "daily-review";
   const [skillName, setSkillName] = useState(initialName);
   const [content, setContent] = useState(selectedSkill?.content || defaultSkillContent(initialName));
   const [error, setError] = useState("");
@@ -861,7 +861,7 @@ function SkillEditor({
   const submitSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!skillName.trim() || !content.trim()) {
-      setError("Skill 名称和内容不能为空。");
+      setError("流程名称和内容不能为空。");
       return;
     }
     try {
@@ -870,17 +870,17 @@ function SkillEditor({
       await onSave(skillName.trim(), content);
       setSaved(true);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "保存 skill 失败。");
+      setError(saveError instanceof Error ? saveError.message : "保存流程失败。");
     }
   };
 
   return (
     <form className="mt-4 grid gap-3 border-t border-line pt-4" onSubmit={submitSave}>
-      <FieldShell label="Skill 名称">
+      <FieldShell label="流程名称">
         <TextInput value={skillName} onChange={(event) => setSkillName(event.target.value)} data-testid="sparkbot-skill-name" />
       </FieldShell>
-      <FieldShell label="SKILL.md">
-        <TextArea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-72 font-mono text-xs" data-testid="sparkbot-skill-content" />
+      <FieldShell label="流程说明">
+        <TextArea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-48 font-mono text-xs" data-testid="sparkbot-skill-content" />
       </FieldShell>
       {selectedSkill?.missing_requirements ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{selectedSkill.missing_requirements}</p>
@@ -893,8 +893,8 @@ function SkillEditor({
           type="button"
           onClick={() => {
             onNew();
-            setSkillName("new-skill");
-            setContent(defaultSkillContent("new-skill"));
+            setSkillName("daily-review");
+            setContent(defaultSkillContent("daily-review"));
             setError("");
             setSaved(false);
           }}
@@ -904,7 +904,7 @@ function SkillEditor({
         </Button>
         <Button tone="primary" type="submit" disabled={pending || !skillName.trim() || !content.trim()} data-testid="sparkbot-skill-save">
           {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          保存到工作区
+          保存流程
         </Button>
       </div>
     </form>
@@ -929,7 +929,7 @@ function McpServersEditor({
     event.preventDefault();
     try {
       const name = draft.name.trim();
-      if (!name) throw new Error("MCP 名称不能为空。");
+      if (!name) throw new Error("服务名称不能为空。");
       const config = buildMcpServerConfig(draft);
       setError("");
       setSaved(false);
@@ -937,7 +937,7 @@ function McpServersEditor({
       setSaved(true);
     } catch (submitError) {
       setSaved(false);
-      setError(submitError instanceof Error ? submitError.message : "保存 MCP 失败。");
+      setError(submitError instanceof Error ? submitError.message : "保存外部服务失败。");
     }
   };
 
@@ -955,7 +955,7 @@ function McpServersEditor({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <Server size={18} className="text-brand-purple" />
-          <h2 className="text-base font-semibold text-ink">MCP 服务器</h2>
+          <h2 className="text-base font-semibold text-ink">外部服务</h2>
         </div>
         <Badge tone="neutral">{Object.keys(servers).length}</Badge>
       </div>
@@ -980,7 +980,7 @@ function McpServersEditor({
           </div>
         ))}
         {!Object.keys(servers).length ? (
-          <p className="rounded-lg border border-dashed border-line bg-canvas p-3 text-sm text-slate-500">还没有 MCP 服务器。添加后 SparkBot 可在任务和通道对话中调用。</p>
+          <p className="rounded-lg border border-dashed border-line bg-canvas p-3 text-sm text-slate-500">还没有外部服务。添加后助教可在提醒和群聊回复中调用。</p>
         ) : null}
       </div>
 
@@ -991,34 +991,34 @@ function McpServersEditor({
           </FieldShell>
           <FieldShell label="类型">
             <SelectInput value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as McpServerDraft["type"] })} data-testid="sparkbot-mcp-type">
-              <option value="stdio">stdio</option>
-              <option value="sse">sse</option>
-              <option value="streamableHttp">streamableHttp</option>
+              <option value="stdio">本地命令</option>
+              <option value="sse">实时连接</option>
+              <option value="streamableHttp">HTTP 连接</option>
             </SelectInput>
           </FieldShell>
         </div>
 
         {draft.type === "stdio" ? (
           <>
-            <FieldShell label="命令">
+            <FieldShell label="本地命令">
               <TextInput value={draft.command} onChange={(event) => setDraft({ ...draft, command: event.target.value })} placeholder="npx / uvx / python" data-testid="sparkbot-mcp-command" />
             </FieldShell>
-            <FieldShell label="参数">
+            <FieldShell label="启动选项">
               <TextInput value={draft.args} onChange={(event) => setDraft({ ...draft, args: event.target.value })} placeholder="-y @modelcontextprotocol/server-filesystem ." data-testid="sparkbot-mcp-args" />
             </FieldShell>
           </>
         ) : (
-          <FieldShell label="URL">
+          <FieldShell label="服务地址">
             <TextInput value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} placeholder="http://127.0.0.1:3000/mcp" data-testid="sparkbot-mcp-url" />
           </FieldShell>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <FieldShell label="环境变量 JSON">
-            <TextArea value={draft.env} onChange={(event) => setDraft({ ...draft, env: event.target.value })} className="min-h-24 font-mono text-xs" />
+          <FieldShell label="本地运行信息">
+            <TextArea value={draft.env} onChange={(event) => setDraft({ ...draft, env: event.target.value })} className="min-h-20 font-mono text-xs" />
           </FieldShell>
-          <FieldShell label="Headers JSON">
-            <TextArea value={draft.headers} onChange={(event) => setDraft({ ...draft, headers: event.target.value })} className="min-h-24 font-mono text-xs" />
+          <FieldShell label="连接请求信息">
+            <TextArea value={draft.headers} onChange={(event) => setDraft({ ...draft, headers: event.target.value })} className="min-h-20 font-mono text-xs" />
           </FieldShell>
         </div>
 
@@ -1026,13 +1026,13 @@ function McpServersEditor({
           <FieldShell label="超时秒数">
             <TextInput value={draft.toolTimeout} onChange={(event) => setDraft({ ...draft, toolTimeout: event.target.value })} inputMode="numeric" />
           </FieldShell>
-          <FieldShell label="允许工具">
+          <FieldShell label="允许使用">
             <TextInput value={draft.enabledTools} onChange={(event) => setDraft({ ...draft, enabledTools: event.target.value })} placeholder="* 或 tool_a,tool_b" />
           </FieldShell>
         </div>
 
         {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
-        {saved ? <p className="text-sm text-emerald-700">MCP 配置已保存。</p> : null}
+        {saved ? <p className="text-sm text-emerald-700">外部服务已保存。</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button tone="secondary" type="button" onClick={() => setDraft(defaultMcpDraft())}>
             <Plus size={16} />
@@ -1040,7 +1040,7 @@ function McpServersEditor({
           </Button>
           <Button tone="primary" type="submit" disabled={pending} data-testid="sparkbot-mcp-save">
             {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            保存 MCP
+            保存外部服务
           </Button>
         </div>
       </form>
@@ -1082,7 +1082,7 @@ function WorkspaceFilesPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileText size={18} className="text-brand-purple" />
-          <h2 className="text-base font-semibold text-ink">工作区文件</h2>
+          <h2 className="text-base font-semibold text-ink">课程资料文件</h2>
         </div>
         <Badge tone="neutral">{files.length}</Badge>
       </div>
@@ -1156,7 +1156,7 @@ function WorkspaceFileEditor({
           保存
         </Button>
       </div>
-      <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-96 font-mono text-xs" data-testid="sparkbot-file-content" />
+      <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-60 font-mono text-xs" data-testid="sparkbot-file-content" />
     </form>
   );
 }
@@ -1176,12 +1176,12 @@ function BotProfilePanel({
     <section className="rounded-lg border border-line bg-white p-3" data-testid="bot-profile-editor">
       <div className="flex items-center gap-2" data-testid="bot-profile-toggle">
         <Settings2 size={18} className="text-brand-purple" />
-        <h2 className="text-base font-semibold text-ink">Bot 基础设置</h2>
+        <h2 className="text-base font-semibold text-ink">助教基础设置</h2>
       </div>
       {bot ? (
         <BotProfileForm key={formKey} bot={bot} pending={pending} onSave={onSave} />
       ) : (
-        <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">先选择一个 SparkBot。</p>
+        <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">先选择一个助教。</p>
       )}
     </section>
   );
@@ -1216,7 +1216,7 @@ function BotProfileForm({
       <FieldShell label="说明">
         <TextInput value={description} onChange={(event) => setDescription(event.target.value)} data-testid="bot-profile-description" />
       </FieldShell>
-      <FieldShell label="模型">
+      <FieldShell label="使用模型">
         <TextInput value={model} onChange={(event) => setModel(event.target.value)} placeholder="继承全局模型" data-testid="bot-profile-model" />
       </FieldShell>
       <label className="flex items-start gap-2 rounded-lg border border-line bg-canvas p-3 text-sm text-slate-600">
@@ -1227,10 +1227,10 @@ function BotProfileForm({
           className="mt-1"
           data-testid="bot-profile-auto-start"
         />
-        <span>项目启动时自动启动这个 SparkBot</span>
+        <span>项目启动时自动启动这个助教</span>
       </label>
-      <FieldShell label="人设">
-        <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-56" data-testid="bot-profile-persona" />
+      <FieldShell label="助教设定">
+        <TextArea value={persona} onChange={(event) => setPersona(event.target.value)} className="min-h-32" data-testid="bot-profile-persona" />
       </FieldShell>
       <Button tone="primary" type="submit" disabled={pending} data-testid="bot-profile-save">
         {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1282,16 +1282,16 @@ function SparkBotChatTest({
           setBusy(false);
           socket.close();
         } else if (data.type === "error") {
-          setMessages((current) => replaceLastBotMessage(current, data.content || "SparkBot 返回错误。"));
+          setMessages((current) => replaceLastBotMessage(current, data.content || "助教回复失败。"));
           setBusy(false);
         }
       } catch {
-        setMessages((current) => replaceLastBotMessage(current, "无法解析 SparkBot 响应。"));
+        setMessages((current) => replaceLastBotMessage(current, "助教回复格式异常。"));
         setBusy(false);
       }
     };
     socket.onerror = () => {
-      setMessages((current) => replaceLastBotMessage(current, "无法连接 SparkBot WebSocket。"));
+      setMessages((current) => replaceLastBotMessage(current, "无法连接助教服务。"));
       setBusy(false);
     };
     socket.onclose = () => setBusy(false);
@@ -1302,11 +1302,11 @@ function SparkBotChatTest({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <MessageSquareText size={18} className="text-brand-purple" />
-          <h2 className="text-base font-semibold text-ink">通道调试</h2>
+          <h2 className="text-base font-semibold text-ink">试问助教</h2>
         </div>
-        <Badge tone={bot?.running ? "success" : "neutral"}>{bot?.running ? "可测试" : "先启动 Bot"}</Badge>
+        <Badge tone={bot?.running ? "success" : "neutral"}>{bot?.running ? "可测试" : "先启动助教"}</Badge>
       </div>
-      <div className="mt-4 max-h-72 space-y-2 overflow-y-auto rounded-lg border border-line bg-canvas p-3">
+      <div className="mt-4 max-h-60 space-y-2 overflow-y-auto rounded-lg border border-line bg-canvas p-3">
         {messages.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
@@ -1314,14 +1314,14 @@ function SparkBotChatTest({
               message.role === "user" ? "ml-auto max-w-[82%] border-brand-purple-300 bg-tint-lavender" : "mr-auto max-w-[82%] border-line bg-white"
             }`}
           >
-            <p className="text-xs font-semibold text-slate-500">{message.role === "user" ? "我" : "SparkBot"}</p>
+            <p className="text-xs font-semibold text-slate-500">{message.role === "user" ? "我" : "助教"}</p>
             <p className="mt-1 whitespace-pre-wrap text-slate-700">{message.content || "等待回复..."}</p>
           </div>
         ))}
-        {!messages.length ? <p className="text-sm leading-6 text-slate-500">这里仅用于测试 Bot 回复。正式任务优先通过通道、MCP、skills 和定时任务运行。</p> : null}
+        {!messages.length ? <p className="text-sm leading-6 text-slate-500">这里仅用于测试助教回复。正式任务优先通过群聊和定时提醒运行。</p> : null}
       </div>
       <form className="mt-3 flex gap-2" onSubmit={send}>
-        <TextInput value={input} onChange={(event) => setInput(event.target.value)} placeholder="/cron list 或测试一句通道消息" data-testid="sparkbot-chat-input" />
+        <TextInput value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入一句测试消息，例如：列出提醒" data-testid="sparkbot-chat-input" />
         <Button tone="primary" type="submit" disabled={!canSend || !input.trim()}>
           {busy ? <Loader2 size={16} className="animate-spin" /> : <SendHorizontal size={16} />}
           发送
@@ -1375,14 +1375,20 @@ function JsonEditorDraft({
           onClick={async () => {
             try {
               const parsed = JSON.parse(draft) as unknown;
-              if (!isRecord(parsed)) throw new Error("必须是 JSON 对象。");
+              if (!isRecord(parsed)) throw new Error("内容必须是结构化对象。");
               setError("");
               setSaved(false);
               await onSave(parsed);
               setSaved(true);
             } catch (saveError) {
               setSaved(false);
-              setError(saveError instanceof Error ? saveError.message : "JSON 解析失败。");
+              setError(
+                saveError instanceof SyntaxError
+                  ? "内容格式有误，请检查括号和逗号。"
+                  : saveError instanceof Error
+                    ? saveError.message
+                    : "保存失败。",
+              );
             }
           }}
           disabled={pending}
@@ -1391,7 +1397,7 @@ function JsonEditorDraft({
           保存
         </Button>
       </div>
-      <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="mt-3 min-h-72 font-mono text-xs" />
+      <TextArea value={draft} onChange={(event) => setDraft(event.target.value)} className="mt-3 min-h-48 font-mono text-xs" />
       {error ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
       {saved ? <p className="mt-3 text-sm text-emerald-700">已保存。</p> : null}
     </section>
@@ -1424,12 +1430,20 @@ always: false
 
 # ${name}
 
-Use this skill when SparkBot needs this workflow.
+课程助教需要这个流程时使用。
 
 ## Steps
-- Clarify the trigger.
-- Use MCP or workspace tools when needed.
-- Return a concise action result.`;
+- 明确触发场景。
+- 需要时读取课程资料文件或外部服务。
+- 返回简洁、可执行的处理结果。`;
+}
+
+function formatSkillSource(value?: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized === "workspace") return "工作区";
+  if (normalized === "builtin") return "内置";
+  if (normalized === "upload") return "上传";
+  return normalized;
 }
 
 type McpServerDraft = {
@@ -1488,13 +1502,13 @@ function mcpDraftFromConfig(name: string, config: Record<string, unknown>): McpS
 }
 
 function buildMcpServerConfig(draft: McpServerDraft) {
-  const env = parseJsonObject(draft.env, "环境变量");
-  const headers = parseJsonObject(draft.headers, "Headers");
+  const env = parseJsonObject(draft.env, "本地运行信息");
+  const headers = parseJsonObject(draft.headers, "连接请求信息");
   const toolTimeout = Number(draft.toolTimeout || 30);
   if (!Number.isFinite(toolTimeout) || toolTimeout <= 0) throw new Error("超时秒数必须大于 0。");
   const enabledTools = splitEnabledTools(draft.enabledTools);
   if (draft.type === "stdio") {
-    if (!draft.command.trim()) throw new Error("stdio MCP 必须填写命令。");
+    if (!draft.command.trim()) throw new Error("本地命令服务必须填写命令。");
     return {
       type: "stdio",
       command: draft.command.trim(),
@@ -1505,7 +1519,7 @@ function buildMcpServerConfig(draft: McpServerDraft) {
       enabledTools,
     };
   }
-  if (!draft.url.trim()) throw new Error("远程 MCP 必须填写 URL。");
+  if (!draft.url.trim()) throw new Error("远程服务必须填写 URL。");
   return {
     type: draft.type,
     url: draft.url.trim(),
@@ -1520,15 +1534,21 @@ function buildMcpServerConfig(draft: McpServerDraft) {
 
 function formatMcpServer(config: Record<string, unknown>) {
   const type = String(config.type || "stdio");
-  if (type === "stdio") return `${type} · ${String(config.command || "")} ${Array.isArray(config.args) ? config.args.join(" ") : ""}`.trim();
-  return `${type} · ${String(config.url || "")}`;
+  if (type === "stdio") return `本地命令 · ${String(config.command || "")} ${Array.isArray(config.args) ? config.args.join(" ") : ""}`.trim();
+  if (type === "sse") return `实时连接 · ${String(config.url || "")}`;
+  return `HTTP 连接 · ${String(config.url || "")}`;
 }
 
 function parseJsonObject(value: string, label: string) {
   const trimmed = value.trim();
   if (!trimmed) return {};
-  const parsed = JSON.parse(trimmed) as unknown;
-  if (!isRecord(parsed)) throw new Error(`${label} 必须是 JSON 对象。`);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch {
+    throw new Error(`${label}格式有误，请检查括号和逗号。`);
+  }
+  if (!isRecord(parsed)) throw new Error(`${label}必须是结构化对象。`);
   return parsed;
 }
 

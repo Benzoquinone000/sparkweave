@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { BookOpen, FileDown, GraduationCap, Loader2, Video } from "lucide-react";
+import { BookOpen, FileDown, GraduationCap, Loader2, Sparkles, Video } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -55,6 +55,7 @@ export function GuideCoursePackagePanel({
   const competitionAlignment = coursePackage?.competition_alignment ?? null;
   const agentCollaboration = coursePackage?.agent_collaboration_blueprint ?? null;
   const defenseQa = coursePackage?.defense_qa ?? null;
+  const iflytekToolchain = coursePackage?.iflytek_toolchain ?? null;
   const learningStyle = coursePackage?.learning_style ?? demoBlueprint?.learning_style ?? null;
   return (
     <section className="rounded-lg border border-line bg-white p-4" data-testid="guide-course-package-panel">
@@ -62,7 +63,7 @@ export function GuideCoursePackagePanel({
         <div className="flex items-center gap-2">
           <GraduationCap size={18} className="text-brand-purple" />
           <div>
-            <h2 className="text-base font-semibold text-ink">课程产出包</h2>
+            <h2 className="text-base font-semibold text-ink">课程成果包</h2>
             {coursePackage?.title ? (
               <p className="mt-0.5 text-xs text-slate-500">{guideDisplayText(coursePackage.title)}</p>
             ) : null}
@@ -71,9 +72,10 @@ export function GuideCoursePackagePanel({
         {loading ? <Loader2 size={16} className="animate-spin text-brand-purple" /> : <Badge tone="brand">{project.estimated_minutes ?? "-"} 分钟</Badge>}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        {guideDisplayText(coursePackage?.summary, "系统会把学习路径整理成最终项目、评分标准、复习计划和作品集索引。")}
+        {guideDisplayText(coursePackage?.summary, "系统会把学习路径整理成最终项目、评分标准、复习计划和作品集清单。")}
       </p>
       <CompetitionDemoDashboard coursePackage={coursePackage} loading={loading} />
+      <CourseIflytekToolchainCard toolchain={iflytekToolchain} />
       <div className="mt-4 rounded-lg border border-line bg-canvas p-3">
         <p className="text-sm font-semibold text-ink">{guideDisplayText(project.title, "学习成果项目")}</p>
         <p className="mt-2 line-clamp-4 text-xs leading-5 text-slate-600">{guideDisplayText(project.scenario, "完成更多学习任务后会生成更贴合你的项目说明。")}</p>
@@ -94,7 +96,7 @@ export function GuideCoursePackagePanel({
       <CourseCompetitionSubmissionCard submission={competitionSubmission} aiCoding={aiCodingStatement} />
       <div className="mt-4 rounded-lg border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-ink">产出依据</p>
+          <p className="text-sm font-semibold text-ink">成果来源</p>
           <Badge tone="neutral">{Number(behavior.event_count ?? 0)} 条行为</Badge>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -188,7 +190,7 @@ function CourseDefenseQaCard({
           <div key={`${item.question || "question"}-${index}`} className="rounded-lg border border-line bg-canvas p-2">
             <p className="text-xs font-semibold text-ink">{guideDisplayText(item.question, "答辩问题")}</p>
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
-              {guideDisplayText(item.answer || item.evidence, "准备一句能落到页面证据的回答。")}
+              {guideDisplayText(item.answer || item.evidence, "准备一句能落到页面展示的回答。")}
             </p>
           </div>
         ))}
@@ -225,7 +227,7 @@ function CourseCompetitionAlignmentCard({
             {coverage ? <Badge tone={coverage >= 80 ? "success" : "warning"}>覆盖分 {coverage}</Badge> : null}
           </div>
           <p className="mt-2 text-sm leading-6 text-ink">
-            {guideDisplayText(alignment.summary, "把当前学习闭环映射成比赛可展示证据。")}
+            {guideDisplayText(alignment.summary, "把当前学习过程整理成比赛可展示材料。")}
           </p>
         </div>
         <Badge tone={ready >= total ? "success" : "warning"}>{ready} / {total}</Badge>
@@ -240,10 +242,10 @@ function CourseCompetitionAlignmentCard({
               <Badge tone={submissionStatusTone(item.status)}>{submissionStatusLabel(item.status)}</Badge>
             </div>
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
-              {guideDisplayText((item.evidence ?? []).filter(Boolean)[0], "等待更多学习证据。")}
+              {guideDisplayText((item.evidence ?? []).filter(Boolean)[0], "等待更多学习记录。")}
             </p>
             <p className="mt-1 line-clamp-1 text-xs leading-5 text-steel">
-              录屏：{guideDisplayText(item.demo_action, "指向当前页面证据，用一句话说明这一项已经闭环。")}
+              录屏：{guideDisplayText(item.demo_action, "指向当前页面，用一句话说明这一项已经完成。")}
             </p>
           </div>
         ))}
@@ -254,7 +256,7 @@ function CourseCompetitionAlignmentCard({
             <div key={`${item.label}-${index}`} className="rounded-lg border border-white/80 bg-white p-2">
               <p className="text-xs font-semibold text-brand-purple">{guideDisplayText(item.label, `证明 ${index + 1}`)}</p>
               <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">
-                {guideDisplayText(item.detail, "把功能证据、现场动作和答辩讲法串起来。")}
+                {guideDisplayText(item.detail, "把功能展示、现场动作和答辩讲法串起来。")}
               </p>
             </div>
           ))}
@@ -262,10 +264,77 @@ function CourseCompetitionAlignmentCard({
       ) : null}
       <p className="mt-3 rounded-lg border border-brand-purple-300 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
         {gap ? "先补：" : "录屏动作："}
-        {guideDisplayText((gap?.demo_action || alignment.next_action), "按画像、路线、资源、练习、报告顺序展示。")}
+        {guideDisplayText((gap?.demo_action || alignment.next_action), "按学习记录、路线、资源、练习、报告顺序展示。")}
       </p>
     </div>
   );
+}
+
+function CourseIflytekToolchainCard({
+  toolchain,
+}: {
+  toolchain: GuideV2CoursePackage["iflytek_toolchain"] | null;
+}) {
+  const items = toolchain?.items ?? [];
+  const cues = toolchain?.demo_cues ?? [];
+  if (!toolchain || (!items.length && !cues.length)) return null;
+  return (
+    <div className="mt-4 rounded-lg border border-brand-purple-300 bg-white p-3" data-testid="guide-iflytek-toolchain-card">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="brand">{guideDisplayText(toolchain.title, "科大讯飞工具链讲法")}</Badge>
+            <Badge tone="success">{items.length} 类能力</Badge>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {guideDisplayText(toolchain.summary, "把讯飞能力讲成一条可提交、可录屏、可答辩的学习证据链。")}
+          </p>
+        </div>
+        <Sparkles size={18} className="text-brand-purple" />
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {items.slice(0, 6).map((item) => (
+          <div key={item.id || item.label} className="rounded-lg border border-line bg-canvas p-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(item.label, "讯飞能力")}</p>
+              <span className="text-[11px] text-steel">{guideDisplayText(item.landing, "工具落点")}</span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+              {guideDisplayText(item.demo_value, "服务学习任务。")}
+            </p>
+            <p className="mt-1 line-clamp-1 text-[11px] leading-4 text-steel">
+              录屏：{guideDisplayText(item.demo_action, "打开对应页面说明能力如何进入学习链。")}
+            </p>
+          </div>
+        ))}
+      </div>
+      {cues.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {cues.slice(0, 3).map((cue, index) => (
+            <div key={`${cue.label || "cue"}-${index}`} className="rounded-lg border border-brand-purple-300 bg-tint-lavender p-2">
+              <Badge tone={courseCueTone(cue.tone)}>{guideDisplayText(cue.label, `讲法 ${index + 1}`)}</Badge>
+              <p className="mt-2 line-clamp-3 text-xs leading-5 text-charcoal">
+                {guideDisplayText(cue.detail, "把讯飞能力讲回真实学习过程。")}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {toolchain.recording_tip ? (
+        <p className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-xs leading-5 text-slate-600">
+          录屏提示：{guideDisplayText(toolchain.recording_tip)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function courseCueTone(value: unknown) {
+  const tone = String(value ?? "").trim();
+  if (tone === "success" || tone === "warning" || tone === "danger" || tone === "brand" || tone === "neutral") {
+    return tone;
+  }
+  return "brand";
 }
 
 function CourseAgentCollaborationCard({
@@ -283,12 +352,12 @@ function CourseAgentCollaborationCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="brand">{guideDisplayText(blueprint.title, "多智能体协作蓝图")}</Badge>
+            <Badge tone="brand">{guideDisplayText(blueprint.title, "导学流程蓝图")}</Badge>
             {blueprint.course_name ? <Badge tone="neutral">{guideDisplayText(blueprint.course_name)}</Badge> : null}
             {readiness?.score ? <Badge tone={Number(readiness.score) >= 80 ? "success" : "warning"}>{Number(readiness.score)} 分</Badge> : null}
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            {guideDisplayText(blueprint.summary, "把画像、路径、资源和评估串成一条可讲清楚的协作路线。")}
+            {guideDisplayText(blueprint.summary, "把学习记录、路径、资源和评估串成一条清晰的学习路线。")}
           </p>
         </div>
         {readiness?.label ? <Badge tone={Number(readiness.score ?? 0) >= 80 ? "success" : "warning"}>{guideDisplayText(readiness.label)}</Badge> : null}
@@ -298,7 +367,7 @@ function CourseAgentCollaborationCard({
           {leadRoute.map((item, index) => (
             <Fragment key={`${item.from}-${item.to}-${index}`}>
               <span className="rounded-md border border-brand-purple-300 bg-tint-lavender px-2 py-1 text-xs font-medium text-charcoal">
-                {guideDisplayText(item.to || item.from, "智能体")}
+                {guideDisplayText(item.to || item.from, "学习步骤")}
               </span>
               {index < leadRoute.length - 1 ? <span className="text-xs text-slate-400">→</span> : null}
             </Fragment>
@@ -309,15 +378,15 @@ function CourseAgentCollaborationCard({
         {roles.slice(0, 4).map((role) => (
           <div key={role.id || role.name} className="rounded-lg border border-line bg-canvas p-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(role.name, "智能体")}</p>
+              <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(role.name, "学习步骤")}</p>
               <span className="h-1.5 w-1.5 rounded-sm bg-brand-purple" />
             </div>
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
-              {guideDisplayText(role.responsibility || role.output, "负责把学习证据转成下一步动作。")}
+              {guideDisplayText(role.responsibility || role.output, "负责把学习记录转成下一步动作。")}
             </p>
             {role.output ? (
               <p className="mt-1 line-clamp-1 text-xs leading-5 text-steel">
-                产出：{guideDisplayText(role.output)}
+                结果：{guideDisplayText(role.output)}
               </p>
             ) : null}
           </div>
@@ -352,7 +421,7 @@ function CourseCompetitionSubmissionCard({
             {submission.course_name ? <Badge tone="neutral">{guideDisplayText(submission.course_name)}</Badge> : null}
           </div>
           <p className="mt-2 text-sm leading-6 text-blue-950">
-            {guideDisplayText(submission.summary, "按赛题提交物检查当前课程产出。")}
+            {guideDisplayText(submission.summary, "按赛题提交物检查当前课程成果。")}
           </p>
         </div>
         <Badge tone={ready >= total ? "success" : "warning"}>{ready} / {total}</Badge>
@@ -364,7 +433,7 @@ function CourseCompetitionSubmissionCard({
               <p className="min-w-0 truncate text-xs font-semibold text-ink">{guideDisplayText(item.item, "提交物")}</p>
               <Badge tone={submissionStatusTone(item.status)}>{submissionStatusLabel(item.status)}</Badge>
             </div>
-            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{guideDisplayText(item.evidence, "等待更多学习证据。")}</p>
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{guideDisplayText(item.evidence, "等待更多学习记录。")}</p>
           </div>
         ))}
       </div>
@@ -376,7 +445,7 @@ function CourseCompetitionSubmissionCard({
       {aiCoding ? (
         <div className="mt-3 rounded-lg border border-blue-100 bg-white p-2" data-testid="guide-ai-coding-statement">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="success">{guideDisplayText(aiCoding.title, "AI Coding 工具说明")}</Badge>
+            <Badge tone="success">{guideDisplayText(aiCoding.title, "AI Coding 使用说明")}</Badge>
             <span className="text-xs text-slate-500">可放入提交材料</span>
           </div>
           <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
@@ -480,11 +549,11 @@ function CourseLearningStyleCard({ learningStyle }: { learningStyle: GuideV2Cour
   return (
     <div className="mt-4 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3" data-testid="guide-course-learning-style">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">画像驱动产出</Badge>
+        <Badge tone="brand">记录驱动产出</Badge>
         {learningStyle.label ? <Badge tone="neutral">{learningStyle.label}</Badge> : null}
       </div>
       <p className="mt-2 text-sm leading-6 text-ink">
-        {learningStyle.summary || "课程产出包会把画像、资源、练习和报告串成可展示的学习闭环。"}
+        {learningStyle.summary || "课程成果包会把学习记录、资源、练习和报告串成可展示的学习链。"}
       </p>
       {learningStyle.trend ? <p className="mt-1 text-xs leading-5 text-charcoal">{learningStyle.trend}</p> : null}
       {signals.length ? (
@@ -543,7 +612,7 @@ function CourseDemoRecordingChecklistCard({
   ];
   const fallback = kit?.checklist?.[0] || blueprint?.fallbacks?.[0] || seed?.rehearsal_notes?.[0] || "";
   const title = guideDisplayText(blueprint?.title || seed?.title, "录屏检查");
-  const summary = guideDisplayText(blueprint?.summary || kit?.summary || seed?.scenario, "打开画像、路线、资源、反馈和产出包，讲一条完整学习闭环。");
+  const summary = guideDisplayText(blueprint?.summary || kit?.summary || seed?.scenario, "打开学习记录、路线、资源、反馈和课程成果，讲一条完整学习过程。");
   const hasContent = Boolean(blueprint || kit || seed || script || steps.length || stableAssets.length || fallback);
 
   if (!hasContent) {

@@ -14,9 +14,13 @@ from sparkweave.core.tool_protocol import (
 )
 from sparkweave.tools.builtin import (
     BrainstormTool,
+    CanvasTool,
     CodeExecutionTool,
     ExternalImageSearchTool,
     GeoGebraAnalysisTool,
+    IflytekFormulaTool,
+    IflytekImageUnderstandingTool,
+    IflytekWorkflowTool,
     PaperSearchToolWrapper,
     RAGTool,
     ReasonTool,
@@ -206,6 +210,22 @@ async def test_external_image_search_tool_wraps_learning_image_service(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_canvas_tool_returns_editable_document_metadata() -> None:
+    result = await CanvasTool().execute(
+        title="Gradient descent study plan",
+        content="# Gradient descent study plan\n\n- Learn the loss curve.",
+        operation="create",
+        intent="draft a study plan",
+    )
+
+    assert result.success is True
+    assert result.metadata["render_type"] == "canvas_document"
+    assert result.metadata["tool_name"] == "canvas"
+    assert result.metadata["canvas_document"]["title"] == "Gradient descent study plan"
+    assert "loss curve" in result.metadata["canvas_document"]["content"]
+
+
+@pytest.mark.asyncio
 async def test_code_execution_tool_uses_direct_code_path(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_run_code(**kwargs: Any) -> dict[str, Any]:
         assert kwargs["code"] == "print(2 + 2)"
@@ -381,3 +401,121 @@ async def test_tool_registry_resolves_aliases_and_argument_mapping() -> None:
     assert rag.calls[0]["query"] == "find this"
     assert code.calls[0]["intent"] == "compute this"
 
+
+@pytest.mark.asyncio
+async def test_iflytek_workflow_tool_returns_workflow_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_call_iflytek_workflow(prompt: str, **kwargs: Any) -> dict[str, Any]:
+        captured.update({"prompt": prompt, **kwargs})
+        return {
+            "success": True,
+            "flow_id": "flow-demo",
+            "content": "已生成讯飞工作流学习方案。",
+            "usage": {"total_tokens": 12},
+        }
+
+    monkeypatch.setattr("sparkweave.services.iflytek_workflow.call_iflytek_workflow", fake_call_iflytek_workflow)
+
+    result = await IflytekWorkflowTool().execute(
+        prompt="生成 7 分钟演示路线",
+        flow_id="flow-demo",
+        parameters={"course": "AIED301"},
+    )
+
+    assert result.success is True
+    assert result.content == "已生成讯飞工作流学习方案。"
+    assert result.metadata["tool_name"] == "iflytek_workflow"
+    assert result.sources[0]["flow_id"] == "flow-demo"
+    assert captured["prompt"] == "生成 7 分钟演示路线"
+    assert captured["parameters"] == {"course": "AIED301"}
+
+
+@pytest.mark.asyncio
+async def test_iflytek_formula_tool_returns_recognized_formula(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_decode_image_base64(value: str) -> bytes:
+        captured["image_base64"] = value
+        return b"image"
+
+    async def fake_recognize_formula_image(image: bytes, **kwargs: Any) -> dict[str, Any]:
+        captured["image"] = image
+        captured.update(kwargs)
+        return {
+            "success": True,
+            "provider": "iflytek_formula",
+            "model": "teach-photo-print",
+            "text": "$x+1=2$",
+            "regions": [{"type": "formula", "content": "$x+1=2$"}],
+        }
+
+    monkeypatch.setattr(
+        "sparkweave.services.iflytek_formula.decode_image_base64",
+        fake_decode_image_base64,
+    )
+    monkeypatch.setattr(
+        "sparkweave.services.iflytek_formula.recognize_formula_image",
+        fake_recognize_formula_image,
+    )
+
+    result = await IflytekFormulaTool().execute(
+        image_base64="data:image/png;base64,aW1hZ2U=",
+        question="Solve the formula.",
+    )
+
+    assert result.success is True
+    assert result.content == "$x+1=2$"
+    assert result.metadata["tool_name"] == "iflytek_formula_ocr"
+    assert result.metadata["question"] == "Solve the formula."
+    assert result.sources[0]["regions"] == 1
+    assert captured["image_base64"] == "data:image/png;base64,aW1hZ2U="
+    assert captured["image"] == b"image"
+
+
+@pytest.mark.asyncio
+async def test_iflytek_image_understanding_tool_returns_visual_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_decode_image_base64(value: str) -> tuple[bytes, str]:
+        captured["image_base64"] = value
+        return b"image", "image/png"
+
+    async def fake_understand_image(image: bytes, **kwargs: Any) -> dict[str, Any]:
+        captured["image"] = image
+        captured.update(kwargs)
+        return {
+            "success": True,
+            "provider": "iflytek_image_understanding",
+            "model": "imagev3",
+            "protocol": "spark_image",
+            "content": "图中是一张神经网络结构图。",
+            "usage": {"total_tokens": 10},
+        }
+
+    monkeypatch.setattr(
+        "sparkweave.services.iflytek_vision.decode_image_base64",
+        fake_decode_image_base64,
+    )
+    monkeypatch.setattr(
+        "sparkweave.services.iflytek_vision.understand_image",
+        fake_understand_image,
+    )
+
+    result = await IflytekImageUnderstandingTool().execute(
+        image_base64="data:image/png;base64,aW1hZ2U=",
+        prompt="解释这张图",
+    )
+
+    assert result.success is True
+    assert result.content == "图中是一张神经网络结构图。"
+    assert result.metadata["tool_name"] == "iflytek_image_understanding"
+    assert result.metadata["prompt"] == "解释这张图"
+    assert result.sources[0]["model"] == "imagev3"
+    assert captured["image_base64"] == "data:image/png;base64,aW1hZ2U="
+    assert captured["image"] == b"image"
+    assert captured["mime_type"] == "image/png"

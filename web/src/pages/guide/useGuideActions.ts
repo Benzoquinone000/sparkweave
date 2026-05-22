@@ -88,9 +88,9 @@ export function useGuideActions({
     try {
       const profile = await learnerProfileMutations.refresh.mutateAsync({ force: true });
       const focus = profile?.overview?.current_focus?.trim();
-      return focus ? `画像已同步，当前重点：${focus}。` : "画像已同步，可前往学习画像页查看变化。";
+      return focus ? `学习记录已同步，当前重点：${focus}。` : "学习记录已同步，可前往记录页查看变化。";
     } catch {
-      return "学习证据已记录，画像会在后台继续同步。";
+      return "学习记录已保存，后台会继续同步。";
     }
   };
 

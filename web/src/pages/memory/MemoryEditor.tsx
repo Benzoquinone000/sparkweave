@@ -72,9 +72,9 @@ export function MemoryEditor({
       exit={{ opacity: 0, y: -6 }}
       transition={{ duration: 0.22 }}
     >
-      <aside className="rounded-lg border border-line bg-white p-3">
+      <aside className="dt-dynamic-card rounded-lg border border-line bg-white p-3">
         <h2 className="text-base font-semibold text-ink">手动补充</h2>
-        <p className="mt-1 text-sm leading-5 text-slate-500">只在需要时补一句长期信息；日常先看画像概览即可。</p>
+        <p className="mt-1 text-sm leading-5 text-slate-500">只在需要时补一句长期信息；日常先看概览即可。</p>
         <div className="mt-4 grid gap-2">
           {MEMORY_TABS.map((tab) => {
             const Icon = tab.icon;
@@ -84,7 +84,7 @@ export function MemoryEditor({
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveFile(tab.key)}
-                className={`rounded-lg border p-3 text-left transition ${
+                className={`dt-dynamic-result rounded-lg border p-3 text-left transition ${
                   active ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-canvas text-slate-600 hover:border-brand-purple-300"
                 }`}
               >
@@ -101,7 +101,7 @@ export function MemoryEditor({
         </div>
       </aside>
 
-      <section className="rounded-lg border border-line bg-white p-4">
+      <section className="dt-dynamic-card rounded-lg border border-line bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-ink">{activeTab.label}</h2>
@@ -126,7 +126,7 @@ export function MemoryEditor({
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           <span>{hasChanges ? "有未保存修改" : "已同步"}</span>
           <span>{wordCount} 个词</span>
-          <div className="flex rounded-lg border border-line bg-canvas p-1">
+          <div className="dt-dynamic-panel flex rounded-lg border border-line bg-canvas p-1">
             {(["edit", "preview"] as const).map((mode) => (
               <button
                 key={mode}
@@ -147,7 +147,7 @@ export function MemoryEditor({
             {isLoading ? (
               <motion.div
                 key="loading"
-                className="flex min-h-[420px] items-center justify-center rounded-lg border border-line bg-canvas text-slate-500"
+                className="dt-dynamic-empty flex min-h-[300px] items-center justify-center rounded-lg border border-line bg-canvas text-slate-500"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -162,13 +162,13 @@ export function MemoryEditor({
                   onChange={(event) => setDrafts((prev) => ({ ...prev, [activeFile]: event.target.value }))}
                   placeholder={activeTab.placeholder}
                   data-testid="memory-editor"
-                  className="min-h-[420px] font-mono text-sm leading-6"
+                  className="min-h-[300px] font-mono text-sm leading-6"
                 />
               </motion.div>
             ) : (
               <motion.div
                 key="preview"
-                className="min-h-[420px] rounded-lg border border-line bg-canvas p-4"
+                className="dt-dynamic-result min-h-[300px] rounded-lg border border-line bg-canvas p-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -176,7 +176,7 @@ export function MemoryEditor({
                 {activeContent.trim() ? (
                   <MarkdownRenderer>{activeContent}</MarkdownRenderer>
                 ) : (
-                  <EmptyState icon={<BookOpen size={24} />} title="暂无内容" description="切回编辑页补充记忆内容。" />
+                  <EmptyState icon={<BookOpen size={24} />} title="暂无内容" description="切回编辑页补充这部分内容。" />
                 )}
               </motion.div>
             )}

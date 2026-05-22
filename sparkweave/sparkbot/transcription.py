@@ -9,6 +9,11 @@ from typing import Any
 
 import httpx
 
+from sparkweave.services.speech import (
+    SpeechUnavailable,
+    transcribe_audio_file_with_iflytek,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,6 +71,14 @@ class GroqTranscriptionProvider:
 
 async def transcribe_audio(file_path: str | Path, api_key: str | None = None) -> str:
     """Convenience wrapper matching the old SparkBot transcription behavior."""
+    try:
+        result = await transcribe_audio_file_with_iflytek(file_path)
+        if result.text:
+            return result.text
+    except SpeechUnavailable:
+        pass
+    except Exception:
+        logger.exception("iFlytek audio transcription failed")
     return await GroqTranscriptionProvider(api_key=api_key).transcribe(file_path)
 
 

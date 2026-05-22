@@ -30,6 +30,7 @@ import {
   type TestStatus,
   withLegacyText,
 } from "./settingsDiagnosticsUtils";
+import { SpeechPreviewGroup } from "./SpeechPreviewGroup";
 import { InlineLegacyText } from "./SettingsStatusStrip";
 
 export function SettingsDiagnosticsPanel({
@@ -88,8 +89,8 @@ export function SettingsDiagnosticsPanel({
         data-testid="settings-diagnostics-toggle"
       >
         <span>
-          <span className="block text-base font-semibold text-ink">检测与运行信息</span>
-          <span className="mt-1 block text-sm text-slate-500">模型不可用或需要排查时再打开。</span>
+          <span className="block text-base font-semibold text-ink">连接检查</span>
+          <span className="mt-1 block text-sm text-slate-500">模型不可用或需要确认连接时再打开。</span>
         </span>
         <Badge tone="neutral">按需查看</Badge>
       </summary>
@@ -101,6 +102,8 @@ export function SettingsDiagnosticsPanel({
           pending={probePending}
           onRun={onRunProbe}
         />
+
+        <SpeechPreviewGroup />
 
         <section className="rounded-lg border border-line bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -208,7 +211,7 @@ function SystemProbePanel({
             <PlugZap size={18} className="text-brand-purple" />
             <h2 className="text-base font-semibold text-ink">快速检测</h2>
           </div>
-          <p className="mt-1 text-sm leading-6 text-slate-500">保存配置后，用这里确认模型、向量和搜索是否可用。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">保存配置后，用这里确认核心服务和可选语音学习是否可用。</p>
         </div>
         <Badge tone="brand">一键检测</Badge>
       </div>
@@ -222,7 +225,7 @@ function SystemProbePanel({
               key={probe.id}
               className="dt-interactive grid gap-3 rounded-lg border border-line bg-white p-3 hover:border-brand-purple-300 md:grid-cols-[minmax(0,1fr)_auto]"
               data-testid={`settings-probe-result-${probe.id}`}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -0.5 }}
               whileTap={{ scale: 0.99 }}
             >
               <div className="min-w-0">
@@ -347,16 +350,35 @@ function formatTourTime(value?: number | null) {
   return new Date(value * 1000).toLocaleString();
 }
 
+function topologyDisplayName(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "-";
+  const names: Record<string, string> = {
+    LangGraphTurnRuntimeManager: "学习服务管理",
+    LangGraphRunner: "学习流程执行",
+    SQLiteSessionStore: "本地会话存储",
+    CapabilityRegistry: "学习入口",
+    ToolRegistry: "辅助入口",
+    ng_router: "学习服务连接",
+    independent_subsystem: "独立学习服务",
+    chat: "学习对话",
+    solve: "解题流程",
+    guide: "学习向导",
+    co_writer: "共写空间",
+  };
+  return names[raw] ?? raw;
+}
+
 function RuntimeTopologyPanel({ topology, loading }: { topology?: RuntimeTopology; loading: boolean }) {
   const primary = topology?.primary_runtime;
   const primaryItems = primary
     ? [
         ["连接方式", primary.transport],
-        ["运行管理", primary.manager],
-        ["任务编排", primary.orchestrator],
-        ["会话存储", primary.session_store],
-        ["能力入口", primary.capability_entry],
-        ["工具入口", primary.tool_entry],
+        ["运行管理", topologyDisplayName(primary.manager)],
+        ["任务流程", topologyDisplayName(primary.orchestrator)],
+        ["会话存储", topologyDisplayName(primary.session_store)],
+        ["学习服务", topologyDisplayName(primary.capability_entry)],
+        ["辅助服务", topologyDisplayName(primary.tool_entry)],
       ]
     : [];
   return (
@@ -365,11 +387,11 @@ function RuntimeTopologyPanel({ topology, loading }: { topology?: RuntimeTopolog
         <div>
           <div className="flex items-center gap-2">
             <GitBranch size={18} className="text-brand-blue" />
-            <h2 className="text-base font-semibold text-ink" aria-label="NG 运行拓扑">
+            <h2 className="text-base font-semibold text-ink">
               运行概览
             </h2>
           </div>
-          <p className="mt-1 text-sm leading-6 text-slate-500">确认当前连接的是新版学习运行时。</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">确认当前连接的是新版学习服务。</p>
         </div>
         <Badge tone={primary?.transport ? "brand" : "neutral"}>{primary?.transport || "读取中"}</Badge>
       </div>
@@ -390,8 +412,8 @@ function RuntimeTopologyPanel({ topology, loading }: { topology?: RuntimeTopolog
             ))}
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <RouteGroup title="兼容入口" routes={topology?.compatibility_routes ?? []} />
-            <RouteGroup title="独立能力" routes={topology?.isolated_subsystems ?? []} />
+            <RouteGroup title="旧入口连接" routes={topology?.compatibility_routes ?? []} />
+            <RouteGroup title="独立辅助功能" routes={topology?.isolated_subsystems ?? []} />
           </div>
         </div>
       )}
@@ -409,8 +431,10 @@ function CatalogSnapshotPanel({
   onRefresh: () => void;
 }) {
   const services = catalog?.services;
-  const serviceCount = services ? Object.keys(services).length : 0;
-  const profileCount = services ? Object.values(services).reduce((total, service) => total + (service.profiles?.length ?? 0), 0) : 0;
+  const profileCount = services
+    ? Object.values(services).reduce((total, service) => total + (service?.profiles?.length ?? 0), 0)
+    : 0;
+  const visibleServices = services ? CATALOG_SERVICE_ORDER : [];
   return (
     <section className="rounded-lg border border-line bg-white p-3" data-testid="settings-catalog-snapshot">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -430,21 +454,154 @@ function CatalogSnapshotPanel({
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <CatalogFact label="来源" value="设置服务" />
         <CatalogFact label="版本" value={catalog ? String(catalog.version) : loading ? "读取中" : "-"} />
-        <CatalogFact label="服务" value={String(serviceCount)} />
+        <CatalogFact label="服务" value={`${CATALOG_SERVICE_ORDER.length} 项`} />
         <CatalogFact label="配置项" value={String(profileCount)} />
       </div>
       {services ? (
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          {(["llm", "embedding", "search"] as const).map((name) => (
-            <div key={name} className="rounded-lg bg-canvas p-3">
-              <p className="text-sm font-semibold text-ink">{serviceDisplayName(name)}</p>
-              <p className="mt-1 text-xs text-slate-500">配置：{services[name]?.active_profile_id || "-"}</p>
-              <p className="mt-1 text-xs text-slate-500">模型：{services[name]?.active_model_id || "-"}</p>
-            </div>
-          ))}
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {visibleServices.map((name) => {
+            const summary = summarizeCatalogService(name, services[name]);
+            return (
+              <div key={name} className="min-w-0 rounded-lg bg-canvas p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-semibold text-ink">{serviceDisplayName(name)}</p>
+                  <Badge tone={summary.configured ? "success" : "neutral"}>{summary.configured ? "已保存" : "未配置"}</Badge>
+                </div>
+                <p className="mt-2 truncate text-xs font-medium text-slate-600">{summary.primary}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">{summary.secondary}</p>
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </section>
+  );
+}
+
+const CATALOG_SERVICE_ORDER = [
+  "llm",
+  "embedding",
+  "search",
+  "ocr",
+  "formula_ocr",
+  "image_understanding",
+  "tts",
+  "asr",
+  "speech_eval",
+] as const;
+type CatalogServiceName = (typeof CATALOG_SERVICE_ORDER)[number];
+
+function summarizeCatalogService(
+  name: CatalogServiceName,
+  service: ModelCatalog["services"][CatalogServiceName] | undefined,
+) {
+  const profile = activeCatalogProfile(service);
+  const model = activeCatalogModel(service, profile);
+  if (!profile) return { configured: false, primary: "未选择服务", secondary: "保存配置后显示" };
+
+  const disabled = isDisabledCatalogProfile(profile);
+  const provider = providerDisplayName(profile.binding || profile.provider || profile.name);
+  const base = trimUrlForDisplay(profile.base_url);
+  const extra = profile.extra_headers || {};
+  if (name === "tts") {
+    return {
+      configured: !disabled && Boolean(profile.provider || profile.binding),
+      primary: provider,
+      secondary: `音色 ${extra.voice || "默认"}${base ? ` · ${base}` : ""}`,
+    };
+  }
+  if (name === "asr") {
+    return {
+      configured: !disabled && Boolean(profile.provider || profile.binding),
+      primary: provider,
+      secondary: `语言 ${extra.language || "zh_cn"}${base ? ` · ${base}` : ""}`,
+    };
+  }
+  if (name === "speech_eval") {
+    return {
+      configured: !disabled && Boolean(profile.provider || profile.binding),
+      primary: provider,
+      secondary: `题型 ${speechCategoryLabel(extra.category)}${base ? ` · ${base}` : ""}`,
+    };
+  }
+  if (name === "search" || name === "ocr" || name === "formula_ocr" || name === "image_understanding") {
+    return {
+      configured: !disabled && Boolean(profile.provider || profile.binding),
+      primary: provider,
+      secondary: base || "使用默认地址",
+    };
+  }
+  return {
+    configured: !disabled && Boolean(model?.model || profile.binding || profile.provider),
+    primary: model?.model || provider,
+    secondary: provider,
+  };
+}
+
+function activeCatalogProfile(service?: { active_profile_id?: string; profiles?: Array<ModelCatalog["services"]["llm"]["profiles"][number]> }) {
+  const profiles = service?.profiles ?? [];
+  return profiles.find((profile) => profile.id === service?.active_profile_id) || profiles[0];
+}
+
+function activeCatalogModel(
+  service: { active_model_id?: string } | undefined,
+  profile?: ModelCatalog["services"]["llm"]["profiles"][number],
+) {
+  const models = profile?.models ?? [];
+  return models.find((model) => model.id === service?.active_model_id) || models[0];
+}
+
+function isDisabledCatalogProfile(profile: ModelCatalog["services"]["llm"]["profiles"][number]) {
+  const provider = String(profile.provider || "").trim().toLowerCase();
+  const binding = String(profile.binding || "").trim().toLowerCase();
+  return provider === "disabled" || binding === "disabled";
+}
+
+function providerDisplayName(value?: string) {
+  const key = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+  return (
+    {
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+      deepseek: "DeepSeek",
+      dashscope: "通义千问",
+      gemini: "Gemini",
+      siliconflow: "硅基流动",
+      ollama: "Ollama",
+      brave: "Brave",
+      tavily: "Tavily",
+      jina: "Jina",
+      duckduckgo: "DuckDuckGo",
+      perplexity: "Perplexity",
+      serper: "Serper",
+      searxng: "SearXNG",
+      iflytek: "科大讯飞",
+      xfyun: "科大讯飞",
+      xunfei: "科大讯飞",
+      iflytek_spark: "讯飞星火",
+      iflytek_spark_ws: "讯飞星火",
+      iflytek_maas_coding: "讯飞 MaaS Coding",
+      iflytek_tts: "讯飞语音合成",
+      iflytek_asr: "讯飞语音听写",
+      iflytek_speech_eval: "讯飞语音评测",
+      disabled: "停用",
+    }[key] || value || "默认服务"
+  );
+}
+
+function trimUrlForDisplay(value?: string) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.replace(/^https?:\/\//, "").replace(/^wss?:\/\//, "").replace(/\/$/, "");
+}
+
+function speechCategoryLabel(value?: string) {
+  return (
+    {
+      read_sentence: "句子朗读",
+      read_chapter: "篇章朗读",
+      read_word: "词语朗读",
+    }[String(value || "")] || value || "句子朗读"
   );
 }
 
@@ -464,10 +621,10 @@ function RouteGroup({ title, routes }: { title: string; routes: Array<{ router: 
       <div className="mt-3 flex flex-wrap gap-2">
         {routes.map((route) => (
           <Badge key={`${route.router}-${route.mode}`} tone="neutral">
-            {route.router} · {route.mode}
+            {topologyDisplayName(route.router)} · {topologyDisplayName(route.mode)}
           </Badge>
         ))}
-        {!routes.length ? <span className="text-xs text-slate-500">暂无路由</span> : null}
+        {!routes.length ? <span className="text-xs text-slate-500">暂无连接</span> : null}
       </div>
     </div>
   );

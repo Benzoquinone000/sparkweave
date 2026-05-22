@@ -27,7 +27,7 @@ export function formatDatasetProfileStatus(profile: Record<string, unknown>) {
   const labels: Record<string, string> = {
     empty: "缺少样本",
     partial: "部分标注",
-    release_ready: "可做质量门",
+    release_ready: "可做质量判断",
     smoke_check: "体检样本",
   };
   return labels[status] || String(profile.label_status_label || "待判断");
@@ -35,18 +35,18 @@ export function formatDatasetProfileStatus(profile: Record<string, unknown>) {
 
 export function formatDatasetProfileHeadline(profile: Record<string, unknown>) {
   const status = String(profile.label_status || "");
-  if (status === "release_ready") return "这批样本有足够的期望关键词和来源，可用于观察检索质量变化。";
+  if (status === "release_ready") return "这批样本有足够的期望关键词和来源，可用于观察资料查找质量变化。";
   if (status === "partial") return "这批样本已有部分标注，指标可以参考，但还不适合直接决定默认策略。";
-  if (status === "smoke_check") return "这批样本主要用于确认资料能否被检索，不代表正式质量结论。";
-  return String(profile.headline || "先补充评测样本，再运行质量评测。");
+  if (status === "smoke_check") return "这批样本主要用于确认资料能否被问到，不代表正式质量结论。";
+  return String(profile.headline || "先补充检查样本，再运行资料来源检查。");
 }
 
 export function formatDatasetProfileRecommendation(profile: Record<string, unknown>) {
   const status = String(profile.label_status || "");
   const minCases = readNumber(profile, "min_release_cases") ?? 30;
-  if (status === "release_ready") return "后续改动 RAG 时继续复用这批样本，质量变化会更可比。";
-  if (status === "partial") return `建议把更多样本补上期望关键词和来源；正式质量门建议至少 ${minCases} 个标注样本。`;
-  if (status === "smoke_check") return "适合上传或重建索引后快速确认链路；要判断质量，请准备期望关键词和来源。";
+  if (status === "release_ready") return "后续改动查找方案时继续复用这批样本，质量变化会更可比。";
+  if (status === "partial") return `建议把更多样本补上期望关键词和来源；正式质量判断建议至少 ${minCases} 个标注样本。`;
+  if (status === "smoke_check") return "适合上传或重新整理资料后快速确认链路；要判断质量，请准备期望关键词和来源。";
   return String(profile.recommendation || "添加问题、期望关键词和期望来源后再运行完整对比。");
 }
 
@@ -73,18 +73,18 @@ export function ragEvaluationMetricFacts(
 ) {
   if (isSmokeDatasetProfile(datasetProfile)) {
     return [
-      { label: "检索成功", value: formatRagEvalRate(summary.success_rate) },
+      { label: "查找成功", value: formatRagEvalRate(summary.success_rate) },
       { label: "平均来源", value: formatRagEvalNumber(summary.avg_source_count) },
-      { label: "平均上下文", value: formatRagEvalChars(summary.avg_context_chars) },
-      { label: "证据理由", value: formatRagEvalNumber(summary.avg_evidence_reasons) },
+      { label: "平均回答材料", value: formatRagEvalChars(summary.avg_context_chars) },
+      { label: "来源说明", value: formatRagEvalNumber(summary.avg_evidence_reasons) },
       { label: "较慢请求", value: formatRagEvalMs(summary.p95_latency_ms) },
     ];
   }
   return [
     { label: "成功率", value: formatRagEvalRate(summary.success_rate) },
-    { label: "关键词召回", value: formatRagEvalRate(summary.keyword_recall) },
+    { label: "关键词覆盖", value: formatRagEvalRate(summary.keyword_recall) },
     { label: "来源命中", value: formatRagEvalRate(summary.source_hit_rate) },
-    { label: "证据排序", value: formatRagEvalRate(summary.avg_source_ndcg) },
+    { label: "来源排序", value: formatRagEvalRate(summary.avg_source_ndcg) },
     { label: "较慢请求", value: formatRagEvalMs(summary.p95_latency_ms) },
   ];
 }

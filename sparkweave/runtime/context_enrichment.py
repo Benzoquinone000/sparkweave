@@ -74,6 +74,31 @@ def extract_persist_user_message(config: dict[str, Any] | None) -> bool:
     return bool(raw)
 
 
+def extract_canvas_context(
+    payload: dict[str, Any],
+    config: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    raw = payload.get("canvas_context")
+    if not isinstance(raw, dict) or not raw.get("content"):
+        raw = config.pop("canvas_context", None) if isinstance(config, dict) else None
+    if not isinstance(raw, dict):
+        return None
+
+    content = str(raw.get("content") or "").strip()
+    if not content:
+        return None
+    clipped = clip_text(content, limit=12000)
+    return {
+        "id": str(raw.get("id") or "").strip(),
+        "message_id": str(raw.get("message_id") or raw.get("messageId") or "").strip(),
+        "title": str(raw.get("title") or "可编辑文档").strip()[:180],
+        "content": clipped,
+        "updated_at": raw.get("updated_at") or raw.get("updatedAt") or "",
+        "truncated": clipped != content,
+        "original_chars": len(content),
+    }
+
+
 def format_followup_question_context(context: dict[str, Any], language: str = "en") -> str:
     options = context.get("options") or {}
     option_lines = []
@@ -151,6 +176,7 @@ async def build_turn_context(
     request_config = dict(payload.get("config", {}) or {})
     followup_question_context = extract_followup_question_context(request_config)
     persist_user_message = extract_persist_user_message(request_config)
+    canvas_context = extract_canvas_context(payload, request_config)
     raw_user_content = str(payload.get("content", "") or "")
     language = str(payload.get("language", "en") or "en")
     notebook_references = payload.get("notebook_references", []) or []
@@ -243,6 +269,7 @@ async def build_turn_context(
             "history_token_count": history_result.token_count,
             "history_budget": history_result.budget,
             "question_followup_context": followup_question_context or {},
+            "canvas_context": canvas_context or {},
             "notebook_references": notebook_references,
             "history_references": history_references,
             "memory_context": memory_context,
@@ -470,6 +497,7 @@ def _effective_user_message(
 __all__ = [
     "build_turn_context",
     "clip_text",
+    "extract_canvas_context",
     "extract_followup_question_context",
     "extract_persist_user_message",
     "format_followup_question_context",

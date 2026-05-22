@@ -55,7 +55,7 @@ export function LazyAudioNarrationViewer({
 
 function MediaLoadingState({ label, embedded = false }: { label: string; embedded?: boolean }) {
   return (
-    <div className={embedded ? "rounded-lg bg-white/70 p-3" : "rounded-lg border border-line bg-canvas p-3"}>
+    <div className={embedded ? "dt-dynamic-result rounded-lg bg-white/70 p-3" : "dt-dynamic-result rounded-lg border border-line bg-canvas p-3"}>
       <div className="flex items-center gap-2">
         <span className="h-6 w-16 rounded bg-slate-100" />
         <span className="text-xs font-medium text-slate-500">正在准备{label}...</span>

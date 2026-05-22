@@ -54,15 +54,15 @@ export function SparkBotCronPanel({
   );
 
   return (
-    <section className="rounded-lg border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,15,15,0.025)]" data-testid="sparkbot-cron-panel">
+    <section className="dt-dynamic-card rounded-lg border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,15,15,0.025)]" data-testid="sparkbot-cron-panel">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <CalendarClock size={18} className="text-brand-purple" />
-            <h2 className="text-base font-semibold text-ink">定时任务 Agent</h2>
+            <h2 className="text-base font-semibold text-ink">定时提醒</h2>
           </div>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            巡检、日报、群提醒、资料同步和周期性 MCP 检查都放在这里。
+            复习提醒、日报、群提醒、资料同步和周期性检查都放在这里。
           </p>
         </div>
         <Button tone="secondary" onClick={onRefresh} disabled={loading} data-testid="sparkbot-cron-refresh">
@@ -97,10 +97,10 @@ export function SparkBotCronPanel({
               />
             ))}
             {!jobs.length ? (
-              <div className="rounded-lg border border-dashed border-line bg-canvas p-4">
+              <div className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-canvas p-4">
                 <p className="text-sm font-medium text-ink">还没有定时任务</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  先创建一个巡检或提醒任务，SparkBot 启动后会按队列自动执行。
+                  先创建一个复习或提醒任务，助教启动后会按队列自动执行。
                 </p>
               </div>
             ) : null}
@@ -121,8 +121,8 @@ function CronCreateForm({
   onCreate: (payload: CreateCronPayload) => Promise<unknown>;
 }) {
   const [kind, setKind] = useState<CronKind>("cron");
-  const [name, setName] = useState("每日助教巡检");
-  const [message, setMessage] = useState("检查 MCP 服务、skills 工作区和最近会话，生成一条需要我处理的助教任务。");
+  const [name, setName] = useState("每日学习提醒");
+  const [message, setMessage] = useState("检查最近学习记录和课程资料，生成一条今天需要处理的助教任务。");
   const [everySeconds, setEverySeconds] = useState("3600");
   const [cronExpr, setCronExpr] = useState("0 9 * * *");
   const [timezone, setTimezone] = useState("Asia/Shanghai");
@@ -157,7 +157,7 @@ function CronCreateForm({
       return;
     }
     if (kind === "cron" && !payload.cron_expr) {
-      setError("Cron 表达式不能为空。");
+      setError("时间规则不能为空。");
       return;
     }
     if (kind === "at" && !at) {
@@ -174,7 +174,7 @@ function CronCreateForm({
   };
 
   return (
-    <form className="grid gap-3 rounded-lg border border-line bg-canvas p-3" onSubmit={submit} data-testid="sparkbot-cron-create">
+    <form className="dt-dynamic-result grid gap-3 rounded-lg border border-line bg-canvas p-3" onSubmit={submit} data-testid="sparkbot-cron-create">
       <div className="flex items-center gap-2">
         <Plus size={16} className="text-brand-purple" />
         <h3 className="text-sm font-semibold text-ink">创建任务</h3>
@@ -186,7 +186,7 @@ function CronCreateForm({
 
       <FieldShell label="触发方式">
         <SelectInput value={kind} onChange={(event) => setKind(event.target.value as CronKind)} data-testid="sparkbot-cron-kind">
-          <option value="cron">Cron</option>
+          <option value="cron">时间规则</option>
           <option value="every">固定间隔</option>
           <option value="at">执行一次</option>
         </SelectInput>
@@ -200,7 +200,7 @@ function CronCreateForm({
 
       {kind === "cron" ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <FieldShell label="Cron 表达式">
+          <FieldShell label="时间规则">
             <TextInput value={cronExpr} onChange={(event) => setCronExpr(event.target.value)} data-testid="sparkbot-cron-expr" />
           </FieldShell>
           <FieldShell label="时区">
@@ -216,21 +216,21 @@ function CronCreateForm({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <FieldShell label="通道">
+        <FieldShell label="消息入口">
           <TextInput value={channel} onChange={(event) => setChannel(event.target.value)} data-testid="sparkbot-cron-channel" />
         </FieldShell>
-        <FieldShell label="会话">
+        <FieldShell label="发送对象">
           <TextInput value={to} onChange={(event) => setTo(event.target.value)} data-testid="sparkbot-cron-to" />
         </FieldShell>
       </div>
 
-      <FieldShell label="Agent 指令">
-        <TextArea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-36" data-testid="sparkbot-cron-message" />
+      <FieldShell label="任务内容">
+        <TextArea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-28" data-testid="sparkbot-cron-message" />
       </FieldShell>
 
       <label className="flex items-start gap-2 text-sm text-slate-600">
         <input type="checkbox" checked={deliver} onChange={(event) => setDeliver(event.target.checked)} className="mt-1" />
-        <span>执行后把结果发回通道</span>
+        <span>执行后把结果发回消息入口</span>
       </label>
 
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{error}</p> : null}
@@ -260,7 +260,7 @@ function CronJobRow({
 }) {
   const status = job.state?.lastStatus || "pending";
   return (
-    <article className="rounded-lg border border-line bg-white p-3" data-testid={`sparkbot-cron-job-${job.id}`}>
+    <article className="dt-dynamic-result rounded-lg border border-line bg-white p-3" data-testid={`sparkbot-cron-job-${job.id}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +298,7 @@ function CronJobRow({
       <div className="mt-3 grid gap-2 border-t border-line pt-3 text-xs text-slate-500 sm:grid-cols-3">
         <span>下次：{formatTime(job.state?.nextRunAtMs)}</span>
         <span>上次：{formatTime(job.state?.lastRunAtMs)}</span>
-        <span>通道：{job.payload?.channel || "web"} / {job.payload?.to || "web"}</span>
+        <span>发送：{job.payload?.channel || "web"} / {job.payload?.to || "web"}</span>
       </div>
       {job.state?.lastError ? <p className="mt-2 text-xs leading-5 text-brand-red">{job.state.lastError}</p> : null}
     </article>
@@ -307,7 +307,7 @@ function CronJobRow({
 
 function CronFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-line bg-canvas px-3 py-2">
+    <div className="dt-dynamic-metric rounded-lg border border-line bg-canvas px-3 py-2">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 truncate text-sm font-semibold text-ink">{value}</p>
     </div>
@@ -317,7 +317,7 @@ function CronFact({ label, value }: { label: string; value: string }) {
 function formatSchedule(job: SparkBotCronJob) {
   const schedule = job.schedule;
   if (schedule.kind === "every") return `每 ${Math.round(Number(schedule.everyMs || 0) / 1000)} 秒`;
-  if (schedule.kind === "cron") return `${schedule.expr || "cron"}${schedule.tz ? ` · ${schedule.tz}` : ""}`;
+  if (schedule.kind === "cron") return `${schedule.expr || "时间规则"}${schedule.tz ? ` · ${schedule.tz}` : ""}`;
   if (schedule.kind === "at") return `一次 · ${formatTime(schedule.atMs)}`;
   return schedule.kind;
 }

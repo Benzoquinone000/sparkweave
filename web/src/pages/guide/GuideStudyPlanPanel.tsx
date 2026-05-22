@@ -51,7 +51,7 @@ export function GuideStudyPlanPanel({
       {effectAssessment ? (
         <div className="mt-4 rounded-lg border border-line bg-canvas p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-ink">路径调度依据</p>
+            <p className="text-sm font-semibold text-ink">路径调整理由</p>
             <Badge tone={effectStatusTone(effectAssessment.score)}>{effectAssessment.label || Number(effectAssessment.score ?? 0)}</Badge>
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-600">

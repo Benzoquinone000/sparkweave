@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { FieldShell, TextInput } from "@/components/ui/Field";
 import type { ProviderChoice } from "@/lib/types";
-import { ConfigBlock, ProviderSelect } from "./SettingsConfigControls";
+import { ConfigBlock, ProviderQuickNote, ProviderSelect } from "./SettingsConfigControls";
 import type { SearchForm } from "./settingsCatalogUtils";
 
 type FormSetter<T> = Dispatch<SetStateAction<T>>;
@@ -16,6 +16,8 @@ export function SearchConfigPanel({
   providers: ProviderChoice[];
   onChange: FormSetter<SearchForm>;
 }) {
+  const activeProvider = providers.find((provider) => provider.value === value.provider);
+
   return (
     <ConfigBlock title="联网搜索" summary="用于补充外部资料、精选视频和实时信息。">
       <ProviderSelect
@@ -27,6 +29,7 @@ export function SearchConfigPanel({
           onChange((current) => ({ ...current, provider: providerValue, baseUrl: provider?.base_url ?? "" }))
         }
       />
+      <ProviderQuickNote provider={activeProvider} />
       <FieldShell label="服务地址">
         <TextInput
           value={value.baseUrl}
@@ -34,7 +37,7 @@ export function SearchConfigPanel({
           data-testid="settings-search-base-url"
         />
       </FieldShell>
-      <FieldShell label="密钥" hint="当前生效的搜索服务密钥">
+      <FieldShell label="访问密钥" hint="当前生效的搜索服务密钥">
         <TextInput
           type="password"
           autoComplete="off"

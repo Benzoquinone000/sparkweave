@@ -168,7 +168,7 @@ export function DemoWrapUpCard({
   const nextStep =
     readiness?.next_steps?.[0] ||
     report?.action_brief?.summary ||
-    "接着展示路线、学习报告和课程产出包，把画像、资源、练习、反馈串成一条闭环。";
+    "接着展示路线、学习报告和课程成果，把学习记录、资源、练习、反馈串成一条学习链。";
 
   return (
     <motion.section
@@ -185,9 +185,9 @@ export function DemoWrapUpCard({
             <Badge tone={effectStatusTone(score)}>{loading ? "检查中" : guideDisplayText(readiness?.label, "准备中")}</Badge>
             {checks.length ? <Badge tone="neutral">{readyCount}/{checks.length} 项就绪</Badge> : null}
           </div>
-          <h3 className="mt-3 text-base font-semibold text-ink">下一步看路线与产出包</h3>
+          <h3 className="mt-3 text-base font-semibold text-ink">下一步看路线与成果</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {guideDisplayText(readiness?.summary, "这次反馈已经回写学习画像。录屏时接着展示路线调整、演示就绪度和最终课程产出包。")}
+            {guideDisplayText(readiness?.summary, "这次反馈已经回写学习记录。录屏时接着展示路线调整、演示就绪度和最终课程成果。")}
           </p>
         </div>
         {loading ? <Loader2 size={16} className="animate-spin text-brand-blue" /> : <BarChart3 size={18} className="text-brand-blue" />}
@@ -200,7 +200,7 @@ export function DemoWrapUpCard({
         </Button>
         <Button tone="primary" className="min-h-10 justify-center" data-testid="guide-demo-open-course-package" onClick={onOpenCoursePackage}>
           <BookOpen size={15} />
-          看产出包
+          看成果
         </Button>
       </div>
     </motion.section>

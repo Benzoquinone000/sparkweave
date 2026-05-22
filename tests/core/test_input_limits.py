@@ -5,6 +5,7 @@ import pytest
 from sparkweave.core.input_limits import (
     MAX_CHAT_ATTACHMENT_BASE64_CHARS,
     MAX_CHAT_ATTACHMENT_COUNT,
+    MAX_CHAT_CANVAS_CONTEXT_CHARS,
     MAX_CHAT_MESSAGE_CHARS,
     normalize_turn_payload,
 )
@@ -63,5 +64,38 @@ def test_normalize_turn_payload_rejects_oversized_attachment_base64() -> None:
             {
                 "content": "hello",
                 "attachments": [{"filename": "big.txt", "base64": "x" * (MAX_CHAT_ATTACHMENT_BASE64_CHARS + 1)}],
+            }
+        )
+
+
+def test_normalize_turn_payload_accepts_canvas_context() -> None:
+    payload = normalize_turn_payload(
+        {
+            "content": "revise this",
+            "canvas_context": {
+                "id": " canvas-1 ",
+                "message_id": " assistant-1 ",
+                "title": " Study plan ",
+                "content": " # Draft plan ",
+                "updated_at": 1_700_000_000,
+            },
+        }
+    )
+
+    assert payload["canvas_context"] == {
+        "id": "canvas-1",
+        "message_id": "assistant-1",
+        "title": "Study plan",
+        "content": "# Draft plan",
+        "updated_at": 1_700_000_000,
+    }
+
+
+def test_normalize_turn_payload_rejects_oversized_canvas_context() -> None:
+    with pytest.raises(ValueError, match="canvas_context.content cannot exceed"):
+        normalize_turn_payload(
+            {
+                "content": "revise this",
+                "canvas_context": {"content": "x" * (MAX_CHAT_CANVAS_CONTEXT_CHARS + 1)},
             }
         )

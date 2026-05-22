@@ -18,7 +18,7 @@ export function AgenticRepairPanel({ repair }: { repair: Record<string, unknown>
   return (
     <div className="mt-3 border-t border-line pt-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-ink">分支修复</p>
+        <p className="text-xs font-semibold text-ink">来源补强</p>
         <div className="flex flex-wrap gap-2">
           <Badge tone={repairStrategy === "single_search_fallback" ? "warning" : "success"}>
             {formatAgenticRepairStrategy(repairStrategy)}
@@ -35,11 +35,11 @@ export function AgenticRepairPanel({ repair }: { repair: Record<string, unknown>
           {repairBranches.slice(0, 4).map((item, index) => (
             <div key={`${readString(item, "query") || "repair"}-${index}`} className="rounded-md border border-line bg-white px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-xs font-semibold text-ink">{readString(item, "query") || `分支 ${index + 1}`}</p>
+                <p className="truncate text-xs font-semibold text-ink">{readString(item, "query") || `补强项 ${index + 1}`}</p>
                 <Badge tone={item.accepted ? "success" : "neutral"}>{item.accepted ? "已采纳" : "未采纳"}</Badge>
               </div>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                候选来源 {String(readNumber(item, "candidate_source_count") ?? 0)} · 相关度{" "}
+                可选来源 {String(readNumber(item, "candidate_source_count") ?? 0)} · 相关度{" "}
                 {String(readNumber(item, "candidate_relevance_score") ?? "-")}
               </p>
             </div>
@@ -56,12 +56,12 @@ export function AgenticSubqueriesPanel({ subqueries }: { subqueries: Record<stri
   return (
     <div className="mt-3 border-t border-line pt-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-ink">子查询召回</p>
-        <Badge tone="neutral">{subqueries.length} 路检索</Badge>
+        <p className="text-xs font-semibold text-ink">拆分问题查找</p>
+        <Badge tone="neutral">{subqueries.length} 路资料</Badge>
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {subqueries.map((item, index) => {
-          const subquery = readString(item, "query") || `子查询 ${index + 1}`;
+          const subquery = readString(item, "query") || `拆分问题 ${index + 1}`;
           const sourceTotal = readNumber(item, "source_count") ?? 0;
           const chars = readNumber(item, "content_chars") ?? 0;
           const relevant = item.relevant === true;
@@ -73,12 +73,12 @@ export function AgenticSubqueriesPanel({ subqueries }: { subqueries: Record<stri
                 <div className="flex shrink-0 gap-1">
                   {repaired ? <Badge tone="success">已修复</Badge> : null}
                   <Badge tone={relevant ? "success" : sourceTotal ? "warning" : "neutral"}>
-                    {relevant ? "相关" : sourceTotal ? "偏弱" : "无证据"}
+                    {relevant ? "相关" : sourceTotal ? "偏弱" : "无来源"}
                   </Badge>
                 </div>
               </div>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                来源 {sourceTotal} · 上下文 {chars} 字
+                来源 {sourceTotal} · 回答材料 {chars} 字
                 {readString(item, "purpose") ? ` · ${readString(item, "purpose")}` : ""}
               </p>
               {toStringArray(item.matched_terms).length ? (
@@ -109,9 +109,9 @@ export function AgenticContextPackSummary({
 
   return (
     <div className="mt-3 border-t border-line pt-3 text-xs leading-5 text-slate-500">
-      上下文打包：包含 {String(readNumber(contextPack, "included_subqueries") ?? branchCount)} /{" "}
-      {String(readNumber(contextPack, "subquery_count") ?? branchCount)} 个子查询
-      {contextPack?.truncated ? "，已按预算截断。" : "，未截断。"}
+      回答材料整理：包含 {String(readNumber(contextPack, "included_subqueries") ?? branchCount)} /{" "}
+      {String(readNumber(contextPack, "subquery_count") ?? branchCount)} 个拆分问题
+      {contextPack?.truncated ? "，已按上限截断。" : "，未截断。"}
     </div>
   );
 }

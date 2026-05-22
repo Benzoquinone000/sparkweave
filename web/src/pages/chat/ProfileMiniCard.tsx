@@ -12,10 +12,10 @@ export function ProfileMiniCard({ profile, loading }: { profile?: LearnerProfile
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-brand-purple">
             <Sparkles size={16} />
-            学习画像
+            学习记录
           </div>
           {loading ? (
-            <p className="mt-2 text-sm text-charcoal">正在读取画像...</p>
+            <p className="mt-2 text-sm text-charcoal">正在读取记录...</p>
           ) : profile ? (
             <>
               <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink">
@@ -33,7 +33,7 @@ export function ProfileMiniCard({ profile, loading }: { profile?: LearnerProfile
               ) : null}
             </>
           ) : (
-            <p className="mt-2 text-sm leading-6 text-charcoal">完成一次导学或练习后，系统会自动形成画像。</p>
+            <p className="mt-2 text-sm leading-6 text-charcoal">完成一次导学或练习后，系统会自动整理建议。</p>
           )}
         </div>
         <a

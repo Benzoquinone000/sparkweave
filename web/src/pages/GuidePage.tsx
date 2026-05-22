@@ -146,7 +146,7 @@ export function GuidePage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-canvas px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-5">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-5">
       <div className="mx-auto max-w-[940px] space-y-3.5">
         <GuideHero
           primaryActionLabel={primaryActionLabel}
@@ -215,7 +215,7 @@ export function GuidePage() {
 }
 function GuideDemoCueLoading() {
   return (
-    <section className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
+    <section className="dt-dynamic-panel rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <span className="block h-3 w-24 max-w-full rounded bg-slate-100" />
@@ -236,15 +236,15 @@ function GuideSupportDrawerLoading({ onClose }: { onClose: () => void }) {
         aria-label="关闭路线面板"
         onClick={onClose}
       />
-      <aside className="absolute right-0 top-0 h-full w-full max-w-[380px] overflow-y-auto bg-canvas p-3 shadow-2xl">
-        <div className="rounded-lg border border-line bg-white p-3">
+      <aside className="dt-dynamic-drawer absolute right-0 top-0 h-full w-full max-w-[380px] overflow-y-auto border-l border-line p-3 shadow-panel">
+        <div className="dt-dynamic-panel rounded-lg border border-line bg-white p-3">
           <span className="block h-3 w-20 rounded bg-slate-100" />
           <span className="mt-3 block h-5 w-64 max-w-full rounded bg-slate-100/80" />
         </div>
         <div className="mt-3 space-y-3">
-          <span className="block h-24 rounded-lg bg-white" />
-          <span className="block h-32 rounded-lg bg-white" />
-          <span className="block h-28 rounded-lg bg-white" />
+          <span className="dt-dynamic-panel block h-24 rounded-lg bg-white" />
+          <span className="dt-dynamic-panel block h-32 rounded-lg bg-white" />
+          <span className="dt-dynamic-panel block h-28 rounded-lg bg-white" />
         </div>
       </aside>
     </div>

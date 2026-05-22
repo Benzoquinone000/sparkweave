@@ -1,6 +1,18 @@
 # SparkWeave RAG 设计
 
-本文档只记录当前项目里 RAG 的关键实现，不展开成完整方案书。
+范围：记录当前项目里 RAG 的关键实现，不展开成完整方案书。本文档只描述代码中已经存在的行为；未落地能力统一放到“限制与待实现”，不写成当前能力。
+
+代码事实来源：
+
+| 模块 | 事实来源 |
+| --- | --- |
+| RAG 工具 | `sparkweave/tools/builtin.py`, `sparkweave/graphs/chat.py` |
+| RAG 服务 | `sparkweave/services/rag_support/service.py`, `sparkweave/services/rag_support/retrieval_policy.py` |
+| 入库与检索 | `sparkweave/services/rag_support/pipelines/milvus.py`, `sparkweave/services/rag_support/pipelines/llamaindex.py` |
+| 查询改写与多路检索 | `sparkweave/services/rag_support/query_transform.py`, `sparkweave/services/rag_support/query_planner.py`, `sparkweave/services/rag_support/agentic_quality.py` |
+| 重排与证据打包 | `sparkweave/services/rag_support/rerank.py`, `sparkweave/services/rag_support/context_pack.py` |
+| API | `sparkweave/api/routers/knowledge.py`, `sparkweave/api/routers/knowledge_models.py` |
+| 前端展示 | `web/src/components/chat/RagRetrievalStatus.tsx`, `web/src/components/results/RagEvidenceChain.tsx`, `web/src/pages/knowledge/` |
 
 ## 1. 定位
 
@@ -17,7 +29,7 @@ SparkWeave RAG 是学习资料问答的证据层：
 
 RAG 不直接负责最终教学表达，它返回 `content`、`sources` 和 `metadata`，由上层 agent 合成回答。
 
-核心目标：
+当前目标：
 
 - 从用户资料中取可追溯证据。
 - 简单问题保持低延迟。
@@ -34,6 +46,9 @@ RAG 不直接负责最终教学表达，它返回 `content`、`sources` 和 `met
 | `sparkweave/services/rag_support/pipelines/milvus.py` | 文档入库、chunk、Milvus 检索 |
 | `sparkweave/services/rag_support/rerank.py` | keyword rerank / 外部 reranker |
 | `sparkweave/services/rag_support/context_pack.py` | 证据打包 |
+| `sparkweave/services/rag_support/query_transform.py` | HyDE 查询改写 |
+| `sparkweave/services/rag_support/query_planner.py` | Agentic RAG 子问题规划 |
+| `sparkweave/services/rag_support/agentic_quality.py` | 多路检索质量门和 repair 判断 |
 | `web/src/lib/ragLiveStatus.ts` | 前端解析 RAG 调用中状态 |
 | `web/src/components/results/RagEvidenceChain.tsx` | 前端展示最终证据链 |
 
@@ -187,14 +202,38 @@ combined = vector_weight * vector_rank_score + lexical_weight * lexical_score
 
 | API | 用途 |
 | --- | --- |
-| `POST /knowledge/{kb_name}/rag-test` | 单次检索测试 |
-| `POST /knowledge/{kb_name}/rag-eval` | 检索评估 |
-| `POST /knowledge/{kb_name}/upload` | 增量上传 |
-| `POST /knowledge/{kb_name}/reindex` | 重建索引 |
-| `GET /knowledge/{kb_name}/documents` | 文档统计 |
-| `GET /knowledge/{kb_name}/vectors` | chunk 列表 |
+| `POST /api/v1/knowledge/{kb_name}/rag-test` | 单次检索测试 |
+| `POST /api/v1/knowledge/{kb_name}/rag-eval` | 检索评估 |
+| `GET /api/v1/knowledge/{kb_name}/rag-eval/latest` | 最近一次检索评估 |
+| `POST /api/v1/knowledge/{kb_name}/upload` | 增量上传 |
+| `POST /api/v1/knowledge/{kb_name}/reindex` | 重建索引 |
+| `GET /api/v1/knowledge/{kb_name}/documents` | 文档统计 |
+| `GET /api/v1/knowledge/{kb_name}/vectors` | chunk 列表 |
+| `GET /api/v1/knowledge/{kb_name}/progress` | 入库进度 |
+| `WS /api/v1/knowledge/{kb_name}/progress/ws` | 入库进度 WebSocket |
 
-## 10. 当前边界
+## 10. 测试覆盖
+
+| 测试 | 覆盖 |
+| --- | --- |
+| `tests/services/rag/test_retrieval_policy.py` | profile 到检索参数的默认策略 |
+| `tests/services/rag/test_query_transform.py` | HyDE 查询改写 |
+| `tests/services/rag/test_query_planner.py` | Agentic 子问题规划 |
+| `tests/services/rag/test_agentic_support_modules.py` | 质量门、repair、fallback 辅助逻辑 |
+| `tests/services/rag/test_context_pack.py` | 证据去重、截断和来源打包 |
+| `tests/services/rag/test_rerank.py` | keyword rerank 和外部 reranker 配置 |
+| `tests/graphs/test_rag_overrides.py` | Graph / API RAG overrides 解析 |
+| `tests/api/test_knowledge_router.py` | 知识库 API、RAG test、RAG eval |
+| `tests/knowledge/test_kb_directory_layout.py` | 知识库目录和索引 marker |
+| `tests/scripts/test_rag_eval_experiment.py` | RAG 评测脚本 |
+
+聚焦命令：
+
+```powershell
+uv run pytest tests/services/rag tests/graphs/test_rag_overrides.py tests/api/test_knowledge_router.py tests/knowledge/test_kb_directory_layout.py tests/scripts/test_rag_eval_experiment.py -q
+```
+
+## 11. 限制与待实现
 
 - hybrid 需要 hybrid schema 重建；旧 dense-only 索引只能兼容 fallback。
 - DOCX 已支持；旧 `.doc` 未支持。
@@ -203,7 +242,7 @@ combined = vector_weight * vector_rank_score + lexical_weight * lexical_score
 - OCR 质量决定扫描件和图片资料的可用性。
 - Agentic RAG 依赖 LLM planning，有额外延迟；失败时会走 fallback。
 
-## 11. 维护约定
+## 12. 维护约定
 
 - 改 chunk、embedding 维度、Milvus schema 后必须提示 reindex。
 - 新增 RAG 参数要同步 tool schema、`rag_overrides.py`、API schema、测试。

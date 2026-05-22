@@ -55,19 +55,19 @@ export function RagSearchChatHandoffCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-ink">{weak ? "可以试问，但建议先复测证据" : "证据可用，可以进入问答"}</p>
-            <Badge tone={weak ? "warning" : "success"}>{sourceCount} 条证据</Badge>
+            <p className="text-sm font-semibold text-ink">{weak ? "可以试问，但建议先复测来源" : "来源可用，可以进入问答"}</p>
+            <Badge tone={weak ? "warning" : "success"}>{sourceCount} 条来源</Badge>
           </div>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">
-            系统会带上当前问题、资料库「{activeKb}」和这组检索设置，在聊天页先取资料再回答。
+            系统会带上当前问题、资料库「{activeKb}」和这组查找策略，在聊天页先找来源再回答。
           </p>
         </div>
         <a
           href={href}
-          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-3 text-xs font-medium text-white shadow-[rgba(86,69,212,0.16)_0_1px_2px] hover:bg-brand-purple-800"
+          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-3 text-xs font-medium text-white shadow-[rgba(15,23,42,0.12)_0_1px_2px] hover:bg-brand-purple-800"
         >
           <MessageSquareText size={15} />
-          带证据开始问答
+          带来源开始问答
         </a>
       </div>
     </div>
@@ -91,8 +91,8 @@ export function RagSearchResultNavigationCards({
         onClick={onOpenAgentic}
         data-testid="knowledge-rag-test-open-agentic"
       >
-        <span className="block text-sm font-semibold text-ink">深度检索过程</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">查看拆分、质量检查和修复情况。</span>
+        <span className="block text-sm font-semibold text-ink">来源链路</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">查看拆分、多路来源和薄弱部分补强。</span>
       </button>
       <button
         type="button"
@@ -100,8 +100,8 @@ export function RagSearchResultNavigationCards({
         onClick={onOpenContext}
         data-testid="knowledge-rag-test-open-context"
       >
-        <span className="block text-sm font-semibold text-ink">召回上下文</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">查看最终送入回答生成的参考文本。</span>
+        <span className="block text-sm font-semibold text-ink">回答材料</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">查看将用于回答的资料片段。</span>
       </button>
       <button
         type="button"
@@ -109,8 +109,8 @@ export function RagSearchResultNavigationCards({
         onClick={onOpenSources}
         data-testid="knowledge-rag-test-open-sources"
       >
-        <span className="block text-sm font-semibold text-ink">证据列表</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">逐条查看来源片段和命中词。</span>
+        <span className="block text-sm font-semibold text-ink">来源列表</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">逐条查看来源片段、相关度和关键词。</span>
       </button>
     </div>
   );

@@ -137,7 +137,7 @@ export function GuideWorkspaceRouter({
   if (guideSubPage === "completeTask" && currentTask) {
     return (
       <GuideSubPageFrame
-        eyebrow="提交学习证据"
+        eyebrow="提交学习记录"
         title="完成当前任务"
         description="写下掌握评分和一句话反思，系统会据此给出下一步反馈。"
         onBack={() => setGuideSubPage("main")}
@@ -203,7 +203,7 @@ export function GuideWorkspaceRouter({
     return (
       <GuideSubPageFrame
         eyebrow="学习产出"
-        title="课程产出包"
+        title="课程成果包"
         description="把本轮学习整理成可以保存和复盘的成果。"
         onBack={() => setGuideSubPage("main")}
       >
@@ -240,7 +240,7 @@ export function GuideWorkspaceRouter({
 
 function GuideWorkspaceLoading() {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-5">
+    <section className="rounded-lg border border-line bg-white/90 p-5">
       <p className="text-sm font-semibold text-ink">正在准备导学工作区</p>
       <div className="mt-4 space-y-3">
         <span className="block h-3 w-48 max-w-full rounded bg-slate-100" />

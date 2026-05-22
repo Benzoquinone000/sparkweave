@@ -4,11 +4,17 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { extractMathAnimatorResult, extractVisualizeResult } from "@/lib/capabilityResults";
-import { getCapability } from "@/lib/capabilities";
+import {
+  extractExternalImageResult,
+  extractExternalVideoResult,
+  extractMathAnimatorResult,
+  extractVisualizeResult,
+} from "@/lib/capabilityResults";
+import { capabilityLabel } from "@/lib/capabilities";
 import { getMessageCapability, getMessageDisplayContent } from "@/lib/chatMessages";
 import { hasNotebookAssetOutput } from "@/lib/notebookAssets";
 import { extractQuizQuestions } from "@/lib/quiz";
+import { getToolTraceCopy } from "@/lib/toolTraceLabels";
 import type { ChatMessage, StreamEvent } from "@/lib/types";
 
 export function TaskSnapshot({
@@ -24,24 +30,30 @@ export function TaskSnapshot({
 }) {
   const assistant = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant") ?? null, [messages]);
   const effectiveCapability = assistant ? getMessageCapability(assistant) : undefined;
-  const capability = effectiveCapability ? getCapability(effectiveCapability) : null;
+  const capabilityName = effectiveCapability ? capabilityLabel(effectiveCapability) : "等待选择";
   const resultEvent = useMemo(() => [...(assistant?.events ?? [])].reverse().find((event) => event.type === "result"), [assistant?.events]);
   const displayContent = assistant ? getMessageDisplayContent(assistant) : "";
   const quizQuestions = effectiveCapability === "deep_question" ? extractQuizQuestions(resultEvent?.metadata) : null;
   const visualizeResult = effectiveCapability === "visualize" ? extractVisualizeResult(resultEvent?.metadata) : null;
   const mathResult = effectiveCapability === "math_animator" ? extractMathAnimatorResult(resultEvent?.metadata) : null;
+  const externalVideoResult = extractExternalVideoResult(resultEvent?.metadata);
+  const externalImageResult = extractExternalImageResult(resultEvent?.metadata);
   const traceEvents = useMemo(() => getTraceEvents(assistant), [assistant]);
   const canSaveAsset = assistant ? hasNotebookAssetOutput(assistant) : false;
   const terminalResultReady = Boolean(assistant?.events?.some((event) => event.type === "result" || event.type === "done"));
   const output = getOutputLabel({
     displayContent,
+    externalImageCount: externalImageResult?.images?.length ?? 0,
+    externalImageFallback: externalImageResult?.fallback_search === true,
+    externalVideoCount: externalVideoResult?.videos?.length ?? 0,
+    externalVideoFallback: externalVideoResult?.fallback_search === true,
     quizCount: quizQuestions?.length ?? 0,
     visualizeType: visualizeResult?.render_type,
     mathArtifactCount: mathResult?.artifacts?.length ?? 0,
   });
 
   return (
-    <section className="rounded-lg border border-line bg-white p-3" data-testid="chat-task-snapshot">
+    <section className="dt-dynamic-card rounded-lg border border-line bg-white p-3" data-testid="chat-task-snapshot">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -58,14 +70,14 @@ export function TaskSnapshot({
       </div>
 
       <div className="mt-3 grid gap-1.5">
-        <SnapshotRow icon={<Sparkles size={15} />} label="方式" value={capability?.label || "等待选择"} />
+        <SnapshotRow icon={<Sparkles size={15} />} label="方式" value={capabilityName} />
         <SnapshotRow icon={<Route size={15} />} label="进度" value={terminalResultReady ? "已完成" : stageLabel} />
         <SnapshotRow icon={<Boxes size={15} />} label="结果" value={output} />
       </div>
 
       {traceEvents.length ? (
-        <div className="mt-3 rounded-lg border border-line bg-canvas p-3">
-          <p className="text-xs font-semibold text-slate-500">协作状态</p>
+        <div className="dt-dynamic-panel dt-flow-strip mt-3 rounded-lg border border-line bg-canvas p-3">
+          <p className="text-xs font-semibold text-slate-500">学习流程</p>
           <div className="mt-3 space-y-2">
             {traceEvents.map((event, index) => {
               const trace = formatTraceEvent(event);
@@ -99,7 +111,7 @@ export function TaskSnapshot({
           保存到笔记
         </Button>
       ) : (
-        <p className="mt-3 rounded-lg border border-dashed border-line bg-canvas p-3 text-xs leading-5 text-slate-500">
+        <p className="dt-dynamic-empty mt-3 rounded-lg border border-dashed border-line bg-canvas p-3 text-xs leading-5 text-slate-500">
           发送后会显示答案、题目、图表或动画结果。
         </p>
       )}
@@ -109,7 +121,7 @@ export function TaskSnapshot({
 
 function SnapshotRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-canvas px-2.5 py-1.5 text-sm">
+    <div className="dt-dynamic-panel flex items-center justify-between gap-3 rounded-lg bg-canvas px-2.5 py-1.5 text-sm">
       <span className="flex items-center gap-2 text-slate-500">
         <span className="text-brand-purple">{icon}</span>
         {label}
@@ -185,8 +197,14 @@ function formatTraceEvent(event: StreamEvent): { title: string; detail?: string;
   if (event.type === "done") return { title: "已完成", content, tone: "success" };
   if (event.type === "error") return { title: "异常", content, tone: "danger" };
   if (event.type === "session") return { title: "建立会话", content };
-  if (event.type === "tool_call") return { title: "调用工具", detail: getStageDetail(event.stage), content };
-  if (event.type === "tool_result") return { title: "工具完成", detail: getStageDetail(event.stage), content, tone: "success" };
+  if (event.type === "tool_call") {
+    const copy = getToolTraceCopy(event, "call");
+    return { title: copy.title, detail: copy.detail || getStageDetail(event.stage), content };
+  }
+  if (event.type === "tool_result") {
+    const copy = getToolTraceCopy(event, "result");
+    return { title: copy.title, detail: copy.detail || getStageDetail(event.stage), content, tone: "success" };
+  }
   if (event.type === "sources") return { title: "引用资料", content };
   return { title: "进度", detail: getStageDetail(event.stage || event.type), content };
 }
@@ -203,7 +221,7 @@ function getStageDetail(stage?: string) {
   if (value === "thinking") return "思考";
   if (value === "responding") return "回答";
   if (value.includes("coordinating") || value.includes("planning")) return "规划";
-  if (value.includes("retrieval") || value.includes("search")) return "检索";
+  if (value.includes("retrieval") || value.includes("search")) return "查找";
   if (value.includes("reasoning") || value.includes("solve")) return "推理";
   if (value.includes("writing") || value.includes("final")) return "整理";
   if (value.includes("render") || value.includes("visual")) return "生成";
@@ -212,15 +230,25 @@ function getStageDetail(stage?: string) {
 
 function getOutputLabel({
   displayContent,
+  externalImageCount,
+  externalImageFallback,
+  externalVideoCount,
+  externalVideoFallback,
   quizCount,
   visualizeType,
   mathArtifactCount,
 }: {
   displayContent: string;
+  externalImageCount: number;
+  externalImageFallback: boolean;
+  externalVideoCount: number;
+  externalVideoFallback: boolean;
   quizCount: number;
   visualizeType?: string;
   mathArtifactCount: number;
 }) {
+  if (externalVideoCount) return `${externalVideoFallback ? "视频搜索入口" : "精选视频"} · ${externalVideoCount} 个`;
+  if (externalImageCount) return `${externalImageFallback ? "图片搜索入口" : "精选图片"} · ${externalImageCount} 张`;
   if (quizCount) return `${quizCount} 道题`;
   if (visualizeType) return `可视化 · ${visualizeType}`;
   if (mathArtifactCount) return `${mathArtifactCount} 个动画产物`;

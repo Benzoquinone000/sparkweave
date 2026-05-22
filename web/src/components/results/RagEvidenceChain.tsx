@@ -33,7 +33,7 @@ export function RagEvidenceChain({
   const recoveryHref = showRecoveryLink ? buildKnowledgePreflightHref(evidence, evidenceStatus) : "";
 
   return (
-    <section className={`rounded-lg border border-line bg-canvas p-3 ${className}`} data-testid="rag-evidence-chain">
+    <section className={`dt-dynamic-result dt-flow-strip rounded-lg border border-line bg-canvas p-3 ${className}`} data-testid="rag-evidence-chain">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line bg-white text-brand-purple">
@@ -41,11 +41,11 @@ export function RagEvidenceChain({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-ink">知识库证据链</p>
+              <p className="text-sm font-semibold text-ink">资料来源</p>
               <Badge tone={evidenceStatus.tone}>{evidenceStatus.badge}</Badge>
-              <Badge tone={evidence.agentic ? "brand" : "neutral"}>{evidence.agentic ? "多路检索" : "快速检索"}</Badge>
+              <Badge tone={evidence.agentic ? "brand" : "neutral"}>{evidence.agentic ? "多路查找" : "快速查找"}</Badge>
               {evidence.agenticRepaired ? <Badge tone="success">已修复</Badge> : null}
-              {evidence.agenticFallback ? <Badge tone="warning">已回退</Badge> : null}
+              {evidence.agenticFallback ? <Badge tone="warning">已改用轻量查找</Badge> : null}
               {evidence.queryTransformApplied ? <Badge tone="success">已补充关键词</Badge> : null}
             </div>
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-steel">
@@ -57,7 +57,7 @@ export function RagEvidenceChain({
           {evidence.kbName ? <MetaPill icon={<Database size={13} />} label={`资料库 ${evidence.kbName}`} /> : null}
           {evidence.retrievalMode ? <MetaPill icon={<Layers3 size={13} />} label={formatRetrievalMode(evidence.retrievalMode)} /> : null}
           {evidence.retrievalProfile ? <MetaPill icon={<Sparkles size={13} />} label={formatRetrievalProfile(evidence.retrievalProfile)} /> : null}
-          <MetaPill icon={<SearchCheck size={13} />} label={`${evidence.sourceCount || sources.length} 条证据`} />
+          <MetaPill icon={<SearchCheck size={13} />} label={`${evidence.sourceCount || sources.length} 条来源`} />
         </div>
       </div>
 
@@ -71,15 +71,15 @@ export function RagEvidenceChain({
       />
 
       {(evidence.agentic || evidence.agenticFallback) && (evidence.planReason || evidence.activityRecommendation || hasQuality) ? (
-        <div className="mt-3 rounded-lg border border-line bg-white px-3 py-2">
+        <div className="dt-dynamic-panel mt-3 rounded-lg border border-line bg-white px-3 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-ink">
-              {evidence.agenticFallback ? "检索回退" : evidence.agenticRepaired ? "分支修复" : "检索编排"}
+              {evidence.agenticFallback ? "轻量查找" : evidence.agenticRepaired ? "补强来源" : "多路查找"}
             </p>
             {hasQuality ? (
               <div className="flex flex-wrap gap-1.5">
                 <MiniTag tone={evidence.qualityStatus === "weak" ? "warning" : "success"}>
-                  {evidence.qualityStatus === "weak" ? "证据偏弱" : "证据充足"}
+                  {evidence.qualityStatus === "weak" ? "来源偏弱" : "来源充足"}
                 </MiniTag>
                 {typeof evidence.qualityScore === "number" ? <MiniTag>{formatPercent(evidence.qualityScore)}</MiniTag> : null}
               </div>
@@ -98,11 +98,11 @@ export function RagEvidenceChain({
             <div className="mt-2 flex flex-wrap gap-1.5">
               {typeof evidence.coverageRatio === "number" ? <MiniTag>覆盖 {formatPercent(evidence.coverageRatio)}</MiniTag> : null}
               {typeof evidence.relevantCoverageRatio === "number" ? (
-                <MiniTag>相关覆盖 {formatPercent(evidence.relevantCoverageRatio)}</MiniTag>
+                <MiniTag>相关来源 {formatPercent(evidence.relevantCoverageRatio)}</MiniTag>
               ) : null}
               {typeof evidence.contextChars === "number" ? (
                 <MiniTag tone={evidence.contextTruncated ? "warning" : "neutral"}>
-                  上下文 {evidence.contextMaxChars ? `${evidence.contextChars}/${evidence.contextMaxChars}` : evidence.contextChars} 字
+                  回答材料 {evidence.contextMaxChars ? `${evidence.contextChars}/${evidence.contextMaxChars}` : evidence.contextChars} 字
                 </MiniTag>
               ) : null}
               {evidence.qualityReasons.slice(0, 3).map((reason) => (
@@ -115,7 +115,7 @@ export function RagEvidenceChain({
           {qualityChecks.length ? (
             <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
               {qualityChecks.map((check) => (
-                <div key={check.code} className="rounded-md border border-line bg-canvas px-2 py-1.5">
+                <div key={check.code} className="dt-dynamic-panel rounded-md border border-line bg-canvas px-2 py-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-[11px] font-semibold leading-4 text-ink">{formatQualityCheckCode(check.code)}</p>
                     <MiniTag tone={check.status === "failed" ? "warning" : "success"}>
@@ -131,7 +131,7 @@ export function RagEvidenceChain({
           ) : null}
           {evidence.agenticFallback ? (
             <p className="mt-1 text-xs leading-5 text-slate-600">
-              分解检索仍未拿到足够证据，系统已自动回到原问题检索，保证本轮回答继续有资料支撑。
+              多路查找仍未拿到足够来源，系统已自动回到轻量查找，保证本轮回答继续有资料支撑。
             </p>
           ) : null}
         </div>
@@ -152,7 +152,7 @@ export function RagEvidenceChain({
           ))}
         </div>
       ) : (
-        <p className="mt-3 rounded-lg border border-line bg-white px-3 py-2 text-xs leading-5 text-steel">
+        <p className="dt-dynamic-empty mt-3 rounded-lg border border-line bg-white px-3 py-2 text-xs leading-5 text-steel">
           本轮没有返回可展示的资料片段，回答主要来自模型归纳。建议确认资料库已选择、文档已处理完成后再问。
         </p>
       )}
@@ -182,42 +182,42 @@ function EvidenceWaterfall({
     },
     {
       label: "问题拆解",
-      detail: subqueries.length ? `拆成 ${subqueries.length} 个检索视角。` : "问题较集中，本轮不需要额外拆分。",
+      detail: subqueries.length ? `拆成 ${subqueries.length} 个查找视角。` : "问题较集中，本轮不需要额外拆分。",
       icon: GitBranch,
       tone: subqueries.length ? "brand" as const : "neutral" as const,
     },
     {
-      label: "检索分支",
-      detail: evidence.agentic ? "多路查找并互相补证据。" : "按当前资料库快速取证。",
+      label: "查找视角",
+      detail: evidence.agentic ? "多路查找并互相补来源。" : "按当前资料库快速查找。",
       icon: Database,
       tone: evidence.agentic ? "brand" as const : "neutral" as const,
     },
     {
-      label: "证据片段",
+      label: "来源片段",
       detail: sources.length ? `筛出 ${evidence.sourceCount || sources.length} 条可展示来源。` : "暂未找到可展示来源。",
       icon: Layers3,
       tone: sources.length ? "success" as const : "warning" as const,
     },
     {
-      label: "质量判断",
+      label: "可用性判断",
       detail: qualityChecks.length ? `${qualityChecks.length} 项检查，结论：${status.badge}。` : status.summary,
       icon: SearchCheck,
       tone: status.tone,
     },
     {
       label: "最终回答",
-      detail: status.tone === "warning" ? "带着证据强弱提示生成回答。" : "把可用证据汇总成学习讲解。",
+      detail: status.tone === "warning" ? "带着来源强弱提示生成回答。" : "把可用来源汇总成学习讲解。",
       icon: Sparkles,
       tone: status.tone === "neutral" ? "neutral" as const : "success" as const,
     },
   ];
 
   return (
-    <div className="mt-3 rounded-lg border border-line bg-white p-3" data-testid="rag-evidence-waterfall">
+    <div className="dt-dynamic-panel dt-flow-strip mt-3 rounded-lg border border-line bg-white p-3" data-testid="rag-evidence-waterfall">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="brand">证据瀑布</Badge>
-          <span className="text-xs font-medium text-ink">回答前的取证过程可视化</span>
+          <Badge tone="brand">来源整理</Badge>
+          <span className="text-xs font-medium text-ink">回答前的资料查找过程</span>
         </div>
         <Badge tone={status.tone}>{status.badge}</Badge>
       </div>
@@ -270,9 +270,9 @@ function describeEvidenceStatus(evidence: RagEvidence, visibleSourceCount: numbe
   if (!sourceCount) {
     return {
       tone: "neutral",
-      badge: "无证据",
+      badge: "无来源",
       title: "这次没有找到可引用资料",
-      summary: "回答可能主要来自模型已有知识，不能代表资料库里的确定依据。",
+      summary: "回答可能主要来自模型已有知识，不能代表资料库里的确定内容。",
       nextAction: "下一步：确认已选择资料库，或到资料库页面检查文档是否处理完成。",
     };
   }
@@ -280,18 +280,18 @@ function describeEvidenceStatus(evidence: RagEvidence, visibleSourceCount: numbe
   if (weak) {
     return {
       tone: "warning",
-      badge: "证据偏弱",
-      title: "回答有资料支撑，但证据还不够稳",
-      summary: "系统已经找到资料片段，但覆盖、相关性或上下文长度仍可能不足。",
+      badge: "来源偏弱",
+      title: "回答有资料支撑，但来源还不够稳",
+      summary: "系统已经找到资料片段，但覆盖、相关性或回答材料长度仍可能不足。",
       nextAction: "下一步：可以把问题说得更具体，或补充相关资料后再问一次。",
     };
   }
 
   return {
     tone: "success",
-    badge: "证据可用",
+    badge: "来源可用",
     title: "回答已有资料支撑",
-    summary: "系统找到了可引用片段，并把它们作为本轮回答的依据。",
+    summary: "系统找到了可引用片段，并把它们作为本轮回答的来源。",
     nextAction: "下一步：可以展开下方来源，核对关键结论是否来自你信任的资料。",
   };
 }
@@ -315,7 +315,7 @@ function EvidenceSummaryCard({
       : "-";
 
   return (
-    <div className="mt-3 rounded-lg border border-line bg-white px-3 py-2">
+    <div className="dt-dynamic-panel mt-3 rounded-lg border border-line bg-white px-3 py-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-ink">{status.title}</p>
@@ -328,7 +328,7 @@ function EvidenceSummaryCard({
         <EvidenceFact label="覆盖情况" value={formatCoverageLabel(evidence)} />
         <EvidenceFact label="回答材料" value={contextLabel} warning={evidence.contextTruncated} />
       </div>
-      <p className="mt-2 rounded-md border border-line bg-canvas px-2 py-1.5 text-xs leading-5 text-steel">{status.nextAction}</p>
+      <p className="dt-dynamic-empty mt-2 rounded-md border border-line bg-canvas px-2 py-1.5 text-xs leading-5 text-steel">{status.nextAction}</p>
       {recoveryHref ? (
         <a
           href={recoveryHref}
@@ -336,7 +336,7 @@ function EvidenceSummaryCard({
           data-testid="rag-evidence-open-preflight"
         >
           <SearchCheck size={14} />
-          {status.tone === "neutral" ? "带这个问题去预检" : "复测证据质量"}
+          {status.tone === "neutral" ? "带这个问题去预检" : "复测来源质量"}
         </a>
       ) : null}
     </div>
@@ -353,7 +353,7 @@ function EvidenceFact({
   warning?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-line bg-canvas px-2 py-1.5">
+    <div className="dt-dynamic-panel rounded-md border border-line bg-canvas px-2 py-1.5">
       <p className="text-[11px] leading-4 text-steel">{label}</p>
       <p className={`mt-0.5 truncate text-xs font-semibold ${warning ? "text-amber-700" : "text-ink"}`}>{value}</p>
     </div>
@@ -363,7 +363,7 @@ function EvidenceFact({
 function SubQueryCard({ item }: { item: RagSubQuery }) {
   const status = item.success === false ? "failed" : item.relevant === false ? "weak" : "ok";
   return (
-    <div className="rounded-lg border border-line bg-white px-3 py-2">
+    <div className="dt-dynamic-result rounded-lg border border-line bg-white px-3 py-2">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-tint-lavender text-xs font-semibold text-brand-purple">
           {item.index}
@@ -376,12 +376,12 @@ function SubQueryCard({ item }: { item: RagSubQuery }) {
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-steel">{item.purpose}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {typeof item.sourceCount === "number" ? <MiniTag>{item.sourceCount} 条来源</MiniTag> : null}
-            {typeof item.contentChars === "number" ? <MiniTag>{item.contentChars} 字上下文</MiniTag> : null}
+            {typeof item.contentChars === "number" ? <MiniTag>{item.contentChars} 字回答材料</MiniTag> : null}
             {typeof item.relevanceScore === "number" ? <MiniTag>相关 {formatPercent(item.relevanceScore)}</MiniTag> : null}
             {item.action ? <MiniTag tone={item.action.includes("repair") ? "success" : "neutral"}>{formatStepAction(item.action)}</MiniTag> : null}
             {item.repaired ? <MiniTag tone="success">已修复</MiniTag> : null}
             {item.repairAttempted && !item.repaired ? <MiniTag tone="warning">已重试</MiniTag> : null}
-            {item.success === false || item.relevant === false ? <MiniTag tone="warning">需要补证据</MiniTag> : null}
+            {item.success === false || item.relevant === false ? <MiniTag tone="warning">需要补来源</MiniTag> : null}
             {item.matchedTerms.slice(0, 3).map((term) => (
               <MiniTag key={term}>{term}</MiniTag>
             ))}
@@ -394,7 +394,7 @@ function SubQueryCard({ item }: { item: RagSubQuery }) {
 
 function SourceCard({ source, index }: { source: RagSource; index: number }) {
   return (
-    <article className="rounded-lg border border-line bg-white px-3 py-2">
+    <article className="dt-dynamic-result rounded-lg border border-line bg-white px-3 py-2">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border border-line bg-canvas text-xs font-semibold text-charcoal">
           {index}
@@ -409,7 +409,7 @@ function SourceCard({ source, index }: { source: RagSource; index: number }) {
           {source.content ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{source.content}</p> : null}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {source.source ? <MiniTag>{basename(source.source)}</MiniTag> : null}
-            {source.subquery ? <MiniTag tone="brand">来自分路 {source.subqueryIndex || ""}</MiniTag> : null}
+            {source.subquery ? <MiniTag tone="brand">来自视角 {source.subqueryIndex || ""}</MiniTag> : null}
             {source.matchedKeywords.slice(0, 4).map((keyword) => (
               <MiniTag key={keyword}>{keyword}</MiniTag>
             ))}
@@ -477,22 +477,22 @@ function formatCoverageLabel(evidence: RagEvidence) {
     const covered = evidence.subqueries.filter((item) => (item.sourceCount ?? 0) > 0).length;
     return `${covered}/${evidence.subqueries.length} 路`;
   }
-  return evidence.sourceCount ? "已召回" : "未召回";
+  return evidence.sourceCount ? "已找到" : "未找到";
 }
 
 function formatRetrievalMode(value: string) {
   const labels: Record<string, string> = {
-    dense: "语义检索",
-    hybrid: "混合检索",
-    naive: "基础检索",
-    sparse: "关键词检索",
+    dense: "语义查找",
+    hybrid: "混合查找",
+    naive: "轻量查找",
+    sparse: "关键词查找",
   };
   return labels[value] || value;
 }
 
 function formatRetrievalProfile(value: string) {
   const labels: Record<string, string> = {
-    auto: "自动画像",
+    auto: "自动匹配",
     broad: "综合问题",
     concept: "概念解释",
     exact: "精确事实",
@@ -503,59 +503,59 @@ function formatRetrievalProfile(value: string) {
 
 function formatQualityReason(reason: string) {
   const labels: Record<string, string> = {
-    all_subqueries_failed: "分路失败",
-    low_context_chars: "上下文偏少",
-    low_relevance_coverage: "相关覆盖不足",
+    all_subqueries_failed: "视角无结果",
+    low_context_chars: "回答材料偏少",
+    low_relevance_coverage: "相关来源不足",
     low_score: "分数偏低",
     low_source_count: "来源偏少",
-    low_subquery_coverage: "分路覆盖不足",
-    no_sources: "无证据",
+    low_subquery_coverage: "视角覆盖不足",
+    no_sources: "无来源",
   };
   return labels[reason] || reason;
 }
 
 function formatPlanReason(reason: string) {
   const labels: Record<string, string> = {
-    auto_complex_query: "问题需要拆成多个检索视角。",
-    forced_by_caller: "系统选择了分解检索。",
-    query_too_broad: "问题范围较宽，需要多路补证据。",
+    auto_complex_query: "问题需要拆成多个查找视角。",
+    forced_by_caller: "系统选择了拆分查找。",
+    query_too_broad: "问题范围较宽，需要多路补来源。",
     multi_intent: "问题包含多个意图。",
     "The question has multiple learning intents.": "问题包含多个学习意图。",
-    "This request explicitly asked for deeper retrieval.": "系统选择了更深入的资料检索。",
+    "This request explicitly asked for deeper retrieval.": "系统选择了更深入的资料查找。",
     "The question contains multiple questions.": "问题里包含多个子问题。",
-    "The question is long enough to benefit from focused retrieval.": "问题较长，适合拆成多个检索视角。",
+    "The question is long enough to benefit from focused retrieval.": "问题较长，适合拆成多个查找视角。",
     "The question is structured as a list of sub-tasks.": "问题以多个子任务的形式组织。",
     "The question combines several requirements.": "问题组合了多个要求。",
-    "The planner used a rule-based split.": "规划器使用规则拆分生成检索分路。",
-    "Multi-step retrieval was selected for this request.": "系统选择了多路检索。",
+    "The planner used a rule-based split.": "系统按规则生成多个查找视角。",
+    "Multi-step retrieval was selected for this request.": "系统选择了多路查找。",
   };
   return labels[reason] || reason;
 }
 
 function formatExplanationSummary(decision: string, summary: string) {
   if (decision === "single_search_fallback") {
-    return "分解检索的部分证据偏弱，系统已回到原问题检索，优先保证回答仍有资料依据。";
+    return "多路查找的部分来源偏弱，系统已回到轻量查找，优先保证回答仍有资料支撑。";
   }
   if (decision === "subquery_repair") {
-    return "系统修复了薄弱分路，并保留多路检索得到的证据。";
+    return "系统补强了来源薄弱的查找视角，并保留多路查找得到的来源。";
   }
   if (decision === "weak_multi_query") {
-    return "系统完成了问题拆分，但质量检查提示部分证据仍偏弱。";
+    return "系统完成了问题拆分，但来源检查提示部分来源仍偏弱。";
   }
   if (summary.includes("split the question")) {
-    return "系统把问题拆成多个子问题，并找到了足够的资料证据。";
+    return "系统把问题拆成多个子问题，并找到了足够的资料来源。";
   }
   const labels: Record<string, string> = {
     "Multi-step retrieval was weak, so the answer used safer single-search evidence.":
-      "分解检索的证据偏弱，系统已改用更稳的原问题检索证据。",
+      "多路查找的来源偏弱，系统已改用更稳的轻量查找来源。",
     "Weak retrieval branches were repaired before answering.":
-      "系统先修复了证据偏弱的检索分路，再汇总回答依据。",
+      "系统先补强了来源偏弱的查找视角，再汇总回答来源。",
     "Evidence was found, but some quality checks need review.":
-      "系统找到了资料证据，但仍有部分质量检查需要留意。",
+      "系统找到了资料来源，但仍有部分来源检查需要留意。",
     "Multi-step retrieval found enough evidence.":
-      "系统通过多路检索找到了足够的资料证据。",
+      "系统通过多路查找找到了足够的资料来源。",
     "Retrieval evidence was checked before answering.":
-      "系统已在回答前检查资料证据。",
+      "系统已在回答前检查资料来源。",
   };
   if (labels[summary]) return labels[summary];
   return summary;
@@ -564,21 +564,21 @@ function formatExplanationSummary(decision: string, summary: string) {
 function formatRecommendation(value: string) {
   const labels: Record<string, string> = {
     "Some branches returned weakly related chunks; retry the original query with broader retrieval.":
-      "部分分路证据相关性偏弱，系统已尝试使用更宽的检索路径补证据。",
+      "部分查找视角的来源相关性偏弱，系统已尝试使用更宽的查找路径补来源。",
     "No evidence was found. Check indexing coverage or widen candidate_top_k.":
-      "没有召回证据，请检查资料索引覆盖，或扩大候选证据数量。",
+      "没有找到来源，请检查资料覆盖，或扩大候选来源数量。",
     "Relevant coverage is low; repair weak branches or retry with broader retrieval.":
-      "相关覆盖不足，建议修复薄弱分路或使用更宽的检索策略。",
+      "相关来源不足，建议补强薄弱视角或使用更宽的查找策略。",
     "Review the fallback sources before relying on the answer.":
-      "采用回退检索后，建议先核对来源片段再使用答案。",
+      "改用轻量查找后，建议先核对来源片段再使用答案。",
     "Review the repaired branches and source snippets.":
-      "建议查看已修复的检索分路和对应来源片段。",
+      "建议查看已补强的查找视角和对应来源片段。",
     "Open the knowledge base preflight and check whether the documents were indexed.":
-      "建议打开资料库预检，确认文档已经完成索引。",
+      "建议打开资料库预检，确认文档已经完成整理。",
     "Run a stronger evidence preset or rephrase the missing branch.":
       "建议把问题改写得更具体，或补充缺失资料后再问。",
     "Treat the answer as tentative and inspect the evidence list.":
-      "这次回答应视为暂定结论，请先检查证据列表。",
+      "这次回答应视为暂定结论，请先检查来源列表。",
     "Open the cited sources to verify the important claims.":
       "可以展开引用来源，核对关键结论是否来自可信资料。",
   };
@@ -590,8 +590,8 @@ function formatStepAction(action: string) {
     accepted_repair: "采纳修复",
     repair_rejected: "修复未采纳",
     retry_or_fallback: "需重试",
-    needs_more_evidence: "需补证据",
-    use_evidence: "使用证据",
+    needs_more_evidence: "需补来源",
+    use_evidence: "使用来源",
   };
   return labels[action] || action;
 }
@@ -599,9 +599,9 @@ function formatStepAction(action: string) {
 function formatQualityCheckCode(code: string) {
   const labels: Record<string, string> = {
     source_count: "来源数量",
-    subquery_coverage: "子问题覆盖",
-    relevance_coverage: "相关覆盖",
-    context_chars: "上下文长度",
+    subquery_coverage: "拆分覆盖",
+    relevance_coverage: "相关来源",
+    context_chars: "回答材料长度",
     score: "最高相关度",
   };
   return labels[code] || code;

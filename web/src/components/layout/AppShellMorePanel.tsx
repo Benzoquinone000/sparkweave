@@ -19,18 +19,18 @@ export function MoreFeaturesPanel({ currentPath, onClose }: { currentPath: strin
       exit={{ opacity: 0, x: -16 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
       onClick={(event) => event.stopPropagation()}
-      aria-label="更多工具"
+      aria-label="更多入口"
     >
-      <div className="flex items-center justify-between border-b border-line bg-white/84 px-3 py-2.5">
+      <div className="dt-dynamic-toolbar flex items-center justify-between border-b border-line bg-white/90 px-3 py-2.5">
         <div>
-          <p className="text-xs font-semibold text-ink">更多工具</p>
-          <p className="mt-0.5 text-xs text-steel">先用左侧四个主入口；这里只放按需补充的工具。</p>
+          <p className="text-xs font-semibold text-ink">更多入口</p>
+          <p className="mt-0.5 text-xs text-steel">先用左侧四个主入口；这里放按需补充的学习入口。</p>
         </div>
         <button
           type="button"
           className="dt-interactive rounded-lg border border-line bg-white p-1.5 text-steel hover:text-ink"
           onClick={onClose}
-          aria-label="关闭更多工具"
+          aria-label="关闭更多入口"
         >
           <X size={17} />
         </button>
@@ -50,8 +50,8 @@ export function MoreFeaturesPanel({ currentPath, onClose }: { currentPath: strin
                       key={item.to}
                       to={item.to}
                       onClick={onClose}
-                      className={`dt-interactive flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 ${
-                        active ? `border-transparent ${accent.active}` : "border-transparent bg-white/62 text-charcoal hover:border-line hover:bg-white"
+                    className={`dt-interactive dt-dynamic-result flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 ${
+                        active ? `border-transparent ${accent.active}` : "border-transparent bg-white/60 text-charcoal hover:border-line hover:bg-white"
                       }`}
                     >
                       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${accent.bg} ${accent.text}`}>
@@ -74,7 +74,5 @@ export function MoreFeaturesPanel({ currentPath, onClose }: { currentPath: strin
 }
 
 function moreGroupLabel(label: string) {
-  if (label === "学习工具") return "按任务补充";
-  if (label === "高级工具") return "演示与调试";
   return label;
 }

@@ -11,7 +11,7 @@ export function DocumentPreviewPanel({
   if (!selectedPreviewMatches) {
     return (
       <p className="mt-3 rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">
-        点击“查看文本”后，会显示 OCR 或文本层提取后的 Markdown 结果，并缓存到资料库目录。
+        点击“查看文本”后，会显示图片文字识别或文档文本提取后的内容，并缓存到资料库目录。
       </p>
     );
   }
@@ -19,7 +19,7 @@ export function DocumentPreviewPanel({
   return (
     <div className="mt-3 rounded-lg border border-line bg-white p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-ink">OCR / 文本预览</p>
+        <p className="text-xs font-semibold text-ink">图片文字识别 / 文本预览</p>
         <Badge tone={preview?.truncated ? "warning" : "neutral"}>
           {preview?.truncated ? "已截断" : `${preview?.content_chars ?? 0} 字`}
         </Badge>

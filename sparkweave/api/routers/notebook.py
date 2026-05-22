@@ -19,8 +19,8 @@ from sparkweave.api.request_limits import (
     MAX_NOTEBOOK_IDS,
     MAX_NOTEBOOK_KB_NAME_CHARS,
     MAX_NOTEBOOK_NAME_CHARS,
-    MAX_NOTEBOOK_RECORD_METADATA_KEYS,
     MAX_NOTEBOOK_RECORD_METADATA_JSON_CHARS,
+    MAX_NOTEBOOK_RECORD_METADATA_KEYS,
     MAX_NOTEBOOK_RECORD_OUTPUT_CHARS,
     MAX_NOTEBOOK_RECORD_QUERY_CHARS,
     MAX_NOTEBOOK_RECORD_SUMMARY_CHARS,
@@ -29,7 +29,10 @@ from sparkweave.api.request_limits import (
     strip_required_text,
     validate_notebook_metadata,
 )
-from sparkweave.services.learner_evidence import build_notebook_record_event, get_learner_evidence_service
+from sparkweave.services.learner_evidence import (
+    build_notebook_record_event,
+    get_learner_evidence_service,
+)
 from sparkweave.services.notebook import notebook_manager
 from sparkweave.services.notebook_summary import NotebookSummarizeAgent
 
@@ -87,7 +90,11 @@ class AddRecordRequest(BaseModel):
     summary: str = Field(default="", max_length=MAX_NOTEBOOK_RECORD_SUMMARY_CHARS)
     user_query: str = Field(..., max_length=MAX_NOTEBOOK_RECORD_QUERY_CHARS)
     output: str = Field(..., max_length=MAX_NOTEBOOK_RECORD_OUTPUT_CHARS)
-    metadata: dict[str, Any] = Field(default_factory=dict, max_length=MAX_NOTEBOOK_RECORD_METADATA_KEYS)
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        max_length=MAX_NOTEBOOK_RECORD_METADATA_KEYS,
+        description=f"Serialized JSON must stay under {MAX_NOTEBOOK_RECORD_METADATA_JSON_CHARS} chars.",
+    )
     kb_name: str | None = Field(default=None, max_length=MAX_NOTEBOOK_KB_NAME_CHARS)
 
     @field_validator("metadata")
@@ -114,7 +121,11 @@ class UpdateRecordRequest(BaseModel):
     summary: str | None = Field(default=None, max_length=MAX_NOTEBOOK_RECORD_SUMMARY_CHARS)
     user_query: str | None = Field(default=None, max_length=MAX_NOTEBOOK_RECORD_QUERY_CHARS)
     output: str | None = Field(default=None, max_length=MAX_NOTEBOOK_RECORD_OUTPUT_CHARS)
-    metadata: dict[str, Any] | None = Field(default=None, max_length=MAX_NOTEBOOK_RECORD_METADATA_KEYS)
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        max_length=MAX_NOTEBOOK_RECORD_METADATA_KEYS,
+        description=f"Serialized JSON must stay under {MAX_NOTEBOOK_RECORD_METADATA_JSON_CHARS} chars.",
+    )
     kb_name: str | None = Field(default=None, max_length=MAX_NOTEBOOK_KB_NAME_CHARS)
 
     @field_validator("metadata")

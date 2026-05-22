@@ -43,7 +43,7 @@ export function useKnowledgeTaskProgress({
         ? {
             status: "processing",
             stage: "processing",
-            message: "任务已创建，等待索引进度...",
+            message: "任务已创建，等待资料处理进度...",
             percent: 0,
             current: 0,
             total: 0,
@@ -73,7 +73,7 @@ export function useKnowledgeTaskProgress({
       pushTaskLog(formatTaskEvent(label, event.data));
       if (label === "complete" || label === "failed") {
         const message =
-          payload?.detail || payload?.line || (label === "complete" ? "索引任务已完成" : "索引任务失败");
+          payload?.detail || payload?.line || (label === "complete" ? "资料处理已完成" : "资料处理失败");
         const terminalProgress: KnowledgeProgress = {
           status: label === "complete" ? "completed" : "error",
           stage: label === "complete" ? "completed" : "error",

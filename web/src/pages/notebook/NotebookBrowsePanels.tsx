@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { BookMarked, Edit3, FileText, ListChecks, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { BookMarked, Edit3, FileText, ListChecks, MoreHorizontal, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -63,7 +63,7 @@ export function NotebookListPanel({
                 ? "border-brand-purple-300 bg-tint-lavender"
                 : "border-transparent bg-white hover:border-brand-purple-300 hover:bg-canvas"
             }`}
-            whileHover={{ y: -2 }}
+            whileHover={{ y: -0.5 }}
             whileTap={{ scale: 0.99 }}
           >
             <div className="flex items-start gap-3">
@@ -81,13 +81,13 @@ export function NotebookListPanel({
       </div>
       {!items.length ? (
         <div className="mt-5">
-          <EmptyState icon={<BookMarked size={24} />} title="还没有记录本" description="先新建一个记录本，再把聊天、导学和练习结果沉淀进来。" />
+          <EmptyState icon={<BookMarked size={24} />} title="先创建一个记录本" description="建好后可以写复盘、存错题，也可以把聊天和导学结果沉淀进来。" />
         </div>
       ) : null}
       <div className="mt-4 border-t border-line pt-3">
         <Button tone={questionsActive ? "primary" : "quiet"} className="w-full justify-center" onClick={onQuestions}>
           <ListChecks size={16} />
-          题目本
+          错题本
         </Button>
       </div>
     </section>
@@ -137,17 +137,34 @@ export function NotebookDetailPanel({
         <div className="flex flex-wrap gap-2">
           <Button tone="secondary" data-testid="notebook-manual-toggle" onClick={onManualRecord} disabled={!activeNotebookId}>
             <Edit3 size={16} />
-            手动记录
+            写一条记录
           </Button>
           <Button tone="secondary" onClick={onQuestions}>
             <ListChecks size={16} />
-            题目本
+            错题本
           </Button>
           {activeNotebookId ? (
-            <Button tone="danger" data-testid="notebook-delete" onClick={onDeleteNotebook} disabled={removePending}>
-              <Trash2 size={16} />
-              删除
-            </Button>
+            <details className="rounded-lg border border-line bg-white px-3 py-2 [&>summary::-webkit-details-marker]:hidden">
+              <summary
+                className="dt-interactive flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600"
+                data-testid="notebook-management-toggle"
+              >
+                <MoreHorizontal size={15} />
+                管理
+              </summary>
+              <div className="mt-2 flex flex-col gap-2 sm:w-32">
+                <Button
+                  tone="danger"
+                  className="min-h-8 justify-start px-2 text-xs"
+                  data-testid="notebook-delete"
+                  onClick={onDeleteNotebook}
+                  disabled={removePending}
+                >
+                  <Trash2 size={14} />
+                  删除记录本
+                </Button>
+              </div>
+            </details>
           ) : null}
         </div>
       </div>
@@ -174,7 +191,7 @@ export function NotebookDetailPanel({
           ))}
         </AnimatePresence>
         {activeNotebookId && !detail?.records?.length ? (
-          <EmptyState icon={<FileText size={24} />} title="暂无记录" description="从聊天页保存，或点“手动记录”补充一条复盘。" />
+          <EmptyState icon={<FileText size={24} />} title="暂无记录" description="点“写一条记录”补充复盘，或从聊天、导学结果里保存关键内容。" />
         ) : null}
       </div>
     </motion.section>

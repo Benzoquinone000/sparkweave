@@ -24,8 +24,8 @@ export function LearnerProfileVisualMap({ profile }: { profile: LearnerProfileSn
     <section className="mt-5 border-t border-line-soft pt-5" data-testid="learner-profile-visual-map">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-ink">画像地图</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">把目标、薄弱点、偏好和证据密度压成一张决策图。</p>
+          <p className="text-sm font-semibold text-ink">学习地图</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">把目标、卡点、偏好和学习记录整理成一张图。</p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-slate-600">
           <Gauge size={14} />
@@ -36,7 +36,7 @@ export function LearnerProfileVisualMap({ profile }: { profile: LearnerProfileSn
       <div className="mt-4 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <div className="min-w-0" data-testid="learner-profile-decision-radar">
           <div className="mx-auto aspect-square w-full max-w-[260px]">
-            <svg viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="img" aria-label="学习画像决策雷达图" className="h-full w-full">
+            <svg viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} role="img" aria-label="学习建议雷达图" className="h-full w-full">
               {[0.33, 0.66, 1].map((ring) => (
                 <polygon
                   key={ring}
@@ -74,10 +74,10 @@ export function LearnerProfileVisualMap({ profile }: { profile: LearnerProfileSn
               })}
               <circle cx={SVG_CENTER} cy={SVG_CENTER} r="22" fill="#ffffff" stroke="#e5e7eb" />
               <text x={SVG_CENTER} y={SVG_CENTER - 2} textAnchor="middle" className="fill-slate-950 text-[11px] font-semibold">
-                画像
+                建议
               </text>
               <text x={SVG_CENTER} y={SVG_CENTER + 12} textAnchor="middle" className="fill-slate-500 text-[10px]">
-                决策态
+                记录
               </text>
             </svg>
           </div>
@@ -94,7 +94,7 @@ export function LearnerProfileVisualMap({ profile }: { profile: LearnerProfileSn
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
             <Activity size={16} className="text-brand-blue" />
-            最近证据流
+            最近学习记录
           </span>
           <span className="text-xs text-slate-500">{profile.data_quality.source_count ?? 0} 个来源</span>
         </div>
@@ -102,8 +102,8 @@ export function LearnerProfileVisualMap({ profile }: { profile: LearnerProfileSn
           {evidenceFlow.length ? (
             evidenceFlow.map((item) => <EvidencePulse key={item.evidence_id} item={item} />)
           ) : (
-            <p className="rounded-lg border border-dashed border-line bg-surface px-3 py-3 text-sm text-slate-500">
-              还没有足够证据，完成一次导学或练习后这里会开始成形。
+            <p className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-surface px-3 py-3 text-sm text-slate-500">
+              还没有足够学习记录，完成一次导学或练习后这里会开始成形。
             </p>
           )}
         </div>
@@ -131,7 +131,7 @@ function SignalBar({ axis }: { axis: Axis }) {
 function EvidencePulse({ item }: { item: LearnerEvidencePreview }) {
   const score = normalizeScore(item.score);
   return (
-    <div className="min-w-0 rounded-lg border border-line bg-surface px-3 py-2">
+    <div className="dt-dynamic-result min-w-0 rounded-lg border border-line bg-surface px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-slate-600">
           <CircleDot size={13} className="shrink-0 text-brand-orange" />
@@ -139,7 +139,7 @@ function EvidencePulse({ item }: { item: LearnerEvidencePreview }) {
         </span>
         {score !== null ? <span className="text-xs font-medium text-slate-500">{Math.round(score * 100)}%</span> : null}
       </div>
-      <p className="mt-1 line-clamp-2 text-sm font-medium leading-5 text-ink">{item.title || "学习证据"}</p>
+      <p className="mt-1 line-clamp-2 text-sm font-medium leading-5 text-ink">{item.title || "学习记录"}</p>
       <p className="mt-1 truncate text-xs text-slate-500">{formatEvidenceDate(item.created_at)}</p>
     </div>
   );
@@ -181,9 +181,9 @@ function buildProfileAxes(profile: LearnerProfileSnapshot): Axis[] {
     },
     {
       key: "evidence",
-      label: "证据",
+      label: "记录",
       value: axisScore(profile, "evidence", Math.max(evidenceCount / 12, sourceCount / 5)),
-      detail: `${evidenceCount} 条证据 · ${sourceCount} 个来源`,
+      detail: `${evidenceCount} 条记录 · ${sourceCount} 个来源`,
     },
     {
       key: "mastery",
@@ -261,13 +261,13 @@ function sourceLabel(value: string) {
     guide: "导学",
     guide_v2: "导学",
     question: "练习",
-    question_notebook: "题目本",
+    question_notebook: "错题本",
     external_video_search: "公开视频",
     external_image_search: "公开图片",
     visualize: "图解",
-    profile_calibration: "画像校准",
+    profile_calibration: "建议修正",
   };
-  return labels[normalized] || normalized || "学习证据";
+  return labels[normalized] || normalized || "学习记录";
 }
 
 function formatEvidenceDate(value?: string | null) {

@@ -99,7 +99,7 @@ function isNoisyKnowledgeLog(value: string) {
 export function formatProgressMessage(progress: KnowledgeProgress | undefined | null, activeKb: string, hasTaskContext: boolean) {
   const state = String(progress?.stage || progress?.status || "").toLowerCase();
   if (!progress) return activeKb || "暂无任务";
-  if (state === "not_started") return hasTaskContext ? "等待索引任务更新..." : "暂无索引任务";
+  if (state === "not_started") return hasTaskContext ? "等待资料处理更新..." : "暂无处理任务";
   return progress.message ? formatKnowledgeLogLine(progress.message) : activeKb || "暂无任务";
 }
 
@@ -133,11 +133,11 @@ export function formatKnowledgeLogLine(raw: string, label?: "log" | "complete" |
   const processingFiles = text.match(/^processing\s+(\d+)\s+file\(s\)\s+for\s+kb\s+'([^']+)'/i);
   if (processingFiles) return `正在处理 ${processingFiles[1]} 个文件: ${processingFiles[2]}`;
   const indexed = text.match(/^indexed\s+(\d+)\s+file\(s\)/i);
-  if (indexed) return `已写入索引: ${indexed[1]} 个文件`;
+  if (indexed) return `已整理资料: ${indexed[1]} 个文件`;
   const processedByProvider = text.match(/^processed\s+\(([^)]+)\):\s+(.+)/i);
-  if (processedByProvider) return `已索引: ${processedByProvider[2]}`;
+  if (processedByProvider) return `已整理: ${processedByProvider[2]}`;
   const indexing = text.match(/^indexing\s+\(([^)]+)\)\s+(.+?)(\s+\([^)]+\))?$/i);
-  if (indexing) return `正在索引: ${indexing[2]}${indexing[3] || ""}`;
+  if (indexing) return `正在整理: ${indexing[2]}${indexing[3] || ""}`;
   const staged = text.match(/^staged\s+(\d+)\s+new\s+file\(s\)/i);
   if (staged) return `已暂存 ${staged[1]} 个新文件`;
   const recovering = text.match(/^recovering staged file:\s+(.+)/i);
@@ -151,20 +151,20 @@ export function formatKnowledgeLogLine(raw: string, label?: "log" | "complete" |
   const validationFailed = text.match(/^validation failed for file\s+'([^']+)'/i);
   if (validationFailed) return `文件校验未通过: ${validationFailed[1]}`;
   if (lower.includes("mime type validation failed")) return "文件类型校验未通过，请确认资料格式";
-  if (lower.includes("rag pipeline returned failure")) return "索引流程处理失败，请检查资料格式或模型配置";
+  if (lower.includes("rag pipeline returned failure")) return "资料整理流程失败，请检查资料格式或模型配置";
   if (lower.includes("initialization failed")) return "资料库初始化失败";
   if (lower.includes("document processing failed") || lower.includes("failed to process documents")) return "资料处理失败，请检查文件内容";
   if (lower.includes("error processing documents")) return "资料处理失败，请稍后重试";
   if (lower.includes("real-time progress") && lower.includes("unavailable")) return "实时进度暂时不可用，继续自动刷新";
-  if (lower.includes("starting to process documents with")) return "正在调用解析与索引流程...";
-  if (lower.includes("saved") && lower.includes("preparing index")) return "资料已保存，正在准备索引";
+  if (lower.includes("starting to process documents with")) return "正在调用解析与整理流程...";
+  if (lower.includes("saved") && lower.includes("preparing index")) return "资料已保存，正在准备整理";
   if (lower.includes("knowledge base created")) return "资料库已创建";
   if (lower.includes("upload complete")) return "上传完成";
   if (lower.includes("folder sync complete")) return "文件夹同步完成";
   const cleared = text.match(/^progress cleared for\s+(.+)/i);
   if (cleared) return `已清理进度: ${cleared[1]}`;
   if (lower.includes("ws parsing files")) return "正在解析文件";
-  if (lower.includes("ws index complete")) return "索引已完成";
+  if (lower.includes("ws index complete")) return "资料整理完成";
   if (lower === "heartbeat") return "进度通道保持连接";
   return text;
 }

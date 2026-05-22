@@ -59,7 +59,7 @@ export function KnowledgeCreatePanel({
             data-testid="knowledge-create-name"
           />
         </FieldShell>
-        <FieldShell label="检索引擎">
+        <FieldShell label="查找服务">
           <SelectInput value={provider} onChange={(event) => onProviderChange(event.target.value)}>
             {providers.length ? (
               providers.map((item) => (
@@ -95,7 +95,7 @@ export function KnowledgeCreatePanel({
           data-testid="knowledge-create-submit"
         >
           {creating ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
-          创建并索引
+          创建并整理
         </Button>
       </form>
     </section>

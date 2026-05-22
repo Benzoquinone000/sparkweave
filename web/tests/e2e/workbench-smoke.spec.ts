@@ -32,13 +32,11 @@ test("chat profile starter turns learner profile into one-click actions", async 
   await installMockWebSocket(page, { resultOnlyContent: "已生成一组练习。" });
   await page.goto("/chat");
 
-  await expect(page.getByTestId("chat-profile-starter")).toContainText("梯度下降的直观理解");
-  await expect(page.getByTestId("chat-profile-starter")).toContainText("默认：即时答疑");
+  await expect(page.getByTestId("chat-profile-starter")).toContainText("做 3 道梯度下降复测题");
+  await expect(page.getByTestId("chat-profile-starter")).toContainText("按建议继续");
   await expect(page.getByTestId("chat-profile-starter")).not.toContainText("默认：chat");
   const guideHref = await page.getByTestId("chat-profile-guide").getAttribute("href");
-  expect(decodeURIComponent(guideHref ?? "")).toContain("梯度下降的直观理解");
-  expect(decodeURIComponent(guideHref ?? "")).toContain("source_label=概念边界不清");
-  expect(guideHref).toContain("estimated_minutes=10");
+  expect(guideHref).toBe("/knowledge/create");
 
   await page.getByTestId("chat-profile-action-practice").click();
   await expect
@@ -60,10 +58,10 @@ test("chat profile starter turns learner profile into one-click actions", async 
 test("chat profile starter uses a simple continue command for profile-guided handoff", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "profile guided handoff smoke runs once");
   await mockReferenceApis(page);
-  await installMockWebSocket(page, { resultOnlyContent: "已按画像继续学习。" });
+  await installMockWebSocket(page, { resultOnlyContent: "已按建议继续学习。" });
 
   await page.goto("/chat");
-  await expect(page.getByTestId("chat-profile-start")).toContainText("按画像继续");
+  await expect(page.getByTestId("chat-profile-start")).toContainText("按建议继续");
   await page.getByTestId("chat-profile-start").click();
 
   await expect
@@ -76,8 +74,9 @@ test("chat profile starter uses a simple continue command for profile-guided han
     .toEqual(
       expect.objectContaining({
         type: "start_turn",
-        content: "继续学习",
-        capability: "chat",
+        content: "生成 3 道梯度下降复测题，包含选择、判断和简答。",
+        capability: "deep_question",
+        config: expect.objectContaining({ purpose: "retest", concept: "梯度下降" }),
       }),
     );
 });
@@ -101,9 +100,9 @@ test("learner profile overview confirms current diagnosis", async ({ page }, tes
   await expect(page.getByTestId("learner-profile-primary-action")).toHaveAttribute("href", /\/guide\?/);
 
   await page.getByTestId("learner-profile-tab-evidence").click();
-  await expect(page.getByTestId("learner-evidence-brief")).toContainText("证据结论");
+  await expect(page.getByTestId("learner-evidence-brief")).toContainText("记录小结");
   await expect(page.getByTestId("learner-evidence-brief")).toContainText("累计参考");
-  await expect(page.getByText("公开视频智能体", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "记录来源" })).toBeVisible();
   await expect(page.getByText("请求", { exact: true })).toBeVisible();
   await expect(page.getByText("公开视频", { exact: true }).first()).toBeVisible();
 });
@@ -115,7 +114,7 @@ test("memory renders the learner profile visual map", async ({ page }, testInfo)
   await page.goto("/memory");
   await expect(page.getByTestId("learner-profile-visual-map")).toBeVisible();
   await expect(page.getByTestId("learner-profile-decision-radar")).toBeVisible();
-  await expect(page.getByTestId("learner-profile-evidence-flow")).toContainText("最近证据流");
+  await expect(page.getByTestId("learner-profile-evidence-flow")).toContainText("最近学习记录");
   await page.getByTestId("learner-profile-correction-form").scrollIntoViewIfNeeded();
   await expect(page.getByTestId("learner-profile-correction-form")).toBeVisible();
 });
@@ -177,19 +176,21 @@ test("inspector opens dashboard activity details", async ({ page }, testInfo) =>
 
 test("chat exposes capability-specific settings", async ({ page }, testInfo) => {
   await page.goto("/chat");
-  await page.getByRole("button", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "资料与偏好" }).click();
   await expect(page.getByRole("heading", { name: "任务快照" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "能力参数" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "引用上下文" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "自动导学" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "引用素材" })).toBeVisible();
+  await expect(page.getByTestId("chat-advanced-settings")).toContainText("更多控制");
   const visibleControl = (name: string) =>
     testInfo.project.name === "mobile" ? page.getByLabel(name).last() : page.getByLabel(name).first();
-  await page.getByRole("button", { name: /题目生成/ }).click();
+  await page.getByTestId("chat-advanced-summary").click();
+  await page.getByTestId("chat-capability-select").selectOption("deep_question");
   await expect(visibleControl("题目数量")).toBeVisible();
   await expect(page.getByRole("button", { name: /精选视频/ })).toBeVisible();
   await page.getByRole("button", { name: /精选视频/ }).click();
-  await page.getByRole("button", { name: /知识可视化/ }).click();
-  await expect(visibleControl("渲染模式")).toBeVisible();
-  await page.getByRole("button", { name: /数学动画/ }).click();
+  await page.getByTestId("chat-capability-select").selectOption("visualize");
+  await expect(visibleControl("图解形式")).toBeVisible();
+  await page.getByTestId("chat-capability-select").selectOption("math_animator");
   await expect(visibleControl("风格提示")).toBeVisible();
 });
 
@@ -222,8 +223,8 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
   await expect(page.getByTestId("learner-profile-primary-action")).toHaveAttribute("href", /\/guide\?/);
 
   await page.goto("/playground");
-  await expect(page.getByRole("heading", { name: "调试工具和能力，不打扰学习主流程" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "注册清单" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "先试一遍，再放进学习流程" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "试跑项目" })).toBeVisible();
 
   await page.goto("/co-writer");
   await expect(page.getByRole("heading", { name: "编辑请求" })).toBeVisible();
@@ -235,15 +236,16 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
   await expect(page.getByRole("button", { name: "帮我安排学习" })).toBeVisible();
 
   await page.goto("/agents");
-  await expect(page.getByRole("heading", { name: "今天的学习，先交给助教推进" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "让课程助教按时推进" })).toBeVisible();
+  await expect(page.getByTestId("agent-workspace-tab-schedule")).toContainText("定时提醒");
+  await page.getByTestId("agent-workspace-tab-assistants").click();
+  await expect(page.getByRole("heading", { name: "课程助教", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "创建课程助教" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "助教对话" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "助教模板库" })).toBeVisible();
-  await page.getByTestId("agent-workspace-tab-capabilities").click();
-  await expect(page.getByRole("heading", { name: "助教能力" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "最近运行" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "试问助教" })).toBeVisible();
   await page.getByTestId("agent-workspace-tab-workspace").click();
-  await expect(page.getByRole("heading", { name: "发布渠道" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "资料与助教笔记" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "还没有课程助教" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "创建助教" })).toBeVisible();
 
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "需要改什么，就进对应页面" })).toBeVisible();
@@ -295,7 +297,7 @@ test("playground streams tool and capability executions", async ({ page }, testI
 
   await page.getByTestId("playground-tool-run-sync").click();
   await expect.poll(() => playground.syncToolPayload).toEqual({ params: { query: "limits" } });
-  await expect(page.getByTestId("playground-logs")).toContainText("正在执行：mock_tool");
+  await expect(page.getByTestId("playground-logs")).toContainText("正在试跑：mock_tool");
   await expect(page.getByTestId("playground-result")).toContainText("sync tool result");
 
   await page.getByTestId("playground-mode-capability").click();
@@ -330,21 +332,22 @@ test("knowledge creation listens to named SSE task logs", async ({ page }, testI
     mimeType: "text/markdown",
     buffer: Buffer.from("# Limits\nUse notebook context."),
   });
-  await page.getByRole("button", { name: /创建并索引/ }).click();
+  await page.getByRole("button", { name: /创建并整理/ }).click();
 
   await expect(page.getByTestId("knowledge-task-milestones")).toContainText("关键进展");
   await expect(page.getByTestId("knowledge-task-log-details")).toContainText("完整处理记录");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 解析中 55% 正在解析文件");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新：进度通道保持连接");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备整理");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成: 资料库已创建");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 parsing 55% 正在解析文件");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度更新: 进度通道保持连接");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("debug");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 完成 100% 索引已完成");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 已完成 100% 资料整理完成");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   const wsUrls = await page.evaluate(() => (window as typeof window & { __knowledgeWsUrls?: string[] }).__knowledgeWsUrls ?? []);
   expect(wsUrls.some((url) => url.includes("/api/v1/knowledge/calculus_mock/progress/ws"))).toBe(true);
 
-  await expect(page.getByRole("heading", { name: "检索设置" })).toBeVisible();
+  await page.goto("/knowledge/settings?kb=calculus_mock");
+  await expect(page.getByRole("heading", { name: "资料查找设置" })).toBeVisible();
   await page.getByLabel("模式").first().selectOption("semantic");
   await page.getByLabel("说明").first().fill("极限与连续专题资料");
   await page.getByRole("button", { name: /^保存$/ }).first().click();
@@ -360,28 +363,32 @@ test("knowledge management covers upload default folders and deletion", async ({
   await page.goto("/knowledge");
   await expect(page.getByRole("heading", { name: "资料库" })).toBeVisible();
   await expect(page.getByTestId("knowledge-status-strip")).toContainText("资料库");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("calculus_mock");
-  await page.getByRole("button", { name: "geometry_mock 就绪 选择" }).click();
+  await expect(page.getByRole("heading", { name: "calculus_mock" })).toBeVisible();
+  await page.getByTestId("knowledge-kb-select-geometry_mock").click();
+  await page.locator("details", { hasText: "管理" }).locator("summary").click();
   await page.getByTestId("knowledge-active-set-default").click();
   await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("geometry_mock");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
-  await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("索引摘要");
+  await expect(page.getByRole("heading", { name: "geometry_mock" })).toBeVisible();
+  await expect(page.getByTestId("knowledge-user-start-panel")).toContainText("资料已经准备好");
+  await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("资料细节");
   await expect(page.getByTestId("knowledge-active-summary-panel")).toContainText("triangles");
   await expect(page.getByTestId("knowledge-active-summary-panel")).not.toContainText("{");
 
+  await page.getByTestId("knowledge-primary-upload").click();
   await page.getByTestId("knowledge-upload-files").first().setInputFiles({
     name: "triangles.md",
     mimeType: "text/markdown",
     buffer: Buffer.from("# Triangles\nSimilarity and area."),
   });
-  await page.getByRole("button", { name: /上传并索引/ }).click();
+  await page.getByRole("button", { name: /上传并整理/ }).click();
   await expect.poll(() => knowledge.uploadTarget).toBe("geometry_mock");
   await expect.poll(() => knowledge.uploadBody?.includes('filename="triangles.md"')).toBe(true);
   await expect(page.getByTestId("knowledge-progress-details")).toContainText("完成");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：上传完成");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成: 上传完成");
   await expect(page.getByTestId("knowledge-task-logs")).not.toContainText("Progress cleared for geometry_mock");
 
+  await page.goto("/knowledge?kb=geometry_mock");
+  await page.locator("details", { hasText: "管理" }).locator("summary").click();
   await page.getByTestId("knowledge-active-delete").click();
   await expect.poll(() => knowledge.deletedKb).toBe("geometry_mock");
 });
@@ -501,7 +508,7 @@ test("chat refreshes saved session history after a new websocket turn", async ({
   await page.locator("textarea").first().fill("检查会话保存");
   await page.locator("textarea").first().press("Enter");
 
-  await expect.poll(() => page.evaluate(() => window.location.pathname)).toBe("/chat/session-new");
+  await expect.poll(() => page.evaluate(() => window.location.pathname)).toBe("/chat");
   await expect.poll(() => sessionListRequests).toBeGreaterThan(1);
   await expect(page.getByRole("link", { name: /检查会话保存/ })).toBeVisible();
 });
@@ -887,7 +894,7 @@ test("sparkbot simple create and lifecycle buttons call endpoints", async ({ pag
       bot_id: "channel-agent",
       name: "Channel Agent",
       auto_start: true,
-      persona: expect.stringContaining("SparkBot 助教"),
+      persona: expect.stringContaining("课程助教"),
     }),
   );
 
@@ -1123,7 +1130,7 @@ test("sparkbot workspace files create and save through backend", async ({ page }
   await expect(page.getByTestId("assistant-artifacts-panel")).toBeVisible();
   await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("高等数学资料库");
   await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("导数小测");
-  await expect(page.getByTestId("assistant-collaboration-route")).toContainText("学习画像");
+  await expect(page.getByTestId("assistant-collaboration-route")).toContainText("学习记录");
   await expect(page.getByTestId("assistant-collaboration-route")).toContainText("讯飞多模态");
   await expect(page.getByTestId("assistant-collaboration-route")).toContainText("评估回写");
   await expect(page.getByTestId("assistant-demo-readiness")).toContainText("比赛演示检查");
@@ -1361,12 +1368,12 @@ test("co-writer streams edits and preserves notebook saving", async ({ page }, t
   const coWriter = await mockCoWriterStreamApis(page);
 
   await page.goto("/co-writer");
-  await page.locator("textarea").first().fill("rough note");
-  await page.locator("input").first().fill("polish this");
-  await page.locator('button[type="submit"]').first().click();
+  await page.getByTestId("co-writer-source-text").fill("rough note");
+  await page.getByTestId("co-writer-instruction").fill("polish this");
+  await page.getByTestId("co-writer-stream-submit").click();
   await expect(page.getByText("streamed polished text")).toBeVisible();
   await page.getByTestId("co-writer-stream-toggle").click();
-  await expect(page.getByText("规划修改：正在分析原文和编辑指令")).toBeVisible();
+  await expect(page.getByText("规划修改：正在分析原文和修改要求")).toBeVisible();
 
   await page.getByTestId("co-writer-automark").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("marked rough note");
@@ -1402,11 +1409,11 @@ test("co-writer audits history and exports markdown", async ({ page }, testInfo)
   await page.goto("/co-writer");
   await page.getByText("Polish proof").click();
   await page.getByTestId("co-writer-audit-toggle").click();
-  const audit = page.locator("section", { has: page.getByRole("heading", { name: "操作审计" }) });
+  const audit = page.locator("section", { has: page.getByRole("heading", { name: "修改记录" }) });
   await expect(audit.getByText("Original proof sketch")).toBeVisible();
   await expect(audit.getByText("Edited proof sketch")).toBeVisible();
-  await expect(audit.getByText(/知识库检索/)).toBeVisible();
-  await page.getByRole("button", { name: /导出 Markdown/ }).click();
+  await expect(audit.getByText(/资料查找/)).toBeVisible();
+  await page.getByRole("button", { name: /导出文稿/ }).click();
   await expect.poll(() => coWriter.exportPayload).toEqual({
     content: "Edited proof sketch",
     filename: "co-writer-op-history.md",
@@ -1474,14 +1481,15 @@ test("settings shows NG runtime topology", async ({ page }, testInfo) => {
 
   await page.goto("/settings/diagnostics");
   await page.getByTestId("settings-diagnostics-toggle").click();
-  await expect(page.getByRole("heading", { name: "NG 运行拓扑" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "运行概览" })).toBeVisible();
   await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("服务配置概览");
-  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("llm-profile");
-  await expect(page.getByText("LangGraphTurnRuntimeManager")).toBeVisible();
-  await expect(page.getByText("LangGraphRunner")).toBeVisible();
-  await expect(page.getByText("CapabilityRegistry")).toBeVisible();
-  await expect(page.getByText("ToolRegistry")).toBeVisible();
-  await expect(page.getByText("guide · independent_subsystem")).toBeVisible();
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("问答模型");
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("gpt-mock");
+  await expect(page.getByText("学习服务管理")).toBeVisible();
+  await expect(page.getByText("学习流程执行")).toBeVisible();
+  await expect(page.getByText("学习入口")).toBeVisible();
+  await expect(page.getByText("辅助入口")).toBeVisible();
+  await expect(page.getByText("学习向导 · 独立学习服务")).toBeVisible();
 });
 
 test("settings shows setup tour status and reopens the guide", async ({ page }, testInfo) => {
@@ -1529,8 +1537,10 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
   await page.getByTestId("settings-llm-base-url").fill("https://updated-llm.example/v1");
   await page.getByTestId("settings-llm-model").fill("gpt-updated");
   await page.getByTestId("settings-llm-api-key").fill("sk-updated");
+  await page.getByTestId("settings-config-section-search").click();
   await page.getByTestId("settings-search-provider").selectOption("tavily");
   await expect(page.getByTestId("settings-search-base-url")).toHaveValue("https://api.tavily.com/search");
+  await page.getByTestId("settings-config-section-embedding").click();
   await page.getByTestId("settings-embedding-provider").selectOption("cohere");
   await expect(page.getByTestId("settings-embedding-base-url")).toHaveValue("https://api.cohere.ai");
   await expect(page.getByTestId("settings-embedding-model")).toHaveValue("embed-v4.0");
@@ -1561,7 +1571,7 @@ test("settings streams service checks and applies catalog", async ({ page }, tes
   });
   await expect.poll(() => settings.applyPayload?.catalog?.services?.llm?.profiles?.[0]?.models?.[0]?.model).toBe("gpt-updated");
   await expect.poll(() => settings.uiPayload).toEqual({ language: "zh", theme: "light" });
-  await expect(page.getByText("配置已保存并应用到运行时。")).toBeVisible();
+  await expect(page.getByText("配置已保存，刷新后即可使用。")).toBeVisible();
 
   await page.goto("/settings/diagnostics");
   await page.getByTestId("settings-diagnostics-toggle").click();
@@ -1621,8 +1631,8 @@ test("notebook workbench writes records and question categories", async ({ page 
   page.on("dialog", (dialog) => void dialog.accept());
 
   await page.goto("/notebook");
-  await expect(page.getByText("healthy").first()).toBeVisible();
-  await expect(page.getByText("服务健康").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "把学过的内容留下来" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的记录本" })).toBeVisible();
   await page.getByTestId("notebook-create-toggle").click();
   await page.getByTestId("notebook-create-name").fill("Competition Review");
   await page.getByTestId("notebook-create-description").fill("Polished learning assets");
@@ -1689,10 +1699,11 @@ test("notebook workbench writes records and question categories", async ({ page 
   );
   expect(notebook.updateRecordTarget).toEqual({ notebookId: "nb-existing", recordId: "rec-existing" });
 
+  await page.getByTestId("notebook-record-management-rec-existing").click();
   await page.getByTestId("notebook-record-delete-rec-existing").click();
   await expect.poll(() => notebook.deletedRecordTarget).toEqual({ notebookId: "nb-existing", recordId: "rec-existing" });
 
-  await page.getByRole("button", { name: "题目本" }).first().click();
+  await page.getByRole("button", { name: "错题本" }).first().click();
   await page.getByTestId("question-entry-bookmark-7").click();
   await expect.poll(() => notebook.entryUpdatePayload).toEqual({ bookmarked: true });
   await expect(page.getByTestId("question-entry-7")).toContainText("中等");
@@ -1742,6 +1753,7 @@ test("notebook workbench writes records and question categories", async ({ page 
   await expect.poll(() => notebook.entryDeleteId).toBe(7);
 
   await page.goto("/notebook?notebook=nb-existing");
+  await page.getByTestId("notebook-management-toggle").click();
   await page.getByTestId("notebook-delete").click();
   await expect.poll(() => notebook.deletedNotebookId).toBe("nb-existing");
 });
@@ -1751,8 +1763,8 @@ test("mobile context drawer opens without DOM errors", async ({ page }, testInfo
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/chat");
-  await page.getByRole("button", { name: "上下文" }).click();
-  await expect(page.getByRole("heading", { name: "学习方式" })).toBeVisible();
+  await page.getByRole("button", { name: "资料与偏好" }).click();
+  await expect(page.getByRole("heading", { name: "自动导学" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "历史会话" })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -1769,11 +1781,14 @@ test("mobile navigation reaches the redesigned workspace sections", async ({ pag
 
   await page.goto("/chat");
   await page.getByRole("button", { name: "打开导航" }).click();
-  await page.getByRole("link", { name: /^设置$/ }).click();
+  let drawer = page.getByTestId("mobile-nav-drawer");
+  await drawer.getByRole("link", { name: /^设置$/ }).click();
   await expect.poll(pathname).toBe("/settings");
 
   await page.getByRole("button", { name: "打开导航" }).click();
-  await page.getByRole("link", { name: /^助教$/ }).click();
+  drawer = page.getByTestId("mobile-nav-drawer");
+  await drawer.getByText("更多入口").click();
+  await drawer.getByRole("link", { name: /课程助教/ }).click();
   await expect.poll(pathname).toBe("/agents");
 
   await page.getByRole("navigation").getByRole("link", { name: /^资料$/ }).click();
@@ -1903,9 +1918,9 @@ test("mobile knowledge creation streams task progress", async ({ page }, testInf
   });
   await page.getByTestId("knowledge-create-submit").click();
 
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备索引");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：资料库已创建");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 完成 100% 索引已完成");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备整理");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("整理完成: 资料库已创建");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("进度 已完成 100% 资料整理完成");
   await expect.poll(() => knowledge.createBody?.includes('name="name"\r\n\r\ncalculus_mock')).toBe(true);
   await expect.poll(() => knowledge.createBody?.includes('filename="limits.md"')).toBe(true);
   const wsUrls = await page.evaluate(() => (window as typeof window & { __knowledgeWsUrls?: string[] }).__knowledgeWsUrls ?? []);
@@ -1925,31 +1940,62 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
   });
   page.on("dialog", (dialog) => void dialog.accept());
   const knowledge = await mockKnowledgeManagementApis(page);
+  const openMoreKnowledgeWorkspace = async (workspace: string) => {
+    const activePanelByWorkspace: Record<string, string> = {
+      folders: "knowledge-folder-toggle",
+      progress: "knowledge-progress-details",
+      upload: "knowledge-upload-panel",
+    };
+    const activePanel = activePanelByWorkspace[workspace];
+    if (activePanel && await page.getByTestId(activePanel).isVisible().catch(() => false)) return;
+    const shortcut = page.getByTestId(`knowledge-workspace-shortcut-${workspace}`);
+    if (await shortcut.isVisible().catch(() => false)) {
+      await shortcut.click();
+      return;
+    }
+    await page.getByTestId("knowledge-workspace-task-header").getByText("更多入口").click();
+    const moreItem = page.getByTestId(`knowledge-workspace-more-${workspace}`);
+    if (await moreItem.isVisible().catch(() => false)) {
+      await moreItem.click();
+      return;
+    }
+    if (activePanel && await page.getByTestId(activePanel).isVisible().catch(() => false)) return;
+    if (await shortcut.isVisible().catch(() => false)) {
+      await shortcut.click();
+      return;
+    }
+    throw new Error(`Knowledge workspace ${workspace} is not reachable from the current task header.`);
+  };
 
   await page.goto("/knowledge");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("calculus_mock");
   await page.getByTestId("knowledge-kb-select-geometry_mock").click();
+  await page.getByTestId("knowledge-detail-panel").getByText("管理").click();
   await page.getByTestId("knowledge-active-set-default").click();
   await expect.poll(() => knowledge.defaultKb).toBe("geometry_mock");
   await expect(page.getByTestId("knowledge-detail-panel")).toContainText("geometry_mock");
-  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("Geometry vector store ready");
+  await expect(page.getByTestId("knowledge-detail-panel")).toContainText("8 份");
 
+  await page.getByTestId("knowledge-workspace-upload").click();
   await page.getByTestId("knowledge-upload-target").selectOption("geometry_mock");
-  await page.getByTestId("knowledge-progress-toggle").click();
+  await openMoreKnowledgeWorkspace("progress");
   await page.getByTestId("knowledge-progress-clear").click();
   await expect.poll(() => knowledge.clearedProgress).toBe("geometry_mock");
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("已清理进度：geometry_mock");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("已清理进度: geometry_mock");
 
+  await page.getByTestId("knowledge-workspace-shortcut-upload").click();
   await page.getByTestId("knowledge-upload-files").setInputFiles({
     name: "mobile-triangles.md",
     mimeType: "text/markdown",
     buffer: Buffer.from("# Mobile triangles\nSimilarity and area."),
   });
-  await page.getByTestId("knowledge-upload-submit").click();
+  await page.getByTestId("knowledge-upload-panel").locator("form").evaluate((form) => (form as HTMLFormElement).requestSubmit());
   await expect.poll(() => knowledge.uploadTarget).toBe("geometry_mock");
   await expect.poll(() => knowledge.uploadBody?.includes('filename="mobile-triangles.md"')).toBe(true);
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：上传完成");
+  await openMoreKnowledgeWorkspace("progress");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成: 上传完成");
 
+  await openMoreKnowledgeWorkspace("folders");
   await page.getByTestId("knowledge-folder-toggle").click();
   await page.getByTestId("knowledge-folder-path").fill("C:\\course\\geometry-mobile");
   await page.getByTestId("knowledge-folder-link").click();
@@ -1957,11 +2003,16 @@ test("mobile knowledge manages uploads defaults folders and deletion without DOM
 
   await page.getByTestId("knowledge-folder-sync-folder-1").click();
   await expect.poll(() => knowledge.syncTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
-  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成：文件夹同步完成");
+  await openMoreKnowledgeWorkspace("progress");
+  await expect(page.getByTestId("knowledge-task-logs")).toContainText("完成: 文件夹同步完成");
 
+  await page.goto("/knowledge/folders?kb=geometry_mock");
+  await expect(page.getByTestId("knowledge-folder-toggle")).toBeVisible();
   await page.getByTestId("knowledge-folder-unlink-folder-1").click();
   await expect.poll(() => knowledge.unlinkTarget).toEqual({ kbName: "geometry_mock", folderId: "folder-1" });
 
+  await page.getByTestId("knowledge-workspace-back").click();
+  await page.getByTestId("knowledge-detail-panel").getByText("管理").click();
   await page.getByTestId("knowledge-active-delete").click();
   await expect.poll(() => knowledge.deletedKb).toBe("geometry_mock");
   expect(errors).toEqual([]);
@@ -1981,7 +2032,7 @@ test("mobile notebook saves manual records without DOM errors", async ({ page },
   const notebook = await mockNotebookMutationApis(page);
 
   await page.goto("/notebook");
-  await expect(page.getByText("healthy").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的记录本" })).toBeVisible();
 
   await page.getByTestId("notebook-create-toggle").click();
   await page.getByTestId("notebook-create-name").fill("Mobile Review");
@@ -2051,9 +2102,11 @@ test("mobile notebook edits records and question categories without DOM errors",
   );
   expect(notebook.updateRecordTarget).toEqual({ notebookId: "nb-existing", recordId: "rec-existing" });
 
+  await page.getByTestId("notebook-record-management-rec-existing").click();
   await page.getByTestId("notebook-record-delete-rec-existing").click();
   await expect.poll(() => notebook.deletedRecordTarget).toEqual({ notebookId: "nb-existing", recordId: "rec-existing" });
 
+  await page.getByRole("button", { name: "错题本" }).first().click();
   await page.getByTestId("question-entry-select-7").click();
   await page.getByTestId("question-entry-bookmark-7").click();
   await expect.poll(() => notebook.entryUpdatePayload).toEqual({ bookmarked: true });
@@ -2129,6 +2182,7 @@ test("mobile settings saves runtime config and probes services without DOM error
   await page.getByTestId("settings-llm-base-url").fill("https://mobile-llm.example/v1");
   await page.getByTestId("settings-llm-model").fill("gpt-mobile");
   await page.getByTestId("settings-llm-api-key").fill("sk-mobile");
+  await page.getByTestId("settings-config-section-embedding").click();
   await page.getByTestId("settings-embedding-model").fill("embedding-mobile");
   await page.getByTestId("settings-embedding-dimension").fill("1536");
   await page.getByTestId("settings-save-apply").click();
@@ -2176,9 +2230,10 @@ test("mobile settings manages topology tour and cancellable checks without DOM e
   await page.goto("/settings/diagnostics");
   await page.getByTestId("settings-diagnostics-toggle").click();
   await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("服务配置概览");
-  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("llm-profile");
-  await expect(page.getByText("LangGraphTurnRuntimeManager")).toBeVisible();
-  await expect(page.getByText("CapabilityRegistry")).toBeVisible();
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("问答模型");
+  await expect(page.getByTestId("settings-catalog-snapshot")).toContainText("gpt-mock");
+  await expect(page.getByText("学习服务管理")).toBeVisible();
+  await expect(page.getByText("学习入口")).toBeVisible();
 
   await page.getByTestId("settings-tour-reopen").click();
   await expect.poll(() => settings.reopenCalled).toBe(true);
@@ -2194,7 +2249,7 @@ test("mobile settings manages topology tour and cancellable checks without DOM e
   await page.getByTestId("settings-test-cancel").click();
   await expect.poll(() => settings.cancelTarget).toEqual({ service: "search", runId: "run-search-cancel" });
 
-  await page.goto("/settings?tour=true");
+  await page.goto("/settings/models?tour=true");
   await page.getByRole("button", { name: /完成并启动/ }).click();
   await expect.poll(() => settings.completedPayload).toEqual(
     expect.objectContaining({
@@ -2267,7 +2322,7 @@ test("mobile co-writer streams edits and saves output without DOM errors", async
   await page.getByTestId("co-writer-stream-submit").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("streamed polished text");
   await page.getByTestId("co-writer-stream-toggle").click();
-  await expect(page.getByText("规划修改：正在分析原文和编辑指令")).toBeVisible();
+  await expect(page.getByText("规划修改：正在分析原文和修改要求")).toBeVisible();
 
   await page.getByTestId("co-writer-automark").click();
   await expect(page.getByTestId("co-writer-result")).toContainText("marked rough note");
@@ -2313,7 +2368,7 @@ test("mobile co-writer audits history and exports markdown without DOM errors", 
   await page.getByTestId("co-writer-audit-toggle").click();
   await expect(page.locator("pre").filter({ hasText: "Original proof sketch" })).toBeVisible();
   await expect(page.locator("pre").filter({ hasText: "Edited proof sketch" })).toBeVisible();
-  await expect(page.locator("pre").filter({ hasText: /知识库检索/ })).toBeVisible();
+  await expect(page.locator("pre").filter({ hasText: /资料查找/ })).toBeVisible();
   await page.getByTestId("co-writer-export").click();
   await expect.poll(() => coWriter.exportPayload).toEqual({
     content: "Edited proof sketch",
@@ -3136,13 +3191,13 @@ test("chat sends selected context references through websocket", async ({ page }
 
   await page.goto("/chat");
   await page.getByTestId("chat-context-toggle").click();
-  const references = page.locator("section", { has: page.getByRole("heading", { name: "引用上下文" }) });
+  const references = page.locator("section", { has: page.getByRole("heading", { name: "引用素材" }) });
   await expect(references).toBeVisible();
   await references.getByRole("button", { name: /旧会话 A/ }).click();
   await references.getByRole("button", { name: /极限错题/ }).click();
-  await page.getByRole("button", { name: "关闭上下文" }).click();
+  await page.getByRole("button", { name: "关闭资料与偏好" }).click();
 
-  await page.locator("textarea").first().fill("请结合引用上下文总结要点");
+  await page.locator("textarea").first().fill("请结合引用资料总结要点");
   await page.getByRole("button", { name: /发送/ }).click();
 
   await expect
@@ -3155,11 +3210,99 @@ test("chat sends selected context references through websocket", async ({ page }
     .toEqual(
       expect.objectContaining({
         type: "start_turn",
-        content: "请结合引用上下文总结要点",
+        content: "请结合引用资料总结要点",
         history_references: ["session-old-a"],
         notebook_references: [{ notebook_id: "nb1", record_ids: ["rec-limit"] }],
       }),
     );
+});
+
+test("chat sends an empty tool list when all helpers are disabled", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "tool policy payload smoke runs once");
+  await mockReferenceApis(page);
+  await installMockWebSocket(page);
+
+  await page.goto("/chat");
+  await page.getByTestId("chat-context-toggle").click();
+  await page.getByTestId("chat-advanced-summary").click();
+  for (const toolId of [
+    "canvas",
+    "rag",
+    "web_search",
+    "external_video_search",
+    "external_image_search",
+    "iflytek_workflow",
+    "iflytek_formula_ocr",
+    "iflytek_image_understanding",
+    "paper_search",
+    "code_execution",
+    "reason",
+  ]) {
+    const toggle = page.getByTestId(`tool-toggle-${toolId}`);
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await toggle.click();
+  }
+  await page.mouse.click(20, 20);
+  await expect(page.getByTestId("chat-mobile-context-drawer")).not.toBeVisible();
+
+  await page.locator("textarea").first().fill("Just answer directly without helper tools");
+  await page.getByTestId("chat-send").click();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const state = window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> };
+        return state.__sparkWeaveWsMessages?.find((message) => message.type === "start_turn") ?? null;
+      }),
+    )
+    .toEqual(
+      expect.objectContaining({
+        type: "start_turn",
+        content: "Just answer directly without helper tools",
+        capability: "chat",
+        tools: [],
+      }),
+    );
+});
+
+test("chat can disable canvas while keeping other helper tools", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "canvas tool policy payload smoke runs once");
+  await mockReferenceApis(page);
+  await installMockWebSocket(page);
+
+  await page.goto("/chat");
+  await page.getByTestId("chat-context-toggle").click();
+  await page.getByTestId("chat-advanced-summary").click();
+  await page.getByTestId("tool-toggle-canvas").click();
+  await page.mouse.click(20, 20);
+  await expect(page.getByTestId("chat-mobile-context-drawer")).not.toBeVisible();
+
+  await page.locator("textarea").first().fill("Write the plan in chat, do not open canvas");
+  await page.getByTestId("chat-send").click();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const state = window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> };
+        return state.__sparkWeaveWsMessages?.find((message) => message.type === "start_turn") ?? null;
+      }),
+    )
+    .toEqual(
+      expect.objectContaining({
+        type: "start_turn",
+        content: "Write the plan in chat, do not open canvas",
+        capability: "chat",
+        tools: expect.arrayContaining(["rag", "web_search", "external_video_search", "external_image_search"]),
+      }),
+    );
+
+  const tools = await page.evaluate(() => {
+    const state = window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> };
+    const start = state.__sparkWeaveWsMessages?.find((message) => message.type === "start_turn");
+    const rawTools = start ? start["tools"] : [];
+    return Array.isArray(rawTools) ? rawTools : [];
+  });
+  expect(tools).not.toContain("canvas");
 });
 
 test("chat cancels an in-flight websocket turn", async ({ page }, testInfo) => {
@@ -3211,70 +3354,394 @@ test("chat renders result-only websocket responses", async ({ page }, testInfo) 
   await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
 });
 
+test("chat opens editable canvas when the canvas tool is used", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "canvas smoke runs once");
+  await mockReferenceApis(page);
+  const documentContent = [
+    "# 梯度下降学习计划",
+    "## 目标",
+    "- 第一阶段：用图像理解损失函数和参数更新。",
+    "- 第二阶段：对照学习率大小，观察收敛速度和震荡。",
+    "- 第三阶段：用一道小题复述每一步的含义。",
+    "## 今日安排",
+    "1. 先画出一维损失曲线，标记当前位置和负梯度方向。",
+    "2. 再记录每次更新后损失值如何变化。",
+    "3. 最后写下学习率过大、过小分别会出现什么现象。",
+    "## 复盘问题",
+    "- 为什么负梯度方向能让损失下降？",
+    "- 学习率和收敛稳定性之间是什么关系？",
+  ].join("\n\n");
+  const documentEvents = [
+    {
+      type: "tool_call",
+      stage: "acting",
+      content: "canvas",
+      metadata: {
+        tool_name: "canvas",
+        tool_call_id: "canvas-call-1",
+        args: { title: "梯度下降学习计划", operation: "create" },
+      },
+    },
+    {
+      type: "tool_result",
+      stage: "acting",
+      content: "Canvas document ready: 梯度下降学习计划",
+      metadata: {
+        tool_name: "canvas",
+        tool_call_id: "canvas-call-1",
+        result_metadata: {
+          render_type: "canvas_document",
+          tool_name: "canvas",
+          canvas_document: {
+            title: "梯度下降学习计划",
+            content: documentContent,
+            operation: "create",
+          },
+        },
+      },
+    },
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        response: "已在右侧打开学习计划，可以继续编辑。",
+        tool_traces: [
+          {
+            name: "canvas",
+            metadata: {
+              render_type: "canvas_document",
+              tool_name: "canvas",
+              canvas_document: {
+                title: "梯度下降学习计划",
+                content: documentContent,
+                operation: "create",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "帮我写一份梯度下降学习计划",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "帮我写一份梯度下降学习计划", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: "已在右侧打开学习计划，可以继续编辑。",
+            capability: "chat",
+            events: documentEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, {
+    events: documentEvents,
+  });
+
+  await page.goto("/chat");
+  await page.locator("textarea").first().fill("帮我写一份梯度下降学习计划");
+  await page.getByTestId("chat-send").click();
+
+  await expect(page.getByTestId("chat-canvas-panel")).toBeVisible();
+  await expect(page.getByTestId("chat-canvas-panel")).toContainText("梯度下降学习计划");
+  await expect(page.getByTestId("chat-canvas-editor")).toHaveValue(/第一阶段/);
+  await expect(page).toHaveURL(/\/chat$/);
+  await page.getByTestId("chat-context-toggle").click();
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("准备画布");
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("画布已更新");
+  await expect(page.getByTestId("chat-task-snapshot")).not.toContainText("补充资料");
+});
+
+test("chat lets learners open a normal answer in canvas manually", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "canvas manual smoke runs once");
+  const reference = await mockReferenceApis(page);
+  const answerContent =
+    "这是一个可以继续加工的解释草稿。先说明梯度下降会沿着让损失下降最快的方向更新参数，再提醒学习率决定每一步迈多大，最后用一句话总结：方向由梯度给出，步长由学习率控制。";
+  const answerEvents = [
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        response: answerContent,
+        document: { title: "普通解释草稿", content: answerContent },
+      },
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "简单解释梯度下降",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "简单解释梯度下降", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: answerContent,
+            capability: "chat",
+            events: answerEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, {
+    events: answerEvents,
+  });
+
+  await page.goto("/chat");
+  await page.locator("textarea").first().fill("简单解释梯度下降");
+  await page.getByTestId("chat-send").click();
+
+  await expect(page.getByTestId("chat-canvas-panel")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/chat$/);
+  await page.getByRole("button", { name: "在画布中编辑" }).click();
+  await expect(page.getByTestId("chat-canvas-panel")).toBeVisible();
+  await expect(page.getByTestId("chat-canvas-editor")).toHaveValue(/解释草稿/);
+
+  await page.getByTestId("chat-canvas-editor").fill("# 梯度下降解释草稿\n\n已手动补充：学习率控制每一步的步长。");
+  await expect(page.getByTestId("chat-canvas-editor")).toHaveValue(/已手动补充/);
+  await page.getByTestId("chat-canvas-save").click();
+  const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
+  await expect(modal).toBeVisible();
+  await modal.getByRole("button", { name: "保存" }).click();
+  await expect.poll(() => reference.savedPayload).toEqual(
+    expect.objectContaining({
+      record_type: "chat",
+      user_query: "简单解释梯度下降",
+      output: expect.stringContaining("已手动补充：学习率控制每一步的步长。"),
+    }),
+  );
+});
+
+test("chat sends the current canvas draft with the next message", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "canvas context smoke runs once");
+  await mockReferenceApis(page);
+  const answerContent =
+    "这是一个可以继续加工的解释草稿。先说明梯度下降会沿着让损失下降最快的方向更新参数，再提醒学习率决定每一步迈多大。";
+  const revisedContent = "# 梯度下降解释草稿\n\n梯度下降负责决定参数更新的方向。学习率决定每一步走多远。方向和步长配合好，损失才会稳定下降。";
+  const answerEvents = [{ type: "result", stage: "final", content: "", metadata: { response: answerContent } }];
+  const revisedEvents = [
+    {
+      type: "tool_call",
+      stage: "acting",
+      content: "canvas",
+      metadata: {
+        tool_name: "canvas",
+        tool_call_id: "canvas-update-1",
+        args: { title: "梯度下降解释草稿", operation: "update" },
+      },
+    },
+    {
+      type: "tool_result",
+      stage: "acting",
+      content: "Canvas document ready: 梯度下降解释草稿",
+      metadata: {
+        tool_name: "canvas",
+        tool_call_id: "canvas-update-1",
+        result_metadata: {
+          render_type: "canvas_document",
+          tool_name: "canvas",
+          canvas_document: {
+            title: "梯度下降解释草稿",
+            content: revisedContent,
+            operation: "update",
+          },
+        },
+      },
+    },
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        response: "已在画布中更新压缩后的草稿。",
+        tool_traces: [
+          {
+            name: "canvas",
+            metadata: {
+              render_type: "canvas_document",
+              tool_name: "canvas",
+              canvas_document: {
+                title: "梯度下降解释草稿",
+                content: revisedContent,
+                operation: "update",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "简单解释梯度下降",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "简单解释梯度下降", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: answerContent,
+            capability: "chat",
+            events: answerEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, { eventsByTurn: [answerEvents, revisedEvents] });
+
+  await page.goto("/chat");
+  await page.getByPlaceholder("输入你想解决的问题...").fill("简单解释梯度下降");
+  await page.getByTestId("chat-send").click();
+  await expect(page).toHaveURL(/\/chat$/);
+
+  await page.getByRole("button", { name: "在画布中编辑" }).click();
+  await page.getByLabel("画布标题").fill("梯度下降解释草稿");
+  await page.getByTestId("chat-canvas-editor").fill("# 梯度下降解释草稿\n\n已补充：学习率控制每一步的步长。");
+  await expect(page.getByTestId("chat-canvas-context-indicator")).toContainText("梯度下降解释草稿");
+
+  await page.getByPlaceholder("输入你想解决的问题...").fill("把这份草稿压缩成三句话");
+  await page.getByTestId("chat-send").click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const messages = (window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> }).__sparkWeaveWsMessages ?? [];
+        return messages.filter((message) => message.type === "start_turn").at(-1) ?? null;
+      }),
+    )
+    .toEqual(
+      expect.objectContaining({
+        content: "把这份草稿压缩成三句话",
+        canvas_context: expect.objectContaining({
+          title: "梯度下降解释草稿",
+          content: expect.stringContaining("已补充：学习率控制每一步的步长。"),
+        }),
+      }),
+    );
+  await expect(page.getByTestId("chat-canvas-editor")).toHaveValue(/方向和步长配合好/);
+});
+
 test("chat shows learner-facing collaboration trace while task snapshot shows completion", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "stage completion smoke runs once");
   await mockReferenceApis(page);
+  const collaborationEvents = [
+    {
+      type: "progress",
+      source: "dialogue_coordinator",
+      stage: "coordinating",
+      content: "Awakened Knowledge Visualization Agent.",
+      metadata: {
+        trace_kind: "agent_handoff",
+        profile_hints_applied: true,
+        profile_guided: true,
+        rewritten_prompt: "围绕梯度下降安排下一步学习材料。",
+        collaboration_summary: "画像先提供学习依据，协调智能体再唤醒 Knowledge Visualization Agent 接力。",
+        collaboration_route: [
+          { key: "profile", label: "学习画像智能体", detail: "提供薄弱点、偏好和下一步任务。" },
+          { key: "coordinator", label: "对话协调智能体", detail: "识别意图并决定唤醒哪个专门智能体。" },
+          { key: "design", label: "图解设计智能体", detail: "选择适合当前概念的关系图表达方式。" },
+          { key: "render", label: "可视化渲染智能体", detail: "生成可展示、可保存的图解产物。" },
+        ],
+      },
+    },
+    { type: "tool_call", stage: "retrieval", metadata: { tool: "rag_search" } },
+    { type: "tool_result", stage: "retrieval", metadata: { tool: "rag_search" } },
+    { type: "stage_start", stage: "thinking" },
+    { type: "progress", stage: "thinking", content: "Thinking..." },
+    { type: "stage_end", stage: "thinking" },
+    { type: "stage_start", stage: "responding" },
+    { type: "result", stage: "responding", content: "阶段完成后的最终回答。" },
+    { type: "stage_end", stage: "responding" },
+    { type: "progress", stage: "writing", content: "Writing final polish..." },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "检查阶段状态",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "检查阶段状态", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: "阶段完成后的最终回答。",
+            capability: "chat",
+            events: collaborationEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
   await installMockWebSocket(page, {
     holdOpen: true,
-    events: [
-      {
-        type: "progress",
-        source: "dialogue_coordinator",
-        stage: "coordinating",
-        content: "Awakened Knowledge Visualization Agent.",
-        metadata: {
-          trace_kind: "agent_handoff",
-          profile_hints_applied: true,
-          profile_guided: true,
-          rewritten_prompt: "围绕梯度下降安排下一步学习材料。",
-          collaboration_summary: "画像先提供学习依据，协调智能体再唤醒 Knowledge Visualization Agent 接力。",
-          collaboration_route: [
-            { key: "profile", label: "学习画像智能体", detail: "提供薄弱点、偏好和下一步任务。" },
-            { key: "coordinator", label: "对话协调智能体", detail: "识别意图并决定唤醒哪个专门智能体。" },
-            { key: "design", label: "图解设计智能体", detail: "选择适合当前概念的关系图表达方式。" },
-            { key: "render", label: "可视化渲染智能体", detail: "生成可展示、可保存的图解产物。" },
-          ],
-        },
-      },
-      { type: "tool_call", stage: "retrieval", metadata: { tool: "rag_search" } },
-      { type: "tool_result", stage: "retrieval", metadata: { tool: "rag_search" } },
-      { type: "stage_start", stage: "thinking" },
-      { type: "progress", stage: "thinking", content: "Thinking..." },
-      { type: "stage_end", stage: "thinking" },
-      { type: "stage_start", stage: "responding" },
-      { type: "result", stage: "responding", content: "阶段完成后的最终回答。" },
-      { type: "stage_end", stage: "responding" },
-      { type: "progress", stage: "writing", content: "Writing final polish..." },
-    ],
+    events: collaborationEvents,
   });
 
   await page.goto("/chat");
   await page.locator("textarea").first().fill("检查阶段状态");
   await page.getByRole("button", { name: /发送/ }).click();
 
-  const messageTrace = page.locator("article").filter({ hasText: "协作明细" }).last();
+  const messageTrace = page.locator("article").filter({ hasText: "过程明细" }).last();
   const collaboration = page.getByTestId("agent-collaboration").last();
   const route = page.getByTestId("agent-collaboration-route").last();
-  await expect(collaboration).toContainText("智能体协作");
-  await expect(collaboration).toContainText("画像触发");
-  await expect(collaboration).toContainText("画像已参与");
-  await expect(collaboration).toContainText("对话协调智能体");
-  await expect(collaboration).toContainText("知识库检索");
-  await expect(collaboration).toContainText("讲解智能体");
+  await expect(collaboration).toContainText("学习流程");
+  await expect(collaboration).toContainText("按你情况调整");
+  await expect(collaboration).toContainText("已结合记录");
+  await expect(collaboration).toContainText("理解任务");
+  await expect(collaboration).toContainText("资料查找");
+  await expect(collaboration).toContainText("组织讲解");
   await expect(collaboration).not.toContainText("rag_search");
-  await expect(route).toContainText("接力路线");
+  await expect(collaboration).not.toContainText("智能体");
+  await expect(collaboration).not.toContainText("Agent");
+  await expect(collaboration).not.toContainText("画像");
+  await expect(collaboration).not.toContainText("唤醒");
+  await expect(collaboration).not.toContainText("接力");
+  await expect(route).toContainText("处理路线");
   await expect(route).toContainText("围绕梯度下降安排下一步学习材料。");
-  await expect(route).toContainText("学习画像智能体");
-  await expect(route).toContainText("对话协调");
-  await expect(route).toContainText("图解设计智能体");
-  await expect(route).toContainText("可视化渲染智能体");
-  await expect(messageTrace).toContainText("协作明细");
-  await expect(messageTrace).toContainText("画像触发");
+  await expect(route).toContainText("学习记录");
+  await expect(route).toContainText("理解任务");
+  await expect(route).toContainText("设计图解");
+  await expect(route).toContainText("生成图解");
+  await expect(messageTrace).toContainText("过程明细");
+  await expect(messageTrace).toContainText("按你情况调整");
   await expect(messageTrace).toContainText("识别任务");
-  await expect(messageTrace).toContainText("知识库检索");
-  await expect(messageTrace).toContainText("按画像改成：围绕梯度下降安排下一步学习材料。");
+  await expect(messageTrace).toContainText("资料查找");
+  await expect(messageTrace).toContainText("已改成：围绕梯度下降安排下一步学习材料。");
   await expect(messageTrace).toContainText("形成回答");
   await expect(messageTrace).not.toContainText("rag_search");
+  await expect(messageTrace).not.toContainText("智能体");
+  await expect(messageTrace).not.toContainText("Agent");
+  await expect(messageTrace).not.toContainText("画像");
+  await expect(messageTrace).not.toContainText("唤醒");
+  await expect(messageTrace).not.toContainText("接力");
   await expect(messageTrace).not.toContainText("stage_start · thinking");
   await expect(messageTrace).not.toContainText("Thinking...");
   await expect(messageTrace).not.toContainText("Writing final polish");
@@ -3293,64 +3760,104 @@ test("chat shows learner-facing collaboration trace while task snapshot shows co
 test("chat renders external video results as learner-facing cards", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "external video smoke runs once");
   const reference = await mockReferenceApis(page);
-  await installMockWebSocket(page, {
-    events: [
-      {
-        type: "result",
-        stage: "final",
-        content: "",
-        metadata: {
-          success: true,
-          render_type: "external_video",
-          response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
-          learner_profile_hints: {
-            current_focus: "梯度下降",
-            weak_points: ["概念边界不清"],
-            preferences: ["公开视频", "图解"],
-            time_budget_minutes: 10,
-            next_action: { title: "前测补基：梯度下降的直观理解" },
-          },
-          videos: [
-            {
-              title: "梯度下降直观讲解",
-              url: "https://www.bilibili.com/video/BV1gradient01",
-              embed_url: "https://player.bilibili.com/player.html?bvid=BV1gradient01&page=1",
-              platform: "Bilibili",
-              why_recommended: "贴合当前卡点：概念边界不清。已参考学习偏好：公开视频。",
-              duration_seconds: 540,
-            },
-            {
-              title: "Gradient Descent Explained",
-              url: "https://www.youtube.com/watch?v=abc123",
-              platform: "YouTube",
-              duration_seconds: 720,
-            },
-          ],
-          agent_chain: [
-            { label: "画像智能体", detail: "读取学习偏好。" },
-            { label: "视频检索智能体", detail: "检索公开视频。" },
-            { label: "筛选智能体", detail: "排序候选。" },
-          ],
+  const externalVideoEvents = [
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        success: true,
+        render_type: "external_video",
+        response: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+        direct_tool: "external_video_search",
+        selected_route: "external_video_search",
+        orchestration_mode: "direct_tool",
+        learner_profile_hints: {
+          current_focus: "梯度下降",
+          weak_points: ["概念边界不清"],
+          preferences: ["公开视频", "图解"],
+          time_budget_minutes: 10,
+          next_action: { title: "前测补基：梯度下降的直观理解" },
         },
+        videos: [
+          {
+            title: "梯度下降直观讲解",
+            url: "https://www.bilibili.com/video/BV1gradient01",
+            embed_url: "https://player.bilibili.com/player.html?bvid=BV1gradient01&page=1",
+            platform: "Bilibili",
+            why_recommended: "贴合当前卡点：概念边界不清。已参考学习偏好：公开视频。",
+            duration_seconds: 540,
+          },
+          {
+            title: "Gradient Descent Explained",
+            url: "https://www.youtube.com/watch?v=abc123",
+            platform: "YouTube",
+            duration_seconds: 720,
+          },
+        ],
+        watch_plan: ["先看第一个视频的直观部分", "暂停记录学习率含义", "回到导学里做一道小题"],
+        reflection_prompt: "看完后，用一句话解释学习率太大会发生什么。",
+        agent_chain: [
+          { label: "画像智能体", detail: "读取学习偏好。" },
+          { label: "视频查找", detail: "查找公开视频。" },
+          { label: "筛选智能体", detail: "排序候选。" },
+        ],
       },
-    ],
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "找梯度下降公开视频",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "找梯度下降公开视频", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: "已为「梯度下降」筛选 2 个公开视频，建议先看第一个。",
+            capability: "chat",
+            events: externalVideoEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, {
+    events: externalVideoEvents,
   });
 
   await page.goto("/chat");
-  await page.locator("textarea").first().fill("找梯度下降公开视频");
-  await page.getByRole("button", { name: /发送/ }).click();
+  const composer = page.getByPlaceholder("输入你想解决的问题...");
+  await expect(composer).toBeVisible();
+  await composer.fill("找梯度下降公开视频");
+  await expect(page.getByTestId("chat-send")).toBeEnabled();
+  await page.getByTestId("chat-send").click();
 
   await expect(page.getByTestId("external-video-viewer")).toBeVisible();
-  await expect(page.getByTestId("personalization-brief")).toContainText("按你的画像生成");
+  await expect(page.getByTestId("personalization-brief")).toContainText("按你的学习情况生成");
   await expect(page.getByTestId("personalization-brief")).toContainText("概念边界不清");
-  await expect(page.getByTestId("external-video-watch-plan")).toContainText("先看第一个视频");
-  await expect(page.getByTestId("external-video-chain")).toContainText("画像智能体");
+  await expect(page.getByTestId("external-video-watch-plan")).toContainText("暂停记录学习率含义");
+  await expect(page.getByTestId("external-video-watch-plan")).toContainText("学习率太大会发生什么");
+  await expect(page.getByTestId("external-video-chain")).toContainText("处理过程");
+  await expect(page.getByTestId("external-video-chain")).toContainText("学习记录");
+  await expect(page.getByTestId("external-video-chain")).toContainText("视频查找");
+  await expect(page.getByTestId("external-video-chain")).not.toContainText("智能体");
+  await expect(page.getByTestId("external-video-chain")).not.toContainText("工具处理");
   await expect(page.getByTestId("external-video-embed")).toBeVisible();
+  await page.getByTestId("chat-context-toggle").click();
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("精选视频");
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("精选视频 · 2 个");
+  await page.getByRole("button", { name: "关闭资料与偏好" }).click();
   await page.getByTestId("external-video-mark-viewed").click();
   await expect(page.getByText("梯度下降直观讲解")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开观看" }).first()).toBeVisible();
-  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入画像依据");
-  await expect(page.getByTestId("external-video-mark-viewed")).toContainText("已记入画像依据");
+  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入学习记录");
+  await expect(page.getByTestId("external-video-mark-viewed")).toContainText("已记入学习记录");
   await expect.poll(() => reference.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",
@@ -3391,56 +3898,231 @@ test("chat renders external video results as learner-facing cards", async ({ pag
       }),
     }),
   );
+  expect(String(reference.savedPayload?.output || "")).toContain("暂停记录学习率含义");
+  expect(String(reference.savedPayload?.output || "")).toContain("学习率太大会发生什么");
+});
+
+test("chat renders external image results as learner-facing cards", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "external image smoke runs once");
+  const reference = await mockReferenceApis(page);
+  const externalImageEvents = [
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        success: true,
+        render_type: "external_image",
+        response: "已为「梯度下降」筛选 2 张图解参考，建议先看第二张结构图。",
+        direct_tool: "external_image_search",
+        selected_route: "external_image_search",
+        orchestration_mode: "direct_tool",
+        learner_profile_hints: {
+          current_focus: "梯度下降",
+          weak_points: ["学习率含义"],
+          preferences: ["图解", "公开视频"],
+          time_budget_minutes: 8,
+          next_action: { title: "用图解理解梯度下降" },
+        },
+        images: [
+          {
+            title: "搜索：梯度下降示意图",
+            url: "https://www.google.com/search?tbm=isch&q=gradient%20descent%20diagram",
+            source: "Google Images",
+            kind: "search_fallback",
+            why_recommended: "补充更多同类参考。",
+          },
+          {
+            title: "梯度下降曲面示意图",
+            url: "https://example.com/gradient-diagram",
+            image_url: "https://example.com/gradient-diagram.png",
+            thumbnail: "https://example.com/gradient-diagram-thumb.png",
+            source: "Example",
+            width: 1280,
+            height: 720,
+            why_recommended: "能直观看到沿损失曲面下降的方向。",
+          },
+        ],
+        view_plan: ["先看曲面上的箭头方向", "对照学习率含义找变化幅度", "回到导学里写一句自己的理解"],
+        reflection_prompt: "这张图里，学习率对应箭头的哪个变化？",
+        agent_chain: [
+          { label: "画像智能体", detail: "读取学习偏好。" },
+          { label: "图片查找", detail: "查找图解参考。" },
+          { label: "筛选智能体", detail: "排序候选。" },
+        ],
+      },
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "找梯度下降示意图参考",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "找梯度下降示意图参考", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: "已为「梯度下降」筛选 2 张图解参考，建议先看第二张结构图。",
+            capability: "chat",
+            events: externalImageEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, {
+    events: externalImageEvents,
+  });
+
+  await page.goto("/chat");
+  const composer = page.getByPlaceholder("输入你想解决的问题...");
+  await expect(composer).toBeVisible();
+  await composer.fill("找梯度下降示意图参考");
+  await expect(page.getByTestId("chat-send")).toBeEnabled();
+  await page.getByTestId("chat-send").click();
+
+  await expect(page.getByTestId("external-image-viewer")).toBeVisible();
+  await expect(page.getByTestId("personalization-brief")).toContainText("按你的学习情况生成");
+  await expect(page.getByTestId("personalization-brief")).toContainText("学习率含义");
+  await expect(page.getByTestId("external-image-view-plan")).toContainText("对照学习率含义");
+  await expect(page.getByTestId("external-image-view-plan")).toContainText("学习率对应箭头");
+  await expect(page.getByTestId("external-image-chain")).toContainText("处理过程");
+  await expect(page.getByTestId("external-image-chain")).toContainText("学习记录");
+  await expect(page.getByTestId("external-image-chain")).toContainText("图片查找");
+  await expect(page.getByTestId("external-image-chain")).not.toContainText("智能体");
+  await expect(page.getByTestId("external-image-featured")).toHaveAttribute("src", "https://example.com/gradient-diagram.png");
+  await page.getByTestId("chat-context-toggle").click();
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("精选图片");
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("精选图片 · 2 张");
+  await page.getByRole("button", { name: "关闭资料与偏好" }).click();
+  await page.getByTestId("external-image-mark-viewed").click();
+  await expect(page.getByText("梯度下降曲面示意图")).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开查看" }).first()).toBeVisible();
+  await expect(page.getByTestId("external-image-evidence-1")).toContainText("已记入学习记录");
+  await expect(page.getByTestId("external-image-mark-viewed")).toContainText("已记入学习记录");
+  await expect.poll(() => reference.evidencePayload).toEqual(
+    expect.objectContaining({
+      source: "resource",
+      verb: "viewed",
+      object_type: "resource",
+      object_id: "https://example.com/gradient-diagram",
+      title: "梯度下降曲面示意图",
+      resource_type: "external_image",
+      metadata: expect.objectContaining({
+        rank: 2,
+        source: "Example",
+        learner_profile_hints: expect.objectContaining({
+          current_focus: "梯度下降",
+        }),
+      }),
+    }),
+  );
+
+  await page.locator("article").filter({ hasText: "梯度下降曲面示意图" }).getByRole("button", { name: "保存当前结果" }).click();
+  const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
+  await expect(modal.getByText("精选图片 · 2 张").first()).toBeVisible();
+  await modal.getByRole("button", { name: "保存" }).click();
+  await expect.poll(() => reference.savedPayload).toEqual(
+    expect.objectContaining({
+      output: expect.stringContaining("## 精选图片"),
+      metadata: expect.objectContaining({
+        asset_kind: "精选图片 · 2 张",
+        external_image: expect.objectContaining({
+          render_type: "external_image",
+          learner_profile_hints: expect.objectContaining({
+            current_focus: "梯度下降",
+            weak_points: ["学习率含义"],
+          }),
+          images: expect.arrayContaining([
+            expect.objectContaining({ title: "梯度下降曲面示意图" }),
+          ]),
+        }),
+      }),
+    }),
+  );
+  expect(String(reference.savedPayload?.output || "")).toContain("对照学习率含义");
+  expect(String(reference.savedPayload?.output || "")).toContain("学习率对应箭头");
 });
 
 test("chat renders external video fallback search entries clearly", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "external video fallback smoke runs once");
   const reference = await mockReferenceApis(page);
-  await installMockWebSocket(page, {
-    events: [
-      {
-        type: "result",
-        stage: "final",
-        content: "",
-        metadata: {
-          success: true,
-          render_type: "external_video",
-          response: "暂时没有拿到稳定的视频直链，我先准备了公开视频平台搜索入口。",
-          fallback_search: true,
-          videos: [
-            {
-              title: "在 Bilibili 搜索：梯度下降",
-              url: "https://search.bilibili.com/all?keyword=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
-              platform: "Bilibili",
-              kind: "search_fallback",
-              why_recommended: "这是兜底搜索入口，不是已筛好的单个视频。",
-            },
-            {
-              title: "在 YouTube 搜索：梯度下降",
-              url: "https://www.youtube.com/results?search_query=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
-              platform: "YouTube",
-              kind: "search_fallback",
-            },
-          ],
-          queries: ["梯度下降 入门 直观 视频 教程"],
-        },
+  const fallbackVideoEvents = [
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        success: true,
+        render_type: "external_video",
+        response: "暂时没有拿到稳定的视频直链，我先准备了公开视频平台搜索入口。",
+        fallback_search: true,
+        videos: [
+          {
+            title: "在 Bilibili 搜索：梯度下降",
+            url: "https://search.bilibili.com/all?keyword=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
+            platform: "Bilibili",
+            kind: "search_fallback",
+            why_recommended: "这是兜底搜索入口，不是已筛好的单个视频。",
+          },
+          {
+            title: "在 YouTube 搜索：梯度下降",
+            url: "https://www.youtube.com/results?search_query=%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D",
+            platform: "YouTube",
+            kind: "search_fallback",
+          },
+        ],
+        queries: ["梯度下降 入门 直观 视频 教程"],
       },
-    ],
+    },
+  ];
+  await page.route(/\/api\/v1\/sessions\/session-new$/, (route) =>
+    route.fulfill({
+      json: {
+        id: "session-new",
+        session_id: "session-new",
+        title: "找梯度下降讲解视频",
+        active_turn_id: "turn-1",
+        preferences: { capability: "chat", tools: [], knowledge_bases: [], language: "zh" },
+        messages: [
+          { id: "m-user-new", role: "user", content: "找梯度下降讲解视频", capability: "chat", created_at: 1_700_000_500 },
+          {
+            id: "m-assistant-new",
+            role: "assistant",
+            content: "暂时没有拿到稳定的视频直链，我先准备了公开视频平台搜索入口。",
+            capability: "chat",
+            events: fallbackVideoEvents,
+            created_at: 1_700_000_501,
+          },
+        ],
+      },
+    }),
+  );
+  await installMockWebSocket(page, {
+    events: fallbackVideoEvents,
   });
 
   await page.goto("/chat");
-  await page.locator("textarea").first().fill("找梯度下降讲解视频");
+  await page.getByPlaceholder("输入你想解决的问题...").fill("找梯度下降讲解视频");
   await page.getByTestId("chat-send").click();
 
   await expect(page.getByTestId("external-video-viewer")).toContainText("搜索入口");
   await expect(page.getByTestId("external-video-watch-plan")).toContainText("先打开一个平台搜索入口");
   await expect(page.getByText("在 Bilibili 搜索：梯度下降")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开搜索" }).first()).toBeVisible();
+  await page.getByTestId("chat-context-toggle").click();
+  await expect(page.getByTestId("chat-task-snapshot")).toContainText("视频搜索入口 · 2 个");
+  await page.getByRole("button", { name: "关闭资料与偏好" }).click();
 
   await page.getByTestId("external-video-open-0").evaluate((node) => {
     node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   });
-  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入画像依据");
+  await expect(page.getByTestId("external-video-evidence-0")).toContainText("已记入学习记录");
   await expect.poll(() => reference.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",
@@ -3454,9 +4136,18 @@ test("chat renders external video fallback search entries clearly", async ({ pag
     }),
   );
 
-  await page.getByRole("button", { name: "保存当前结果" }).click();
+  await page.locator("article").filter({ hasText: "在 Bilibili 搜索：梯度下降" }).getByRole("button", { name: "保存当前结果" }).click();
   const modal = page.locator("form", { has: page.getByRole("heading", { name: "保存生成结果" }) });
   await expect(modal.getByText("视频搜索入口 · 2 个").first()).toBeVisible();
+  await modal.getByRole("button", { name: "保存" }).click();
+  await expect.poll(() => reference.savedPayload).toEqual(
+    expect.objectContaining({
+      output: expect.stringContaining("## 视频搜索入口"),
+      metadata: expect.objectContaining({
+        asset_kind: "视频搜索入口 · 2 个",
+      }),
+    }),
+  );
 });
 
 test("chat records deep question quiz answers", async ({ page }, testInfo) => {
@@ -3590,7 +4281,7 @@ test("chat renders mermaid visualization results", async ({ page }, testInfo) =>
   await expect(page.getByText("Mermaid visualization ready.")).toBeVisible();
   await expect(page.getByTestId("mermaid-preview").locator("svg")).toBeVisible();
   await page.getByTestId("visualization-evidence-button").click();
-  await expect(page.getByTestId("visualization-evidence-button-recorded")).toContainText("已记入画像依据");
+  await expect(page.getByTestId("visualization-evidence-button-recorded")).toContainText("已记入学习记录");
   await expect.poll(() => references.evidencePayload).toEqual(
     expect.objectContaining({
       source: "resource",
@@ -4560,6 +5251,30 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
           by_source: { external_video_search: 1 },
           by_verb: { requested: 1 },
           by_object_type: { learning_preference: 1 },
+        },
+      },
+    });
+  });
+  await page.route(/\/api\/v1\/learning-effect\/events(?:[?#]|$)/, async (route) => {
+    state.evidencePayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        event: {
+          id: "learning-effect-video-open",
+          source: state.evidencePayload.source,
+          source_id: state.evidencePayload.source_id,
+          actor: state.evidencePayload.actor,
+          verb: state.evidencePayload.verb,
+          object_type: state.evidencePayload.object_type,
+          object_id: state.evidencePayload.object_id,
+          title: state.evidencePayload.title,
+          summary: state.evidencePayload.summary,
+          resource_type: state.evidencePayload.resource_type,
+          duration_seconds: state.evidencePayload.duration_seconds,
+          confidence: state.evidencePayload.confidence,
+          created_at: 1_700_000_900,
+          weight: state.evidencePayload.weight,
+          metadata: state.evidencePayload.metadata,
         },
       },
     });
@@ -6428,7 +7143,7 @@ async function mockNotebookDeepLinkApis(page: import("@playwright/test").Page) {
                 ],
                 agent_chain: [
                   { label: "画像智能体", detail: "读取学习偏好。" },
-                  { label: "视频检索智能体", detail: "检索公开视频。" },
+                  { label: "视频查找", detail: "查找公开视频。" },
                 ],
               },
             },
@@ -6466,7 +7181,7 @@ async function mockNotebookDeepLinkApis(page: import("@playwright/test").Page) {
 }
 
 type MockWsEvent = Record<string, unknown>;
-type MockWsOptions = { resultOnlyContent?: string; events?: MockWsEvent[]; holdOpen?: boolean };
+type MockWsOptions = { resultOnlyContent?: string; events?: MockWsEvent[]; eventsByTurn?: MockWsEvent[][]; holdOpen?: boolean };
 
 async function installMockQuestionWebSocket(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
@@ -6711,8 +7426,9 @@ async function installMockWebSocket(
   options: MockWsOptions = {},
 ) {
   await page.addInitScript((mockOptions: MockWsOptions) => {
-    const state = window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>> };
+    const state = window as typeof window & { __sparkWeaveWsMessages?: Array<Record<string, unknown>>; __sparkWeaveWsTurnCount?: number };
     state.__sparkWeaveWsMessages = [];
+    state.__sparkWeaveWsTurnCount = 0;
 
     class MockWebSocket {
       static readonly CONNECTING = 0;
@@ -6739,6 +7455,8 @@ async function installMockWebSocket(
         const payload = JSON.parse(String(data)) as Record<string, unknown>;
         state.__sparkWeaveWsMessages?.push(payload);
         if (payload.type !== "start_turn") return;
+        const turnIndex = state.__sparkWeaveWsTurnCount ?? 0;
+        state.__sparkWeaveWsTurnCount = turnIndex + 1;
         window.setTimeout(() => {
           this.onmessage?.(
             new MessageEvent("message", {
@@ -6753,7 +7471,8 @@ async function installMockWebSocket(
               }),
             }),
           );
-          const events = Array.isArray(mockOptions.events) ? mockOptions.events : [];
+          const turnEvents = Array.isArray(mockOptions.eventsByTurn?.[turnIndex]) ? mockOptions.eventsByTurn?.[turnIndex] : null;
+          const events = Array.isArray(turnEvents) ? turnEvents : Array.isArray(mockOptions.events) ? mockOptions.events : [];
           for (const event of events) {
             this.onmessage?.(
               new MessageEvent("message", {

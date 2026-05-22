@@ -45,13 +45,13 @@ export function GuideSupportDrawer({
             onClick={onClose}
           />
           <motion.aside
-            className="absolute right-0 top-0 h-full w-full max-w-[430px] overflow-y-auto bg-canvas p-4 shadow-2xl"
+            className="dt-dynamic-drawer absolute right-0 top-0 h-full w-full max-w-[430px] overflow-y-auto border-l border-line p-4 shadow-panel"
             initial={{ x: 440 }}
             animate={{ x: 0 }}
             exit={{ x: 440 }}
             transition={{ type: "spring", stiffness: 280, damping: 30 }}
           >
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-white p-4">
+            <div className="dt-dynamic-panel mb-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-white p-4">
               <div>
                 <p className="text-xs font-semibold text-brand-purple">当前路线</p>
                 <h2 className="mt-1 text-lg font-semibold text-ink">先确认你现在学到哪一步</h2>
@@ -63,7 +63,7 @@ export function GuideSupportDrawer({
 
             <div className="space-y-4">
               {currentTask ? (
-                <section className="rounded-lg border border-line bg-white p-4">
+                <section className="dt-dynamic-panel rounded-lg border border-line bg-white p-4">
                   <div className="flex items-start gap-3">
                     <Target size={18} className="mt-0.5 text-brand-purple" />
                     <div>
@@ -75,15 +75,15 @@ export function GuideSupportDrawer({
                 </section>
               ) : null}
 
-              <section className="rounded-lg border border-line bg-white p-4">
+              <section className="dt-dynamic-panel rounded-lg border border-line bg-white p-4">
                 <div className="flex items-start gap-3">
                   <Brain size={18} className="mt-0.5 text-brand-purple" />
                   <div>
-                    <h2 className="text-base font-semibold text-ink">这条路线已经参考了你的画像</h2>
+                    <h2 className="text-base font-semibold text-ink">这条路线已经参考了你的学习记录</h2>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       {routeUsesUnifiedProfile
                         ? "系统已经把你的偏好和薄弱点带进当前路线。"
-                        : "完成前测、练习和反思后，路线会继续跟着画像一起变准。"}
+                        : "完成前测、练习和反思后，路线会继续跟着记录一起变准。"}
                     </p>
                   </div>
                 </div>
@@ -91,11 +91,11 @@ export function GuideSupportDrawer({
                   href="/memory"
                   className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md border border-line bg-canvas px-3 text-xs font-medium text-slate-700 transition hover:border-brand-purple-300 hover:text-brand-purple"
                 >
-                  查看学习画像
+                  查看学习记录
                 </a>
               </section>
 
-              <section className="rounded-lg border border-line bg-white p-4">
+              <section className="dt-dynamic-panel rounded-lg border border-line bg-white p-4">
                 <h2 className="text-base font-semibold text-ink">想切换或重新开始时，再看这里</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">主流程不会受影响，只有想换路线时才需要操作。</p>
                 <div className="mt-4 space-y-3">
@@ -110,7 +110,7 @@ export function GuideSupportDrawer({
                         type="button"
                         onClick={() => onSelectSession(item.session_id)}
                         className={`w-full rounded-lg border p-3 text-left transition ${
-                          activeSessionId === item.session_id ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple-300 hover:bg-tint-lavender"
+                          activeSessionId === item.session_id ? "border-ink bg-ink text-white" : "dt-dynamic-result border-line bg-white hover:border-brand-purple-300 hover:bg-tint-lavender"
                         }`}
                       >
                         <p className="line-clamp-2 text-sm font-semibold text-ink">{item.goal}</p>
@@ -124,7 +124,7 @@ export function GuideSupportDrawer({
                 </div>
               </section>
 
-              <div className="rounded-lg border border-line bg-white p-3">
+              <div className="dt-dynamic-panel rounded-lg border border-line bg-white p-3">
                 <p className="text-xs font-semibold text-slate-500">仅在需要时使用</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button

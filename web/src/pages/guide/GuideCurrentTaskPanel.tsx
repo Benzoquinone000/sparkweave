@@ -131,15 +131,15 @@ export function GuideCurrentTaskPanel({
                 </div>
               </div>
               <aside className="dt-workspace-mockup">
-                <img src="/illustrations/notion-guide-loop.svg" alt="导学闭环预览" className="max-h-40 w-full object-contain" />
+                <img src="/illustrations/notion-guide-loop.svg" alt="导学过程预览" className="max-h-40 w-full object-contain" />
                 <div className="border-t border-line bg-[#fbfbfa] p-3 text-xs leading-5 text-steel">
-                  导学只保留一条主线：先学一点，再提交证据，然后自动调整。
+                  导学只保留一条主线：先学一点，再提交反馈，然后自动调整。
                 </div>
               </aside>
             </div>
             {adaptiveReason ? (
               <p className="rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs leading-5 text-charcoal">
-                画像依据：{adaptiveReason}
+                调整理由：{adaptiveReason}
               </p>
             ) : null}
           </div>

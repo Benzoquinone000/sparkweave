@@ -74,7 +74,7 @@ export function RagQualityGatePanel({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-ink">{releaseDataset ? "质量门" : "质量门准备度"}</p>
+          <p className="text-xs font-semibold text-ink">{releaseDataset ? "质量判断" : "质量判断准备度"}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">{formatQualityGateHeadline(qualityGate, datasetProfile)}</p>
         </div>
         <Badge tone={qualityGateTone(String(qualityGate.status || ""), datasetProfile)}>
@@ -112,7 +112,7 @@ export function RagDeltaRowsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-semibold text-ink">相对基础策略收益</p>
-          <p className="mt-1 text-xs text-slate-500">以 {formatStrategyName(baselineName)} 为参照，看升级策略带来的证据变化。</p>
+          <p className="mt-1 text-xs text-slate-500">以 {formatStrategyName(baselineName)} 为参照，看升级策略带来的来源变化。</p>
         </div>
         <Badge tone="neutral">{rows.length} 个策略</Badge>
       </div>

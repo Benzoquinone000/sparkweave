@@ -65,7 +65,7 @@ export function KnowledgeOverviewHeader({
             data-testid="knowledge-active-reindex"
           >
             {reindexing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            重建索引
+            重新整理资料
           </Button>
           <Button
             tone="secondary"
@@ -130,6 +130,7 @@ export function KnowledgeStartPanel({
   const statusTone = recoveryNeedsAttention ? "warning" : ready ? "success" : taskActive ? "brand" : "neutral";
   const statusLabel = recoveryNeedsAttention ? "需处理" : ready ? "可提问" : taskActive ? "处理中" : "待上传";
   const secondaryWorkspace: KnowledgeWorkspace = taskActive ? "progress" : documents ? "documents" : "progress";
+  const uploadPrimary = !ready;
 
   if (!activeKb) {
     return (
@@ -158,7 +159,7 @@ export function KnowledgeStartPanel({
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
             {ready
               ? "资料已经准备好。你可以直接提问，也可以继续补充新的材料。"
-              : progressMessage || "先上传资料，系统会自动完成解析和索引。"}
+              : progressMessage || "先上传资料，系统会自动完成解析和整理。"}
           </p>
         </div>
         <span className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-medium text-slate-600">{progressPercent}%</span>
@@ -167,31 +168,59 @@ export function KnowledgeStartPanel({
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         <button
           type="button"
-          className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left hover:border-brand-purple-300 hover:bg-canvas"
+          className={`dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border p-3 text-left transition ${
+            uploadPrimary
+              ? "border-brand-purple-300 bg-tint-lavender hover:bg-white"
+              : "border-line bg-white hover:border-brand-purple-300 hover:bg-canvas"
+          }`}
           onClick={() => onNavigate("upload")}
           data-testid="knowledge-primary-upload"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-tint-peach text-brand-orange">
+          <span
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
+              uploadPrimary ? "bg-white text-brand-purple" : "bg-tint-peach text-brand-orange"
+            }`}
+          >
             <UploadCloud size={17} />
           </span>
           <span>
             <span className="block text-sm font-semibold text-ink">上传资料</span>
-            <span className="mt-1 block text-xs leading-5 text-slate-500">课件、笔记、论文或代码。</span>
+            <span className="mt-1 block text-xs leading-5 text-slate-500">
+              {uploadPrimary ? "先补充资料，系统会自动整理。" : "课件、笔记、论文或代码。"}
+            </span>
           </span>
         </button>
-        <a
-          href={buildKnowledgeChatHref(activeKb)}
-          className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-left hover:bg-white"
-          data-testid="knowledge-primary-ask"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white text-brand-purple">
-            <MessageSquareText size={17} />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-ink">问资料</span>
-            <span className="mt-1 block text-xs leading-5 text-slate-500">打开问答并带上当前资料库。</span>
-          </span>
-        </a>
+        {ready ? (
+          <a
+            href={buildKnowledgeChatHref(activeKb)}
+            className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-left transition hover:bg-white"
+            data-testid="knowledge-primary-ask"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white text-brand-purple">
+              <MessageSquareText size={17} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-ink">问资料</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">打开问答并带上当前资料库。</span>
+            </span>
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left opacity-70"
+            data-testid="knowledge-primary-ask"
+            title="资料整理完成后可用"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas text-slate-400">
+              <MessageSquareText size={17} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-slate-500">问资料</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">资料整理完成后再提问。</span>
+            </span>
+          </button>
+        )}
         <button
           type="button"
           className="dt-interactive flex min-h-[74px] items-start gap-3 rounded-lg border border-line bg-white p-3 text-left hover:border-brand-purple-300 hover:bg-canvas"
@@ -264,7 +293,7 @@ export function KnowledgeIndexStatusCard({
     <div className="mt-5 rounded-lg border border-line bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-ink">索引状态</p>
+          <p className="text-sm font-semibold text-ink">资料状态</p>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{progressMessage}</p>
         </div>
         <Badge tone={progressPercent >= 100 ? "success" : taskActive ? "brand" : "neutral"}>{progressStage}</Badge>

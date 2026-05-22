@@ -36,7 +36,7 @@ function withLegacyText(visible: string, legacy: string) {
 function parseJsonObject(value: string) {
   const parsed = JSON.parse(value) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("请输入 JSON 对象，例如 {\"query\":\"...\"}");
+    throw new Error("请输入结构化内容，例如 {\"query\":\"...\"}");
   }
   return parsed as Record<string, unknown>;
 }
@@ -136,10 +136,10 @@ export function PlaygroundPage() {
     setRunning(true);
     try {
       const params = parseJsonObject(paramsJson);
-      setLogs([withLegacyText(`正在执行：${activeTool.name}`, `sync: /api/v1/plugins/tools/${activeTool.name}/execute`)]);
+      setLogs([withLegacyText(`正在试跑：${activeTool.name}`, `sync: /api/v1/plugins/tools/${activeTool.name}/execute`)]);
       const payload = await executePluginTool({ toolName: activeTool.name, params });
       setResult(JSON.stringify(payload, null, 2));
-      setLogs((current) => [...current, payload.success === false ? "执行失败" : "执行完成"]);
+      setLogs((current) => [...current, payload.success === false ? "试跑失败" : "试跑完成"]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "执行失败");
     } finally {
@@ -179,20 +179,20 @@ export function PlaygroundPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto max-w-[1080px] space-y-3.5">
         <motion.section
-          className="rounded-lg border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+          className="dt-page-header dt-page-header-accent-purple p-3.5"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
         >
           <div className="flex flex-wrap items-start justify-between gap-3.5">
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-brand-purple">开发者调试</p>
-              <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">调试工具和能力，不打扰学习主流程</h1>
+              <p className="text-xs font-semibold text-brand-purple">试跑区</p>
+              <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">先试一遍，再放进学习流程</h1>
               <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">
-                这里用于验证插件、工具参数和能力输出。普通学习任务优先回到“学习、资料、记录”。
+                这里用来把新学习流程先小范围试跑，确认输入内容和返回效果。普通学习任务优先回到“学习、资料、记录”。
               </p>
             </div>
             <div className="flex rounded-lg border border-line bg-canvas p-1">
@@ -206,7 +206,7 @@ export function PlaygroundPage() {
                     mode === item ? "bg-white text-brand-purple shadow-[0_1px_2px_rgba(15,15,15,0.04)]" : "text-slate-500 hover:text-ink"
                   }`}
                 >
-                  {item === "tool" ? "工具" : "能力"}
+                  {item === "tool" ? "单步" : "流程"}
                 </button>
               ))}
             </div>
@@ -219,18 +219,18 @@ export function PlaygroundPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22, delay: 0.04 }}
         >
-          <Metric label="工具" value={tools.length} detail="可执行工具" icon={<Wrench size={19} />} />
-          <Metric label="能力" value={capabilities.length} detail="学习能力" icon={<Sparkles size={19} />} />
-          <Metric label="插件" value={pluginManifests.length} detail="扩展项" icon={<Beaker size={19} />} />
+          <Metric label="单步" value={tools.length} detail="可试跑" icon={<Wrench size={19} />} />
+          <Metric label="流程" value={capabilities.length} detail="可演练" icon={<Sparkles size={19} />} />
+          <Metric label="扩展" value={pluginManifests.length} detail="可选" icon={<Beaker size={19} />} />
         </motion.div>
 
         <div className="grid gap-3.5 lg:grid-cols-[324px_minmax(0,1fr)]">
           <aside className="rounded-lg border border-line bg-white p-3">
-            <h2 className="text-base font-semibold text-ink">注册清单</h2>
+            <h2 className="text-base font-semibold text-ink">试跑项目</h2>
             {plugins.isLoading ? (
               <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
                 <Loader2 size={16} className="animate-spin" />
-                正在读取可执行项
+                正在读取可试跑内容
               </div>
             ) : mode === "tool" ? (
               <RegistryList
@@ -249,7 +249,7 @@ export function PlaygroundPage() {
             )}
 
             <div className="mt-4">
-              <h3 className="text-sm font-semibold text-ink">扩展项</h3>
+              <h3 className="text-sm font-semibold text-ink">可选扩展</h3>
               <div className="mt-3 grid gap-2">
                 <AnimatePresence initial={false}>
                   {pluginManifests.slice(0, 6).map((plugin) => (
@@ -261,19 +261,19 @@ export function PlaygroundPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                    <div className="flex items-center gap-2">
-                      <Badge tone="neutral">{plugin.type || "扩展"}</Badge>
-                      <span className="truncate text-sm font-semibold text-ink">{plugin.name}</span>
-                    </div>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
-                      {plugin.description || "暂无描述"}
-                    </p>
+                      <div className="flex items-center gap-2">
+                        <Badge tone="neutral">{plugin.type || "模块"}</Badge>
+                        <span className="truncate text-sm font-semibold text-ink">{plugin.name}</span>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                        {plugin.description || "暂无说明"}
+                      </p>
                     </motion.div>
                   ))}
                 </AnimatePresence>
                 {!pluginManifests.length ? (
                   <p className="rounded-lg border border-dashed border-line bg-canvas p-3 text-sm text-slate-500">
-                    当前没有额外扩展项。
+                    当前没有额外模块。
                   </p>
                 ) : null}
               </div>
@@ -315,8 +315,8 @@ export function PlaygroundPage() {
               transition={{ duration: 0.2 }}
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-ink">试用结果</h2>
-                {running ? <Badge tone="brand">运行中</Badge> : <Badge tone="neutral">待运行</Badge>}
+                <h2 className="text-base font-semibold text-ink">试跑结果</h2>
+                {running ? <Badge tone="brand">试跑中</Badge> : <Badge tone="neutral">待试跑</Badge>}
               </div>
               <AnimatePresence>
                 {error ? (
@@ -332,10 +332,7 @@ export function PlaygroundPage() {
                 ) : null}
               </AnimatePresence>
               <div className="mt-4 grid gap-4">
-                <div
-                  className="dt-code-surface min-h-[260px] rounded-lg p-4"
-                  data-testid="playground-result"
-                >
+                <div className="dt-code-surface min-h-[220px] rounded-lg p-4" data-testid="playground-result">
                   <AnimatePresence mode="wait">
                     {result ? (
                       <motion.pre
@@ -356,7 +353,7 @@ export function PlaygroundPage() {
                         exit={{ opacity: 0, y: -6 }}
                         transition={{ duration: 0.18 }}
                       >
-                        <EmptyState icon={<ScrollText size={24} />} title="等待结果" description="执行完成后会展示最终结果。" />
+                        <EmptyState icon={<ScrollText size={24} />} title="等待结果" description="试跑完成后会展示最终结果。" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -367,8 +364,8 @@ export function PlaygroundPage() {
                     data-testid="playground-logs-toggle"
                   >
                     <span>
-                      <span className="block text-sm font-semibold text-ink">运行日志</span>
-                      <span className="mt-1 block text-sm text-slate-500">排查执行过程时再查看。</span>
+                      <span className="block text-sm font-semibold text-ink">过程记录</span>
+                      <span className="mt-1 block text-sm text-slate-500">需要确认过程时再展开。</span>
                     </span>
                     <Badge tone={visibleLogs.length ? "brand" : "neutral"}>{visibleLogs.length ? `${visibleLogs.length} 条` : "等待"}</Badge>
                   </summary>
@@ -392,7 +389,7 @@ export function PlaygroundPage() {
                         ))
                       ) : (
                         <motion.p className="text-slate-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                          运行日志会显示在这里。
+                          过程记录会显示在这里。
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -426,7 +423,7 @@ function RegistryList({
   if (!items.length) {
     return (
       <div className="mt-4">
-        <EmptyState icon={<Terminal size={24} />} title="暂无注册项" description="还没有可执行项目。" />
+        <EmptyState icon={<Terminal size={24} />} title="暂无可试跑项目" description="还没有可以在这里试跑的项目。" />
       </div>
     );
   }
@@ -441,7 +438,7 @@ function RegistryList({
             onClick={() => onSelect(item.name)}
             data-testid={`playground-registry-${item.name}`}
             layout
-            whileHover={{ y: -1 }}
+            whileHover={{ y: -0.5 }}
             whileTap={{ scale: 0.99 }}
             className={`dt-interactive rounded-lg border p-3 text-left transition ${
               active ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"
@@ -481,7 +478,7 @@ function ToolRunner({
   onRunSync: () => void;
 }) {
   if (!tool) {
-    return <EmptyState icon={<Wrench size={24} />} title="暂无工具" description="当前没有可用工具。" />;
+    return <EmptyState icon={<Wrench size={24} />} title="暂无可试跑项目" description="当前没有可试跑项目。" />;
   }
   return (
     <motion.section
@@ -492,36 +489,36 @@ function ToolRunner({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Badge tone="brand">工具</Badge>
+          <Badge tone="brand">单步</Badge>
           <h2 className="mt-3 text-base font-semibold text-ink">{tool.name}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{tool.description || "暂无描述"}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{tool.description || "暂无说明"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button tone="secondary" onClick={onRunSync} disabled={running} data-testid="playground-tool-run-sync">
             {running ? <Loader2 size={16} className="animate-spin" /> : <Code2 size={16} />}
-            同步执行
+            快速试跑
           </Button>
           <Button tone="primary" onClick={onRun} disabled={running} data-testid="playground-tool-run">
             {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            执行工具
+            开始试跑
           </Button>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-2">
-        <FieldShell label="参数" hint="高级格式">
+        <FieldShell label="输入内容" hint="结构化内容">
           <TextArea
             value={paramsJson}
             onChange={(event) => onParams(event.target.value)}
-            className="min-h-72 font-mono text-xs leading-6"
+            className="min-h-44 font-mono text-xs leading-6"
             data-testid="playground-tool-params"
           />
           <Button tone="quiet" className="mt-2 min-h-8 px-2 text-xs" onClick={onUseDefault}>
-            使用参数模板
+            使用模板
           </Button>
         </FieldShell>
-        <FieldShell label="参数定义">
-          <pre className="dt-code-surface min-h-72 overflow-auto rounded-lg p-3 text-xs leading-6">
+        <FieldShell label="结构说明">
+          <pre className="dt-code-surface min-h-44 overflow-auto rounded-lg p-3 text-xs leading-6">
             {selectedToolParams}
           </pre>
         </FieldShell>
@@ -558,7 +555,7 @@ function CapabilityRunner({
   onRun: () => void;
 }) {
   if (!capability) {
-    return <EmptyState icon={<Sparkles size={24} />} title="暂无能力" description="当前没有可用能力。" />;
+    return <EmptyState icon={<Sparkles size={24} />} title="暂无流程" description="当前没有可试跑流程。" />;
   }
   return (
     <motion.section
@@ -569,9 +566,9 @@ function CapabilityRunner({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Badge tone="brand">能力</Badge>
+          <Badge tone="brand">流程</Badge>
           <h2 className="mt-3 text-base font-semibold text-ink">{capability.name}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{capability.description || "暂无描述"}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{capability.description || "暂无说明"}</p>
         </div>
         <Button
           tone="primary"
@@ -580,7 +577,7 @@ function CapabilityRunner({
           data-testid="playground-capability-run"
         >
           {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-          运行能力
+          试跑流程
         </Button>
       </div>
 
@@ -589,13 +586,13 @@ function CapabilityRunner({
           <TextArea
             value={content}
             onChange={(event) => onContent(event.target.value)}
-            className="min-h-72"
+            className="min-h-44"
             data-testid="playground-capability-content"
           />
         </FieldShell>
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-semibold text-ink">启用工具</p>
+            <p className="text-sm font-semibold text-ink">可选支持</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {tools.slice(0, 12).map((tool) => (
                 <motion.button
@@ -603,7 +600,7 @@ function CapabilityRunner({
                   type="button"
                   onClick={() => onToggleTool(tool.name)}
                   data-testid={`playground-tool-toggle-${tool.name}`}
-                  whileHover={{ y: -1 }}
+                  whileHover={{ y: -0.5 }}
                   whileTap={{ scale: 0.98 }}
                   className={`rounded-md border px-2 py-1 text-xs transition ${
                     enabledTools.includes(tool.name)
@@ -618,7 +615,7 @@ function CapabilityRunner({
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-ink">知识库</p>
+            <p className="text-sm font-semibold text-ink">资料库</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {knowledgeBases.map((kb) => (
                 <motion.button
@@ -626,7 +623,7 @@ function CapabilityRunner({
                   type="button"
                   onClick={() => onToggleKb(kb.name)}
                   data-testid={`playground-kb-toggle-${kb.name}`}
-                  whileHover={{ y: -1 }}
+                  whileHover={{ y: -0.5 }}
                   whileTap={{ scale: 0.98 }}
                   className={`rounded-md border px-2 py-1 text-xs transition ${
                     selectedKbs.includes(kb.name)
@@ -639,15 +636,15 @@ function CapabilityRunner({
                 </motion.button>
               ))}
               {knowledgeLoading ? (
-                <span className="text-xs text-slate-500">正在读取知识库...</span>
+                <span className="text-xs text-slate-500">正在读取资料库...</span>
               ) : !knowledgeBases.length ? (
-                <span className="text-xs text-slate-500">暂无知识库</span>
+                <span className="text-xs text-slate-500">暂无资料库</span>
               ) : null}
             </div>
           </div>
           {capability.stages?.length ? (
             <div>
-              <p className="text-sm font-semibold text-ink">阶段</p>
+              <p className="text-sm font-semibold text-ink">步骤</p>
               <div className="markdown-body mt-2 border-t border-line pt-3 text-sm">
                 <MarkdownRenderer>{capability.stages.map((stage) => `- ${stage}`).join("\n")}</MarkdownRenderer>
               </div>

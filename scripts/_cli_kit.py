@@ -6,13 +6,13 @@ minimal / industrial aesthetic inspired by Claude Code.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 import getpass
 import os
 import shutil
 import sys
 import textwrap
 import time
-from contextlib import contextmanager
 from typing import Generator
 
 # ---------------------------------------------------------------------------
@@ -68,8 +68,8 @@ def term_width() -> int:
 def _read_key() -> str:
     """Read a single keypress.  Returns 'up', 'down', 'enter', or char."""
     try:
-        import tty
         import termios
+        import tty
 
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
@@ -172,7 +172,7 @@ def select(prompt: str, options: list[tuple[str, str, str]]) -> str:
         elif key == "enter":
             # Move past the option block
             sys.stdout.write(f"\033[{total}A")
-            sys.stdout.write(f"\033[J")
+            sys.stdout.write("\033[J")
             chosen_label = options[idx][1]
             chosen_desc = options[idx][2]
             print(f"  {accent('>')} {bold(chosen_label)}  {dim(chosen_desc)}")
@@ -185,7 +185,7 @@ def select(prompt: str, options: list[tuple[str, str, str]]) -> str:
 
         # Redraw: move cursor up by `total` lines, clear, re-render
         sys.stdout.write(f"\033[{total}A")
-        sys.stdout.write(f"\033[J")
+        sys.stdout.write("\033[J")
         _render()
 
 

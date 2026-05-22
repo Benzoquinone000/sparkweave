@@ -34,7 +34,7 @@ export function SaveMessageModal({
         exit={{ opacity: 0 }}
       >
         <motion.form
-          className="w-full max-w-xl rounded-lg border border-line bg-white p-3"
+          className="dt-dynamic-drawer w-full max-w-xl rounded-lg border border-line bg-white p-3"
           initial={{ y: 24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 24, opacity: 0 }}
@@ -53,7 +53,7 @@ export function SaveMessageModal({
               关闭
             </Button>
           </div>
-          <div className="mt-5 rounded-lg border border-line bg-canvas p-3">
+          <div className="dt-dynamic-result mt-5 rounded-lg border border-line bg-canvas p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="neutral">{asset.assetKind}</Badge>
               <Badge tone="neutral">{asset.recordType}</Badge>

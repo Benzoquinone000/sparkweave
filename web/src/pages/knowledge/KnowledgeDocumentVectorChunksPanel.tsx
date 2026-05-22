@@ -29,7 +29,7 @@ export function DocumentVectorChunksPanel({
           <p className="mt-1 text-xs text-slate-500">
             {vectorsAvailable
               ? `${vectorTotal || vectorChunks.length} 个片段来自当前文档`
-              : vectorsError || "当前引用索引暂不可读取"}
+              : vectorsError || "当前引用片段暂不可读取"}
           </p>
         </div>
         <Badge tone={vectorsAvailable ? "neutral" : "warning"}>{vectorsAvailable ? "已入库" : "不可用"}</Badge>
@@ -65,7 +65,7 @@ export function DocumentVectorChunksPanel({
         </div>
       ) : (
         <p className="mt-3 rounded-lg border border-dashed border-line bg-canvas p-3 text-xs leading-5 text-slate-500">
-          还没有读取到该文档对应的引用片段。若刚上传完成，请刷新或重建索引。
+          还没有读取到该文档对应的引用片段。若刚上传完成，请刷新或重新整理资料。
         </p>
       )}
     </div>

@@ -21,7 +21,7 @@ export function RagSearchBasicSettingsGrid({
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <FieldShell label="检索画像">
+      <FieldShell label="问题侧重">
         <SelectInput value={profile} onChange={(event) => onProfileChange(event.target.value)}>
           <option value="auto">自动判断</option>
           <option value="concept">概念解释</option>
@@ -30,20 +30,20 @@ export function RagSearchBasicSettingsGrid({
           <option value="formula">公式推导</option>
         </SelectInput>
       </FieldShell>
-      <FieldShell label="检索模式">
+      <FieldShell label="匹配方式">
         <SelectInput value={mode} onChange={(event) => onModeChange(event.target.value)}>
-          <option value="hybrid">混合检索</option>
-          <option value="dense">语义检索</option>
+          <option value="hybrid">关键词 + 语义</option>
+          <option value="dense">语义优先</option>
         </SelectInput>
       </FieldShell>
-      <FieldShell label="深度检索">
+      <FieldShell label="查找策略">
         <SelectInput value={agentic} onChange={(event) => onAgenticChange(event.target.value)}>
-          <option value="auto">自动编排</option>
-          <option value="force">强制分解</option>
-          <option value="off">关闭</option>
+          <option value="auto">自动多路</option>
+          <option value="force">总是拆分</option>
+          <option value="off">轻量查找</option>
         </SelectInput>
       </FieldShell>
-      <FieldShell label="证据数量">
+      <FieldShell label="来源数量">
         <SelectInput value={String(topK)} onChange={(event) => onTopKChange(Number(event.target.value) || 5)}>
           <option value="3">3 条</option>
           <option value="5">5 条</option>

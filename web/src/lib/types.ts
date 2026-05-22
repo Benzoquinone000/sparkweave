@@ -2315,6 +2315,23 @@ export interface GuideV2CoursePackage {
       demo_action?: string;
     }>;
   };
+  iflytek_toolchain?: {
+    title?: string;
+    summary?: string;
+    recording_tip?: string;
+    items?: Array<{
+      id?: string;
+      label?: string;
+      landing?: string;
+      demo_value?: string;
+      demo_action?: string;
+    }>;
+    demo_cues?: Array<{
+      label?: string;
+      detail?: string;
+      tone?: string;
+    }>;
+  };
   agent_collaboration_blueprint?: {
     title?: string;
     summary?: string;
@@ -2506,34 +2523,93 @@ export interface SystemStatus {
   llm?: {
     status: string;
     model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
     error?: string;
   };
   embeddings?: {
     status: string;
     model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
     error?: string;
   };
   search?: {
     status: string;
     provider?: string | null;
+    testable?: boolean;
     error?: string;
   };
   rag?: {
     status: string;
     provider?: string | null;
     uri?: string | null;
+    testable?: boolean;
     error?: string;
   };
   ocr?: {
     status: string;
     provider?: string | null;
     model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
     error?: string;
   };
   tts?: {
     status: string;
     provider?: string | null;
     model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
+    error?: string;
+  };
+  asr?: {
+    status: string;
+    provider?: string | null;
+    model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
+    error?: string;
+  };
+  speech_eval?: {
+    status: string;
+    provider?: string | null;
+    model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
+    error?: string;
+  };
+  iflytek_workflow?: {
+    status: string;
+    provider?: string | null;
+    model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
+    error?: string;
+  };
+  formula_ocr?: {
+    status: string;
+    provider?: string | null;
+    model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
+    error?: string;
+  };
+  image_understanding?: {
+    status: string;
+    provider?: string | null;
+    model?: string | null;
+    testable?: boolean;
+    fallback?: boolean;
+    fallback_reason?: string;
     error?: string;
   };
 }
@@ -2593,6 +2669,10 @@ export interface ProviderChoice {
   default_model?: string;
   models?: string[];
   default_dim?: string;
+  mode?: "standard" | "gateway" | "local" | "oauth" | "direct" | string;
+  credential_hint?: string;
+  model_hint?: string;
+  docs_url?: string;
 }
 
 export interface ModelItem {
@@ -2645,7 +2725,11 @@ export interface ModelCatalog {
     embedding: ServiceCatalog;
     search: ServiceCatalog;
     ocr?: ServiceCatalog;
+    formula_ocr?: ServiceCatalog;
+    image_understanding?: ServiceCatalog;
     tts?: ServiceCatalog;
+    asr?: ServiceCatalog;
+    speech_eval?: ServiceCatalog;
   };
 }
 
@@ -2663,7 +2747,36 @@ export interface SettingsResponse {
     search: ProviderChoice[];
     ocr?: ProviderChoice[];
     tts?: ProviderChoice[];
+    asr?: ProviderChoice[];
+    speech_eval?: ProviderChoice[];
+    formula_ocr?: ProviderChoice[];
+    image_understanding?: ProviderChoice[];
   };
+}
+
+export interface SpeechTranscribeResponse {
+  success: boolean;
+  text?: string;
+  provider?: string;
+  sid?: string | null;
+  audio_encoding?: string;
+  fallback?: boolean;
+  fallback_reason?: string | null;
+  error?: string | null;
+}
+
+export interface SpeechEvaluateResponse {
+  success: boolean;
+  provider?: string;
+  sid?: string | null;
+  reference_text?: string;
+  overall_score?: number | null;
+  normalized_score?: number | null;
+  dimensions?: Record<string, number>;
+  evidence?: Record<string, unknown> | null;
+  fallback?: boolean;
+  fallback_reason?: string | null;
+  error?: string | null;
 }
 
 export type UiThemeId = SettingsResponse["ui"]["theme"];

@@ -4,9 +4,7 @@ import { MoreHorizontal } from "lucide-react";
 import { MORE_FEATURE_PATHS } from "@/components/layout/AppShellModel";
 import { getNavAccentByPath, isActivePath, NAV_GROUPS, NAV_ITEMS } from "@/lib/navigation";
 
-const MOBILE_MORE_FEATURE_PATHS = new Set(
-  Array.from(MORE_FEATURE_PATHS).filter((path) => path !== "/chat"),
-);
+const MOBILE_MORE_FEATURE_PATHS = MORE_FEATURE_PATHS;
 const PRIMARY_MOBILE_GROUPS = NAV_GROUPS.map((group) => ({
   ...group,
   items: group.items.filter((item) => !MOBILE_MORE_FEATURE_PATHS.has(item.to)),
@@ -18,7 +16,7 @@ const MORE_MOBILE_GROUPS = NAV_GROUPS.map((group) => ({
 
 export function MobileBottomNav({ currentPath }: { currentPath: string }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white px-2 py-1.5 shadow-panel lg:hidden">
+    <nav className="dt-bottom-nav fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white px-2 py-1.5 shadow-panel lg:hidden">
       {NAV_ITEMS.slice(0, 4).map((item) => {
         const active = isActivePath(currentPath, item.to);
         const accent = getNavAccentByPath(item.to);
@@ -79,7 +77,7 @@ export function MobileNavigation({
         >
           <summary className="dt-interactive flex min-h-9 cursor-pointer list-none items-center gap-2 text-xs font-semibold text-charcoal [&::-webkit-details-marker]:hidden">
             <MoreHorizontal size={16} />
-            更多工具
+            更多入口
           </summary>
           <div className="mt-2.5 space-y-3 border-t border-line pt-2.5">
             {MORE_MOBILE_GROUPS.map((group) => (

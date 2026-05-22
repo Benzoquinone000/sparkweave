@@ -60,6 +60,16 @@ def _split_env_list(raw: str) -> list[str]:
     return [item.strip() for item in raw.replace(";", ",").split(",") if item.strip()]
 
 
+def _safe_header_filename(value: str, *, fallback: str = "download") -> str:
+    filename = Path(value).name
+    filename = "".join(
+        ch if ch.isprintable() and ch not in {'"', "\\", "\r", "\n"} else "_"
+        for ch in filename
+    )
+    filename = filename.strip(" .\t")[:180]
+    return filename or fallback
+
+
 def configured_cors_origins() -> list[str]:
     """Resolve browser origins allowed to call the API."""
     raw = os.getenv("SPARKWEAVE_CORS_ORIGINS") or os.getenv("CORS_ORIGINS") or ""
@@ -160,7 +170,7 @@ class SafeOutputStaticFiles(StaticFiles):
         response = await super().get_response(path, scope)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         if Path(path).suffix.lower() in ACTIVE_OUTPUT_SUFFIXES:
-            filename = Path(path).name.replace('"', "")
+            filename = _safe_header_filename(path)
             response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
             response.headers.setdefault(
                 "Content-Security-Policy",
@@ -322,8 +332,8 @@ from sparkweave.api.routers import (
     guide,
     guide_v2,
     knowledge,
-    learning_effect,
     learner_profile,
+    learning_effect,
     memory,
     notebook,
     plugins_api,
@@ -332,8 +342,9 @@ from sparkweave.api.routers import (
     sessions,
     settings,
     solve,
-    system,
     sparkbot,
+    speech,
+    system,
     unified_ws,
     vision_solver,
 )
@@ -357,6 +368,7 @@ app.include_router(
 )
 app.include_router(settings.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
+app.include_router(speech.router, prefix="/api/v1/speech", tags=["speech"])
 app.include_router(plugins_api.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(agent_config.router, prefix="/api/v1/agent-config", tags=["agent-config"])
 app.include_router(vision_solver.router, prefix="/api/v1", tags=["vision-solver"])

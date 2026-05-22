@@ -36,14 +36,14 @@ export function AgentWorkspaceTabs({
     count: number;
     icon: LucideIcon;
   }> = [
-    { id: "schedule", title: "定时任务", detail: "主动执行", count: jobs, icon: CalendarClock },
-    { id: "assistants", title: "机器人", detail: "启动与调试", count: bots, icon: Bot },
-    { id: "workspace", title: "通道与技能", detail: "MCP / skills", count: files, icon: PlugZap },
-    { id: "advanced", title: "设置", detail: "人设与运行", count: 3, icon: Settings2 },
+    { id: "schedule", title: "定时提醒", detail: "主动跟进", count: jobs, icon: CalendarClock },
+    { id: "assistants", title: "我的助教", detail: "选择与启用", count: bots, icon: Bot },
+    { id: "workspace", title: "资料与群聊", detail: "资料和消息入口", count: files, icon: PlugZap },
+    { id: "advanced", title: "少用设置", detail: "必要时再改", count: 3, icon: Settings2 },
   ];
 
   return (
-    <section className="rounded-lg border border-line bg-white p-1.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]">
+    <section className="dt-dynamic-card rounded-lg border border-line bg-white p-1.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]">
       <div className="grid gap-1.5 md:grid-cols-4">
         {tabs.map((tab) => {
           const active = value === tab.id;
@@ -52,26 +52,26 @@ export function AgentWorkspaceTabs({
             <motion.button
               key={tab.id}
               type="button"
-              className={`dt-interactive rounded-md border px-3 py-2 text-left transition ${
+              className={`dt-interactive dt-dynamic-result rounded-md border px-3 py-2 text-left transition ${
                 active
-                  ? "border-ink bg-ink text-white"
+                  ? "border-brand-purple-300 bg-tint-lavender text-brand-purple shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
                   : "border-transparent bg-white text-ink hover:border-line hover:bg-canvas"
               }`}
               onClick={() => onChange(tab.id)}
-              whileHover={{ y: -1 }}
+              whileHover={{ y: -0.5 }}
               whileTap={{ scale: 0.99 }}
               data-testid={`agent-workspace-tab-${tab.id}`}
             >
               <span className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2">
-                  <Icon size={16} className={active ? "text-white" : "text-brand-purple"} />
+                  <Icon size={16} className="text-brand-purple" />
                   <span className="truncate text-sm font-semibold">{tab.title}</span>
                 </span>
-                <span className={`rounded-md px-2 py-0.5 text-xs ${active ? "bg-white/15 text-white" : "bg-canvas text-slate-600"}`}>
+                <span className={`rounded-md px-2 py-0.5 text-xs ${active ? "bg-white/70 text-brand-purple" : "bg-canvas text-slate-600"}`}>
                   {tab.count}
                 </span>
               </span>
-              <span className={`mt-2 block text-xs leading-5 ${active ? "text-white/75" : "text-slate-600"}`}>
+              <span className="mt-2 block text-xs leading-5 text-slate-600">
                 {tab.detail}
               </span>
             </motion.button>
@@ -96,7 +96,7 @@ export function SparkBotRecentPanel({
   onSelect: (botId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,15,15,0.025)]" data-testid="sparkbot-recent-panel">
+    <section className="dt-dynamic-card rounded-lg border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,15,15,0.025)]" data-testid="sparkbot-recent-panel">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Clock3 size={18} className="text-brand-blue" />
@@ -118,13 +118,13 @@ export function SparkBotRecentPanel({
               type="button"
               onClick={() => onSelect(item.bot_id)}
               aria-pressed={active}
-              className={`dt-interactive min-h-28 rounded-lg border p-3 text-left transition ${
+              className={`dt-interactive dt-dynamic-result min-h-28 rounded-lg border p-3 text-left transition ${
                 active
                   ? "border-brand-purple-300 bg-tint-lavender"
                   : "border-line bg-white hover:border-brand-purple-300 hover:bg-canvas"
               }`}
               data-testid={`sparkbot-recent-${item.bot_id}`}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -0.5 }}
               whileTap={{ scale: 0.99 }}
             >
               <div className="flex items-start justify-between gap-3">
@@ -142,8 +142,8 @@ export function SparkBotRecentPanel({
       </div>
 
       {!items.length && !loading ? (
-        <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">
-          暂无最近运行记录。启动 SparkBot 或执行定时任务后会出现在这里。
+        <p className="dt-dynamic-empty mt-4 rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">
+          暂无最近运行记录。启动助教或执行提醒后会出现在这里。
         </p>
       ) : null}
     </section>

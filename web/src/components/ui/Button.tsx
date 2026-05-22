@@ -3,10 +3,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type ButtonTone = "primary" | "secondary" | "danger" | "quiet";
 
 const toneClass: Record<ButtonTone, string> = {
-  primary: "border-brand-purple bg-brand-purple text-white shadow-[rgba(86,69,212,0.16)_0_1px_2px] hover:bg-brand-purple-800",
-  secondary: "border-line-strong bg-transparent text-ink hover:border-ink hover:bg-white",
-  danger: "border-red-200 bg-red-50 text-brand-red hover:border-brand-red hover:bg-white",
-  quiet: "border-transparent bg-transparent text-charcoal hover:bg-surface hover:text-ink",
+  primary: "dt-energy-button border-ink bg-ink text-white shadow-[rgba(15,23,42,0.12)_0_1px_2px] hover:bg-charcoal",
+  secondary: "dt-energy-button border-line bg-white/70 text-ink hover:border-line-strong hover:bg-white",
+  danger: "dt-energy-button border-red-200 bg-white text-brand-red hover:border-brand-red hover:bg-red-50",
+  quiet: "border-transparent bg-transparent text-steel hover:bg-white/65 hover:text-ink",
 };
 
 export function Button({

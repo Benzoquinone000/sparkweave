@@ -232,6 +232,8 @@ function formatMathAnimatorSection(result: NonNullable<ReturnType<typeof extract
 }
 
 function formatExternalVideoSection(result: NonNullable<ReturnType<typeof extractExternalVideoResult>>) {
+  const heading = result.fallback_search ? "## 视频搜索入口" : "## 精选视频";
+  const plan = formatPlanSection("建议看法", result.watch_plan, result.reflection_prompt);
   const videos = (result.videos ?? [])
     .map((item, index) =>
       [
@@ -245,10 +247,12 @@ function formatExternalVideoSection(result: NonNullable<ReturnType<typeof extrac
         .join("\n"),
     )
     .join("\n\n");
-  return ["## 精选视频", "", result.response || "", videos || "- 暂无可保存的视频链接"].filter(Boolean).join("\n");
+  return [heading, "", result.response || "", plan, videos || "- 暂无可保存的视频链接"].filter(Boolean).join("\n");
 }
 
 function formatExternalImageSection(result: NonNullable<ReturnType<typeof extractExternalImageResult>>) {
+  const heading = result.fallback_search ? "## 图片搜索入口" : "## 精选图片";
+  const plan = formatPlanSection("建议看法", result.view_plan, result.reflection_prompt);
   const images = (result.images ?? [])
     .map((item, index) =>
       [
@@ -262,5 +266,18 @@ function formatExternalImageSection(result: NonNullable<ReturnType<typeof extrac
         .join("\n"),
     )
     .join("\n\n");
-  return ["## 精选图片", "", result.response || "", images || "- 暂无可保存的图片链接"].filter(Boolean).join("\n");
+  return [heading, "", result.response || "", plan, images || "- 暂无可保存的图片链接"].filter(Boolean).join("\n");
+}
+
+function formatPlanSection(title: string, steps?: string[], reflectionPrompt?: string) {
+  const planSteps = (steps ?? []).filter(Boolean);
+  const reflection = String(reflectionPrompt || "").trim();
+  if (!planSteps.length && !reflection) return "";
+  const lines = [
+    `### ${title}`,
+    "",
+    ...planSteps.map((step, index) => `${index + 1}. ${step}`),
+    reflection ? `> ${reflection}` : "",
+  ];
+  return lines.filter(Boolean).join("\n");
 }

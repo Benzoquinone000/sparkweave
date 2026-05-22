@@ -480,6 +480,351 @@ class ExternalImageSearchTool(_PromptHintsMixin, BaseTool):
         return _sink
 
 
+class IflytekWorkflowTool(_PromptHintsMixin, BaseTool):
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="iflytek_workflow",
+            description=(
+                "Call a published iFlytek Xingchen workflow for learning tasks. "
+                "Use this when the learner explicitly wants a configured iFlytek workflow, "
+                "for example course-resource generation, demo PPT outline, oral-practice "
+                "rubric, or competition-specific learning diagnosis."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="prompt",
+                    type="string",
+                    description="Learner request or workflow input text.",
+                ),
+                ToolParameter(
+                    name="flow_id",
+                    type="string",
+                    description="Optional workflow flow_id. Defaults to IFLYTEK_WORKFLOW_FLOW_ID.",
+                    required=False,
+                    default="",
+                ),
+                ToolParameter(
+                    name="parameters",
+                    type="object",
+                    description=(
+                        "Optional workflow parameters. If omitted, prompt is sent under "
+                        "AGENT_USER_INPUT or IFLYTEK_WORKFLOW_INPUT_KEY."
+                    ),
+                    required=False,
+                    default={},
+                ),
+                ToolParameter(
+                    name="input_key",
+                    type="string",
+                    description="Optional input parameter name for prompt text.",
+                    required=False,
+                    default="",
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        from sparkweave.services.iflytek_workflow import (
+            IflytekWorkflowUnavailable,
+            call_iflytek_workflow_with_fallback,
+        )
+
+        prompt = str(kwargs.get("prompt") or kwargs.get("query") or "").strip()
+        parameters = kwargs.get("parameters")
+        if not isinstance(parameters, dict):
+            parameters = {}
+        try:
+            result = await call_iflytek_workflow_with_fallback(
+                prompt,
+                flow_id=str(kwargs.get("flow_id") or "").strip() or None,
+                parameters=parameters,
+                input_key=str(kwargs.get("input_key") or "").strip() or None,
+            )
+        except IflytekWorkflowUnavailable as exc:
+            return ToolResult(
+                content=str(exc),
+                success=False,
+                metadata={
+                    "render_type": "iflytek_workflow",
+                    "tool_name": "iflytek_workflow",
+                    "provider": "iflytek_workflow",
+                    "error": str(exc),
+                },
+            )
+        metadata = dict(result)
+        metadata["render_type"] = "iflytek_workflow"
+        metadata["tool_name"] = "iflytek_workflow"
+        metadata["agent_chain"] = [
+            {"label": "讯飞星辰工作流", "state": "done", "detail": "调用已发布的讯飞工作流"},
+        ]
+        return ToolResult(
+            content=str(metadata.get("content") or "讯飞工作流已完成。"),
+            success=bool(metadata.get("success", True)),
+            metadata=metadata,
+            sources=[
+                {
+                    "type": "iflytek_workflow",
+                    "provider": "iFlytek Xingchen",
+                    "flow_id": str(metadata.get("flow_id") or ""),
+                }
+            ],
+        )
+
+
+class IflytekFormulaTool(_PromptHintsMixin, BaseTool):
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="iflytek_formula_ocr",
+            description=(
+                "Recognize formulas and math text from an attached image using iFlytek "
+                "formula recognition. Use this before solving screenshot, handwritten, "
+                "or formula-heavy college math and engineering questions."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="image_base64",
+                    type="string",
+                    description="Base64-encoded image, either raw base64 or a data URI.",
+                ),
+                ToolParameter(
+                    name="question",
+                    type="string",
+                    description="Optional learner question or context for trace readability.",
+                    required=False,
+                    default="",
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        from sparkweave.services.iflytek_formula import (
+            IflytekFormulaUnavailable,
+            decode_image_base64,
+            recognize_formula_image_with_fallback,
+        )
+
+        image_base64 = str(kwargs.get("image_base64") or "").strip()
+        if not image_base64:
+            return ToolResult(
+                content="No image provided. iFlytek formula recognition requires an image.",
+                success=False,
+                metadata={
+                    "render_type": "iflytek_formula_ocr",
+                    "tool_name": "iflytek_formula_ocr",
+                    "provider": "iflytek_formula",
+                    "error": "missing_image",
+                },
+            )
+
+        try:
+            image = decode_image_base64(image_base64)
+            result = await recognize_formula_image_with_fallback(image)
+        except IflytekFormulaUnavailable as exc:
+            return ToolResult(
+                content=str(exc),
+                success=False,
+                metadata={
+                    "render_type": "iflytek_formula_ocr",
+                    "tool_name": "iflytek_formula_ocr",
+                    "provider": "iflytek_formula",
+                    "error": str(exc),
+                },
+            )
+
+        text = str(result.get("text") or "").strip()
+        content = text or "iFlytek formula recognition completed, but no formula text was detected."
+        metadata = dict(result)
+        metadata["render_type"] = "iflytek_formula_ocr"
+        metadata["tool_name"] = "iflytek_formula_ocr"
+        metadata["question"] = str(kwargs.get("question") or "").strip()
+        metadata["agent_chain"] = [
+            {
+                "label": "iFlytek formula recognition",
+                "state": "done",
+                "detail": "Extracted formula text from the learner image.",
+            }
+        ]
+        return ToolResult(
+            content=content,
+            success=True,
+            metadata=metadata,
+            sources=[
+                {
+                    "type": "iflytek_formula_ocr",
+                    "provider": "iFlytek formula recognition",
+                    "regions": len(result.get("regions") or []),
+                }
+            ],
+        )
+
+
+class IflytekImageUnderstandingTool(_PromptHintsMixin, BaseTool):
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="iflytek_image_understanding",
+            description=(
+                "Analyze a learner image with iFlytek Spark image understanding. "
+                "Use this for screenshots, board photos, diagrams, lab images, and "
+                "multimodal tutoring before generating a final answer."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="image_base64",
+                    type="string",
+                    description="Base64-encoded image, either raw base64 or a data URI.",
+                ),
+                ToolParameter(
+                    name="prompt",
+                    type="string",
+                    description="What to inspect or explain in the image.",
+                    required=False,
+                    default="",
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        from sparkweave.services.iflytek_vision import (
+            IflytekVisionUnavailable,
+            decode_image_base64,
+            understand_image_with_fallback,
+        )
+
+        image_base64 = str(kwargs.get("image_base64") or "").strip()
+        if not image_base64:
+            return ToolResult(
+                content="No image provided. iFlytek image understanding requires an image.",
+                success=False,
+                metadata={
+                    "render_type": "iflytek_image_understanding",
+                    "tool_name": "iflytek_image_understanding",
+                    "provider": "iflytek_image_understanding",
+                    "error": "missing_image",
+                },
+            )
+
+        prompt = str(kwargs.get("prompt") or kwargs.get("question") or "").strip()
+        try:
+            image, mime_type = decode_image_base64(image_base64)
+            result = await understand_image_with_fallback(image, prompt=prompt, mime_type=mime_type)
+        except IflytekVisionUnavailable as exc:
+            return ToolResult(
+                content=str(exc),
+                success=False,
+                metadata={
+                    "render_type": "iflytek_image_understanding",
+                    "tool_name": "iflytek_image_understanding",
+                    "provider": "iflytek_image_understanding",
+                    "error": str(exc),
+                },
+            )
+
+        content = str(result.get("content") or "").strip()
+        if not content:
+            content = "iFlytek image understanding completed, but returned no text."
+        metadata = dict(result)
+        metadata["render_type"] = "iflytek_image_understanding"
+        metadata["tool_name"] = "iflytek_image_understanding"
+        metadata["prompt"] = prompt
+        metadata["agent_chain"] = [
+            {
+                "label": "iFlytek image understanding",
+                "state": "done",
+                "detail": "Analyzed the learner image before tutoring.",
+            }
+        ]
+        return ToolResult(
+            content=content,
+            success=True,
+            metadata=metadata,
+            sources=[
+                {
+                    "type": "iflytek_image_understanding",
+                    "provider": "iFlytek Spark image understanding",
+                    "model": str(result.get("model") or ""),
+                }
+            ],
+        )
+
+
+class CanvasTool(_PromptHintsMixin, BaseTool):
+    def get_definition(self) -> ToolDefinition:
+        return ToolDefinition(
+            name="canvas",
+            description=(
+                "Open or update the right-side editable document canvas. Use this only when the learner "
+                "needs a substantial editable artifact, such as a draft, study plan, report, outline, "
+                "long-form notes, rewrite, or a revision of the current canvas document. Do not use it "
+                "for short answers, normal explanations, quizzes, diagrams, videos, or media search results."
+            ),
+            parameters=[
+                ToolParameter(
+                    name="title",
+                    type="string",
+                    description="Short document title shown above the editable canvas.",
+                ),
+                ToolParameter(
+                    name="content",
+                    type="string",
+                    description="Complete Markdown content to place in the editable canvas.",
+                ),
+                ToolParameter(
+                    name="operation",
+                    type="string",
+                    description="Whether this creates a new document or updates the current canvas draft.",
+                    required=False,
+                    enum=["create", "update"],
+                    default="create",
+                ),
+                ToolParameter(
+                    name="intent",
+                    type="string",
+                    description="Brief reason this content belongs in the canvas.",
+                    required=False,
+                    default="",
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs: Any) -> ToolResult:
+        title = str(kwargs.get("title") or "可编辑文档").strip() or "可编辑文档"
+        content = str(kwargs.get("content") or "").strip()
+        operation = str(kwargs.get("operation") or "create").strip().lower()
+        if operation not in {"create", "update"}:
+            operation = "create"
+        intent = str(kwargs.get("intent") or "").strip()
+
+        if not content:
+            return ToolResult(
+                content="Canvas needs document content before it can open.",
+                success=False,
+                metadata={
+                    "render_type": "canvas_document",
+                    "tool_name": "canvas",
+                    "canvas_document": {
+                        "title": title,
+                        "content": "",
+                        "operation": operation,
+                        "intent": intent,
+                    },
+                },
+            )
+
+        return ToolResult(
+            content=f"Canvas document ready: {title}",
+            metadata={
+                "render_type": "canvas_document",
+                "tool_name": "canvas",
+                "canvas_document": {
+                    "title": title,
+                    "content": content,
+                    "operation": operation,
+                    "intent": intent,
+                },
+            },
+        )
+
+
 class CodeExecutionTool(_PromptHintsMixin, BaseTool):
     _CODEGEN_SYSTEM_PROMPT = """You are a Python code generator.
 
@@ -836,6 +1181,10 @@ BUILTIN_TOOL_TYPES: tuple[type[BaseTool], ...] = (
     WebSearchTool,
     ExternalVideoSearchTool,
     ExternalImageSearchTool,
+    IflytekWorkflowTool,
+    IflytekFormulaTool,
+    IflytekImageUnderstandingTool,
+    CanvasTool,
     CodeExecutionTool,
     ReasonTool,
     PaperSearchToolWrapper,
@@ -856,6 +1205,17 @@ TOOL_ALIASES: dict[str, tuple[str, dict[str, Any]]] = {
     "image_search": ("external_image_search", {}),
     "learning_image_search": ("external_image_search", {}),
     "curated_image_search": ("external_image_search", {}),
+    "spark_workflow": ("iflytek_workflow", {}),
+    "iflytek_agent_workflow": ("iflytek_workflow", {}),
+    "xingchen_workflow": ("iflytek_workflow", {}),
+    "formula_ocr": ("iflytek_formula_ocr", {}),
+    "math_formula_ocr": ("iflytek_formula_ocr", {}),
+    "iflytek_formula": ("iflytek_formula_ocr", {}),
+    "iflytek_vision": ("iflytek_image_understanding", {}),
+    "iflytek_image": ("iflytek_image_understanding", {}),
+    "spark_image_understanding": ("iflytek_image_understanding", {}),
+    "document_canvas": ("canvas", {}),
+    "editable_canvas": ("canvas", {}),
 }
 
 
@@ -864,10 +1224,14 @@ __all__ = [
     "BUILTIN_TOOL_TYPES",
     "TOOL_ALIASES",
     "BrainstormTool",
+    "CanvasTool",
     "CodeExecutionTool",
     "ExternalImageSearchTool",
     "ExternalVideoSearchTool",
+    "IflytekFormulaTool",
+    "IflytekImageUnderstandingTool",
     "GeoGebraAnalysisTool",
+    "IflytekWorkflowTool",
     "PaperSearchToolWrapper",
     "RAGTool",
     "ReasonTool",

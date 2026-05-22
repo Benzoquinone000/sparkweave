@@ -54,7 +54,7 @@ export function GuideCreateRoutePanel({
         <SourceActionNotice action={sourceAction} />
         {!sourceAction && profileSuggestedPrompt && goal.trim() === profileSuggestedPrompt ? (
           <p className="rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs leading-5 text-charcoal">
-            已根据学习画像填好目标。你可以直接开始，也可以改成自己的说法。
+            已根据学习记录填好目标。你可以直接开始，也可以改成自己的说法。
           </p>
         ) : null}
         <DemoQuickStartCard
@@ -75,7 +75,7 @@ export function GuideCreateRoutePanel({
             value={goal}
             onChange={(event) => onGoalChange(event.target.value)}
             data-testid="guide-goal-input"
-            className="min-h-36 text-base leading-7"
+            className="min-h-28 text-sm leading-6"
             placeholder="例如：我想在 30 分钟内理解梯度下降，并做几道题确认掌握。"
           />
         </FieldShell>

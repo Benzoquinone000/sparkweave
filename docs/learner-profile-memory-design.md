@@ -1,6 +1,17 @@
 # SparkWeave 学习画像与记忆系统设计
 
-范围：记录当前实现。少讲意图，多讲数据、链路、规则。
+范围：记录当前实现。少讲意图，多讲数据、链路、规则。本文档只描述代码中已经存在的行为；未落地能力统一放到“限制与待实现”，不写成当前能力。
+
+代码事实来源：
+
+| 模块 | 事实来源 |
+| --- | --- |
+| Memory | `sparkweave/services/memory.py`, `sparkweave/api/routers/memory.py`, `sparkweave_cli/memory.py` |
+| Evidence Ledger | `sparkweave/services/learner_evidence.py`, `sparkweave/api/routers/learner_profile.py` |
+| Learner Profile | `sparkweave/services/learner_profile.py`, `sparkweave/services/profile_context.py` |
+| Runtime 注入 | `sparkweave/runtime/context_enrichment.py`, `sparkweave/runtime/turn_runtime.py` |
+| Chat/Router 消费 | `sparkweave/graphs/chat.py`, `sparkweave/runtime/capability_router.py` |
+| 前端展示 | `web/src/pages/MemoryPage.tsx`, `web/src/pages/memory/` |
 
 ## 1. 核心链路
 
@@ -29,7 +40,7 @@ Guide Learner Memory ------------------------------|
 
 | 组件 | 代码 | 数据 |
 | --- | --- | --- |
-| Memory | `sparkweave/services/memory.py` | `data/memory/PROFILE.md`, `SUMMARY.md` |
+| Memory | `sparkweave/services/memory.py` | `data/memory/PROFILE.md`, `data/memory/SUMMARY.md` |
 | Evidence Ledger | `sparkweave/services/learner_evidence.py` | `data/user/learner_profile/evidence.jsonl` |
 | Learner Profile | `sparkweave/services/learner_profile.py` | `data/user/learner_profile/profile.json` |
 | Profile Context | `sparkweave/services/profile_context.py` | 运行时 `text` + `hints` |
@@ -84,7 +95,8 @@ data/
 | --- | --- |
 | `read_snapshot()` | 读两个文件和更新时间 |
 | `write_file()` | 手动写 `summary` 或 `profile` |
-| `clear_memory()` | 清空指定文件或全部 Memory |
+| `clear_file()` | 清空指定文件 |
+| `clear_memory()` | 清空全部 Memory |
 | `build_memory_context()` | 生成 `## Background Memory` prompt block |
 | `refresh_from_turn()` | turn 后用 LLM 改写两份 Markdown |
 | `refresh_from_session()` | 从最近会话或指定会话刷新 |
@@ -95,7 +107,8 @@ data/
 - `PROFILE.md` 和 `SUMMARY.md` 分开重写。
 - LLM 返回 `NO_CHANGE`：不写文件。
 - 新旧内容相同：不写文件。
-- 刷新失败：记录失败，不阻塞主对话。
+- `TurnRuntime._refresh_memory()` 会捕获刷新异常，主对话不因 Memory 刷新失败而失败。
+- `POST /api/v1/memory/refresh` 直接调用 `refresh_from_session()`；接口层没有额外吞异常，失败会按 FastAPI 错误返回。
 
 ## 5. Evidence Ledger
 
@@ -126,18 +139,19 @@ data/
 - 字符串清洗空白并限制长度。
 - `score`、`is_correct`、`created_at` 做类型归一。
 
-当前事件来源：
+当前事件写入来源：
 
-| 来源 | 构造函数 |
-| --- | --- |
-| 聊天陈述 | `build_chat_statement_events()` |
-| Guide 路线 | `build_guide_session_event()` |
-| Guide 任务 | `build_guide_task_event()` |
-| Guide 资源 | `build_guide_resource_event()` |
-| 题目/测验 | `build_quiz_answer_events()` |
-| Notebook | `build_notebook_record_event()` |
-| 用户校准 | `build_profile_calibration_event()` |
-| 学习效果 | `LearningEffectService.append_event()` |
+| 来源 | 代码入口 | 构造或写入 |
+| --- | --- | --- |
+| 聊天陈述 | `sparkweave/runtime/context_enrichment.py` | `build_chat_statement_events()` |
+| Guide 路线 | `sparkweave/api/routers/guide_v2.py` | `build_guide_session_event()` |
+| Guide 任务 | `sparkweave/api/routers/guide_v2.py` | `build_guide_task_event()` |
+| Guide 资源 | `sparkweave/api/routers/guide_v2.py` | `build_guide_resource_event()` |
+| 会话题目/测验 | `sparkweave/api/routers/sessions.py`, `sparkweave/api/routers/question_notebook.py`, `sparkweave/api/routers/guide_v2.py` | `build_quiz_answer_events()` |
+| Notebook | `sparkweave/api/routers/notebook.py`, `sparkweave/api/routers/guide_v2.py` | `build_notebook_record_event()` |
+| 用户校准 | `sparkweave/api/routers/learner_profile.py` | `build_profile_calibration_event()` |
+| 学习效果 | `sparkweave/api/routers/learning_effect.py`, `sparkweave/services/learning_effect.py` | `LearningEffectService.append_event()` |
+| 语音评测 | `sparkweave/api/routers/speech.py` | `LearnerEvidenceService.append_event()` |
 
 ## 6. Learner Profile
 
@@ -173,7 +187,7 @@ data/
 | 偏好 | `stable_profile.preferences`, `preferred_resource` | 决定讲解风格和资源类型 |
 | 历史上下文 | `PROFILE.md`, `SUMMARY.md`, `evidence_preview`, `sources` | 保持连续性，解释画像依据 |
 
-处理流程：
+处理流程映射到当前代码：
 
 ```text
 collect -> normalize -> score -> merge -> calibrate -> decide -> inject
@@ -181,13 +195,13 @@ collect -> normalize -> score -> merge -> calibrate -> decide -> inject
 
 | 阶段 | 处理 |
 | --- | --- |
-| `collect` | 从 Memory、Guide、Notebook、Quiz、Evidence Ledger 收集信号 |
-| `normalize` | 转成统一 claim、weak point、mastery、preference |
-| `score` | 计算证据权重、claim score、weakness score、mastery confidence |
-| `merge` | 去重、合并来源、累加证据数、合并分数 |
-| `calibrate` | 应用用户确认、否定、修正 |
-| `decide` | 生成 `next_action`、`priority` 和资源提示 |
-| `inject` | 生成 prompt `text`、结构化 `hints`、runtime metadata |
+| `collect` | `LearnerProfileService.refresh()` 调用 `_collect_memory()`、`_collect_guide_memory()`、`_collect_guide_sessions()`、`_collect_question_notebook()`、`_collect_notebooks()`、`_collect_evidence_ledger()` |
+| `normalize` | `_normalize_label()`、`_slug()`、`_event_concept_labels()` 等函数把文本、概念和事件字段规整为 claim、weak point、mastery、preference |
+| `score` | `_ProfileBuilder.add_weighted_evidence()` 和 `_evidence_signal_weight()` 计算证据权重，`_build_quantification()` 生成 `profile_scoring_v2` |
+| `merge` | `_ProfileBuilder._add_claim()`、`add_weak_point()`、`add_mastery()` 合并同名标签、来源、证据数和分数 |
+| `calibrate` | `_ProfileBuilder.apply_calibration()` 应用 `confirm`、`reject`、`correct` 事件 |
+| `decide` | `_ProfileBuilder._next_action()` 生成 `next_action`、`priority` 和 `suggested_prompt` |
+| `inject` | `ProfileContextInjector.build_context()` 生成 `text`、`hints`，`build_turn_context()` 写入 `UnifiedContext.memory_context` 和 metadata |
 
 给智能体的个性化决策依据：
 
@@ -204,7 +218,7 @@ collect -> normalize -> score -> merge -> calibrate -> decide -> inject
 约束：
 
 - 智能体使用压缩后的状态，不读取完整历史账本。
-- 没有足够证据时不强行个性化，转为 `next_action=calibrate`。
+- 没有足够证据时，`ProfileContextInjector.build_context()` 返回 `available=false` 且不注入画像文本；`LearnerProfile` 的 `next_action` 会退到 `kind=calibrate`。
 - 用户校准优先于系统推断。
 
 ![学习画像与记忆系统数据流与时序](assets/learner-profile-memory-timeline.png)
@@ -233,14 +247,20 @@ collect -> normalize -> score -> merge -> calibrate -> decide -> inject
 
 ## 9. 合并与校准
 
-量化公式：
+量化公式对应当前实现：
 
 ```text
-evidence_weight = source_reliability * event.confidence * event.weight * verb_weight * object_weight * recency
+evidence_weight = clamp(weight, 0, 2.5)
+                * source_reliability
+                * clamp(event.confidence, 0, 1)
+                * verb_weight
+                * object_weight
+                * resource_bonus
+                * max(0.18, recency)
 claim_score = 1 - Π(1 - claim_evidence_weight)
-weakness_score = confidence + evidence_count + evidence_weight
+weakness_score = clamp(0.16 + 0.42*confidence + 0.18*evidence_count/4 + 0.24*evidence_weight/2.4)
 mastery_score = 按 evidence_weight 加权平均 score
-overall_confidence = evidence_coverage + source_diversity + assessment_strength + recency + calibration_strength
+overall_confidence = 0.06 + evidence_coverage + source_diversity + assessment_strength + recency + calibration_strength
 next_action.priority = 当前最高风险/收益项的可执行优先级
 ```
 
@@ -260,8 +280,8 @@ next_action.priority = 当前最高风险/收益项的可执行优先级
 规则：
 
 - 用户校准来源可靠性最高。
-- `answered`、`completed` 高于 `viewed`、`saved`。
-- `generated` 权重低，且不进入偏好。
+- `answered`、`completed` 的 verb weight 高于 `viewed`、`saved`。
+- `generated` 的 verb weight 低；偏好只从 `viewed`、`saved`、`answered`、`completed` 的 `resource_type` 或显式 `learning_preference` 写入。
 - 近期证据权重大于旧证据。
 - 评分证据进入 `scored_evidence_weight`，影响掌握度和整体可信度。
 
@@ -426,29 +446,34 @@ sparkweave memory clear [summary|profile|all]
 - 当前默认本地单用户数据目录。
 - 不做全量行为追踪。
 - 不把完整 evidence ledger 注入模型。
-- 不把画像用于模型训练或微调。
 - 用户校准以事件保存，保留可追溯性。
 - 当前没有加密存储；多用户部署前需要用户隔离和权限控制。
+- `data/memory/`、`data/user/learner_profile/` 和 `data/user/workspace/guide/` 均属于本地运行时数据，不进入公开提交包。
+- 文档不承诺“画像不会被任何外部模型看到”；当前实现会把压缩后的 `memory_context` 和 `[Learner Profile Context]` 放入 LLM prompt，用于个性化回答。
 
 ## 17. 测试覆盖
 
 | 测试 | 覆盖 |
 | --- | --- |
 | `tests/services/memory/test_memory_service.py` | Memory 读取、刷新、`NO_CHANGE` |
+| `tests/services/test_learner_evidence.py` | Evidence 追加、汇总、校准事件、聊天陈述和资源事件构造 |
 | `tests/services/test_learner_profile.py` | 多来源聚合、偏好、mastery、校准、聊天事件 |
 | `tests/services/test_profile_context.py` | prompt 压缩、decision_scores、无证据不注入、失败关闭 |
 | `tests/api/test_learner_profile_router.py` | Profile API、Evidence API、Calibration API |
 | `tests/api/test_learner_evidence_integration.py` | 题目本、Notebook 写证据 |
+| `tests/api/test_unified_ws_turn_runtime.py` | WebSocket turn 写入聊天陈述证据、刷新 Memory |
 | `tests/ng/test_turn_runtime.py` | Runtime 合并 profile context |
 | `tests/services/test_guide_v2.py` | Guide memory 和画像闭环 |
 
 聚焦命令：
 
-```bash
-pytest tests/services/test_learner_profile.py tests/services/test_profile_context.py tests/services/memory/test_memory_service.py tests/api/test_learner_profile_router.py tests/api/test_learner_evidence_integration.py tests/ng/test_turn_runtime.py -q
+```powershell
+pytest tests/services/test_learner_evidence.py tests/services/test_learner_profile.py tests/services/test_profile_context.py tests/services/memory/test_memory_service.py tests/api/test_learner_profile_router.py tests/api/test_learner_evidence_integration.py tests/api/test_unified_ws_turn_runtime.py tests/ng/test_turn_runtime.py -q
 ```
 
-## 18. 已知限制
+## 18. 限制与待实现
+
+本节不是当前实现说明，只记录基于代码事实能看到的限制。
 
 - `mastery.concept_id` 仍依赖文本标签或 slug，知识点 ID 不够稳定。
 - `profile_scoring_v2` 是显式量化层，但仍不是 IRT/BKT 这类严格测量模型。
@@ -456,7 +481,7 @@ pytest tests/services/test_learner_profile.py tests/services/test_profile_contex
 - Markdown Memory 和 Learner Profile 的前端解释需要继续区分。
 - 当前适合本地单用户，多用户部署需要数据隔离。
 
-## 19. 下一步
+待实现项：
 
 1. 接入稳定知识点 ID。
 2. 给 Evidence Ledger 增加 schema version。

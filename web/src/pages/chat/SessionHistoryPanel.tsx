@@ -56,7 +56,7 @@ export function SessionHistoryPanel({
   };
 
   return (
-    <section className="rounded-lg border border-line bg-white p-3">
+    <section className="dt-dynamic-card rounded-lg border border-line bg-white p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Clock3 size={17} className="text-brand-blue" />
@@ -86,7 +86,7 @@ export function SessionHistoryPanel({
           <div
             key={session.session_id}
             data-testid={`${testIdPrefix}-session-card-${session.session_id}`}
-            className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+            className={`dt-dynamic-result w-full rounded-lg border px-3 py-2 text-left transition ${
               sessionId === session.session_id
                 ? "border-brand-purple-300 bg-tint-lavender"
                 : "border-line bg-white hover:border-brand-purple-300"
@@ -171,7 +171,7 @@ export function SessionHistoryPanel({
             )}
           </div>
         ))}
-        {!sessions.length ? <p className="rounded-lg bg-canvas p-3 text-sm text-slate-500">发送消息后会沉淀到这里。</p> : null}
+        {!sessions.length ? <p className="dt-dynamic-empty rounded-lg bg-canvas p-3 text-sm text-slate-500">发送消息后会沉淀到这里。</p> : null}
       </div>
     </section>
   );

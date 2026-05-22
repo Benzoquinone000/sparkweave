@@ -362,6 +362,7 @@ class LangGraphTurnRuntimeManager:
             "_runtime",
             "followup_question_context",
             "answer_now_context",
+            "canvas_context",
         )
         runtime_only_config = {
             key: raw_config.pop(key) for key in runtime_only_keys if key in raw_config

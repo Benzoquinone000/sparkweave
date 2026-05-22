@@ -84,7 +84,7 @@ export function extractRagLiveStatus(events: StreamEvent[]): RagLiveStatus | nul
     if (event.type === "tool_call") {
       state.running = true;
       state.phase = "starting";
-      state.lastMessage = "正在进入资料库检索。";
+      state.lastMessage = "正在查找资料库。";
     }
 
     if (event.type === "progress") {
@@ -117,13 +117,13 @@ export function extractRagLiveStatus(events: StreamEvent[]): RagLiveStatus | nul
       state.repaired = resultMetadata?.agentic_repaired === true || Boolean(resultMetadata?.agentic_repair) || state.repaired;
       state.fallback = resultMetadata?.agentic_fallback === true || state.fallback;
       state.transformed = resultMetadata?.query_transform_applied === true || state.transformed;
-      state.lastMessage = metadata.success === false ? "资料检索没有顺利完成。" : "资料检索已完成。";
+      state.lastMessage = metadata.success === false ? "资料查找没有顺利完成。" : "资料查找已完成。";
     }
 
     if (event.type === "error") {
       state.running = false;
       state.phase = "error";
-      state.lastMessage = content || "资料检索没有顺利完成。";
+      state.lastMessage = content || "资料查找没有顺利完成。";
     }
   }
 
@@ -147,37 +147,37 @@ function isRagEvent(event: StreamEvent) {
 }
 
 function describeStatus(status: MutableRagLiveStatus) {
-  const sourceText = typeof status.sourceCount === "number" ? `已找到 ${status.sourceCount} 条依据` : "";
+  const sourceText = typeof status.sourceCount === "number" ? `已找到 ${status.sourceCount} 条来源` : "";
   const kbText = status.kbName ? `资料库：${status.kbName}` : "";
   const detailParts = [status.lastMessage, sourceText, kbText].filter(Boolean);
 
   if (status.phase === "error") {
     return {
-      title: "资料检索遇到问题",
+      title: "资料查找遇到问题",
       detail: detailParts.join(" · ") || "系统没有拿到可用的资料结果。",
     };
   }
   if (status.phase === "complete") {
     return {
-      title: status.sourceCount ? "已从资料库找到依据" : "资料检索已结束",
+      title: status.sourceCount ? "已从资料库找到来源" : "资料查找已结束",
       detail: detailParts.join(" · ") || "系统会基于可用资料组织回答。",
     };
   }
   if (status.phase === "fallback") {
     return {
-      title: "证据偏弱，正在改用稳妥检索",
-      detail: detailParts.join(" · ") || "系统正在扩大依据，避免只依赖薄弱片段。",
+      title: "来源偏弱，正在改用稳妥查找",
+      detail: detailParts.join(" · ") || "系统正在扩大来源，避免只依赖薄弱片段。",
     };
   }
   if (status.phase === "repairing") {
     return {
-      title: "正在补强薄弱证据",
-      detail: detailParts.join(" · ") || "部分检索分支证据不足，系统正在补查。",
+      title: "正在补强薄弱部分",
+      detail: detailParts.join(" · ") || "部分查找视角来源不足，系统正在补查。",
     };
   }
   if (status.phase === "checking") {
     return {
-      title: "正在检查资料依据",
+      title: "正在检查资料来源",
       detail: detailParts.join(" · ") || "系统正在判断找到的片段是否足够回答。",
     };
   }
@@ -186,13 +186,13 @@ function describeStatus(status: MutableRagLiveStatus) {
       title: "正在多路查资料",
       detail:
         detailParts.join(" · ") ||
-        (status.subqueryCount ? `系统已拆成 ${status.subqueryCount} 个角度检索。` : "系统正在从多个角度补充依据。"),
+        (status.subqueryCount ? `系统已拆成 ${status.subqueryCount} 个角度查找。` : "系统正在从多个角度补充来源。"),
     };
   }
   if (status.phase === "planning") {
     return {
       title: "正在判断如何查资料",
-      detail: detailParts.join(" · ") || "系统会根据问题自动选择检索方式。",
+      detail: detailParts.join(" · ") || "系统会根据问题自动选择查找方式。",
     };
   }
   return {
@@ -206,16 +206,16 @@ function readableProgressMessage(content: string) {
   const lower = trimmed.toLowerCase();
   if (!trimmed) return "";
   if (lower.startsWith("query:")) return "正在按问题查找相关片段。";
-  if (lower.includes("retrieval policy")) return "正在为这个问题选择检索方式。";
-  if (lower.includes("query transformed")) return "已补充检索关键词。";
-  if (lower.includes("planned") && lower.includes("retrieval")) return "系统已拆分问题并开始多路检索。";
+  if (lower.includes("retrieval policy")) return "正在为这个问题选择查找方式。";
+  if (lower.includes("query transformed")) return "已补充查找关键词。";
+  if (lower.includes("planned") && lower.includes("retrieval")) return "系统已拆分问题并开始多路查找。";
   if (lower.includes("retrieving from knowledge base")) return "正在访问资料库。";
-  if (lower.includes("repairing weak")) return "部分依据偏弱，正在补查。";
-  if (lower.includes("repaired weak")) return "薄弱分支已补强，继续检查证据。";
-  if (lower.includes("evidence was weak")) return "证据偏弱，正在改用更稳的检索。";
-  if (lower.includes("merged")) return "已合并多路检索结果。";
+  if (lower.includes("repairing weak")) return "部分来源偏弱，正在补查。";
+  if (lower.includes("repaired weak")) return "薄弱分支已补强，继续检查来源。";
+  if (lower.includes("evidence was weak")) return "来源偏弱，正在改用更稳的查找。";
+  if (lower.includes("merged")) return "已合并多路查找结果。";
   if (lower.includes("retrieved")) return "已取回资料片段。";
-  if (lower.includes("retrieve complete")) return "资料检索已完成。";
+  if (lower.includes("retrieve complete")) return "资料查找已完成。";
   return trimmed.length > 120 ? `${trimmed.slice(0, 120).trim()}...` : trimmed;
 }
 

@@ -53,13 +53,13 @@ export function buildGuideEffectActionSeed({
     },
     advance: {
       title: "进入下一节或项目任务",
-      prompt: topic === "当前薄弱点" ? "根据我的学习画像，安排一个下一节或小项目任务来验证迁移能力。" : `围绕「${topic}」安排一个下一节或小项目任务，验证迁移应用能力。`,
+      prompt: topic === "当前薄弱点" ? "根据我的学习记录，安排一个下一节或小项目任务来验证迁移应用。" : `围绕「${topic}」安排一个下一节或小项目任务，验证迁移应用。`,
       minutes: 15,
       kind: "learning_effect_advance",
     },
     continue: {
       title: "继续当前学习节奏",
-      prompt: topic === "当前薄弱点" ? "根据我的学习画像，继续安排一个最合适的下一步学习任务。" : `根据我的学习画像，围绕「${topic}」继续安排一个最合适的下一步学习任务。`,
+      prompt: topic === "当前薄弱点" ? "根据我的学习记录，继续安排一个最合适的下一步学习任务。" : `根据我的学习记录，围绕「${topic}」继续安排一个最合适的下一步学习任务。`,
       minutes: 10,
       kind: "learning_effect_continue",
     },

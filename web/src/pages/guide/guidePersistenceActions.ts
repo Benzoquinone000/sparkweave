@@ -110,7 +110,7 @@ export function buildGuidePersistenceActions({
       summary: coursePackageData?.summary,
     });
     const added = result.notebook?.added_to_notebooks?.length ?? 0;
-    setSaveMessage(`课程产出包已保存到 ${added || 0} 个记录本。`);
+    setSaveMessage(`课程成果包已保存到 ${added || 0} 个记录本。`);
   };
 
   const downloadCoursePackage = () => {
@@ -120,10 +120,10 @@ export function buildGuidePersistenceActions({
       fallbackName: "sparkweave-course-package",
     });
     if (!result.ok) {
-      setSaveMessage("课程产出包还没有可下载内容，请稍后刷新。");
+      setSaveMessage("课程成果包还没有可下载内容，请稍后刷新。");
       return;
     }
-    setSaveMessage(`已下载课程产出包：${result.filename}`);
+    setSaveMessage(`已下载课程成果包：${result.filename}`);
   };
 
   const submitQuizArtifact = async (artifact: GuideV2Artifact, answers: QuizResultItem[]) => {

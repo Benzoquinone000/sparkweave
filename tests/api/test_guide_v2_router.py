@@ -3,10 +3,10 @@
 from pathlib import Path
 from typing import Any
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+import pytest
 
 from sparkweave.api import request_limits
 from sparkweave.api.routers import guide_v2
@@ -481,3 +481,38 @@ def test_guide_v2_router_serves_audio_artifact_asset(tmp_path, monkeypatch) -> N
     metadata = captured_add_record["metadata"]
     assert metadata["artifact_type"] == "audio"
     assert metadata["audio_narration"]["audio"]["asset_url"].endswith(f"/artifacts/{artifact['id']}/asset")
+
+
+def test_guide_v2_router_rejects_audio_asset_outside_artifacts(tmp_path, monkeypatch) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+
+    import asyncio
+
+    created = asyncio.run(manager.create_session(GuideV2CreateInput(goal="理解梯度下降")))
+    session_id = created["session"]["session_id"]
+    task_id = created["session"]["tasks"][0]["task_id"]
+    secret = tmp_path / "secret.mp3"
+    secret.write_bytes(b"secret")
+    manager._sessions[session_id].tasks[0].artifact_refs.append(
+        {
+            "id": "asset-outside",
+            "type": "audio",
+            "result": {
+                "audio": {
+                    "asset_path": str(secret),
+                    "content_type": "audio/mpeg",
+                    "filename": "secret.mp3",
+                }
+            },
+        }
+    )
+    client = _client_with_manager(manager, monkeypatch)
+
+    response = client.get(
+        f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/artifacts/asset-outside/asset"
+    )
+
+    assert response.status_code == 404

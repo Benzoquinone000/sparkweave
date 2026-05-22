@@ -24,13 +24,13 @@ export function RagSearchHandoffCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-ink">{fromChat ? "从聊天带来的证据复测" : "已带入待测问题"}</p>
-            {handoff.status ? <Badge tone={handoff.status === "无证据" ? "neutral" : "warning"}>{handoff.status}</Badge> : null}
+            <p className="text-sm font-semibold text-ink">{fromChat ? "从聊天带来的来源复测" : "已带入待测问题"}</p>
+            {handoff.status ? <Badge tone={handoff.status === "无证据" ? "neutral" : "warning"}>{formatHandoffStatus(handoff.status)}</Badge> : null}
           </div>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">
             {fromChat
-              ? `已带入刚才的聊天问题和资料库「${activeKb || "当前资料库"}」。先运行预检，确认资料片段能否被稳定召回。`
-              : `已按链接填入问题和资料库「${activeKb || "当前资料库"}」，可以直接运行一次预检。`}
+              ? `已带入刚才的聊天问题和资料库「${activeKb || "当前资料库"}」。先试问一次，确认资料片段能否被稳定找到。`
+              : `已按链接填入问题和资料库「${activeKb || "当前资料库"}」，可以直接试问一次。`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -48,4 +48,9 @@ export function RagSearchHandoffCard({
       </div>
     </div>
   );
+}
+
+function formatHandoffStatus(status: string) {
+  if (status === "无证据") return "无来源";
+  return status.replaceAll("证据", "来源");
 }

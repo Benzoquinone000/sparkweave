@@ -102,7 +102,7 @@ export function GuideLearningReportPanel({
     })),
     ...nodes.slice(0, 1).map((node) => ({
       label: `知识点：${guideDisplayText(node.title, "当前知识点")}`,
-      detail: node.suggestion || "继续完成任务并留下学习证据。",
+      detail: node.suggestion || "继续完成任务并留下学习记录。",
       tone: "brand" as const,
     })),
     ...(report?.risks ?? []).slice(0, 1).map((item) => ({
@@ -121,7 +121,7 @@ export function GuideLearningReportPanel({
         {loading ? <Loader2 size={16} className="animate-spin text-brand-purple" /> : <Badge tone={score >= 80 ? "success" : score >= 60 ? "brand" : "warning"}>{score || 0}</Badge>}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        {report?.summary || "完成任务后，这里会汇总学习画像、薄弱点、路径调整和下一步计划。"}
+        {report?.summary || "完成任务后，这里会汇总学习记录、薄弱点、路径调整和下一步计划。"}
       </p>
       <div className="mt-4 grid grid-cols-3 gap-2">
         <EvalMini label="分数" value={score} />
@@ -158,7 +158,7 @@ export function GuideLearningReportPanel({
       ) : null}
       {latestFeedback ? (
         <p className="mt-4 rounded-lg border border-line bg-white p-3 text-xs leading-5 text-slate-600">
-          最近反馈：{latestFeedback.summary || latestFeedback.title || "系统已根据学习证据更新路线。"}
+          最近反馈：{latestFeedback.summary || latestFeedback.title || "系统已根据学习记录更新路线。"}
         </p>
       ) : null}
       <div className="mt-4 grid gap-2 md:grid-cols-2">
@@ -199,12 +199,12 @@ function PathAdjustmentMorphCard({
     latestTimeline?.description ||
     latestFeedback?.summary ||
     report.evidence_summary?.latest_reflection ||
-    "学生完成了一次任务、练习或资源反馈，系统拿到了新的学习证据。";
+    "学生完成了一次任务、练习或资源反馈，系统拿到了新的学习记录。";
   const judgement =
     report.effect_assessment?.summary ||
     firstIntervention?.reason ||
     latestTimeline?.impact ||
-    "系统综合画像、练习表现和资源使用反馈，判断是否需要补救、复测或继续推进。";
+    "系统综合学习记录、练习表现和资源使用反馈，判断是否需要补救、复测或继续推进。";
   const prescription =
     actionBrief?.title ||
     actionBrief?.primary_action?.detail ||
@@ -230,7 +230,7 @@ function PathAdjustmentMorphCard({
             <Badge tone={adjustmentCount > 0 ? "brand" : "neutral"}>{adjustmentCount} 次调整</Badge>
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            学习效果评估会把新证据转成路径变化，展示“评估 → 调整 → 推送”的闭环。
+            学习效果评估会把新记录转成路径变化，展示“评估 → 调整 → 推送”的完整过程。
           </p>
         </div>
       </div>
@@ -238,7 +238,7 @@ function PathAdjustmentMorphCard({
         <div className="rounded-lg border border-line bg-canvas p-3">
           <Badge tone="neutral">调整前</Badge>
           <p className="mt-2 text-sm font-semibold text-ink">{before}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">路线先按课程结构和初始画像推进。</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">路线先按课程结构和初始记录推进。</p>
         </div>
         <div className="hidden place-items-center text-slate-300 md:grid">
           <ArrowRight size={18} />
@@ -251,7 +251,7 @@ function PathAdjustmentMorphCard({
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         {[
-          { label: "新证据", detail: evidence, tone: "neutral" as const },
+          { label: "新记录", detail: evidence, tone: "neutral" as const },
           { label: "系统判断", detail: judgement, tone: "brand" as const },
           { label: "下一步处方", detail: prescription, tone: "success" as const },
         ].map((item) => (
@@ -284,11 +284,11 @@ function EffectAssessmentCard({
             detail:
               dimensions[0]?.evidence ||
               assessment.summary ||
-              "系统会根据任务进度、练习结果、错因和画像综合判断。",
+              "系统会根据任务进度、练习结果、错因和学习记录综合判断。",
           },
           {
             label: "调整策略",
-            detail: assessment.strategy_adjustments?.[0] || "继续完成当前任务并留下可评分证据。",
+            detail: assessment.strategy_adjustments?.[0] || "继续完成当前任务并留下可评分反馈。",
           },
         ];
 
@@ -296,9 +296,9 @@ function EffectAssessmentCard({
     <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="guide-effect-assessment-chain">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-ink">评估依据与调度理由</p>
+          <p className="text-sm font-semibold text-ink">评估来源与调整理由</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            {assessment.summary || "系统会参考你刚留下的学习证据、练习反馈和画像信号，决定下一步更适合怎么继续。"}
+            {assessment.summary || "系统会参考你刚留下的学习记录、练习反馈和学习信号，决定下一步更适合怎么继续。"}
           </p>
         </div>
         <Badge tone={Number(assessment.score ?? 0) >= 70 ? "success" : "warning"}>
@@ -309,7 +309,7 @@ function EffectAssessmentCard({
         {chain.slice(0, 3).map((item, index) => (
           <div key={`${item.label}-${index}`} className="rounded-lg border border-line bg-white p-3">
             <p className="text-xs font-semibold text-brand-purple">{guideDisplayText(item.label, `第 ${index + 1} 步`)}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "继续留下学习证据。")}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{guideDisplayText(item.detail, "继续留下学习记录。")}</p>
           </div>
         ))}
       </div>
@@ -350,14 +350,14 @@ function LearningEffectReportCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <BarChart3 size={16} className="text-brand-purple" />
-            <p className="text-sm font-semibold text-ink">全局学习效果闭环</p>
+            <p className="text-sm font-semibold text-ink">全局学习效果</p>
             <Badge tone={tone}>{report.overall?.label || `${score} 分`}</Badge>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {report.overall?.summary || "这份报告会把导学、练习、资源反馈和画像证据统一汇总，用来决定下一步。"}
+            {report.overall?.summary || "这份报告会把导学、练习、资源反馈和学习记录统一汇总，用来决定下一步。"}
           </p>
         </div>
-        <Badge tone="neutral">{Number(report.summary?.event_count ?? 0)} 条证据</Badge>
+        <Badge tone="neutral">{Number(report.summary?.event_count ?? 0)} 条记录</Badge>
       </div>
       {primaryAction ? (
         <div className="mt-3 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3">
@@ -511,7 +511,7 @@ function DemoReadinessCard({
         <Badge tone={effectStatusTone(score)}>{guideDisplayText(readiness.label, `${score} 分`)}</Badge>
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        {guideDisplayText(readiness.summary, "系统会检查画像、资源、练习、报告和可展示产物是否已经成链。")}
+        {guideDisplayText(readiness.summary, "系统会检查学习记录、资源、练习、报告和可展示产物是否已经成链。")}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {checks.slice(0, 5).map((item) => (
@@ -556,7 +556,7 @@ function ReportActionButton({
   const prompt = String(action?.prompt || action?.detail || "");
   const canGenerate = Boolean(resourceType && taskId);
   const opensCoursePackage = ["course_package", "project"].includes(kind);
-  const rawLabel = action?.label || (opensCoursePackage ? "查看课程产出包" : canGenerate ? `生成${reportResourceLabel(resourceType)}` : "查看完整路线");
+  const rawLabel = action?.label || (opensCoursePackage ? "查看课程成果" : canGenerate ? `生成${reportResourceLabel(resourceType)}` : "查看完整路线");
   const label = guideDisplayText(rawLabel);
   const tone = primary ? "primary" : "secondary";
   const sizeClass = primary ? "w-full justify-center" : "min-h-9 px-3 text-xs";

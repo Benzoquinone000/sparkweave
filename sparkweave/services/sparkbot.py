@@ -108,6 +108,12 @@ _EDITABLE_WORKSPACE_FILES = (
     "RUBRIC.md",
     "RESOURCES.md",
 )
+MAX_SPARKBOT_WORKSPACE_FILE_CHARS = 200_000
+MAX_SPARKBOT_SKILL_TEXT_CHARS = 200_000
+MAX_SPARKBOT_SKILL_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_SPARKBOT_SKILL_ZIP_FILES = 80
+MAX_SPARKBOT_SKILL_ZIP_FILE_BYTES = 2 * 1024 * 1024
+MAX_SPARKBOT_SKILL_ZIP_TOTAL_BYTES = 10 * 1024 * 1024
 _RESERVED_BOT_DIRS = {"souls", "_souls", "workspace", "media", "cron", "logs", "sessions"}
 _BUILTIN_SKILLS_DIR = Path(__file__).resolve().parents[1] / "sparkbot" / "skills"
 _PROMPT_FILE_MAX_CHARS = 12_000
@@ -10342,6 +10348,10 @@ class SparkBotManager:
         safe_name = self._safe_skill_name(skill_name)
         if not content.strip():
             raise ValueError("Skill content is required")
+        if len(content) > MAX_SPARKBOT_SKILL_TEXT_CHARS:
+            raise ValueError(
+                f"Skill content exceeds {MAX_SPARKBOT_SKILL_TEXT_CHARS} characters"
+            )
         if "SKILL" not in content[:400].upper() and not content.lstrip().startswith("---"):
             content = f"# {safe_name}\n\n{content.strip()}\n"
         skill_dir = self._workspace_skill_dir(bot_id, safe_name)
@@ -10365,6 +10375,11 @@ class SparkBotManager:
     ) -> dict[str, Any]:
         if not content:
             raise ValueError("Uploaded skill file is empty")
+        if len(content) > MAX_SPARKBOT_SKILL_UPLOAD_BYTES:
+            raise ValueError(
+                "Uploaded skill file exceeds "
+                f"{MAX_SPARKBOT_SKILL_UPLOAD_BYTES // 1024 // 1024}MB"
+            )
         safe_filename = Path(filename or "skill.md").name
         if safe_filename.lower().endswith(".zip"):
             return self._upload_bot_skill_zip(
@@ -10377,6 +10392,10 @@ class SparkBotManager:
             text = content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise ValueError("Skill file must be UTF-8 text or a zip archive") from exc
+        if len(text) > MAX_SPARKBOT_SKILL_TEXT_CHARS:
+            raise ValueError(
+                f"Skill content exceeds {MAX_SPARKBOT_SKILL_TEXT_CHARS} characters"
+            )
         inferred_name = skill_name or Path(safe_filename).stem or "skill"
         if safe_filename.lower() == "skill.md":
             inferred_name = skill_name or "uploaded-skill"
@@ -10406,6 +10425,32 @@ class SparkBotManager:
         if not skill_files:
             raise ValueError("Skill zip must contain a SKILL.md file")
         skill_file = sorted(skill_files, key=lambda path: len(path.parts))[0]
+        if len(members) > MAX_SPARKBOT_SKILL_ZIP_FILES:
+            raise ValueError(
+                f"Skill zip cannot contain more than {MAX_SPARKBOT_SKILL_ZIP_FILES} files"
+            )
+        total_uncompressed = 0
+        for item in members:
+            if item.flag_bits & 0x1:
+                raise ValueError("Encrypted skill zip entries are not supported")
+            total_uncompressed += int(item.file_size or 0)
+            if (
+                PurePosixPath(item.filename) == skill_file
+                and item.file_size > MAX_SPARKBOT_SKILL_TEXT_CHARS
+            ):
+                raise ValueError(
+                    f"Skill content exceeds {MAX_SPARKBOT_SKILL_TEXT_CHARS} characters"
+                )
+            if item.file_size > MAX_SPARKBOT_SKILL_ZIP_FILE_BYTES:
+                raise ValueError(
+                    f"Skill zip file '{Path(item.filename).name}' exceeds "
+                    f"{MAX_SPARKBOT_SKILL_ZIP_FILE_BYTES // 1024 // 1024}MB"
+                )
+        if total_uncompressed > MAX_SPARKBOT_SKILL_ZIP_TOTAL_BYTES:
+            raise ValueError(
+                "Skill zip uncompressed size exceeds "
+                f"{MAX_SPARKBOT_SKILL_ZIP_TOTAL_BYTES // 1024 // 1024}MB"
+            )
         prefix_parts = skill_file.parts[:-1]
         inferred_name = skill_name or (prefix_parts[-1] if prefix_parts else Path(filename).stem)
         safe_name = self._safe_skill_name(inferred_name)
@@ -10417,7 +10462,9 @@ class SparkBotManager:
             if prefix_parts and source_path.parts[: len(prefix_parts)] != prefix_parts:
                 continue
             rel_parts = source_path.parts[len(prefix_parts) :] if prefix_parts else source_path.parts
-            if not rel_parts or any(part in {"", ".", ".."} for part in rel_parts):
+            if not rel_parts or any(
+                part in {"", ".", ".."} or "\\" in part or ":" in part for part in rel_parts
+            ):
                 continue
             target = target_dir.joinpath(*rel_parts)
             target_resolved = target.resolve()
@@ -10458,6 +10505,10 @@ class SparkBotManager:
     def write_bot_file(self, bot_id: str, filename: str, content: str) -> bool:
         if filename not in _EDITABLE_WORKSPACE_FILES:
             return False
+        if len(content) > MAX_SPARKBOT_WORKSPACE_FILE_CHARS:
+            raise ValueError(
+                f"Workspace file content exceeds {MAX_SPARKBOT_WORKSPACE_FILE_CHARS} characters"
+            )
         path = self._workspace_dir(bot_id) / filename
         path.write_text(content, encoding="utf-8")
         if filename == "SOUL.md":

@@ -1,4 +1,4 @@
-from sparkweave.services.diagnostics import explain_provider_error
+from sparkweave.services.diagnostics import explain_provider_error, redact_sensitive_text
 
 
 def test_iflytek_llm_apikey_not_found_explains_http_key() -> None:
@@ -52,3 +52,23 @@ def test_iflytek_search_apikey_not_found_explains_api_password() -> None:
 
     assert "ONE SEARCH" in message
     assert "APIPassword" in message
+
+
+def test_provider_error_redacts_secret_values() -> None:
+    message = explain_provider_error(
+        "tts",
+        'request failed api_key="real-key" api_secret=real-secret Authorization: Bearer abcdef123456',
+    )
+
+    assert "real-key" not in message
+    assert "real-secret" not in message
+    assert "abcdef123456" not in message
+    assert "[REDACTED]" in message
+
+
+def test_redact_sensitive_text_handles_query_tokens() -> None:
+    message = redact_sensitive_text("https://example.test/path?access_token=abc123&ok=1 api-password: pass123")
+
+    assert "abc123" not in message
+    assert "pass123" not in message
+    assert "access_token=[REDACTED]" in message

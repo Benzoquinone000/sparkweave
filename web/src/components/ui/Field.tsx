@@ -19,7 +19,7 @@ export function FieldShell({
 }
 
 const controlClass =
-  "w-full min-h-10 rounded-lg border border-line-strong bg-white px-3 py-1.5 text-sm leading-[1.45] text-ink outline-none transition placeholder:text-stone file:mr-2 file:rounded-md file:border file:border-line file:bg-surface file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-charcoal hover:border-charcoal focus:border-brand-purple focus:ring-2 focus:ring-[#e6e0f5]";
+  "dt-field-control w-full min-h-9 rounded-lg border border-line bg-white/75 px-2.5 py-1.5 text-sm leading-[1.4] text-ink outline-none transition placeholder:text-steel file:mr-2 file:rounded-md file:border file:border-line file:bg-white file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-charcoal hover:border-line-strong focus:border-line-strong focus:ring-2 focus:ring-[#eef2f7]";
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${controlClass} ${props.className ?? ""}`} {...props} />;
@@ -50,12 +50,12 @@ export function FileInput({
   };
 
   return (
-    <div className={`flex min-h-10 w-full items-center gap-2.5 rounded-lg border border-line-strong bg-white px-2.5 py-1.5 text-sm transition hover:border-charcoal focus-within:border-brand-purple focus-within:ring-2 focus-within:ring-[#e6e0f5] ${className}`}>
+    <div className={`dt-field-control flex min-h-9 w-full items-center gap-2.5 rounded-lg border border-line bg-white/75 px-2.5 py-1.5 text-sm transition hover:border-line-strong focus-within:border-line-strong focus-within:ring-2 focus-within:ring-[#eef2f7] ${className}`}>
       <input {...props} ref={inputRef} type="file" multiple={multiple} onChange={handleChange} className="sr-only" />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="dt-interactive shrink-0 rounded-md border border-line bg-tint-lavender px-2.5 py-1 text-xs font-medium text-brand-purple hover:border-brand-purple-300"
+        className="dt-interactive shrink-0 rounded-md border border-line bg-white px-2.5 py-1 text-xs font-medium text-charcoal hover:border-line-strong"
       >
         {buttonLabel}
       </button>
@@ -65,7 +65,7 @@ export function FileInput({
 }
 
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${controlClass} min-h-24 resize-y leading-5 ${props.className ?? ""}`} {...props} />;
+  return <textarea className={`${controlClass} min-h-20 resize-y leading-5 ${props.className ?? ""}`} {...props} />;
 }
 
 export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {

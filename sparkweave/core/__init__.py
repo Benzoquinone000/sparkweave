@@ -4,11 +4,11 @@ from .capability_protocol import BaseCapability, CapabilityManifest
 from .contracts import Attachment, StreamBus, StreamEvent, StreamEventType, UnifiedContext
 from .errors import (
     ConfigurationError,
-    SparkWeaveError,
     EnvironmentConfigError,
     LLMContextError,
     LLMServiceError,
     ServiceError,
+    SparkWeaveError,
     ValidationError,
 )
 from .state import DEFAULT_CHAT_SYSTEM_PROMPT, TutorState, context_to_state

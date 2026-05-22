@@ -265,7 +265,7 @@ export function QuizViewer({
           maxLength={QUESTION_LIMITS.answer}
           disabled={answer.submitted}
           placeholder={kind === "coding" ? "写下你的代码或思路..." : "写下你的答案..."}
-          className={kind === "coding" ? "mt-4 min-h-40 font-mono" : "mt-4 min-h-32"}
+          className={kind === "coding" ? "mt-4 min-h-32 font-mono" : "mt-4 min-h-24"}
         />
       )}
 

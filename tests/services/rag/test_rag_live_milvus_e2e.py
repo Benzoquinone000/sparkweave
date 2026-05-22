@@ -16,11 +16,11 @@ from sparkweave.knowledge.initializer import KnowledgeBaseInitializer
 from sparkweave.services.kb_config import KnowledgeBaseConfigService
 from sparkweave.services.rag_support import milvus_http
 from sparkweave.services.rag_support.factory import reset_pipeline_cache
-from sparkweave.services.rag_support.query_planner import RagSubQuery
-from sparkweave.services.rag_support.service import RAGService
 import sparkweave.services.rag_support.pipelines.milvus as milvus_pipeline
 import sparkweave.services.rag_support.query_planner as query_planner_module
+from sparkweave.services.rag_support.query_planner import RagSubQuery
 import sparkweave.services.rag_support.query_transform as query_transform_module
+from sparkweave.services.rag_support.service import RAGService
 
 
 def _require_live_milvus() -> str:

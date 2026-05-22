@@ -84,6 +84,8 @@ import type {
   RuntimeTopology,
   SetupTourReopenResponse,
   SetupTourStatus,
+  SpeechEvaluateResponse,
+  SpeechTranscribeResponse,
   SystemStatus,
   SystemTestResponse,
   ThemeOption,
@@ -365,7 +367,7 @@ export function reopenSetupTour() {
   return fetchJson<SetupTourReopenResponse>("/api/v1/settings/tour/reopen", { method: "POST" });
 }
 
-export type SettingsServiceId = "llm" | "embedding" | "search" | "ocr";
+export type SettingsServiceId = "llm" | "embedding" | "search" | "ocr" | "tts" | "asr" | "speech_eval";
 
 export function startSettingsServiceTest(input: {
   service: SettingsServiceId;
@@ -1878,7 +1880,19 @@ export function autoMarkText(text: string) {
   return fetchJson<CoWriterResult>("/api/v1/co_writer/automark", jsonBody({ text }));
 }
 
-export async function testService(service: "llm" | "embeddings" | "search" | "ocr" | "tts") {
+export async function testService(
+  service:
+    | "llm"
+    | "embeddings"
+    | "search"
+    | "ocr"
+    | "tts"
+    | "asr"
+    | "speech_eval"
+    | "iflytek_workflow"
+    | "formula_ocr"
+    | "image_understanding",
+) {
   return fetchJson<SystemTestResponse>(`/api/v1/system/test/${service}`, { method: "POST" });
 }
 
@@ -1895,10 +1909,45 @@ export async function previewTts(text: string) {
     blob: await response.blob(),
     contentType: response.headers.get("content-type") || "audio/mpeg",
     voice: response.headers.get("x-sparkweave-tts-voice") || "",
+    fallback: response.headers.get("x-sparkweave-tts-fallback") === "true",
+    fallbackReason: response.headers.get("x-sparkweave-tts-fallback-reason") || "",
   };
 }
 
 export function previewOcrImage(input: { image_base64: string; encoding?: string }) {
   return fetchJson<OcrPreviewResponse>("/api/v1/system/ocr-preview", jsonBody(input));
+}
+
+export function transcribeSpeechAudio(input: { file: File; audioEncoding?: string }) {
+  const form = new FormData();
+  form.append("file", input.file);
+  if (input.audioEncoding?.trim()) form.append("audio_encoding", input.audioEncoding.trim());
+  return fetchJson<SpeechTranscribeResponse>("/api/v1/speech/transcribe", {
+    method: "POST",
+    body: form,
+  });
+}
+
+export function evaluateSpeechAudio(input: {
+  file: File;
+  referenceText: string;
+  courseId?: string;
+  nodeId?: string;
+  taskId?: string;
+  title?: string;
+  persistEvidence?: boolean;
+}) {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("reference_text", input.referenceText);
+  if (input.courseId?.trim()) form.append("course_id", input.courseId.trim());
+  if (input.nodeId?.trim()) form.append("node_id", input.nodeId.trim());
+  if (input.taskId?.trim()) form.append("task_id", input.taskId.trim());
+  if (input.title?.trim()) form.append("title", input.title.trim());
+  if (typeof input.persistEvidence === "boolean") form.append("persist_evidence", String(input.persistEvidence));
+  return fetchJson<SpeechEvaluateResponse>("/api/v1/speech/evaluate", {
+    method: "POST",
+    body: form,
+  });
 }
 

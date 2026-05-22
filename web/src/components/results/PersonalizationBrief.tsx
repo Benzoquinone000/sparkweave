@@ -25,7 +25,7 @@ export function PersonalizationBrief({
       data-testid="personalization-brief"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">按你的画像生成</Badge>
+        <Badge tone="brand">按你的学习情况生成</Badge>
         {insight.signals.slice(0, 4).map((item) => (
           <Badge key={`${item.label}-${item.value}`} tone="neutral">
             {item.label}：{item.value}
@@ -62,7 +62,7 @@ function buildPersonalizationInsight(hints?: Record<string, unknown> | null, sty
   const styleOnly = Boolean(styleHint?.trim());
   if (!signals.length && !goals.length && !nextTitle && !styleOnly) return null;
 
-  let headline = "这份资源不是随机生成的，系统已参考你的学习画像调整讲解顺序和呈现方式。";
+  let headline = "这份资源不是随机生成的，系统已参考你的学习记录调整讲解顺序和呈现方式。";
   if (weakPoints.length) {
     headline = `这份资源会先照顾「${weakPoints.slice(0, 2).join("、")}」，帮助你把当前最容易卡住的地方补清楚。`;
   } else if (currentFocus) {
@@ -74,7 +74,7 @@ function buildPersonalizationInsight(hints?: Record<string, unknown> | null, sty
   }
 
   const suggestion = nextTitle
-    ? `看完后建议回到「${nextTitle}」继续推进，让结果回写画像。`
+    ? `看完后建议回到「${nextTitle}」继续推进，让后续推荐更准。`
     : weakPoints.length
       ? "看完后最好立刻做一题或写一句反思，系统才能判断这个卡点是否真的缓解。"
       : "看完后回到当前任务提交反馈，后续推荐会更准。";

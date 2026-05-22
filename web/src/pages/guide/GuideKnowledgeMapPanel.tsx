@@ -127,7 +127,7 @@ export function GuideKnowledgeMapPanel({
                 <button
                   type="button"
                   onClick={() => setSelectedNodeId(item.nodeId)}
-                  className={`min-h-40 w-40 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${style.card}`}
+                  className={`min-h-40 w-40 rounded-lg border p-3 text-left transition hover:shadow-sm ${style.card}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className={`flex size-9 items-center justify-center rounded-lg border text-sm font-semibold ${style.dot}`}>

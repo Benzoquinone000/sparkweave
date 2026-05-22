@@ -29,7 +29,7 @@ export function KnowledgeSelector({
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-line bg-canvas p-2">
+      <div className="dt-dynamic-panel rounded-lg border border-line bg-canvas p-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-ink">
@@ -38,7 +38,7 @@ export function KnowledgeSelector({
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
               {selectedBases.length
                 ? selectedBases.join("、")
-                : "未选择时，知识库工具不会检索课程资料。"}
+                : "未选择时，回答不会主动查课程资料。"}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-1.5">
@@ -58,7 +58,7 @@ export function KnowledgeSelector({
       </div>
 
       {canSearch ? (
-        <label className="flex min-h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-steel focus-within:border-brand-purple-300">
+        <label className="dt-dynamic-panel flex min-h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-steel focus-within:border-brand-purple-300">
           <Search size={15} />
           <input
             value={filter}
@@ -76,41 +76,41 @@ export function KnowledgeSelector({
 
       <div className="space-y-1.5">
         {filteredBases.map((kb) => {
-        const active = selected.includes(kb.name);
-        return (
-          <button
-            key={kb.name}
-            type="button"
-            onClick={() =>
-              onChange(active ? selected.filter((item) => item !== kb.name) : [...selected, kb.name])
-            }
-            className={`dt-interactive flex min-h-10 w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left ${
-              active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
-            }`}
-            data-testid={`knowledge-selector-${kb.name}`}
-          >
-            <Database size={15} className={active ? "text-white" : "text-steel"} />
-            <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 items-center gap-2">
-                <span className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "text-white" : "text-ink"}`}>{kb.name}</span>
-                {kb.is_default ? <Badge tone={active ? "neutral" : "brand"}>默认</Badge> : null}
+          const active = selected.includes(kb.name);
+          return (
+            <button
+              key={kb.name}
+              type="button"
+              onClick={() =>
+                onChange(active ? selected.filter((item) => item !== kb.name) : [...selected, kb.name])
+              }
+              className={`dt-interactive dt-dynamic-result flex min-h-10 w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left ${
+                active ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-brand-purple"
+              }`}
+              data-testid={`knowledge-selector-${kb.name}`}
+            >
+              <Database size={15} className={active ? "text-white" : "text-steel"} />
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className={`min-w-0 flex-1 truncate text-sm font-medium ${active ? "text-white" : "text-ink"}`}>{kb.name}</span>
+                  {kb.is_default ? <Badge tone={active ? "neutral" : "brand"}>默认</Badge> : null}
+                </span>
+                <span className={`mt-1 block truncate text-xs leading-4 ${active ? "text-white/65" : "text-steel"}`}>
+                  {formatKnowledgeBaseStatus(kb.status)} · {formatKnowledgeBaseCount(kb.document_count, "文档")}
+                </span>
               </span>
-              <span className={`mt-1 block truncate text-xs leading-4 ${active ? "text-white/65" : "text-steel"}`}>
-                {formatKnowledgeBaseStatus(kb.status)} · {formatKnowledgeBaseCount(kb.document_count, "文档")}
-              </span>
-            </span>
-          </button>
-        );
-      })}
+            </button>
+          );
+        })}
         {bases.length && !filteredBases.length ? (
-          <p className="rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">
+          <p className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-white p-3 text-xs leading-5 text-slate-500">
             没有匹配的资料库，换个关键词试试。
           </p>
         ) : null}
       </div>
       {!bases.length ? (
-        <div className="rounded-lg border border-dashed border-line bg-white p-3 text-sm leading-6 text-slate-500">
-          <p>暂未发现资料库。你仍然可以先用普通问答，或去资料库页面导入课程资料。</p>
+        <div className="dt-dynamic-empty rounded-lg border border-dashed border-line bg-white p-3 text-sm leading-6 text-slate-500">
+          <p>暂未发现资料库。你仍然可以先直接提问，或去资料页面导入课程资料。</p>
           <a
             href="/knowledge"
             className="dt-interactive mt-2 inline-flex min-h-8 items-center rounded-lg border border-line px-2.5 text-xs font-medium text-ink hover:border-brand-purple-300"

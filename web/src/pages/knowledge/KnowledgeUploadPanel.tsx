@@ -53,7 +53,7 @@ export function KnowledgeUploadPanel({
         ) : null}
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        把新的课件、笔记或代码加入资料库，系统会自动建立可检索索引。
+        把新的课件、笔记或代码加入资料库，系统会自动整理成可引用片段。
       </p>
 
       <form className="mt-4 grid gap-3" onSubmit={onSubmit}>
@@ -81,13 +81,13 @@ export function KnowledgeUploadPanel({
             <p className="text-sm font-semibold text-red-700">上传没有完成</p>
             <p className="mt-1 text-sm leading-6 text-red-700">{formatErrorMessage(error)}</p>
             <Button tone="secondary" className="mt-3 min-h-9 px-3 text-xs" type="button" onClick={onRecover}>
-              查看修复向导
+              查看整理向导
             </Button>
           </div>
         ) : null}
         <Button tone="primary" type="submit" disabled={!activeKb || !files.length || uploading} data-testid="knowledge-upload-submit">
           {uploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-          上传并索引
+          上传并整理
         </Button>
       </form>
     </section>

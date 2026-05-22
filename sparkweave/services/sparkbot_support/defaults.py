@@ -275,14 +275,15 @@ COMPETITION_DEMO_WORKSPACE_FILES = {
 - `/knowledge`：课程资料库和 RAG 检索。
 - `/question`：题目生成与练习。
 - `/vision`：OCR 与图像题解析。
-- `/settings`：讯飞、LLM、Embedding、OCR、TTS 等 provider 配置。
+- `/settings`：讯飞、LLM、Embedding、OCR、公式识别、图片理解、语音和工作流 provider 配置。
 
 ## 科大讯飞工具链讲法
 
 - 星火大模型：对话式讲解、资源生成、学习处方。
-- OCR/公式识别：讲义截图和题目图片识别。
-- 语音听写：学生语音提问、课堂口述笔记。
-- TTS：60 秒语音讲解和短视频旁白。
+- Embedding / ONE SEARCH：课程资料索引、私域问答和公开资料补充。
+- OCR / 公式识别 / 图片理解：讲义截图、题目图片、板书和实验图先结构化，再进入智能辅导。
+- 语音听写 / TTS / 语音评测：口述问题、60 秒语音讲解和口语练习反馈。
+- 星辰工作流：把 PPT 大纲、课程资源生成或诊断报告封装成可复用流程。
 - 星火知识库或 SparkWeave RAG：课程私域资料问答和来源追溯。
 
 ## 演示兜底

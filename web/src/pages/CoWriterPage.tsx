@@ -29,7 +29,7 @@ function coWriterLimitMessage(text: string, instruction = "") {
     return `原文不能超过 ${MAX_CO_WRITER_TEXT_CHARS.toLocaleString("zh-CN")} 字。`;
   }
   if (instruction.length > MAX_CO_WRITER_INSTRUCTION_CHARS) {
-    return `指令不能超过 ${MAX_CO_WRITER_INSTRUCTION_CHARS.toLocaleString("zh-CN")} 字。`;
+    return `修改要求不能超过 ${MAX_CO_WRITER_INSTRUCTION_CHARS.toLocaleString("zh-CN")} 字。`;
   }
   return "";
 }
@@ -153,7 +153,7 @@ export function CoWriterPage() {
       link.click();
       URL.revokeObjectURL(url);
     }
-    setStreamLogs((current) => [...current, withLegacyText(`已导出 Markdown：${filename}`, `export: ${filename}`)].slice(-24));
+    setStreamLogs((current) => [...current, withLegacyText(`已导出文稿：${filename}`, `export: ${filename}`)].slice(-24));
   };
 
   const saveResult = async () => {
@@ -169,10 +169,10 @@ export function CoWriterPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto max-w-[1080px] space-y-3.5">
         <motion.section
-          className="rounded-lg border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+          className="dt-page-header dt-page-header-accent-orange p-3.5"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
@@ -229,7 +229,7 @@ export function CoWriterPage() {
                   value={text}
                   maxLength={MAX_CO_WRITER_TEXT_CHARS}
                   onChange={(event) => setText(event.target.value)}
-                  className="min-h-64"
+                  className="min-h-48"
                   data-testid="co-writer-source-text"
                 />
               </FieldShell>
@@ -239,10 +239,10 @@ export function CoWriterPage() {
                     <option value="rewrite">润色</option>
                     <option value="shorten">压缩</option>
                     <option value="expand">扩展</option>
-                    <option value="none">自由指令</option>
+                    <option value="none">自定义要求</option>
                   </SelectInput>
                 </FieldShell>
-                <FieldShell label="知识库">
+                <FieldShell label="资料来源">
                   <SelectInput value={kbName} onChange={(event) => setKbName(event.target.value)}>
                     <option value="">不引用</option>
                     {(knowledge.data ?? []).map((kb) => (
@@ -253,7 +253,7 @@ export function CoWriterPage() {
                   </SelectInput>
                 </FieldShell>
               </div>
-              <FieldShell label="指令" hint={`${instruction.length}/${MAX_CO_WRITER_INSTRUCTION_CHARS}`}>
+              <FieldShell label="修改要求" hint={`${instruction.length}/${MAX_CO_WRITER_INSTRUCTION_CHARS}`}>
                 <TextInput
                   value={instruction}
                   maxLength={MAX_CO_WRITER_INSTRUCTION_CHARS}
@@ -319,7 +319,7 @@ export function CoWriterPage() {
                   data-testid="co-writer-export"
                 >
                   {mutations.exportMarkdown.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                  导出 Markdown
+                  导出文稿
                 </Button>
               </div>
             </div>
@@ -337,8 +337,8 @@ export function CoWriterPage() {
                 data-testid="co-writer-stream-toggle"
               >
                 <span>
-                  <span className="block text-sm font-semibold text-ink">生成过程</span>
-                  <span className="mt-1 block text-sm text-slate-500">需要排查或演示时查看。</span>
+                  <span className="block text-sm font-semibold text-ink">生成进度</span>
+                  <span className="mt-1 block text-sm text-slate-500">需要复盘修改过程时查看。</span>
                 </span>
                 <Badge tone={streamLogs.length ? "brand" : "neutral"}>{streamLogs.length ? `${streamLogs.length} 条` : "等待"}</Badge>
               </summary>
@@ -359,7 +359,7 @@ export function CoWriterPage() {
                     ))}
                   </AnimatePresence>
                 ) : (
-                  <p className="text-slate-500">流式编辑过程会在这里出现。</p>
+                  <p className="text-slate-500">生成过程会显示在这里。</p>
                 )}
               </div>
             </details>
@@ -402,11 +402,11 @@ export function CoWriterPage() {
                     className={`rounded-lg border p-4 text-left text-sm text-slate-600 transition ${
                       selectedOperationId === operationId ? "border-brand-purple-300 bg-tint-lavender" : "border-line bg-white hover:border-brand-purple-300"
                     }`}
-                    whileHover={{ y: -2 }}
+                    whileHover={{ y: -0.5 }}
                     whileTap={{ scale: 0.99 }}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="truncate font-semibold text-ink">{String(item.instruction ?? item.action ?? "Co-Writer")}</p>
+                      <p className="truncate font-semibold text-ink">{String(item.instruction ?? item.action ?? "写作任务")}</p>
                       <Eye size={15} className="shrink-0 text-brand-blue" />
                     </div>
                     <p className="mt-2 line-clamp-2 leading-6">{getHistoryPreview(item)}</p>
@@ -428,23 +428,23 @@ export function CoWriterPage() {
                 data-testid="co-writer-audit-toggle"
               >
                 <span>
-                  <h2 className="text-base font-semibold text-ink">操作审计</h2>
-                  <span className="mt-1 block text-sm text-slate-500">{selectedOperationId || "选择历史任务后可查看输入、输出和依据。"}</span>
+                  <h2 className="text-base font-semibold text-ink">修改记录</h2>
+                  <span className="mt-1 block text-sm text-slate-500">{selectedOperationId || "选择历史任务后可查看输入、输出和参考来源。"}</span>
                 </span>
                 <Badge tone={toolCalls.data ? "brand" : "neutral"}>{toolCalls.data ? "有记录" : "详情"}</Badge>
               </summary>
               <div className="mt-4 space-y-3 border-t border-line pt-4">
                 {operation.isFetching ? (
-                  <p className="rounded-lg border border-line bg-white p-3 text-sm text-slate-500">正在读取操作详情...</p>
+                  <p className="rounded-lg border border-line bg-white p-3 text-sm text-slate-500">正在读取修改记录...</p>
                 ) : operation.data ? (
                   <>
                     <AuditBlock title="输入" content={getOperationInput(operation.data)} />
                     <AuditBlock title="输出" content={getOperationOutput(operation.data)} />
-                    <AuditBlock title="修改依据" content={formatToolCallEvidence(toolCalls.data)} />
+                    <AuditBlock title="修改参考" content={formatToolCallEvidence(toolCalls.data)} />
                   </>
                 ) : (
                   <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm leading-6 text-slate-500">
-                    历史任务会保留输入、输出和修改依据，适合比赛演示时说明 AI 如何完成编辑。
+                    历史任务会保留输入、输出和修改参考，适合演示时说明系统如何完成编辑。
                   </p>
                 )}
               </div>
@@ -472,8 +472,8 @@ function formatStreamEvent(event: CoWriterStreamEvent) {
   const label = event.stage || event.source || event.type || "event";
   const content = event.content || event.type || "";
   const legacy = content ? `${label}: ${event.type === "tool_call" ? `tool ${content}` : content}` : label;
-  if (event.type === "tool_call") return withLegacyText(`调用辅助工具：${formatCoWriterLogContent(content)}`, legacy);
-  if (event.type === "tool_result") return withLegacyText("辅助工具已返回结果", `${label}: tool result`);
+  if (event.type === "tool_call") return withLegacyText(`查找参考：${formatCoWriterLogContent(content)}`, legacy);
+  if (event.type === "tool_result") return withLegacyText("参考已返回", `${label}: tool result`);
   if (event.type === "stage_start") return withLegacyText(`${coWriterStageLabel(label)}开始`, `${label}: start`);
   if (event.type === "stage_end") return withLegacyText(`${coWriterStageLabel(label)}完成`, `${label}: done`);
   if (event.type === "thinking" || event.type === "progress") {
@@ -486,7 +486,7 @@ function coWriterStageLabel(value: unknown) {
   const stage = String(value || "").toLowerCase();
   if (stage.includes("thinking") || stage.includes("plan")) return "规划修改";
   if (stage.includes("respond")) return "生成结果";
-  if (stage.includes("tool")) return "调用工具";
+  if (stage.includes("tool")) return "查找参考";
   if (stage.includes("rewrite")) return "润色文本";
   if (stage.includes("shorten")) return "压缩文本";
   if (stage.includes("expand")) return "扩展文本";
@@ -497,7 +497,7 @@ function formatCoWriterLogContent(value: unknown) {
   const text = String(value || "").trim();
   if (!text) return "正在处理";
   const lower = text.toLowerCase();
-  if (lower === "planning edit") return "正在分析原文和编辑指令";
+  if (lower === "planning edit") return "正在分析原文和修改要求";
   if (lower === "stream failed") return "流式生成失败";
   return text;
 }
@@ -505,7 +505,7 @@ function formatCoWriterLogContent(value: unknown) {
 function formatToolCallEvidence(value: unknown) {
   const record = isRecord(value) ? value : {};
   const traces = Array.isArray(record.tool_traces) ? record.tool_traces : [];
-  if (!traces.length) return "这次修改主要根据原文和你的编辑要求完成，没有额外调用资料工具。";
+  if (!traces.length) return "这次修改主要根据原文和你的编辑要求完成，没有额外查找资料参考。";
   return traces
     .slice(0, 5)
     .map((trace, index) => {
@@ -520,9 +520,9 @@ function formatToolCallEvidence(value: unknown) {
 function formatToolName(value: unknown) {
   const text = String(value || "").trim();
   const lower = text.toLowerCase();
-  if (!text) return "辅助工具";
-  if (lower.includes("rag")) return "知识库检索";
-  if (lower.includes("search")) return "资料检索";
+  if (!text) return "参考来源";
+  if (lower.includes("rag")) return "资料查找";
+  if (lower.includes("search")) return "资料查找";
   if (lower.includes("mark")) return "自动批注";
   if (lower.includes("edit") || lower.includes("rewrite")) return "文本编辑";
   return text.replace(/_/g, " ");

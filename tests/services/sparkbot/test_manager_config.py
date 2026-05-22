@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
+import zipfile
 
 import pytest
 import yaml
 
-from sparkweave.services.sparkbot import BotConfig, SparkBotManager
+from sparkweave.services.sparkbot import (
+    BotConfig,
+    MAX_SPARKBOT_SKILL_ZIP_FILE_BYTES,
+    MAX_SPARKBOT_WORKSPACE_FILE_CHARS,
+    SparkBotManager,
+)
 
 
 @pytest.fixture
@@ -116,6 +123,55 @@ class TestAtomicWrite:
         # Original config must still be intact.
         loaded = manager.load_bot_config("safe-bot")
         assert loaded == good_cfg
+
+
+class TestWorkspaceFileSafety:
+    def test_rejects_oversized_workspace_file(self, manager: SparkBotManager):
+        with pytest.raises(ValueError, match="Workspace file content exceeds"):
+            manager.write_bot_file(
+                "bot",
+                "NOTES.md",
+                "x" * (MAX_SPARKBOT_WORKSPACE_FILE_CHARS + 1),
+            )
+
+
+class TestSkillUploadSafety:
+    @staticmethod
+    def _zip_bytes(entries: dict[str, bytes]) -> bytes:
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, content in entries.items():
+                archive.writestr(name, content)
+        return buffer.getvalue()
+
+    def test_upload_skill_zip_ignores_traversal_entries(self, manager: SparkBotManager):
+        content = self._zip_bytes(
+            {
+                "safe/SKILL.md": b"# Safe skill\n",
+                "safe/../evil.txt": b"outside",
+                "safe/nested\\evil.txt": b"outside",
+                "../escape.txt": b"outside",
+            }
+        )
+
+        result = manager.upload_bot_skill("bot", filename="safe.zip", content=content)
+        workspace = manager._workspace_dir("bot")
+
+        assert result["name"] == "safe"
+        assert (workspace / "skills" / "safe" / "SKILL.md").exists()
+        assert not (workspace / "skills" / "evil.txt").exists()
+        assert not (workspace / "escape.txt").exists()
+
+    def test_upload_skill_zip_rejects_oversized_member(self, manager: SparkBotManager):
+        content = self._zip_bytes(
+            {
+                "safe/SKILL.md": b"# Safe skill\n",
+                "safe/payload.bin": b"x" * (MAX_SPARKBOT_SKILL_ZIP_FILE_BYTES + 1),
+            }
+        )
+
+        with pytest.raises(ValueError, match="exceeds"):
+            manager.upload_bot_skill("bot", filename="safe.zip", content=content)
 
 
 # ---------------------------------------------------------------------------

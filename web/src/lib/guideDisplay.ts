@@ -11,7 +11,7 @@ export function originLabel(origin: string) {
     adaptive_retest: "复测",
     adaptive_transfer: "迁移",
     diagnostic_remediation: "前测补强",
-    learner_memory: "长期画像",
+    learner_memory: "长期记录",
     planned: "计划",
   };
   return labels[origin] || origin || "任务";
@@ -129,29 +129,29 @@ export function preflightCheckTone(status?: string): GuideTone {
 const GUIDE_DISPLAY_COPY: Record<string, string> = {
   "Ready for recording": "可录屏",
   Ready: "可录屏",
-  "Stable demo course package": "稳定演示产出包",
-  "Stable demo course package for a 7-minute recording.": "用于 7 分钟录屏的稳定课程产出包。",
+  "Stable demo course package": "稳定演示成果",
+  "Stable demo course package for a 7-minute recording.": "用于 7 分钟录屏的稳定课程成果。",
   "7-minute demo route": "7 分钟演示路线",
-  "Show profile, route, resource, feedback, and package.": "展示画像、路线、资源、反馈和产出包。",
+  "Show profile, route, resource, feedback, and package.": "展示学习记录、路线、资源、反馈和成果。",
   "Open guide route before recording.": "录屏前先打开导学路线。",
-  "Profile, resource, feedback, report and package can now be shown as one chain.": "画像、资源、反馈、报告和产出包已经能串成一条闭环。",
-  "Open the route map, then open the course package.": "先看路线，再看课程产出包。",
-  "Open the route and course package": "查看路线和产出包",
-  "Use the route map and package to show the closed loop.": "用路线图和产出包展示学习闭环。",
+  "Profile, resource, feedback, report and package can now be shown as one chain.": "学习记录、资源、反馈、报告和课程成果已经串成一条学习链。",
+  "Open the route map, then open the course package.": "先看路线，再看课程成果。",
+  "Open the route and course package": "查看路线和成果",
+  "Use the route map and package to show the closed loop.": "用路线图和课程成果展示完整学习过程。",
   "Machine Learning Foundations": "机器学习基础",
   "Explain gradient descent": "讲清楚梯度下降",
-  "Build one visual resource and one feedback loop.": "生成一份图解资源，并完成一次反馈闭环。",
+  "Build one visual resource and one feedback loop.": "生成一份图解资源，并完成一次反馈复盘。",
   "Create route": "创建路线",
   "Generate visual": "生成图解",
   "Submit feedback": "提交反馈",
   Route: "路线",
   Visual: "图解",
   Feedback: "反馈",
-  Profile: "画像",
-  profile: "画像",
+  Profile: "学习记录",
+  profile: "学习记录",
   feedback: "反馈",
-  "Closed loop": "闭环",
-  "Shows profile to feedback.": "能展示画像到反馈的闭环。",
+  "Closed loop": "完整学习过程",
+  "Shows profile to feedback.": "能展示从学习记录到反馈的完整过程。",
   Optimization: "优化方法",
   "Do one short retest.": "做一次短复测。",
   "Retest gradient descent.": "复测梯度下降。",
@@ -160,16 +160,16 @@ const GUIDE_DISPLAY_COPY: Record<string, string> = {
   "Use saved visuals if generation is slow.": "生成变慢时，展示已保存图解。",
   "Gradient descent visual": "梯度下降图解",
   "Use saved visual.": "使用已保存图解。",
-  "Profile evidence": "画像证据",
-  "Profile is present.": "已有画像证据。",
-  "Open learner profile.": "打开学习画像。",
+  "Profile evidence": "学习记录来源",
+  "Profile is present.": "已有学习记录来源。",
+  "Open learner profile.": "打开学习记录。",
   Resource: "资源",
   "Visual resource was requested.": "已请求图解资源。",
-  "Feedback loop is visible.": "反馈闭环可见。",
+  "Feedback loop is visible.": "反馈路径可见。",
   "Demo learning report": "演示学习报告",
-  "The demo learner has a visible feedback loop.": "演示学习者已经形成可见反馈闭环。",
+  "The demo learner has a visible feedback loop.": "演示学习者已经形成可见反馈路径。",
   "Feedback recorded": "反馈已记录",
-  "Profile updated.": "画像已更新。",
+  "Profile updated.": "学习记录已更新。",
   Demo: "演示",
   ready: "已就绪",
   "Open route": "查看路线",
@@ -180,19 +180,26 @@ const GUIDE_DISPLAY_COPY: Record<string, string> = {
   ml_foundations: "机器学习基础",
   task_chain: "任务链路",
   route_map: "学习路线",
-  course_package: "课程产出包",
-  T1: "画像校准",
+  course_package: "课程成果包",
+  T1: "记录校准",
   T2: "路线创建",
   T3: "资源生成",
   T4: "图解演示",
   T5: "练习反馈",
   T6: "效果报告",
-  "T1 profile": "画像校准",
+  "T1 profile": "记录校准",
   "T2 route": "路线创建",
   "T3 resource": "资源生成",
   "T4 visual": "图解演示",
   "T5 practice": "练习反馈",
   "T6 report": "效果报告",
+  对话协调智能体: "理解任务",
+  画像智能体: "学习记录",
+  学习画像智能体: "学习记录",
+  路径规划智能体: "路线规划",
+  资源生成智能体集群: "资源生成",
+  评估智能体: "学习评估",
+  视频检索智能体: "视频查找",
 };
 
 export function guideDisplayText(value: unknown, fallback = ""): string {
@@ -201,7 +208,20 @@ export function guideDisplayText(value: unknown, fallback = ""): string {
   const translated = GUIDE_DISPLAY_COPY[text];
   if (translated) return translated;
   if (isLikelyInternalIdentifier(text)) return fallback || "学习内容";
-  return text;
+  return normalizeGuideUserText(text);
+}
+
+function normalizeGuideUserText(text: string) {
+  return text
+    .replace(/多智能体协同/g, "多步骤协同")
+    .replace(/多智能体协作/g, "多步骤协作")
+    .replace(/智能体接力/g, "学习步骤接续")
+    .replace(/学习画像|用户画像|画像/g, "学习记录")
+    .replace(/智能体/g, "步骤")
+    .replace(/产出包/g, "成果包")
+    .replace(/闭环/g, "学习链")
+    .replace(/索引/g, "整理")
+    .replace(/检索/g, "查找");
 }
 
 export function guideSafeFilename(value: unknown, fallback = "sparkweave-course-package"): string {
@@ -228,7 +248,7 @@ export function guideStageLabel(value: unknown, fallback = "步骤") {
   const exact = GUIDE_DISPLAY_COPY[raw];
   if (exact) return exact;
   const normalized = raw.toLowerCase().replace(/[\s-]+/g, "_");
-  if (normalized.includes("profile")) return "画像校准";
+  if (normalized.includes("profile")) return "记录校准";
   if (normalized.includes("route")) return "路线创建";
   if (normalized.includes("visual")) return "图解演示";
   if (normalized.includes("audio") || normalized.includes("speech") || normalized.includes("tts")) return "语音讲解";

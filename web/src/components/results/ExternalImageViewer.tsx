@@ -4,6 +4,7 @@ import { ExternalLink, Image as ImageIcon, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { PersonalizationBrief } from "@/components/results/PersonalizationBrief";
+import { formatMediaTraceLabel } from "@/components/results/mediaTraceLabels";
 import { appendLearningEffectEvent } from "@/lib/api";
 import { invalidateLearningQueries } from "@/lib/queryInvalidation";
 import type { ExternalImageResult } from "@/lib/types";
@@ -40,6 +41,14 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
   const queryClient = useQueryClient();
   const images = result.images ?? [];
   const featured = images.find((item) => bestImageUrl(item) && !isFallbackImage(item)) ?? images[0];
+  const featuredIndex = Math.max(
+    0,
+    images.findIndex((item) => {
+      const itemUrl = safeExternalUrl(item.url || item.image_url || item.thumbnail);
+      const targetUrl = safeExternalUrl(featured?.url || featured?.image_url || featured?.thumbnail);
+      return itemUrl === targetUrl && item.title === featured?.title;
+    }),
+  );
   const featuredUrl = safeExternalUrl(featured?.url || featured?.image_url || featured?.thumbnail);
   const featuredImageUrl = featured ? bestImageUrl(featured) : "";
   const hasFallbackSearch = result.fallback_search || images.some((item) => isFallbackImage(item));
@@ -108,7 +117,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
   );
 
   return (
-    <div className="rounded-lg border border-line bg-surface p-2.5" data-testid="external-image-viewer">
+    <div className="dt-dynamic-result rounded-lg border border-line bg-surface p-2.5" data-testid="external-image-viewer">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">{hasFallbackSearch ? "搜索入口" : "精选图片"}</Badge>
         <Badge tone="neutral">{images.length ? `${images.length} 张推荐` : "等待结果"}</Badge>
@@ -118,7 +127,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
       <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
 
       {featured ? (
-        <div className="mt-3 rounded-lg border border-line bg-tint-yellow p-2.5" data-testid="external-image-view-plan">
+        <div className="dt-dynamic-panel mt-3 rounded-lg border border-line bg-tint-yellow p-2.5" data-testid="external-image-view-plan">
           <p className="text-xs font-semibold text-ink">建议用法</p>
           {viewPlan.length ? (
             <ol className="mt-2 grid gap-1.5 text-xs leading-5 text-charcoal">
@@ -137,7 +146,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
             </p>
           )}
           {result.reflection_prompt ? (
-            <p className="mt-3 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-charcoal">
+            <p className="dt-dynamic-panel mt-3 rounded-md border border-line bg-white px-3 py-2 text-xs leading-5 text-charcoal">
               {result.reflection_prompt}
             </p>
           ) : null}
@@ -146,18 +155,18 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
 
       {chain.length ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-steel" data-testid="external-image-chain">
-          <span className="font-medium text-charcoal">工具处理</span>
+          <span className="font-medium text-charcoal">处理过程</span>
           {chain.map((item, index) => (
-            <span key={`${item.label || item.detail}-${index}`} className="rounded-md border border-line bg-white px-2 py-1">
-              {item.label || item.detail}
+            <span key={`${item.label || item.detail}-${index}`} className="dt-dynamic-panel rounded-md border border-line bg-white px-2 py-1">
+              {formatMediaTraceLabel(item)}
             </span>
           ))}
         </div>
       ) : null}
 
       {featured && featuredImageUrl ? (
-        <div className="mt-3 max-w-xl overflow-hidden rounded-lg border border-line bg-white">
-          <a href={featuredUrl || featuredImageUrl} target="_blank" rel="noreferrer" onClick={() => recordImageViewed(featured, 0)}>
+        <div className="dt-dynamic-result mt-3 max-w-xl overflow-hidden rounded-lg border border-line bg-white">
+          <a href={featuredUrl || featuredImageUrl} target="_blank" rel="noreferrer" onClick={() => recordImageViewed(featured, featuredIndex)}>
             <img
               src={featuredImageUrl}
               alt={featured?.title || "精选学习图片"}
@@ -168,16 +177,16 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
             />
           </a>
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-            <p className="text-xs leading-5 text-steel">打开或查看后，系统会把这种资源偏好写回画像。</p>
+            <p className="text-xs leading-5 text-steel">打开或查看后，后续推荐会更准。</p>
             {featuredUrl || featuredImageUrl ? (
               <button
                 type="button"
                 data-testid="external-image-mark-viewed"
-                onClick={() => recordImageViewed(featured, 0)}
+                onClick={() => recordImageViewed(featured, featuredIndex)}
                 disabled={viewedImageUrls.has(featuredUrl || featuredImageUrl)}
                 className="inline-flex min-h-8 items-center rounded-md border border-line bg-ink px-2 text-xs font-medium text-white transition hover:bg-brand-purple disabled:cursor-default disabled:bg-canvas disabled:text-steel"
               >
-                {viewedImageUrls.has(featuredUrl || featuredImageUrl) ? "已记入画像依据" : "我看了这个，记入画像"}
+                {viewedImageUrls.has(featuredUrl || featuredImageUrl) ? "已记入学习记录" : "我看了这个，记入学习记录"}
               </button>
             ) : null}
           </div>
@@ -192,7 +201,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
             const viewedKey = pageUrl || imageUrl;
 
             return (
-              <article key={`${pageUrl || imageUrl || "image"}-${index}`} className="rounded-lg border border-line bg-white p-2.5">
+              <article key={`${pageUrl || imageUrl || "image"}-${index}`} className="dt-dynamic-result rounded-lg border border-line bg-white p-2.5">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
@@ -240,7 +249,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
                           className="inline-flex min-h-8 items-center rounded-md border border-line bg-canvas px-2 text-xs text-slate-500"
                           data-testid={`external-image-evidence-${index}`}
                         >
-                          已记入画像依据
+                          已记入学习记录
                         </span>
                       ) : null}
                     </div>
@@ -251,7 +260,7 @@ export function ExternalImageViewer({ result }: { result: ExternalImageResult })
           })}
         </div>
       ) : (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+        <div className="dt-dynamic-empty mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
           <Search size={16} />
           暂时没有找到稳定的图片链接，可以换一个更具体的关键词再试。
         </div>

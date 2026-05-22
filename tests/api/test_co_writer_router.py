@@ -5,7 +5,6 @@ import json
 
 import pytest
 
-
 pytest.importorskip("fastapi")
 FastAPI = pytest.importorskip("fastapi").FastAPI
 TestClient = pytest.importorskip("fastapi.testclient").TestClient

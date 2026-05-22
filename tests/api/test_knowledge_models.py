@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from sparkweave.api.routers.knowledge_models import (
     MAX_RAG_EVAL_CASES,

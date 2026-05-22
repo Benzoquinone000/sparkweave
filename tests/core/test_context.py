@@ -5,11 +5,11 @@ from __future__ import annotations
 from sparkweave.core.contracts import Attachment, StreamEvent, StreamEventType, UnifiedContext
 from sparkweave.core.errors import (
     ConfigurationError,
-    SparkWeaveError,
     EnvironmentConfigError,
     LLMContextError,
     LLMServiceError,
     ServiceError,
+    SparkWeaveError,
     ValidationError,
 )
 from sparkweave.core.trace import (

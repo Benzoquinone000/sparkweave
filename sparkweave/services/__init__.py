@@ -3,12 +3,12 @@
 from .code_execution import run_python_code
 from .config import LLMConfig, clear_llm_config_cache, get_llm_config, reload_config
 from .context import ContextBuilder, NotebookAnalysisAgent
+from .learning_effect import create_learning_effect_service, get_learning_effect_service
 from .math_animator import (
     load_generated_code_model,
     load_rendering_components,
     load_visual_review_components,
 )
-from .learning_effect import create_learning_effect_service, get_learning_effect_service
 from .memory import create_memory_service, get_memory
 from .notebook import create_notebook_manager, get_notebooks
 from .ocr import (
@@ -41,6 +41,8 @@ from .session import (
 from .tts import (
     TtsUnavailable,
     is_iflytek_tts_configured,
+    is_tts_or_offline_fallback_available,
+    synthesize_speech_with_fallback,
     synthesize_speech_with_iflytek,
 )
 from .validation import validate_capability_config
@@ -97,10 +99,12 @@ __all__ = [
     "run_python_code",
     "search_arxiv_papers",
     "synthesize_speech_with_iflytek",
+    "synthesize_speech_with_fallback",
     "parse_pdf_with_mineru",
     "TtsUnavailable",
     "ocr_pdf_with_iflytek",
     "is_iflytek_tts_configured",
+    "is_tts_or_offline_fallback_available",
     "recognize_image_with_iflytek",
     "validate_capability_config",
     "web_search",

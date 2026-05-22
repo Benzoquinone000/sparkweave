@@ -6,7 +6,7 @@ import pytest
 
 from sparkweave.core.contracts import StreamBus, StreamEventType, UnifiedContext
 from sparkweave.core.tool_protocol import ToolResult
-from sparkweave.graphs.chat import ChatGraph
+from sparkweave.graphs.chat import MAX_PARALLEL_TOOL_CALLS, ChatGraph
 
 
 class FakeModel:
@@ -139,6 +139,34 @@ class FakeRAGToolRegistry(FakeToolRegistry):
         )
 
 
+class FakeCanvasToolRegistry(FakeToolRegistry):
+    def names(self):
+        return ["canvas"]
+
+    async def execute(self, name, **kwargs):
+        self.calls.append((name, kwargs))
+        return ToolResult(
+            content=f"Canvas document ready: {kwargs['title']}",
+            metadata={
+                "render_type": "canvas_document",
+                "tool_name": "canvas",
+                "canvas_document": {
+                    "title": kwargs["title"],
+                    "content": kwargs["content"],
+                    "operation": kwargs.get("operation", "create"),
+                },
+            },
+        )
+
+
+class FakeCommonToolRegistry(FakeToolRegistry):
+    def names(self):
+        return ["canvas", "rag", "web_search"]
+
+    def get_tools(self, names):
+        return [SimpleNamespace(name=name) for name in names]
+
+
 class ProfileSelectingRAGModel:
     """Deterministic stand-in for a tool-calling agent.
 
@@ -268,6 +296,217 @@ async def test_chat_graph_executes_model_tool_call():
     assert registry.calls == [("echo", {"query": "langgraph"})]
     assert any(event.type == StreamEventType.TOOL_CALL for event in bus._history)
     assert any(event.type == StreamEventType.TOOL_RESULT for event in bus._history)
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_exposes_canvas_as_tool_result_metadata():
+    from langchain_core.messages import AIMessage
+
+    registry = FakeCanvasToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(
+        model=FakeModel(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "canvas",
+                            "args": {
+                                "title": "Gradient descent study plan",
+                                "content": "# Gradient descent study plan\n\n- Learn the loss curve.",
+                                "operation": "create",
+                            },
+                            "id": "canvas-call-1",
+                        }
+                    ],
+                ),
+                AIMessage(content="I opened the study plan in the canvas."),
+            ]
+        ),
+        tool_registry=registry,
+        coordinator_enabled=False,
+    )
+    context = UnifiedContext(user_message="write a study plan draft", enabled_tools=["canvas"])
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "I opened the study plan in the canvas."
+    assert registry.calls[0][0] == "canvas"
+    tool_result_events = [event for event in bus._history if event.type == StreamEventType.TOOL_RESULT]
+    assert tool_result_events[-1].metadata["tool_name"] == "canvas"
+    assert tool_result_events[-1].metadata["result_metadata"]["render_type"] == "canvas_document"
+    assert "loss curve" in tool_result_events[-1].metadata["result_metadata"]["canvas_document"]["content"]
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_direct_answer_constraint_clears_enabled_tools():
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel([AIMessage(content="Gradient descent moves parameters downhill on the loss.")])
+    registry = FakeCommonToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="直接回答什么是梯度下降，不要用工具",
+        enabled_tools=["canvas", "rag", "web_search"],
+        knowledge_bases=["course"],
+    )
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "Gradient descent moves parameters downhill on the loss."
+    assert model.bound_tools is None
+    assert registry.calls == []
+    assert not any(event.type == StreamEventType.TOOL_CALL for event in bus._history)
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_no_canvas_constraint_removes_canvas_tool_only():
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel([AIMessage(content="Gradient descent is an iterative optimization method.")])
+    registry = FakeCommonToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="详细解释梯度下降，不要打开画布",
+        enabled_tools=["canvas", "rag", "web_search"],
+        knowledge_bases=["course"],
+    )
+
+    await graph.run(context, bus)
+
+    assert model.bound_tools
+    assert [tool.name for tool in model.bound_tools] == ["rag", "web_search"]
+    system_prompt = model.seen_messages[0][0].content
+    assert "The canvas tool is not enabled for this turn." in system_prompt
+    assert registry.calls == []
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_no_retrieval_constraint_removes_search_tools():
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel([AIMessage(content="I will answer without searching external resources.")])
+    registry = FakeCommonToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry)
+    context = UnifiedContext(
+        user_message="Find a public video about gradient descent, no search",
+        enabled_tools=["canvas", "rag", "web_search"],
+        knowledge_bases=["course"],
+    )
+
+    await graph.run(context, bus)
+
+    assert model.bound_tools
+    assert [tool.name for tool in model.bound_tools] == ["canvas"]
+    system_prompt = model.seen_messages[0][0].content
+    assert "The rag tool is not enabled for this turn." in system_prompt
+    assert registry.calls == []
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_skips_tool_call_not_enabled_for_turn():
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    model = FakeModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "canvas",
+                        "args": {
+                            "title": "Gradient descent plan",
+                            "content": "# Plan",
+                        },
+                        "id": "canvas-disabled-1",
+                    }
+                ],
+            ),
+            AIMessage(content="I will answer in chat without opening the canvas."),
+        ]
+    )
+    registry = FakeCommonToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry, coordinator_enabled=False)
+    context = UnifiedContext(
+        user_message="Explain gradient descent in chat",
+        enabled_tools=["rag"],
+        knowledge_bases=["course"],
+        config_overrides={"prefetch_rag": False},
+    )
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "I will answer in chat without opening the canvas."
+    assert model.bound_tools
+    assert [tool.name for tool in model.bound_tools] == ["rag"]
+    assert registry.calls == []
+    assert not any(event.type == StreamEventType.TOOL_CALL for event in bus._history)
+    warning_events = [
+        event
+        for event in bus._history
+        if event.metadata.get("reason") == "disabled_tool_call"
+    ]
+    assert warning_events
+    assert warning_events[-1].metadata["tool_name"] == "canvas"
+    second_call_messages = model.seen_messages[-1]
+    assert any(
+        isinstance(message, ToolMessage)
+        and message.tool_call_id == "canvas-disabled-1"
+        and "not enabled" in str(message.content)
+        for message in second_call_messages
+    )
+
+
+@pytest.mark.asyncio
+async def test_chat_graph_sends_tool_messages_for_overflow_tool_calls():
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    tool_calls = [
+        {
+            "name": "echo",
+            "args": {"query": f"query-{index}"},
+            "id": f"echo-{index}",
+        }
+        for index in range(MAX_PARALLEL_TOOL_CALLS + 2)
+    ]
+    model = FakeModel(
+        [
+            AIMessage(content="", tool_calls=tool_calls),
+            AIMessage(content="I used the available tool results."),
+        ]
+    )
+    registry = FakeToolRegistry()
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=registry, coordinator_enabled=False)
+    context = UnifiedContext(
+        user_message="Use many echo tools",
+        enabled_tools=["echo"],
+    )
+
+    state = await graph.run(context, bus)
+
+    assert state["final_answer"] == "I used the available tool results."
+    assert len(registry.calls) == MAX_PARALLEL_TOOL_CALLS
+    warning_events = [
+        event
+        for event in bus._history
+        if event.metadata.get("reason") == "too_many_tool_calls"
+    ]
+    assert warning_events
+    second_call_tool_messages = [
+        message for message in model.seen_messages[-1] if isinstance(message, ToolMessage)
+    ]
+    assert len(second_call_tool_messages) == MAX_PARALLEL_TOOL_CALLS + 2
+    assert any(
+        message.tool_call_id == f"echo-{MAX_PARALLEL_TOOL_CALLS + 1}"
+        and "parallel limit" in str(message.content)
+        for message in second_call_tool_messages
+    )
 
 
 @pytest.mark.asyncio
@@ -488,6 +727,32 @@ async def test_chat_graph_prefetch_rag_can_be_disabled(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_chat_graph_injects_canvas_context_into_prompt():
+    from langchain_core.messages import AIMessage
+
+    model = FakeModel([AIMessage(content="已更新画布草稿。")])
+    bus = StreamBus()
+    graph = ChatGraph(model=model, tool_registry=FakeToolRegistry(), coordinator_enabled=False)
+    context = UnifiedContext(
+        user_message="润色这份草稿",
+        enabled_tools=[],
+        metadata={
+            "canvas_context": {
+                "title": "梯度下降解释草稿",
+                "content": "# 梯度下降解释草稿\n\n已补充：学习率控制每一步的步长。",
+            }
+        },
+    )
+
+    await graph.run(context, bus)
+
+    system_prompt = model.seen_messages[0][0].content
+    assert "Canvas context:" in system_prompt
+    assert "梯度下降解释草稿" in system_prompt
+    assert "学习率控制每一步的步长" in system_prompt
+
+
+@pytest.mark.asyncio
 async def test_chat_graph_coordinator_delegates_visualization_request():
     captured = {}
 
@@ -617,8 +882,11 @@ async def test_chat_graph_coordinator_delegates_external_video_request(monkeypat
     assert result_events[-1].metadata["learner_profile_hints"]["weak_points"] == ["概念边界不清"]
     assert result_events[-1].metadata["tool_name"] == "external_video_search"
     assert result_events[-1].metadata["agent_chain"] == []
-    return
+    assert result_events[-1].metadata["orchestration_mode"] == "direct_tool"
+    assert result_events[-1].metadata["selected_route"] == "external_video_search"
+    assert result_events[-1].metadata["direct_tool"] == "external_video_search"
     assert any(item["label"] == "视频检索智能体" for item in result_events[-1].metadata["collaboration_route"])
+    assert "Curated Video Search Tool" in result_events[-1].metadata["collaboration_summary"]
 
 
 @pytest.mark.asyncio
@@ -636,29 +904,30 @@ async def test_chat_graph_coordinator_delegates_external_image_request():
     state = await graph.run(context, bus)
 
     assert state["final_answer"] == "Found 1 learning image."
+    coordinator_events = [
+        event for event in bus._history if event.metadata.get("trace_kind") == "coordinator_decision"
+    ]
+    assert coordinator_events[-1].metadata["orchestration_mode"] == "direct_tool"
+    assert coordinator_events[-1].metadata["selected_route"] == "external_image_search"
+    assert coordinator_events[-1].metadata["direct_tool"] == "external_image_search"
     result_events = [event for event in bus._history if event.type == StreamEventType.RESULT]
     assert result_events[-1].source == "chat"
     assert result_events[-1].metadata["render_type"] == "external_image"
     assert result_events[-1].metadata["images"][0]["image_url"] == "https://example.com/image.png"
     assert result_events[-1].metadata["tool_name"] == "external_image_search"
     assert result_events[-1].metadata["agent_chain"] == []
+    assert result_events[-1].metadata["orchestration_mode"] == "direct_tool"
+    assert result_events[-1].metadata["selected_route"] == "external_image_search"
+    assert result_events[-1].metadata["direct_tool"] == "external_image_search"
+    assert any(item["label"] == "图片检索智能体" for item in result_events[-1].metadata["collaboration_route"])
 
 
 @pytest.mark.asyncio
-async def test_chat_graph_profile_guided_next_step_awakes_preferred_agent():
-    captured = {}
-
-    async def fake_specialist(capability, context, stream):
-        captured["capability"] = capability
-        captured["context"] = context
-        await stream.result({"response": "profile guided videos ready"}, source=capability)
-        return {"final_answer": "profile guided videos ready"}
-
+async def test_chat_graph_profile_guided_next_step_routes_to_preferred_direct_tool():
     bus = StreamBus()
     graph = ChatGraph(
         model=FakeModel([]),
         tool_registry=FakeToolRegistry(),
-        specialist_runner=fake_specialist,
     )
     context = UnifiedContext(
         user_message="继续学习",
@@ -672,27 +941,25 @@ async def test_chat_graph_profile_guided_next_step_awakes_preferred_agent():
     assert result_events[-1].source == "chat"
     assert result_events[-1].metadata["tool_name"] == "external_video_search"
     assert result_events[-1].metadata["agent_chain"] == []
-    return
-
-    assert captured["capability"] == "external_video_search"
-    assert captured["context"].active_capability == "external_video_search"
-    assert "精选公开视频" in captured["context"].user_message
-    assert captured["context"].config_overrides["profile_guided"] is True
-    assert "精选公开视频" in captured["context"].config_overrides["topic"]
-    assert captured["context"].metadata["coordinator_rewritten_prompt"] == captured["context"].user_message
+    assert result_events[-1].metadata["orchestration_mode"] == "direct_tool"
+    assert result_events[-1].metadata["selected_route"] == "external_video_search"
+    assert result_events[-1].metadata["direct_tool"] == "external_video_search"
+    assert result_events[-1].metadata["collaboration_route"][0]["label"] == "学习画像智能体"
+    assert any(item["label"] == "视频检索智能体" for item in result_events[-1].metadata["collaboration_route"])
     handoff_events = [
-        event for event in bus._history if event.metadata.get("trace_kind") == "agent_handoff"
+        event for event in bus._history if event.metadata.get("trace_kind") == "coordinator_decision"
     ]
-    assert handoff_events[-1].metadata["target_capability"] == "external_video_search"
+    assert handoff_events[-1].metadata["selected_route"] == "external_video_search"
+    assert handoff_events[-1].metadata["orchestration_mode"] == "direct_tool"
     assert "preferred_resource" in handoff_events[-1].metadata["profile_hint_keys"]
-    assert any(item["label"] == "视频检索智能体" for item in handoff_events[-1].metadata["collaboration_route"])
-    assert state["final_answer"] == "profile guided videos ready"
+    assert state["final_answer"] == "Found 1 learning video."
 
 
 def test_chat_graph_distinguishes_video_search_from_video_generation():
     assert ChatGraph._looks_like_external_video_request("帮我找一个视频讲解梯度下降")
     assert ChatGraph._looks_like_external_video_request("推荐B站公开课，适合零基础")
     assert ChatGraph._looks_like_external_video_request("有没有网课视频可以补一下公式含义")
+    assert ChatGraph._looks_like_external_video_request("Show me a YouTube lesson link for backpropagation")
     assert not ChatGraph._looks_like_external_video_request("请生成一个视频讲解梯度下降")
     assert not ChatGraph._looks_like_external_video_request("用 Manim 制作视频演示极限")
 
@@ -700,7 +967,9 @@ def test_chat_graph_distinguishes_video_search_from_video_generation():
 def test_chat_graph_distinguishes_image_search_from_image_generation():
     assert ChatGraph._looks_like_external_image_request("帮我找几张梯度下降示意图")
     assert ChatGraph._looks_like_external_image_request("find an image reference for gradient descent")
+    assert ChatGraph._looks_like_external_image_request("Show me an image diagram for gradient descent")
     assert not ChatGraph._looks_like_external_image_request("请画一个梯度下降流程图")
+    assert not ChatGraph._looks_like_external_image_request("Show me a diagram of gradient descent")
     assert not ChatGraph._looks_like_external_image_request("generate a diagram for gradient descent")
 
 

@@ -1,6 +1,5 @@
-import unittest
 from pathlib import Path
-
+import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_CMD = (ROOT / "sparkweave_cli" / "provider_cmd.py").read_text(encoding="utf-8")

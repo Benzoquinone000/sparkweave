@@ -21,7 +21,7 @@ export function KnowledgeWorkspaceRoutePanels(props: KnowledgeWorkspaceRoutePane
   return (
     <>
       {RAG_ROUTE_WORKSPACES.includes(workspace) ? (
-        <Suspense fallback={<KnowledgeRouteLoading label="正在准备 RAG 工作区" />}>
+        <Suspense fallback={<KnowledgeRouteLoading label="正在准备资料问答工作区" />}>
           <KnowledgeWorkspaceRagRoutePanels {...props} />
         </Suspense>
       ) : null}
@@ -37,7 +37,7 @@ export function KnowledgeWorkspaceRoutePanels(props: KnowledgeWorkspaceRoutePane
 
 function KnowledgeRouteLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

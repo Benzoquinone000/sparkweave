@@ -1,0 +1,6 @@
+short_description: "Use iFlytek formula recognition to turn formulas in an image into reasoning-ready text."
+when_to_use: "Use when the learner uploads a formula-heavy screenshot, handwritten derivation, board photo, or math/engineering problem image."
+input_format: "image_base64 accepts a data URI or raw base64 image; question may include the learner's original request for trace context."
+guideline: "Recognize formulas before solving, retrieval, or code verification. If recognition is empty or unavailable, do not invent formulas; ask for a clearer image or configuration."
+note: "Formula OCR is external evidence and should be checked against the problem image and reasoning steps."
+phase: "perception"

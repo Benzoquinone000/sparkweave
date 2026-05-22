@@ -88,7 +88,7 @@ export function KnowledgeDocumentManager({
           <EmptyState
             icon={<FileUp size={24} />}
             title="还没有可管理的文档"
-            description="上传资料并完成索引后，可以在这里查看文档内容和引用片段。"
+            description="上传资料并完成整理后，可以在这里查看文档内容和引用片段。"
           />
         </div>
       ) : (

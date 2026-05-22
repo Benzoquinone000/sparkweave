@@ -35,14 +35,14 @@ export function AgenticTraceHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div>
-        <p className="text-sm font-semibold text-ink">深度检索过程</p>
+        <p className="text-sm font-semibold text-ink">来源链路</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          {planReason ? formatAgenticReason(planReason) : "展示问题拆分、质量检查、分支修复和最终上下文预算。"}
+          {planReason ? formatAgenticReason(planReason) : "展示问题拆分、来源检查、来源补强和最终回答材料上限。"}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge tone={result.agentic_fallback ? "warning" : result.agentic_rag ? "brand" : "neutral"}>
-          {result.agentic_fallback ? "已回退" : result.agentic_rag ? "分解检索" : "快速检索"}
+          {result.agentic_fallback ? "轻量查找" : result.agentic_rag ? "多路来源" : "快速查找"}
         </Badge>
         {quality ? <Badge tone={isWeak ? "warning" : "success"}>{formatAgenticQualityStatus(qualityStatus)}</Badge> : null}
         {typeof qualityScore === "number" ? <Badge tone="neutral">{formatPercentValue(qualityScore)}</Badge> : null}
@@ -76,22 +76,22 @@ export function AgenticTraceMetricGrid({
   return (
     <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
       <ConfigFact
-        label="子问题覆盖"
+        label="拆分覆盖"
         value={`${readNumber(quality, "covered_subqueries") ?? "-"} / ${
           readNumber(quality, "total_subqueries") ?? (subqueryCount || "-")
         }`}
         tone={isWeak && reasons.includes("low_subquery_coverage") ? "warning" : undefined}
       />
       <ConfigFact
-        label="相关覆盖"
+        label="相关来源"
         value={`${readNumber(quality, "relevant_subqueries") ?? "-"} / ${
           readNumber(quality, "total_subqueries") ?? (subqueryCount || "-")
         }`}
         tone={isWeak && reasons.includes("low_relevance_coverage") ? "warning" : undefined}
       />
-      <ConfigFact label="证据来源" value={String(readNumber(quality, "source_count") ?? result.source_count ?? sourceCount)} />
+      <ConfigFact label="来源数量" value={String(readNumber(quality, "source_count") ?? result.source_count ?? sourceCount)} />
       <ConfigFact
-        label="上下文预算"
+        label="回答材料上限"
         value={contextLimit ? `${contextUsed} / ${contextLimit} 字` : `${contextUsed} 字`}
         tone={contextPack?.truncated ? "warning" : undefined}
       />
@@ -104,10 +104,10 @@ export function AgenticThresholdStrip({ thresholds }: { thresholds: Record<strin
 
   return (
     <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-      <span>质量标准：来源 ≥ {String(readNumber(thresholds, "min_sources") ?? "-")}</span>
+      <span>可用标准：来源 ≥ {String(readNumber(thresholds, "min_sources") ?? "-")}</span>
       <span>覆盖 ≥ {formatPercentValue(readNumber(thresholds, "min_coverage_ratio"))}</span>
-      <span>相关覆盖 ≥ {formatPercentValue(readNumber(thresholds, "min_relevant_coverage_ratio"))}</span>
-      <span>上下文 ≥ {String(readNumber(thresholds, "min_context_chars") ?? "-")} 字</span>
+      <span>相关来源 ≥ {formatPercentValue(readNumber(thresholds, "min_relevant_coverage_ratio"))}</span>
+      <span>回答材料 ≥ {String(readNumber(thresholds, "min_context_chars") ?? "-")} 字</span>
     </div>
   );
 }

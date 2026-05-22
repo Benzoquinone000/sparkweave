@@ -18,7 +18,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.aside
-      className="ml-auto flex h-full w-full max-w-[340px] flex-col border-l border-line bg-white shadow-panel"
+      className="dt-dynamic-drawer ml-auto flex h-full w-full max-w-[340px] flex-col border-l border-line bg-white shadow-panel"
       initial={{ x: 420 }}
       animate={{ x: 0 }}
       exit={{ x: 420 }}
@@ -26,7 +26,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
       onClick={(event) => event.stopPropagation()}
       data-testid="inspector-drawer"
     >
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
+      <div className="dt-dynamic-toolbar flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
         <div>
           <p className="text-xs font-semibold text-ink">学习动态</p>
           <p className="mt-1 text-xs text-slate-500">最近记录和可用资料</p>
@@ -43,7 +43,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <div className="space-y-3">
-          <section className="dt-soft-enter rounded-lg border border-line bg-canvas p-2.5">
+          <section className="dt-soft-enter dt-dynamic-panel rounded-lg border border-line bg-canvas p-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">服务</h2>
               <Activity size={15} className="text-brand-blue" />
@@ -57,7 +57,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
               />
               <StatusRow
                 icon={<Database size={16} />}
-                label="向量模型"
+                label="资料理解"
                 value={status.data?.embeddings?.model || status.data?.embeddings?.status || "未检测"}
                 tone={status.data?.embeddings?.status === "configured" ? "success" : "warning"}
               />
@@ -70,18 +70,18 @@ export function Inspector({ onClose }: { onClose: () => void }) {
             </div>
           </section>
 
-          <section className="dt-soft-enter rounded-lg border border-line bg-canvas p-2.5">
+          <section className="dt-soft-enter dt-dynamic-panel rounded-lg border border-line bg-canvas p-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">上下文</h2>
+              <h2 className="text-sm font-semibold text-ink">资料和记录</h2>
               <BookOpenCheck size={15} className="text-brand-purple" />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-1.5">
-              <ContextMetric label="知识库" value={knowledge.data?.length ?? 0} />
+              <ContextMetric label="资料库" value={knowledge.data?.length ?? 0} />
               <ContextMetric label="会话" value={sessions.data?.length ?? 0} />
             </div>
           </section>
 
-          <section className="dt-soft-enter rounded-lg border border-line bg-canvas p-2.5">
+          <section className="dt-soft-enter dt-dynamic-panel rounded-lg border border-line bg-canvas p-2.5">
             <div className="flex items-center gap-2">
               <History size={15} className="text-brand-red" />
               <h2 className="text-sm font-semibold text-ink">最近任务</h2>
@@ -93,7 +93,7 @@ export function Inspector({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => setSelectedActivityId(activity.id)}
                   data-testid={`dashboard-activity-${activity.id}`}
-                  className={`dt-interactive w-full rounded-lg border p-2.5 text-left hover:border-brand-purple-300 hover:bg-white ${
+                  className={`dt-interactive dt-dynamic-result w-full rounded-lg border p-2.5 text-left hover:border-brand-purple-300 hover:bg-white ${
                     selectedActivityId === activity.id ? "border-brand-purple-300 bg-white" : "border-line bg-white/70"
                   }`}
                 >
@@ -110,17 +110,17 @@ export function Inspector({ onClose }: { onClose: () => void }) {
               {selectedActivityId ? <ActivityDetail detail={activityDetail.data} loading={activityDetail.isLoading} /> : null}
               {!activities.data?.length && sessions.data?.length
                 ? (sessions.data ?? []).slice(0, 5).map((session, index) => (
-                    <div key={session.session_id} className="dt-soft-enter rounded-lg border border-line bg-white px-2.5 py-1.5">
+                    <div key={session.session_id} className="dt-soft-enter dt-dynamic-result rounded-lg border border-line bg-white px-2.5 py-1.5">
                       <p className="truncate text-xs font-medium text-ink">{sessionDisplayTitle(session, index)}</p>
                       <p className="mt-1 truncate text-xs text-slate-500">{session.message_count} 条消息</p>
                     </div>
                   ))
                 : null}
               {activities.isLoading ? (
-                <div className="rounded-lg bg-white p-2.5 text-xs leading-5 text-slate-500">正在读取最近任务...</div>
+                <div className="dt-dynamic-empty rounded-lg bg-white p-2.5 text-xs leading-5 text-slate-500">正在读取最近任务...</div>
               ) : null}
               {!activities.data?.length && !sessions.data?.length && !activities.isLoading ? (
-                <p className="rounded-lg bg-white p-2.5 text-xs leading-5 text-slate-500">还没有任务。开始一次学习对话后，这里会出现时间线。</p>
+                <p className="dt-dynamic-empty rounded-lg bg-white p-2.5 text-xs leading-5 text-slate-500">还没有任务。开始一次学习对话后，这里会出现时间线。</p>
               ) : null}
             </div>
           </section>
@@ -134,7 +134,7 @@ function ActivityDetail({ detail, loading }: { detail?: DashboardActivityDetail;
   const messages = detail?.content?.messages?.slice(-3) ?? [];
   if (loading) {
     return (
-      <div className="rounded-lg border border-line bg-white p-2.5 text-xs text-slate-500">
+      <div className="dt-dynamic-result rounded-lg border border-line bg-white p-2.5 text-xs text-slate-500">
         <span className="inline-flex items-center gap-2">
           <Loader2 size={15} className="animate-spin" />
           正在读取任务详情
@@ -146,7 +146,7 @@ function ActivityDetail({ detail, loading }: { detail?: DashboardActivityDetail;
   if (!detail) return null;
 
   return (
-    <div className="rounded-lg border border-brand-purple-300 bg-white p-2.5" data-testid="dashboard-activity-detail">
+    <div className="dt-dynamic-result rounded-lg border border-brand-purple-300 bg-white p-2.5" data-testid="dashboard-activity-detail">
       <div className="flex items-center gap-2">
         <MessageSquareText size={16} className="text-brand-purple" />
         <h3 className="text-sm font-semibold text-ink">任务详情</h3>
@@ -155,12 +155,12 @@ function ActivityDetail({ detail, loading }: { detail?: DashboardActivityDetail;
       {detail.content?.summary ? <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">{detail.content.summary}</p> : null}
       <div className="mt-3 space-y-2">
         {messages.map((message, index) => (
-          <div key={`${message.role || "message"}-${index}`} className="rounded-md border border-line bg-canvas px-3 py-2">
+          <div key={`${message.role || "message"}-${index}`} className="dt-dynamic-panel rounded-md border border-line bg-canvas px-3 py-2">
             <p className="text-[11px] font-medium uppercase text-slate-400">{formatRoleLabel(message.role || "message")}</p>
             <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-600">{message.content || "空消息"}</p>
           </div>
         ))}
-        {!messages.length ? <p className="rounded-md bg-canvas px-3 py-2 text-xs text-slate-500">这条任务还没有可展示的消息。</p> : null}
+        {!messages.length ? <p className="dt-dynamic-empty rounded-md bg-canvas px-3 py-2 text-xs text-slate-500">这条任务还没有可展示的消息。</p> : null}
       </div>
     </div>
   );
@@ -168,7 +168,7 @@ function ActivityDetail({ detail, loading }: { detail?: DashboardActivityDetail;
 
 function ContextMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-line bg-white px-2.5 py-2">
+    <div className="dt-dynamic-metric rounded-lg border border-line bg-white px-2.5 py-2">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 text-base font-semibold text-ink">{value}</p>
     </div>
@@ -187,7 +187,7 @@ function StatusRow({
   tone: "neutral" | "success" | "warning" | "danger" | "brand";
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-line bg-white px-2.5 py-1.5">
+    <div className="dt-dynamic-result flex items-center gap-2.5 rounded-lg border border-line bg-white px-2.5 py-1.5">
       <span className="text-slate-500">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-xs text-slate-500">{label}</span>
@@ -227,7 +227,7 @@ function formatStatusLabel(status: string) {
 function activityTypeLabel(type: string | undefined) {
   const value = String(type || "chat");
   const labels: Record<string, string> = {
-    chat: "即时答疑",
+    chat: "自动导学",
     guide: "导学",
     knowledge: "资料库",
     notebook: "笔记",

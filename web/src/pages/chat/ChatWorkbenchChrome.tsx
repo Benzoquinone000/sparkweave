@@ -32,20 +32,20 @@ export function ChatTopBar({
   onToggleContext: () => void;
 }) {
   return (
-    <div className="shrink-0 border-b border-line bg-white px-4 py-2.5 lg:px-5">
+    <div className="dt-dynamic-toolbar shrink-0 border-b border-line bg-white/90 px-3.5 py-2 backdrop-blur lg:px-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold text-ink">问资料</h1>
-          <p className="hidden truncate text-xs text-slate-500 md:block">直接输入问题，需要时再选择资料和回答方式。</p>
+          <h1 className="truncate text-base font-semibold text-ink">AI 学习工作台</h1>
+          <p className="hidden truncate text-xs text-slate-500 md:block">直接提问，右侧可在需要时打开文档画布。</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {profileFocus ? (
             <a
               href="/memory"
               className="hidden max-w-[220px] truncate rounded-lg border border-brand-purple-300 bg-tint-lavender px-2.5 py-1.5 text-xs font-medium text-brand-purple hover:border-brand-purple-300 md:inline-flex"
-              title={`画像当前重点：${profileFocus}`}
+              title={`当前学习重点：${profileFocus}`}
             >
-              画像：{profileFocus}
+              当前重点：{profileFocus}
             </a>
           ) : null}
           <span className="hidden rounded-lg border border-line bg-canvas px-2.5 py-1.5 text-xs font-medium text-slate-600 sm:inline-flex">
@@ -55,7 +55,7 @@ export function ChatTopBar({
             type="button"
             data-testid="chat-history-toggle"
             onClick={onToggleHistory}
-            className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple lg:hidden"
+            className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-slate-600 hover:border-line-strong hover:text-ink lg:hidden"
             aria-label="历史会话"
           >
             <Clock3 size={16} />
@@ -65,11 +65,11 @@ export function ChatTopBar({
             type="button"
             data-testid="chat-context-toggle"
             onClick={onToggleContext}
-            className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
-            aria-label="上下文"
+            className="dt-interactive inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-slate-600 hover:border-line-strong hover:text-ink sm:px-3"
+            aria-label="资料与偏好"
           >
             <PanelRightOpen size={16} />
-            资料与偏好
+            <span className="hidden sm:inline">资料与偏好</span>
           </button>
         </div>
       </div>
@@ -111,14 +111,14 @@ export function ChatHistoryDrawer({
           onClick={onClose}
         >
           <motion.aside
-            className="ml-auto flex h-full w-[min(360px,92vw)] flex-col border-l border-line bg-white shadow-panel"
+            className="dt-dynamic-drawer ml-auto flex h-full w-[min(360px,92vw)] flex-col border-l border-line bg-white shadow-panel"
             data-testid="chat-history-drawer"
             initial={{ x: 360 }}
             animate={{ x: 0 }}
             exit={{ x: 360 }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
+            <div className="dt-dynamic-toolbar flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
               <div>
                 <p className="text-sm font-semibold text-ink">历史会话</p>
                 <p className="mt-0.5 text-xs text-slate-500">继续之前的学习线索。</p>
@@ -126,13 +126,13 @@ export function ChatHistoryDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
+                className="dt-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
                 aria-label="关闭历史会话"
               >
-                <X size={17} />
+                <X size={15} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 pb-24 lg:pb-3">
               <SessionHistoryPanel
                 sessions={sessions}
                 sessionId={sessionId}
@@ -217,33 +217,33 @@ export function ChatContextDrawer({
           onClick={onClose}
         >
           <motion.aside
-            className="ml-auto flex h-full w-[min(420px,92vw)] flex-col border-l border-line bg-white shadow-panel"
+            className="dt-dynamic-drawer ml-auto flex h-full w-[min(420px,92vw)] flex-col border-l border-line bg-white shadow-panel"
             data-testid="chat-mobile-context-drawer"
             initial={{ x: 420 }}
             animate={{ x: 0 }}
             exit={{ x: 420 }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
+            <div className="dt-dynamic-toolbar flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
               <div>
-                <p className="text-sm font-semibold text-ink">资料与工具</p>
-                <p className="mt-0.5 text-xs text-slate-500">按需补充学习上下文</p>
+                <p className="text-sm font-semibold text-ink">资料与偏好</p>
+                <p className="mt-0.5 text-xs text-slate-500">补充资料和偏好，系统默认自动判断下一步</p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="dt-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
-                aria-label="关闭上下文"
+                className="dt-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-line text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
+                aria-label="关闭资料与偏好"
               >
-                <X size={17} />
+                <X size={15} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 pb-24 lg:pb-3">
               <Suspense fallback={<DrawerPanelLoading label="正在准备任务状态" />}>
                 <TaskSnapshot messages={messages} status={runtimeStatus} stageLabel={stageLabel} onSaveMessage={onSaveMessage} />
               </Suspense>
               <div className="mt-3">
-                <Suspense fallback={<DrawerPanelLoading label="正在准备上下文配置" />}>
+                <Suspense fallback={<DrawerPanelLoading label="正在准备资料设置" />}>
                 <ContextPanel
                   capability={capability}
                   setCapability={setCapability}
@@ -279,7 +279,7 @@ export function ChatContextDrawer({
 
 function DrawerPanelLoading({ label }: { label: string }) {
   return (
-    <div className="rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-slate-500">
+    <div className="dt-dynamic-empty rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-slate-500">
       <span className="font-medium text-ink">{label}</span>
     </div>
   );
@@ -291,7 +291,7 @@ export function SaveNoticeToast({ notice }: { notice: { title: string; notebookN
   return (
     <div
       role="status"
-      className="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-emerald-200 bg-white p-4 text-sm"
+      className="dt-dynamic-result fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-emerald-200 bg-white p-4 text-sm"
     >
       <div className="flex items-start gap-3">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">

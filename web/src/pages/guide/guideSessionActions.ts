@@ -201,7 +201,7 @@ export function buildGuideSessionActions({
     void refetchDetail();
     void refetchSessions();
     const profileSyncMessage = await refreshLearnerProfileAfterGuide();
-    setSaveMessage([result.learning_feedback?.summary || "学习证据已记录。", profileSyncMessage].filter(Boolean).join(" "));
+    setSaveMessage([result.learning_feedback?.summary || "学习记录已保存。", profileSyncMessage].filter(Boolean).join(" "));
     setReflection("");
   };
 
@@ -215,7 +215,7 @@ export function buildGuideSessionActions({
     const scoreValue = Number(result.diagnosis?.readiness_score ?? 0);
     const weak = result.diagnosis?.weak_points?.[0];
     const profileSyncMessage = await refreshLearnerProfileAfterGuide();
-    setSaveMessage(`前测已更新画像：准备度 ${Math.round(scoreValue * 100)}%${weak ? `，优先照顾「${weak}」` : ""}。 ${profileSyncMessage}`);
+    setSaveMessage(`前测已更新学习记录：准备度 ${Math.round(scoreValue * 100)}%${weak ? `，优先照顾「${weak}」` : ""}。 ${profileSyncMessage}`);
   };
 
   const deleteActiveSession = async () => {

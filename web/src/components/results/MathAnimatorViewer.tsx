@@ -45,7 +45,7 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
   }, [artifacts, hasNarratedVideo, result, videos.length]);
 
   return (
-    <div className="rounded-lg border border-line bg-canvas p-2.5">
+    <div className="dt-dynamic-result rounded-lg border border-line bg-canvas p-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">数学动画</Badge>
         {result.output_mode ? <Badge tone="neutral">{result.output_mode}</Badge> : null}
@@ -56,7 +56,7 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
       <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
 
       {hasNarratedVideo ? (
-        <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs leading-5 text-emerald-800">
+        <p className="dt-dynamic-panel mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs leading-5 text-emerald-800">
           这是可直接播放的讲解成片，已经把动画和语音讲解合在一起了。
         </p>
       ) : null}
@@ -106,7 +106,7 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
       ) : null}
 
       {result.render?.visual_review?.passed === false ? (
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs leading-5 text-amber-800">
+        <p className="dt-dynamic-empty mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs leading-5 text-amber-800">
           {result.render.visual_review.summary || "视觉审查提示：当前结果仍有可改进之处。"}
         </p>
       ) : null}
@@ -124,13 +124,13 @@ export function MathAnimatorViewer({ result }: { result: MathAnimatorResult }) {
         {result.code?.content ? (
           <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={() => setShowCode((value) => !value)}>
             <Code2 size={14} />
-            {showCode ? "隐藏 Manim 代码" : "查看 Manim 代码"}
+            {showCode ? "隐藏动画脚本" : "查看动画脚本"}
           </Button>
         ) : null}
       </div>
 
       {showCode && result.code?.content ? (
-        <pre className="dt-code-surface mt-3 max-h-72 overflow-auto rounded-lg p-3 text-xs leading-5">
+        <pre className="dt-code-surface dt-dynamic-code mt-3 max-h-72 overflow-auto rounded-lg p-3 text-xs leading-5">
           {result.code.content}
         </pre>
       ) : null}

@@ -65,7 +65,7 @@ export function RagEvaluationCard({
             <BarChart3 size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">检索质量评估</p>
+            <p className="text-sm font-semibold text-ink">资料来源检查</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               {loading
                 ? "正在读取最近一次评测摘要..."
@@ -73,7 +73,7 @@ export function RagEvaluationCard({
                   ? "评测摘要读取失败，稍后再试。"
                   : available && report
                     ? `最近评测：${formatRagEvalTime(report.created_at)}，${report.case_count ?? summary?.cases ?? 0} 个样本${reportPresetLabel ? ` · ${reportPresetLabel}` : ""}`
-                    : "还没有评测记录。先跑一次快速体检，确认资料能被稳定检索。"}
+                    : "还没有评测记录。先跑一次快速体检，确认资料能被稳定问到。"}
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export function RagEvaluationCard({
         </>
       ) : (
         <div className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-3 text-xs leading-5 text-slate-500">
-          快速体检用于确认检索链路是否通畅；正式质量对比建议使用标注数据集，准备好问题、期望来源和关键词后再运行完整对比。
+          快速体检用于确认资料查找是否通畅；正式质量对比建议使用标注数据集，准备好问题、期望来源和关键词后再运行完整对比。
         </div>
       )}
     </section>

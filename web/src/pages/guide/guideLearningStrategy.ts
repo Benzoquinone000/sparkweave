@@ -74,7 +74,7 @@ export function buildAdaptiveGuideStrategy(
   if (stage === "feedback" && feedbackScore !== null && feedbackScore < 60) {
     recommendedResource = "visual";
     title = "先补救错因，再做一轮复测";
-    summary = "刚提交的学习证据说明还有关键卡点，先用图解或补救资源把错因拆开，再进入下一轮练习更划算。";
+    summary = "刚提交的学习记录说明还有关键卡点，先用图解或补救资源把错因拆开，再进入下一轮练习更划算。";
     recommendations.push("先看图解，把错误表现、根因和正确判断条件对齐。");
     recommendations.push("看完后立刻做短练习，确认同类错误是否真的消失。");
     reasons.push({
@@ -93,13 +93,13 @@ export function buildAdaptiveGuideStrategy(
     });
   } else if (confidence < 0.45) {
     recommendedResource = prefersPractice ? "quiz" : prefersAudio ? "audio" : "visual";
-    title = "先补证据，让系统判断更稳";
-    summary = "系统对你当前状态还不够确定，最好先补一轮短资源和可评分证据，避免路线过深或过浅。";
-    recommendations.push("优先选择能留下判断依据的资源，再提交一次明确反思。");
-    recommendations.push("做完后记得提交结果，让画像判断从“猜测”变成“更确定”。");
+    title = "先补记录，让系统判断更稳";
+    summary = "系统对你当前状态还不够确定，最好先补一轮短资源和可评分反馈，避免路线过深或过浅。";
+    recommendations.push("优先选择能留下判断理由的资源，再提交一次明确反思。");
+    recommendations.push("做完后记得提交结果，让系统判断从“猜测”变成“更确定”。");
     reasons.push({
       label: "系统判断还不够稳",
-      detail: `当前画像可信度约 ${Math.round(confidence * 100)}%，先补一轮可评分证据，后面的导学才会更准。`,
+      detail: `当前判断可信度约 ${Math.round(confidence * 100)}%，先补一轮可评分反馈，后面的导学才会更准。`,
     });
   } else if (prefersVideo && weakPointCount === 0 && accuracy >= 0.55) {
     recommendedResource = prefersExternalVideo ? "external_video" : "video";
@@ -112,8 +112,8 @@ export function buildAdaptiveGuideStrategy(
     reasons.push({
       label: "你的偏好更适合视频",
       detail: prefersExternalVideo
-        ? "当前没有明显薄弱点堆积，而且画像里记录到你偏好公开视频、公开课或外部视频资源。"
-        : "当前没有明显薄弱点堆积，而且画像里记录到你更愿意通过短视频快速建立整体感。",
+        ? "当前没有明显薄弱点堆积，而且学习记录里显示你偏好公开视频、公开课或外部视频资源。"
+        : "当前没有明显薄弱点堆积，而且学习记录里显示你更愿意通过短视频快速建立整体感。",
     });
   } else if (prefersAudio && accuracy < 0.72) {
     recommendedResource = "audio";
@@ -123,7 +123,7 @@ export function buildAdaptiveGuideStrategy(
     recommendations.push("听完后立刻去做一组短练习或回到提交页，别只停在听懂。");
     reasons.push({
       label: "你适合先听后做",
-      detail: "画像里已经出现音频或语音偏好，所以这里优先用更轻的讲解方式降低进入门槛。",
+      detail: "学习记录里已经出现音频或语音偏好，所以这里优先用更轻的讲解方式降低进入门槛。",
     });
   } else if (prefersPractice && accuracy >= 0.45) {
     recommendedResource = "quiz";
@@ -133,7 +133,7 @@ export function buildAdaptiveGuideStrategy(
     recommendations.push("练完再决定是否需要图解或视频补救。");
     reasons.push({
       label: "你更适合先动手",
-      detail: "画像里记录到你偏好练习驱动的学习方式，所以这里优先让你边做边校准。",
+      detail: "学习记录里显示你偏好练习驱动的学习方式，所以这里优先让你边做边校准。",
     });
   } else if (prefersVisual || weakPointCount > 0) {
     recommendedResource = "visual";
@@ -143,7 +143,7 @@ export function buildAdaptiveGuideStrategy(
     recommendations.push("看完后尽快进入提交页，让系统根据结果调整下一步。");
     reasons.push({
       label: "先拆结构比硬做题更值",
-      detail: "当前画像里还有待补强的薄弱点，先把概念边界和判断关系看清楚，后面会更顺。",
+      detail: "当前记录里还有待补强的薄弱点，先把概念边界和判断关系看清楚，后面会更顺。",
     });
   }
 
@@ -202,7 +202,7 @@ export function buildAdaptiveGuideStrategy(
 
   if (confidence > 0) {
     signals.push({
-      label: "画像可信度",
+      label: "判断可信度",
       value: `${Math.round(confidence * 100)}%`,
       tone: confidence >= 0.7 ? "success" : confidence >= 0.45 ? "brand" : "warning",
     });
@@ -256,7 +256,7 @@ export function buildGuideTrendNotice(
     hasQuiz ? "最近有练习反馈" : "",
     hasCalibration ? "最近有显式校准" : "",
     hasResource ? "最近有资源使用" : "",
-    averageScore !== null ? `最近证据均值 ${Math.round(averageScore * 100)}%` : "",
+    averageScore !== null ? `最近记录均值 ${Math.round(averageScore * 100)}%` : "",
   ].filter(Boolean);
 
   if (hasCalibration || (averageScore !== null && averageScore < 0.6)) {
@@ -273,7 +273,7 @@ export function buildGuideTrendNotice(
     return {
       label: "最近正在变稳",
       tone: "success" as const,
-      summary: `你最近几次练习和任务证据已经比较稳定，可以少一点铺垫，多一点直接验证。${stageVerb}`,
+      summary: `你最近几次练习和任务记录已经比较稳定，可以少一点铺垫，多一点直接验证。${stageVerb}`,
       guideHint: "进入导学后，系统会更敢把重心放到练习推进和迁移应用上。",
       cues,
     };
@@ -332,7 +332,7 @@ export function buildDemoRecordingCue({
   if (generatingType) {
     return {
       title: `等待${resourceLabel(generatingType)}准备好`,
-      detail: "录屏时可以讲：系统正在按画像、当前任务和资源偏好调度资源生成智能体。",
+      detail: "录屏时可以讲：系统正在按学习记录、当前任务和资源偏好生成材料。",
       actionLabel: "准备中",
       action: "none",
       tone: "brand",
@@ -345,7 +345,7 @@ export function buildDemoRecordingCue({
     if (artifactCount > 0) {
       return {
         title: "学完素材后提交一句反馈",
-        detail: "录屏时可以讲：学生不需要填复杂表格，只要给出掌握状态和一句反思，系统就能回写画像。",
+        detail: "录屏时可以讲：学生不需要填复杂表格，只要给出掌握状态和一句反思，系统就能更新学习记录。",
         actionLabel: "去提交",
         action: "open_complete_task",
         tone: "success",
@@ -371,9 +371,9 @@ export function buildDemoRecordingCue({
 
   if (guideStage === "feedback") {
     return {
-      title: "反馈已经回写，接着展示产出包",
-      detail: "录屏时可以讲：刚刚的分数和反思已经进入画像，接下来用产出包证明闭环完整。",
-      actionLabel: "看产出包",
+      title: "反馈已经回写，接着展示成果",
+      detail: "录屏时可以讲：刚刚的分数和反思已经进入学习记录，接下来用课程成果证明学习过程完整。",
+      actionLabel: "看成果",
       action: "open_course_package",
       tone: "success",
     };
@@ -381,9 +381,9 @@ export function buildDemoRecordingCue({
 
   if (guideStage === "complete") {
     return {
-      title: "最后展示课程产出包",
+      title: "最后展示课程成果",
       detail: "录屏时可以讲：系统把路线、资源、反馈、报告整理成可提交的课程学习成果。",
-      actionLabel: "看产出包",
+      actionLabel: "看成果",
       action: "open_course_package",
       tone: "success",
     };
@@ -436,7 +436,7 @@ function deriveGuideProgressStyle(
   if (confidence < 0.5) {
     return {
       label: "反复校准型",
-      detail: "你当前更依赖短资源、可评分证据和连续反馈来帮助系统收敛判断，所以这一步会更看重补证据。",
+      detail: "你当前更依赖短资源、可评分反馈和连续反馈来帮助系统收敛判断，所以这一步会更看重补记录。",
     };
   }
   return {

@@ -70,8 +70,8 @@ const SETTINGS_TASKS: SettingsTask[] = [
     view: "models",
     to: "/settings/models",
     title: "连接服务",
-    detail: "问答、资料引用、搜索、OCR 和语音",
-    metric: "学习能力",
+    detail: "问答、资料引用、搜索、图片文字识别和语音",
+    metric: "服务状态",
     icon: Settings2,
     tint: "bg-tint-sky",
   },
@@ -226,6 +226,9 @@ export function SettingsPage() {
           embedding: String(status.data?.embeddings?.status || "pending"),
           search: String(status.data?.search?.status || "optional"),
           ocr: String(status.data?.ocr?.status || "optional"),
+          tts: String(status.data?.tts?.status || "optional"),
+          asr: String(status.data?.asr?.status || "optional"),
+          speech_eval: String(status.data?.speech_eval?.status || "optional"),
         },
       });
       await settingsMutations.updateUi.mutateAsync(ui);
@@ -240,7 +243,7 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto max-w-[900px] space-y-4">
         {settingsView === "home" ? <SettingsHomeHero /> : <SettingsSubpageHeader view={settingsView} />}
 
@@ -254,7 +257,7 @@ export function SettingsPage() {
                 <div>
                   <h2 className="font-semibold text-ink">启动向导</h2>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
-                    配置问答模型、向量模型和可选搜索服务，完成后会启动 SparkWeave。
+                    配置问答模型、资料理解和可选搜索服务，完成后会启动 SparkWeave。
                   </p>
                 </div>
               </div>
@@ -280,7 +283,7 @@ export function SettingsPage() {
                   await settingsMutations.saveCatalog.mutateAsync(catalog);
                   await settingsMutations.applyCatalog.mutateAsync(catalog);
                   await settingsMutations.updateUi.mutateAsync(ui);
-                  setLastResult("配置已保存并应用到运行时。");
+                  setLastResult("配置已保存，刷新后即可使用。");
                 }}
                 onCompleteTour={completeTour}
               />
@@ -381,7 +384,7 @@ export function SettingsPage() {
 
 function SettingsHomeHero() {
   return (
-    <section className="rounded-lg border border-line bg-white p-3.5 shadow-[0_8px_24px_rgba(15,15,15,0.03)]">
+    <section className="dt-page-header dt-page-header-accent-pink p-3.5">
       <p className="text-xs font-semibold text-steel">设置</p>
       <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">需要改什么，就进对应页面</h1>
       <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">
@@ -398,7 +401,7 @@ function SettingsTaskGrid() {
         <Link
           key={task.view}
           to={task.to}
-          className="dt-interactive rounded-lg border border-line bg-white p-2.5 text-left transition hover:border-brand-purple-300 hover:shadow-sm"
+          className="dt-interactive dt-dynamic-card rounded-lg border border-line bg-white p-2.5 text-left transition hover:border-brand-purple-300 hover:shadow-sm"
           data-testid={`settings-task-${task.view}`}
         >
           <span className={`flex h-9 w-9 items-center justify-center rounded-lg border border-line ${task.tint} text-ink`}>
@@ -418,7 +421,7 @@ function SettingsTaskGrid() {
 function SettingsSubpageHeader({ view }: { view: Exclude<SettingsView, "home"> }) {
   const task = SETTINGS_TASKS.find((item) => item.view === view) ?? SETTINGS_TASKS[0];
   return (
-    <section className="rounded-lg border border-line bg-white p-3.5">
+    <section className="dt-page-header dt-page-header-accent-pink p-3.5">
       <Link
         to="/settings"
         className="dt-interactive inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-canvas px-3 text-sm font-medium text-slate-600 hover:border-brand-purple-300 hover:text-brand-purple"
@@ -450,7 +453,7 @@ function settingsViewFromPath(pathname: string): SettingsView {
 
 function SettingsSectionLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

@@ -39,11 +39,11 @@ export function buildKnowledgeNextStep({
 
   if (stillIndexing) {
     return {
-      title: "先等索引跑完",
-      summary: "资料正在解析或写入引用索引。完成前可以查看进度，避免在半成品状态下测试问答。",
+      title: "先等资料整理完成",
+      summary: "资料正在解析并整理引用片段。完成前可以查看进度，避免在半成品状态下测试问答。",
       badge: stage || "运行中",
       tone: "brand",
-      primaryLabel: "查看索引进度",
+      primaryLabel: "查看处理进度",
       primaryWorkspace: "progress",
       primaryIcon: RefreshCw,
       secondaryLabel: "查看资料清单",
@@ -54,10 +54,10 @@ export function buildKnowledgeNextStep({
   if (recoveryNeedsAttention) {
     return {
       title: "先处理资料库状态",
-      summary: "当前资料库还有需要关注的地方。按修复向导走一遍，会比直接重试问答更省时间。",
+      summary: "当前资料库还有需要关注的地方。按整理向导走一遍，会比直接重试问答更省时间。",
       badge: "需处理",
       tone: "warning",
-      primaryLabel: "打开修复向导",
+      primaryLabel: "打开整理向导",
       primaryWorkspace: "recovery",
       primaryIcon: AlertTriangle,
       secondaryLabel: "检查连接",
@@ -68,7 +68,7 @@ export function buildKnowledgeNextStep({
   if (documents !== null && documents <= 0) {
     return {
       title: "先放入第一批资料",
-      summary: "上传课件、笔记或代码文件后，SparkWeave 才能把它们转成可引用的学习上下文。",
+      summary: "上传课件、笔记或代码文件后，SparkWeave 才能把它们转成可引用的学习资料。",
       badge: "待导入",
       tone: "neutral",
       primaryLabel: "上传资料",
@@ -81,11 +81,11 @@ export function buildKnowledgeNextStep({
 
   if (vectors !== null && vectors <= 0) {
     return {
-      title: "资料已保存，还差引用索引",
-      summary: "文件清单里有资料，但还没有可检索片段。先进入修复向导重建索引，再做问答测试。",
-      badge: "需建索引",
+      title: "资料已保存，还差引用片段",
+      summary: "文件清单里有资料，但还没有可用于回答的片段。先进入整理向导重新整理资料，再做问答测试。",
+      badge: "需整理",
       tone: "warning",
-      primaryLabel: "打开修复向导",
+      primaryLabel: "打开整理向导",
       primaryWorkspace: "recovery",
       primaryIcon: AlertTriangle,
       secondaryLabel: "查看资料清单",
@@ -96,10 +96,10 @@ export function buildKnowledgeNextStep({
   if (testSources === null) {
     return {
       title: "用一个真实问题试一下",
-      summary: "资料库已经具备使用条件。先做提问预检，确认关键证据能被召回，再进入聊天问答。",
-      badge: "建议预检",
+      summary: "资料库已经具备使用条件。先用一个真实问题试一下，确认关键来源能被找到，再进入聊天问答。",
+      badge: "建议试问",
       tone: "brand",
-      primaryLabel: "提问预检",
+      primaryLabel: "先试问一次",
       primaryWorkspace: "test",
       primaryIcon: Search,
       secondaryLabel: "查看资料清单",
@@ -109,27 +109,27 @@ export function buildKnowledgeNextStep({
 
   if (testSources <= 0) {
     return {
-      title: "上次预检没有找到证据",
-      summary: "先回到提问预检调整检索方案，或进入修复向导检查索引覆盖。",
+      title: "上次试问没有找到来源",
+      summary: "先回到试问页调整查找方式，或进入整理向导检查资料覆盖。",
       badge: "需复测",
       tone: "warning",
-      primaryLabel: "继续预检",
+      primaryLabel: "继续试问",
       primaryWorkspace: "test",
       primaryIcon: Search,
-      secondaryLabel: "打开修复向导",
+      secondaryLabel: "打开整理向导",
       secondaryWorkspace: "recovery",
     };
   }
 
   return {
     title: "资料库已经可以进入问答",
-    summary: `上次预检召回 ${testSources} 条证据。可以继续在预检页带证据进入聊天，或先做一次质量评估。`,
+    summary: `上次试问找到了 ${testSources} 条来源。可以带来源进入聊天，或先做一次来源检查。`,
     badge: "可使用",
     tone: "success",
-    primaryLabel: "继续提问预检",
+    primaryLabel: "继续试问",
     primaryWorkspace: "test",
     primaryIcon: Search,
-    secondaryLabel: "质量评估",
+    secondaryLabel: "来源检查",
     secondaryWorkspace: "quality",
   };
 }

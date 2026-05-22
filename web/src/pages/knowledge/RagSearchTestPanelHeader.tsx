@@ -47,11 +47,11 @@ export function RagSearchTestPanelHeader({
         {showResultNavigation ? (
           <Button tone="secondary" className="min-h-9 px-3 text-xs" type="button" onClick={onOpenSetup}>
             <ChevronLeft size={15} />
-            调整检索
+            调整查找
           </Button>
         ) : null}
         {resultStatus ? (
-          <Badge tone={resultStatus.tone ?? "neutral"}>{resultStatus.shortLabel ?? `${sourceCount} 条证据`}</Badge>
+          <Badge tone={resultStatus.tone ?? "neutral"}>{resultStatus.shortLabel ?? `${sourceCount} 条来源`}</Badge>
         ) : null}
       </div>
     </div>

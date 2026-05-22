@@ -9,7 +9,7 @@ export function buildQuickRagEvaluationCases(kbName: string): RagEvaluationCaseI
       topic: "overview",
       difficulty: "basic",
       chapter: "overview",
-      question: "请概括这个资料库最核心的学习主题，并给出依据。",
+      question: "请概括这个资料库最核心的学习主题，并说明来源。",
     },
     {
       id: "quick-keypoints",

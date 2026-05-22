@@ -22,19 +22,12 @@ from sparkweave.graphs._answer_now import (
 from sparkweave.graphs.rag_overrides import apply_rag_overrides
 from sparkweave.llm import ainvoke_json, chat_messages, create_chat_model
 from sparkweave.runtime.capability_router import (
-    ANIMATION_TERMS,
-    CoordinatorDecision,
     DELEGABLE_CAPABILITIES,
-    LearningCapabilityRouter,
-    NO_DELEGATE_TERMS,
     PROFILE_GUIDED_TERMS,
-    QUESTION_TERMS,
-    RESEARCH_TERMS,
     SOLVE_TERMS,
-    SPECIALIST_COLLABORATION_ROUTES,
     SPECIALIST_LABELS,
-    VIDEO_SEARCH_TERMS,
-    VISUALIZE_TERMS,
+    CoordinatorDecision,
+    LearningCapabilityRouter,
 )
 from sparkweave.runtime.tool_execution import GraphToolExecutor
 from sparkweave.tools import LangChainToolRegistry
@@ -70,6 +63,7 @@ class ChatGraph:
             stage="acting",
             arg_augmenter=self._augment_tool_args,
             retrieve_metadata_builder=self._retrieve_metadata,
+            result_metadata_tools={"rag", "canvas"},
         )
         self.specialist_runner = specialist_runner
         self._compiled: Any | None = None
@@ -86,6 +80,7 @@ class ChatGraph:
         if decision.delegates:
             return await self._run_specialist(context, stream, decision)
 
+        context = self._context_with_chat_decision_tools(context, decision)
         context, prefetched_rag = await self._prefetch_rag_context(context, stream)
         state = context_to_state(context, stream=stream)
         if prefetched_rag is not None:
@@ -159,6 +154,10 @@ class ChatGraph:
         calls = self._extract_tool_calls(state["messages"][-1])
         if not calls:
             return {"messages": state["messages"]}
+        enabled_tool_names = set(self._enabled_tools(state))
+        selected_calls = calls
+        overflow_calls: list[dict[str, Any]] = []
+        allowed_calls, blocked_calls = self._partition_authorized_tool_calls(calls, enabled_tool_names)
         if len(calls) > MAX_PARALLEL_TOOL_CALLS:
             await stream.progress(
                 f"Model requested {len(calls)} tool calls; only {MAX_PARALLEL_TOOL_CALLS} can run in parallel.",
@@ -166,23 +165,85 @@ class ChatGraph:
                 stage="acting",
                 metadata={"trace_kind": "progress", "reason": "too_many_tool_calls"},
             )
-            calls = calls[:MAX_PARALLEL_TOOL_CALLS]
+            selected_calls = calls[:MAX_PARALLEL_TOOL_CALLS]
+            overflow_calls = calls[MAX_PARALLEL_TOOL_CALLS:]
+            allowed_calls, blocked_calls = self._partition_authorized_tool_calls(
+                selected_calls,
+                enabled_tool_names,
+            )
 
         async with stream.stage("acting", source=self.source):
+            for call in overflow_calls:
+                await stream.progress(
+                    f"Skipped extra tool `{call['name']}` because this turn reached the parallel tool limit.",
+                    source=self.source,
+                    stage="acting",
+                    metadata={
+                        "trace_kind": "warning",
+                        "reason": "too_many_tool_calls",
+                        "tool_call_id": call["id"],
+                        "tool_name": call["name"],
+                        "max_parallel_tool_calls": MAX_PARALLEL_TOOL_CALLS,
+                    },
+                )
+            for call in blocked_calls:
+                await stream.progress(
+                    f"Skipped disabled tool `{call['name']}` for this turn.",
+                    source=self.source,
+                    stage="acting",
+                    metadata={
+                        "trace_kind": "warning",
+                        "reason": "disabled_tool_call",
+                        "tool_call_id": call["id"],
+                        "tool_name": call["name"],
+                    },
+                )
             tasks = [
                 self._execute_tool_call(call, context, stream, tool_index=index)
-                for index, call in enumerate(calls)
+                for index, call in enumerate(allowed_calls)
             ]
-            records = await asyncio.gather(*tasks)
+            records = await asyncio.gather(*tasks) if tasks else []
 
-        tool_messages = [
-            ToolMessage(
-                content=record["result"],
-                tool_call_id=record["id"],
-                name=record["name"],
+        records_by_id = {record["id"]: record for record in records}
+        blocked_ids = {call["id"] for call in blocked_calls}
+        overflow_ids = {call["id"] for call in overflow_calls}
+        tool_messages = []
+        for call in calls:
+            if call["id"] in overflow_ids:
+                tool_messages.append(
+                    ToolMessage(
+                        content=(
+                            "This tool call was skipped because the turn reached "
+                            f"the {MAX_PARALLEL_TOOL_CALLS}-tool parallel limit. "
+                            "Continue with the tool results already available."
+                        ),
+                        tool_call_id=call["id"],
+                        name=call["name"],
+                    )
+                )
+                continue
+            if call["id"] in blocked_ids:
+                tool_messages.append(
+                    ToolMessage(
+                        content=(
+                            f"Tool `{call['name']}` is not enabled for this turn. "
+                            "Continue without using it."
+                        ),
+                        tool_call_id=call["id"],
+                        name=call["name"],
+                    )
+                )
+                continue
+            record = records_by_id.get(call["id"])
+            if record is None:
+                continue
+            tool_messages.append(
+                ToolMessage(
+                    content=record["result"],
+                    tool_call_id=record["id"],
+                    name=record["name"],
+                )
             )
-            for record in records
-        ]
         previous_results = list(state.get("tool_results", []))
         previous_results.extend(records)
         return {
@@ -337,6 +398,19 @@ class ChatGraph:
             "search_depth": max(4, min(search_depth, 12)),
             "learner_hints": learner_hints,
         }
+        collaboration_metadata = self._collaboration_metadata(
+            decision,
+            context,
+            profile_hints=self._learner_profile_hints(context),
+            rewritten_prompt=str(config.get("_coordinator_user_message") or "").strip(),
+        )
+        orchestration_metadata = {
+            "selected_route": tool_name,
+            "orchestration_mode": "direct_tool",
+            "direct_tool": tool_name,
+            "delegated": False,
+            **collaboration_metadata,
+        }
         async with stream.stage(
             "acting",
             source=self.source,
@@ -344,6 +418,7 @@ class ChatGraph:
                 "trace_kind": "tool_work",
                 "tool_name": tool_name,
                 "capability": "chat",
+                **orchestration_metadata,
             },
         ):
             record = await self._execute_tool_call(
@@ -363,6 +438,7 @@ class ChatGraph:
             response = "我为你筛选了几张适合当前任务的学习图片。" if is_image else "我为你筛选了几条适合当前任务的视频。"
         final_result = {
             **metadata,
+            **orchestration_metadata,
             "response": response,
             "runtime": "langgraph",
             "capability": "chat",
@@ -640,6 +716,21 @@ class ChatGraph:
         return [name for name in enabled if name in known]
 
     @staticmethod
+    def _partition_authorized_tool_calls(
+        calls: list[dict[str, Any]],
+        enabled_tool_names: set[str],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        allowed: list[dict[str, Any]] = []
+        blocked: list[dict[str, Any]] = []
+        for call in calls:
+            name = str(call.get("name") or "").strip()
+            if name in enabled_tool_names:
+                allowed.append(call)
+            else:
+                blocked.append(call)
+        return allowed, blocked
+
+    @staticmethod
     def _extract_tool_calls(message: Any) -> list[dict[str, Any]]:
         calls = getattr(message, "tool_calls", None) or []
         normalized: list[dict[str, Any]] = []
@@ -715,12 +806,27 @@ class ChatGraph:
             return CoordinatorDecision(reason="Coordinator disabled for this graph instance.")
         decision = await self._refine_decision_with_llm(context, self._decide_specialist(context))
         profile_hints = self._learner_profile_hints(context)
+        decision_config = dict(decision.config or {})
+        rewritten_prompt = str(decision_config.get("_coordinator_user_message") or "").strip()
         metadata = {
             "trace_kind": "coordinator_decision",
             "capability": decision.capability,
+            "selected_route": decision.direct_tool or decision.capability,
+            "orchestration_mode": (
+                "direct_tool"
+                if decision.direct_tool
+                else "delegate"
+                if decision.delegates
+                else "chat"
+            ),
+            "direct_tool": decision.direct_tool,
             "confidence": decision.confidence,
             "reason": decision.reason,
             "delegated": decision.delegates,
+            "profile_hints_applied": bool(profile_hints),
+            "profile_hint_keys": sorted(key for key in profile_hints.keys() if key != "profile_context"),
+            "profile_guided": bool(decision_config.get("profile_guided")),
+            "rewritten_prompt": rewritten_prompt[:260],
             "agent_cluster": SPECIALIST_LABELS.get(
                 decision.direct_tool or decision.capability,
                 "Dialogue Coordinator Agent",
@@ -729,6 +835,7 @@ class ChatGraph:
                 decision,
                 context,
                 profile_hints=profile_hints,
+                rewritten_prompt=rewritten_prompt,
             ),
         }
         async with stream.stage("coordinating", source="dialogue_coordinator", metadata=metadata):
@@ -803,6 +910,16 @@ class ChatGraph:
 
     def _decide_specialist(self, context: UnifiedContext) -> CoordinatorDecision:
         return self.capability_router.decide(context)
+
+    @staticmethod
+    def _context_with_chat_decision_tools(
+        context: UnifiedContext,
+        decision: CoordinatorDecision,
+    ) -> UnifiedContext:
+        if decision.delegates or decision.direct_tool or decision.tools is None:
+            return context
+        tools = list(dict.fromkeys(decision.tools))
+        return replace(context, enabled_tools=tools)
 
     async def _run_specialist(
         self,
@@ -924,50 +1041,7 @@ class ChatGraph:
 
     @staticmethod
     def _looks_like_external_video_request(text: str) -> bool:
-        video_search_pattern = re.search(
-            r"(找|推荐|检索|搜|公开|资源|链接|b站|哔哩哔哩|youtube).{0,12}(视频|网课|公开课)"
-            r"|(?:视频|网课|公开课).{0,12}(找|推荐|检索|搜|资源|链接|公开)",
-            text,
-            flags=re.IGNORECASE,
-        )
-        if not ChatGraph._contains_any(text, VIDEO_SEARCH_TERMS) and not video_search_pattern:
-            return False
-        generate_markers = (
-            "\u751f\u6210\u89c6\u9891",
-            "\u751f\u6210\u4e00\u4e2a\u89c6\u9891",
-            "\u751f\u6210\u4e2a\u89c6\u9891",
-            "\u5236\u4f5c\u89c6\u9891",
-            "\u505a\u4e00\u4e2a\u89c6\u9891",
-            "\u505a\u4e2a\u89c6\u9891",
-            "\u751f\u6210\u77ed\u89c6\u9891",
-            "\u52a8\u753b",
-            "manim",
-            "generate video",
-            "create video",
-            "make video",
-            "animation",
-            "animate",
-        )
-        find_markers = (
-            "\u627e",
-            "\u63a8\u8350",
-            "\u68c0\u7d22",
-            "\u641c",
-            "\u516c\u5f00",
-            "\u8d44\u6e90",
-            "\u94fe\u63a5",
-            "find",
-            "recommend",
-            "search",
-            "link",
-            "resource",
-        )
-        generate_pattern = re.search(r"(生成|制作|做).{0,8}(视频|短视频|动画)", text, flags=re.IGNORECASE)
-        if (ChatGraph._contains_any(text, generate_markers) or generate_pattern) and not (
-            ChatGraph._contains_any(text, find_markers) or video_search_pattern
-        ):
-            return False
-        return True
+        return LearningCapabilityRouter.looks_like_external_video_request(text)
 
     @staticmethod
     def _looks_like_external_image_request(text: str) -> bool:

@@ -101,7 +101,7 @@ export function KnowledgeWorkspaceResourceRoutePanels({
       ) : null}
 
       {workspace === "progress" ? (
-        <Suspense fallback={<ResourceRouteLoading label="正在准备索引进度" />}>
+        <Suspense fallback={<ResourceRouteLoading label="正在准备处理进度" />}>
           <KnowledgeProgressPanel
             visible
             activeKb={activeKb}
@@ -124,7 +124,7 @@ export function KnowledgeWorkspaceResourceRoutePanels({
 
 function ResourceRouteLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

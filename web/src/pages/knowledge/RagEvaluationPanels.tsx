@@ -70,7 +70,7 @@ export function RagEvaluationPresetPanel({
       </div>
       {currentPreset.id === "rag_upgrade" ? (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-          完整对比会逐个运行多种检索策略，适合有标注样本时使用；只想确认资料能不能被问到，建议先用快速体检。
+          完整对比会逐个运行多种查找策略，适合有标注样本时使用；只想确认资料能不能被问到，建议先用快速体检。
         </div>
       ) : null}
     </div>

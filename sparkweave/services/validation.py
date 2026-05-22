@@ -10,6 +10,7 @@ _RUNTIME_ONLY_KEYS = {
     "_persist_user_message",
     "_runtime",
     "answer_now_context",
+    "canvas_context",
     "followup_question_context",
 }
 

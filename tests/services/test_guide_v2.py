@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from sparkweave.services.guide_support.models import CourseMap, CourseNode
 from sparkweave.services.guide_v2 import GuideV2CreateInput, GuideV2Manager
 
 
@@ -694,6 +695,70 @@ async def test_guide_v2_generates_audio_resource_and_persists_asset(tmp_path, mo
     assert Path(audio["asset_path"]).exists()
 
 
+def test_guide_v2_normalizes_unsafe_task_ids(tmp_path) -> None:
+    manager = GuideV2Manager(output_dir=tmp_path)
+    course_map = CourseMap(
+        title="测试课程",
+        nodes=[CourseNode(node_id="N1", title="节点")],
+    )
+
+    tasks = manager._normalize_tasks(
+        {
+            "tasks": [
+                {
+                    "task_id": "../../escape",
+                    "node_id": "N1",
+                    "title": "任务",
+                    "instruction": "完成任务",
+                }
+            ]
+        },
+        course_map,
+    )
+
+    assert tasks[0].task_id == "escape"
+
+
+@pytest.mark.asyncio
+async def test_guide_v2_audio_resource_uses_safe_artifact_storage_segments(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm unavailable")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+    created = await manager.create_session(GuideV2CreateInput(goal="理解梯度下降"))
+    session_id = created["session"]["session_id"]
+    unsafe_task_id = "../../escape"
+    session = manager._sessions[session_id]
+    session.tasks[0].task_id = unsafe_task_id
+    session.learning_path.current_task_id = unsafe_task_id
+
+    async def _fake_tts(_text: str, **_kwargs):
+        return SimpleNamespace(
+            audio=b"mp3bytes",
+            content_type="audio/mpeg",
+            encoding="lame",
+            sample_rate=24000,
+            voice="x5_lingxiaoxuan_flow",
+            sid="sid-audio",
+        )
+
+    monkeypatch.setattr("sparkweave.services.guide_v2.synthesize_speech_with_iflytek", _fake_tts)
+
+    result = await manager.generate_resource(
+        session_id,
+        unsafe_task_id,
+        resource_type="audio",
+    )
+
+    assert result["success"] is True
+    asset_path = Path(result["artifact"]["result"]["audio"]["asset_path"]).resolve()
+    assert asset_path.is_relative_to((tmp_path / "artifacts").resolve())
+    assert not (tmp_path / "escape").exists()
+
+
 @pytest.mark.asyncio
 async def test_guide_v2_video_resource_enables_narrated_animation_by_default(tmp_path) -> None:
     captured: list[Any] = []
@@ -1058,10 +1123,13 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["demo_seed_pack"]["report_anchor"]["score"] >= 0
     assert package["presentation_outline"]["slide_count"] == 7
     assert package["presentation_outline"]["slides"][0]["title"].startswith("项目价值")
+    assert any("讯飞" in item["title"] or "讯飞" in item["evidence"] for item in package["presentation_outline"]["slides"])
     assert package["recording_script"]["total_minutes"] == 7
     assert package["recording_script"]["segments"]
+    assert any("讯飞" in item["narration"] for item in package["recording_script"]["segments"])
     assert package["demo_preflight"]["checks"]
-    assert package["demo_preflight"]["total_count"] == 8
+    assert package["demo_preflight"]["total_count"] == 9
+    assert any(item["id"] == "iflytek_toolchain" for item in package["demo_preflight"]["checks"])
     assert package["demo_preflight"]["next_action"]
     assert package["ai_coding_statement"]["usage_scope"]
     assert package["ai_coding_statement"]["human_review"]
@@ -1084,8 +1152,12 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert package["defense_qa"]["questions"]
     assert package["defense_qa"]["question_count"] >= 6
     assert any("多智能体" in item["question"] for item in package["defense_qa"]["questions"])
+    assert package["iflytek_toolchain"]["items"]
+    assert package["iflytek_toolchain"]["demo_cues"]
+    assert any(item["id"] == "vision" for item in package["iflytek_toolchain"]["items"])
     assert package["competition_submission"]["checklist"]
     assert any(item["item"] == "演示 PPT" for item in package["competition_submission"]["checklist"])
+    assert any(item["item"] == "科大讯飞工具链证明" for item in package["competition_submission"]["checklist"])
     assert package["competition_submission"]["ready_count"] >= 1
     assert package["learning_report"]["demo_readiness"]["checks"]
     assert package["learning_report"]["behavior_summary"]["event_count"] >= 2
@@ -1097,6 +1169,8 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     assert "学习画像与推进方式" in package["markdown"]
     assert "最近学习轨迹" in package["markdown"]
     assert "7 分钟演示路线" in package["markdown"]
+    assert "科大讯飞工具链讲法" in package["markdown"]
+    assert "公式识别、图片理解、语音和星辰工作流" in package["markdown"]
     assert "录屏兜底包" in package["markdown"]
     assert "稳定 Demo 样例" in package["markdown"]
     assert "稳定兜底素材" in package["markdown"]

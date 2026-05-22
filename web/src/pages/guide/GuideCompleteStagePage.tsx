@@ -145,7 +145,7 @@ export function GuideCompleteStagePage({
         className="mt-4 w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
         onClick={onOpenCoursePackage}
       >
-        <span className="text-sm font-semibold text-ink">查看课程产出包</span>
+        <span className="text-sm font-semibold text-ink">查看课程成果</span>
         <span className="mt-1 block text-xs leading-5 text-slate-500">项目、评分标准和复习重点放在单独页面里。</span>
       </button>
     </section>

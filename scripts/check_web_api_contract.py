@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
-import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_MAIN = ROOT / "sparkweave" / "api" / "main.py"
@@ -42,10 +41,16 @@ SPARKBOT_DYNAMIC_SHAPES = {
     "/api/v1/sparkbot/souls",
     "/api/v1/sparkbot/souls/{}",
     "/api/v1/sparkbot/{}",
+    "/api/v1/sparkbot/{}/cron",
+    "/api/v1/sparkbot/{}/cron/{}",
+    "/api/v1/sparkbot/{}/cron/{}/run",
     "/api/v1/sparkbot/{}/destroy",
     "/api/v1/sparkbot/{}/files",
     "/api/v1/sparkbot/{}/files/{}",
     "/api/v1/sparkbot/{}/history",
+    "/api/v1/sparkbot/{}/skills",
+    "/api/v1/sparkbot/{}/skills/upload",
+    "/api/v1/sparkbot/{}/skills/{}",
     "/api/v1/sparkbot/{}/ws",
 }
 

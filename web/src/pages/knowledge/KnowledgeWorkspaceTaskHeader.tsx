@@ -38,6 +38,15 @@ export function KnowledgeWorkspaceTaskHeader({
       : overview.taskActive
         ? "brand"
         : "neutral";
+  const documents = toFiniteNumber(overview.documentCount);
+  const vectors = toFiniteNumber(overview.vectorCount);
+  const canAsk =
+    Boolean(activeKb) &&
+    documents !== null &&
+    documents > 0 &&
+    (vectors === null || vectors > 0) &&
+    !overview.taskActive &&
+    !overview.recoveryNeedsAttention;
 
   return (
     <section className={KNOWLEDGE_PANEL_COMPACT_CLASS} data-testid="knowledge-workspace-task-header">
@@ -63,19 +72,27 @@ export function KnowledgeWorkspaceTaskHeader({
             <ChevronLeft size={15} />
             资料首页
           </Button>
-          <a
-            href={buildKnowledgeChatHref(activeKb)}
-            className={`dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-medium ${
-              activeKb
-                ? "border-brand-purple bg-brand-purple text-white hover:bg-brand-purple-800"
-                : "pointer-events-none border-line bg-line text-stone"
-            }`}
-            aria-disabled={!activeKb}
-            data-testid="knowledge-workspace-ask"
-          >
-            <MessageSquareText size={15} />
-            问资料
-          </a>
+          {canAsk ? (
+            <a
+              href={buildKnowledgeChatHref(activeKb)}
+              className="dt-interactive inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-brand-purple bg-brand-purple px-3 text-xs font-medium text-white hover:bg-brand-purple-800"
+              data-testid="knowledge-workspace-ask"
+            >
+              <MessageSquareText size={15} />
+              问资料
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-medium text-slate-400"
+              data-testid="knowledge-workspace-ask"
+              title={activeKb ? "资料整理完成后可用" : "先选择资料库"}
+            >
+              <MessageSquareText size={15} />
+              问资料
+            </button>
+          )}
         </div>
       </div>
 
@@ -88,7 +105,7 @@ export function KnowledgeWorkspaceTaskHeader({
           <details className="relative rounded-lg border border-line bg-white px-3 py-2 [&>summary::-webkit-details-marker]:hidden">
             <summary className="dt-interactive flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
               <MoreHorizontal size={15} />
-              更多工具
+              更多入口
             </summary>
             <div className="mt-2 flex min-w-[220px] flex-col gap-2">
               {advancedItems.map((item) => (
@@ -163,4 +180,13 @@ function buildShortcutItems(
 function buildKnowledgeChatHref(activeKb: string) {
   const params = new URLSearchParams({ capability: "chat", kb: activeKb });
   return `/chat?${params.toString()}`;
+}
+
+function toFiniteNumber(value: number | string | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }

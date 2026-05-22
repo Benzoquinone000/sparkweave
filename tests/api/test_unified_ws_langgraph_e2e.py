@@ -596,6 +596,58 @@ def test_unified_ws_start_turn_routes_langgraph_to_ng_runtime(
     assert detail["messages"][1]["content"] == "Hello from /api/v1/ws via NG."
 
 
+def test_unified_ws_start_turn_passes_canvas_context_to_ng_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    store = create_session_store(tmp_path / "chat_history_canvas.db")
+    runner = FakeLangGraphRunner()
+    ng_runtime = LangGraphTurnRuntimeManager(
+        store=store,
+        runner=runner,
+        memory_service=FakeMemory(),
+    )
+    router = RuntimeRoutingTurnManager(
+        legacy=FailingLegacyRuntime(),
+        langgraph=ng_runtime,
+        store=store,
+    )
+    _install_runtime_manager(monkeypatch, router)
+
+    with TestClient(_build_app()) as client:
+        with client.websocket_connect("/api/v1/ws") as websocket:
+            websocket.send_json(
+                {
+                    "type": "start_turn",
+                    "content": "润色这份草稿",
+                    "session_id": "ws-ng-canvas",
+                    "capability": "chat",
+                    "tools": [],
+                    "knowledge_bases": [],
+                    "attachments": [],
+                    "language": "zh",
+                    "canvas_context": {
+                        "id": "canvas-1",
+                        "message_id": "assistant-1",
+                        "title": "梯度下降解释草稿",
+                        "content": "# 梯度下降解释草稿\n\n学习率控制每一步的步长。",
+                    },
+                    "config": {"_runtime": "langgraph"},
+                }
+            )
+            while True:
+                event = websocket.receive_json()
+                if event["type"] == "done":
+                    break
+
+    assert len(runner.contexts) == 1
+    context = runner.contexts[0]
+    assert context.user_message == "润色这份草稿"
+    assert context.metadata["canvas_context"]["title"] == "梯度下降解释草稿"
+    assert "学习率控制每一步的步长" in context.metadata["canvas_context"]["content"]
+    assert "canvas_context" not in context.config_overrides
+
+
 def test_unified_ws_start_turn_uses_ng_runtime_by_default(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,

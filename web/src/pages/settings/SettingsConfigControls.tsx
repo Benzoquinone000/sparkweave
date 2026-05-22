@@ -1,16 +1,17 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { FieldShell, SelectInput, TextInput } from "@/components/ui/Field";
 import type { ProviderChoice } from "@/lib/types";
 
-export type ConfigSectionId = "llm" | "embedding" | "search" | "ocr";
+export type ConfigSectionId = "llm" | "embedding" | "search" | "ocr" | "speech";
 
 const CONFIG_SECTION_ITEMS: Array<{ id: ConfigSectionId; label: string; helper: string; dot: string }> = [
   { id: "llm", label: "问答模型", helper: "对话、导学、资源生成", dot: "bg-brand-purple" },
-  { id: "embedding", label: "向量模型", helper: "知识库检索和语义理解", dot: "bg-brand-teal" },
+  { id: "embedding", label: "资料理解", helper: "资料入库和相似内容匹配", dot: "bg-brand-teal" },
   { id: "search", label: "联网搜索", helper: "外部资料和精选视频", dot: "bg-brand-orange" },
-  { id: "ocr", label: "OCR 识别", helper: "扫描 PDF 与图片文字", dot: "bg-brand-blue" },
+  { id: "ocr", label: "图片文字识别", helper: "扫描 PDF 与图片文字", dot: "bg-brand-blue" },
+  { id: "speech", label: "语音学习", helper: "讲解、输入和口语评测", dot: "bg-brand-red" },
 ];
 
 export function ConfigSectionRail({
@@ -22,7 +23,7 @@ export function ConfigSectionRail({
 }) {
   return (
     <aside className="dt-interactive rounded-lg border border-line bg-canvas p-2">
-      <p className="px-2 pb-2 text-xs font-semibold text-steel">选择要配置的服务</p>
+      <p className="px-2 pb-2 text-xs font-semibold text-steel">选择要连接的服务</p>
       <div className="grid gap-1">
         {CONFIG_SECTION_ITEMS.map((item) => {
           const selected = active === item.id;
@@ -37,8 +38,9 @@ export function ConfigSectionRail({
                   : "border border-transparent text-charcoal hover:border-line hover:bg-white"
               }`}
               aria-pressed={selected}
+              data-testid={`settings-config-section-${item.id}`}
             >
-              <span className={`h-2.5 w-2.5 shrink-0 ${item.dot}`} style={{ borderRadius: "50%" }} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${item.dot}`} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{item.label}</span>
                 <span className="mt-0.5 block truncate text-xs text-steel">{item.helper}</span>
@@ -88,7 +90,7 @@ export function ProviderSelect({
       >
         {providers.map((provider) => (
           <option key={provider.value} value={provider.value}>
-            {provider.label}
+            {friendlyProviderLabel(provider.label)}
           </option>
         ))}
       </SelectInput>
@@ -96,20 +98,98 @@ export function ProviderSelect({
   );
 }
 
+function friendlyProviderLabel(label: string) {
+  const normalized = label.trim();
+  const labels: Record<string, string> = {
+    "iFlytek Spark X": "讯飞星火 X",
+    "iFlytek MaaS Coding": "讯飞 MaaS Coding",
+    "iFlytek Spark Embedding": "讯飞星火 Embedding",
+    "iFlytek ONE SEARCH": "讯飞 ONE SEARCH",
+    "iFlytek OCR for LLM": "讯飞图片文字识别",
+    "iFlytek Formula Recognition": "讯飞公式识别",
+    "iFlytek Spark Image Understanding": "讯飞图片理解",
+    "iFlytek Super Smart TTS": "讯飞语音合成",
+    "iFlytek Voice Dictation": "讯飞语音听写",
+    "iFlytek Speech Evaluation": "讯飞语音评测",
+    "SiliconFlow DeepSeek-OCR": "硅基流动文档识别",
+  };
+  return labels[normalized] || normalized;
+}
+
+export function ProviderQuickNote({ provider }: { provider?: ProviderChoice }) {
+  if (!provider) return null;
+  const parts = [
+    provider.credential_hint ? `密钥要求：${friendlyCredentialHint(provider.credential_hint)}` : "",
+    friendlyModelHint(provider.model_hint || ""),
+  ].filter(Boolean);
+  if (!parts.length && !provider.docs_url) return null;
+  return (
+    <p className="text-xs leading-5 text-steel">
+      {parts.join(" · ")}
+      {provider.docs_url ? (
+        <a
+          className="ml-2 inline-flex items-center gap-1 font-medium text-brand-purple hover:text-brand-purple-700"
+          href={provider.docs_url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          官方文档
+          <ExternalLink size={12} />
+        </a>
+      ) : null}
+    </p>
+  );
+}
+
+function friendlyCredentialHint(hint: string) {
+  return hint
+    .trim()
+    .replace(/\b[A-Z0-9]+(?:_[A-Z0-9]+)*_API_KEY\b/g, "访问密钥")
+    .replace(/\b[A-Z0-9]+(?:_[A-Z0-9]+)*_API_SECRET\b/g, "Secret")
+    .replace(/\b[A-Z0-9]+(?:_[A-Z0-9]+)*_API_PASSWORD\b/g, "连接密码")
+    .replace(/\b[A-Z0-9]+(?:_[A-Z0-9]+)*_APPID\b/g, "AppID")
+    .replace(/APIKey/gi, "访问密钥")
+    .replace(/API Key/gi, "访问密钥")
+    .replace(/APISecret/gi, "Secret")
+    .replace(/APIPassword/gi, "连接密码")
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/\s*\+\s*/g, " + ")
+    .replace(/\b访问密钥\s*\/\s*访问密钥\b/g, "访问密钥")
+    .replace(/\bSecret\s*\/\s*Secret\b/g, "Secret")
+    .replace(/\b连接密码\s*\/\s*连接密码\b/g, "连接密码");
+}
+
+function friendlyModelHint(hint: string) {
+  return hint
+    .trim()
+    .replace(/model ID/gi, "模型名称")
+    .replace(/模型 ID/g, "模型名称")
+    .replace(/deployment name/gi, "部署名称")
+    .replace(/OpenAI-compatible/gi, "OpenAI 兼容")
+    .replace(/endpoint/gi, "服务地址")
+    .replace(/\bAgentic\b/gi, "多步骤")
+    .replace(/\bAgent\b/g, "长任务")
+    .replace(/\bRAG\b/g, "资料问答");
+}
+
 export function PresetModelInput({
   id,
   value,
   options,
+  recommendedModel,
   onChange,
   testId,
   presetTestId,
+  placeholder = "选择预设或输入模型名称",
 }: {
   id: string;
   value: string;
   options: string[];
+  recommendedModel?: string;
   onChange: (value: string) => void;
   testId: string;
   presetTestId?: string;
+  placeholder?: string;
 }) {
   const uniqueOptions = Array.from(new Set(options.filter(Boolean)));
   const [open, setOpen] = useState(false);
@@ -129,7 +209,7 @@ export function PresetModelInput({
         onBlur={() => {
           window.setTimeout(() => setOpen(false), 120);
         }}
-        placeholder="输入模型 ID"
+        placeholder={placeholder}
         className={uniqueOptions.length ? "pr-10" : undefined}
         data-testid={testId}
       />
@@ -146,7 +226,7 @@ export function PresetModelInput({
         </button>
       ) : null}
       {uniqueOptions.length && open ? (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-soft">
           {visibleOptions.length ? (
             visibleOptions.map((model) => (
               <button
@@ -161,11 +241,18 @@ export function PresetModelInput({
                   setOpen(false);
                 }}
               >
-                {model}
+                <span className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="truncate">{model}</span>
+                  {model === recommendedModel ? (
+                    <span className="shrink-0 rounded-sm bg-tint-lavender px-1.5 py-0.5 text-[11px] font-medium text-brand-purple">
+                      推荐
+                    </span>
+                  ) : null}
+                </span>
               </button>
             ))
           ) : (
-            <div className="px-3 py-2 text-sm text-slate-500">没有匹配的预设，继续手动输入。</div>
+            <div className="px-3 py-2 text-sm text-slate-500">没有匹配的预设，可继续手动输入模型名称。</div>
           )}
         </div>
       ) : null}

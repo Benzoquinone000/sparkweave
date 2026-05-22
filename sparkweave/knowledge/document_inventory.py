@@ -16,9 +16,9 @@ import platform
 from typing import Any
 
 from sparkweave.knowledge.manager import KnowledgeBaseManager
+from sparkweave.services.rag_support import milvus_http
 from sparkweave.services.rag_support.factory import DEFAULT_PROVIDER, normalize_provider_name
 from sparkweave.services.rag_support.file_routing import FileTypeRouter
-from sparkweave.services.rag_support import milvus_http
 
 MAX_VECTOR_SCAN = 5000
 

@@ -22,17 +22,17 @@ export function RagSearchSourcesList({
       {!sources.length ? (
         <EmptyState
           icon={<Search size={24} />}
-          title="没有召回证据"
-          description="尝试扩大证据数量、切换检索画像，或先检查知识库是否已经完成索引。"
+          title="没有找到可引用资料"
+          description="尝试扩大来源数量、切换问题侧重，或先检查资料库是否已经整理完成。"
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <Button tone="primary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("deep")}>
                 <GitBranch size={15} />
-                套用深度追问
+                套用复杂问题
               </Button>
               <Button tone="secondary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("setup")}>
                 <SlidersHorizontal size={15} />
-                调整检索
+                调整查找
               </Button>
             </div>
           }
@@ -53,13 +53,13 @@ function RagSearchSourceArticle({
     <article className="rounded-lg border border-line bg-white p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{source.title || source.source || `证据 ${index + 1}`}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{source.evidence_reason || "来自知识库检索结果。"}</p>
+          <p className="truncate text-sm font-semibold text-ink">{source.title || source.source || `来源 ${index + 1}`}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{source.evidence_reason || "来自资料库查找结果。"}</p>
         </div>
         <Badge tone="neutral">{source.score === "" || source.score == null ? "相关度 -" : `相关度 ${source.score}`}</Badge>
       </div>
       <p className="mt-3 whitespace-pre-wrap rounded-lg bg-canvas p-3 text-sm leading-6 text-slate-700">
-        {source.content || "这个证据没有可预览文本。"}
+        {source.content || "这条来源没有可预览文本。"}
       </p>
       {source.matched_keywords?.length ? (
         <div className="mt-3 flex flex-wrap gap-2">

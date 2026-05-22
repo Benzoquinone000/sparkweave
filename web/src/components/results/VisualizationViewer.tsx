@@ -75,7 +75,7 @@ function SvgPreview({ svg }: { svg: string }) {
   return (
     <div
       data-testid="svg-preview"
-      className="dt-visual-preview flex justify-center overflow-x-auto rounded-lg border border-line bg-white p-2.5"
+      className="dt-visual-preview dt-dynamic-result flex justify-center overflow-x-auto rounded-lg border border-line bg-white p-2.5"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
@@ -122,7 +122,7 @@ function MermaidPreview({ code }: { code: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-48 items-center justify-center rounded-lg border border-line bg-white text-xs text-slate-500">
+      <div className="dt-dynamic-empty flex min-h-48 items-center justify-center rounded-lg border border-line bg-white text-xs text-slate-500">
         <Loader2 size={18} className="animate-spin text-brand-blue" />
         <span className="ml-2">正在渲染 Mermaid 图表</span>
       </div>
@@ -136,7 +136,7 @@ function MermaidPreview({ code }: { code: string }) {
   return (
     <div
       data-testid="mermaid-preview"
-      className="dt-visual-preview overflow-x-auto rounded-lg border border-line bg-white p-2.5"
+      className="dt-visual-preview dt-dynamic-result overflow-x-auto rounded-lg border border-line bg-white p-2.5"
       dangerouslySetInnerHTML={{ __html: renderedSvg }}
     />
   );
@@ -148,7 +148,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function pickChartConfig(value: unknown) {
   if (!isRecord(value)) {
-    throw new Error("Chart.js 配置必须是 JSON 对象。");
+    throw new Error("图表配置必须是结构化对象。");
   }
   if (isRecord(value.config)) return value.config;
   if (isRecord(value.chart)) return value.chart;
@@ -219,7 +219,7 @@ function ChartJsPreview({ code }: { code: string }) {
   const error = parsed.error ?? runtimeError;
 
   return (
-    <div data-testid="chartjs-preview" className="rounded-lg border border-line bg-white p-2.5">
+    <div data-testid="chartjs-preview" className="dt-dynamic-result rounded-lg border border-line bg-white p-2.5">
       {error ? <ErrorPanel title="Chart.js 渲染失败" detail={error} /> : null}
       <div className={`h-60 min-h-48 ${error ? "hidden" : ""}`}>
         <canvas ref={canvasRef} aria-label="Chart.js visualization" />
@@ -262,7 +262,7 @@ export function VisualizationViewer({ result }: { result: VisualizeResult }) {
   };
 
   return (
-    <div className="rounded-lg border border-line bg-canvas p-2.5">
+    <div className="dt-dynamic-result rounded-lg border border-line bg-canvas p-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="brand">可视化</Badge>
         <Badge tone="neutral">{result.render_type}</Badge>
@@ -295,7 +295,7 @@ export function VisualizationViewer({ result }: { result: VisualizeResult }) {
       </div>
 
       {showCode ? (
-        <pre className="dt-code-surface mt-3 max-h-72 overflow-auto rounded-lg p-3 text-xs leading-5">
+        <pre className="dt-code-surface dt-dynamic-code mt-3 max-h-72 overflow-auto rounded-lg p-3 text-xs leading-5">
           {result.code.content}
         </pre>
       ) : null}

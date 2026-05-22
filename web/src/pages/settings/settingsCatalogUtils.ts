@@ -41,6 +41,62 @@ export type OcrForm = {
   minTextChars: string;
 };
 
+export type FormulaOcrForm = {
+  provider: string;
+  appId: string;
+  apiKey: string;
+  apiSecret: string;
+  baseUrl: string;
+  ent: string;
+  aue: string;
+  timeout: string;
+};
+
+export type ImageUnderstandingForm = {
+  provider: string;
+  appId: string;
+  apiKey: string;
+  apiSecret: string;
+  baseUrl: string;
+  protocol: string;
+  domain: string;
+  maxTokens: string;
+  temperature: string;
+  topK: string;
+  timeout: string;
+  uid: string;
+};
+
+export type SpeechForm = {
+  ttsProvider: string;
+  ttsAppId: string;
+  ttsApiKey: string;
+  ttsApiSecret: string;
+  ttsBaseUrl: string;
+  ttsVoice: string;
+  ttsEncoding: string;
+  ttsSampleRate: string;
+  ttsSpeed: string;
+  ttsVolume: string;
+  ttsPitch: string;
+  asrProvider: string;
+  asrAppId: string;
+  asrApiKey: string;
+  asrApiSecret: string;
+  asrBaseUrl: string;
+  asrLanguage: string;
+  asrAccent: string;
+  asrDomain: string;
+  asrVadEos: string;
+  speechEvalProvider: string;
+  speechEvalAppId: string;
+  speechEvalApiKey: string;
+  speechEvalApiSecret: string;
+  speechEvalBaseUrl: string;
+  speechEvalCategory: string;
+  speechEvalLanguage: string;
+};
+
 export type SharedCredentialsForm = {
   iflytekAppId: string;
   iflytekApiKey: string;
@@ -70,15 +126,37 @@ export function fallbackOcrProviders(): ProviderChoice[] {
   return [
     {
       value: "iflytek",
-      label: "讯飞 OCR for LLM",
+      label: "讯飞图片文字识别",
       base_url: "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
     },
     {
       value: "siliconflow",
-      label: "硅基流动 DeepSeek-OCR",
+      label: "硅基流动文档识别",
       base_url: "https://api.siliconflow.cn/v1",
       default_model: "deepseek-ai/DeepSeek-OCR",
       models: ["deepseek-ai/DeepSeek-OCR"],
+    },
+    { value: "disabled", label: "停用", base_url: "" },
+  ];
+}
+
+export function fallbackFormulaOcrProviders(): ProviderChoice[] {
+  return [
+    {
+      value: "iflytek",
+      label: "讯飞公式识别",
+      base_url: "https://rest-api.xfyun.cn/v2/itr",
+    },
+    { value: "disabled", label: "停用", base_url: "" },
+  ];
+}
+
+export function fallbackImageUnderstandingProviders(): ProviderChoice[] {
+  return [
+    {
+      value: "iflytek",
+      label: "讯飞图片理解",
+      base_url: "wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image",
     },
     { value: "disabled", label: "停用", base_url: "" },
   ];
@@ -93,7 +171,13 @@ export function extractSharedCredentials(catalog: ModelCatalog): SharedCredentia
   const embeddingProfile = activeProfile(catalog.services.embedding);
   const searchProfile = activeProfile(catalog.services.search);
   const ocrProfile = catalog.services.ocr ? activeProfile(catalog.services.ocr) : undefined;
+  const formulaOcrProfile = catalog.services.formula_ocr ? activeProfile(catalog.services.formula_ocr) : undefined;
+  const imageUnderstandingProfile = catalog.services.image_understanding
+    ? activeProfile(catalog.services.image_understanding)
+    : undefined;
   const ttsProfile = catalog.services.tts ? activeProfile(catalog.services.tts) : undefined;
+  const asrProfile = catalog.services.asr ? activeProfile(catalog.services.asr) : undefined;
+  const speechEvalProfile = catalog.services.speech_eval ? activeProfile(catalog.services.speech_eval) : undefined;
 
   const iflytekFromAkSk = splitAkSk(
     llmProfile?.binding === "iflytek_spark_ws"
@@ -108,21 +192,33 @@ export function extractSharedCredentials(catalog: ModelCatalog): SharedCredentia
       iflytek.app_id ||
       embeddingProfile?.extra_headers?.app_id ||
       ocrProfile?.extra_headers?.app_id ||
+      formulaOcrProfile?.extra_headers?.app_id ||
+      imageUnderstandingProfile?.extra_headers?.app_id ||
       ttsProfile?.extra_headers?.app_id ||
+      asrProfile?.extra_headers?.app_id ||
+      speechEvalProfile?.extra_headers?.app_id ||
       "",
     iflytekApiKey:
       iflytek.api_key ||
       iflytekFromAkSk.apiKey ||
       (embeddingProfile?.binding === "iflytek_spark" ? embeddingProfile?.api_key : "") ||
       (ocrProfile?.provider === "iflytek" ? ocrProfile?.api_key : "") ||
+      (formulaOcrProfile?.provider === "iflytek" ? formulaOcrProfile?.api_key : "") ||
+      (imageUnderstandingProfile?.provider === "iflytek" ? imageUnderstandingProfile?.api_key : "") ||
       (ttsProfile?.provider === "iflytek" ? ttsProfile?.api_key : "") ||
+      (asrProfile?.provider === "iflytek" ? asrProfile?.api_key : "") ||
+      (speechEvalProfile?.provider === "iflytek" ? speechEvalProfile?.api_key : "") ||
       "",
     iflytekApiSecret:
       iflytek.api_secret ||
       iflytekFromAkSk.apiSecret ||
       embeddingProfile?.extra_headers?.api_secret ||
       ocrProfile?.extra_headers?.api_secret ||
+      formulaOcrProfile?.extra_headers?.api_secret ||
+      imageUnderstandingProfile?.extra_headers?.api_secret ||
       ttsProfile?.extra_headers?.api_secret ||
+      asrProfile?.extra_headers?.api_secret ||
+      speechEvalProfile?.extra_headers?.api_secret ||
       "",
     iflytekApiPassword:
       iflytek.api_password ||
@@ -166,6 +262,11 @@ export function effectiveSearchApiKey(profile: EndpointProfile | undefined, shar
 export function effectiveOcrApiKey(profile: EndpointProfile | undefined, shared: SharedCredentialsForm) {
   if (profile?.provider === "iflytek") return shared.iflytekApiKey || profile.api_key || "";
   if (profile?.provider === "siliconflow") return shared.siliconflowApiKey || profile.api_key || "";
+  return profile?.api_key || "";
+}
+
+export function effectiveIflytekServiceApiKey(profile: EndpointProfile | undefined, shared: SharedCredentialsForm) {
+  if (profile?.provider === "iflytek") return shared.iflytekApiKey || profile.api_key || "";
   return profile?.api_key || "";
 }
 
@@ -269,9 +370,113 @@ export function applyOcrForm(catalog: ModelCatalog, form: OcrForm) {
   profile.models = [];
 }
 
+export function applyFormulaOcrForm(catalog: ModelCatalog, form: FormulaOcrForm) {
+  catalog.services.formula_ocr = catalog.services.formula_ocr ?? { active_profile_id: undefined, profiles: [] };
+  const profile = ensureProfile(catalog.services.formula_ocr, "formula-ocr-profile-default");
+  profile.provider = form.provider;
+  profile.base_url = form.baseUrl.trim();
+  profile.timeout = form.timeout.trim();
+  if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+  profile.extra_headers = {
+    ...(profile.extra_headers || {}),
+    app_id: form.appId.trim(),
+    api_secret: form.apiSecret.trim(),
+    ent: form.ent.trim() || "teach-photo-print",
+    aue: form.aue.trim() || "raw",
+  };
+  profile.models = [];
+}
+
+export function applyImageUnderstandingForm(catalog: ModelCatalog, form: ImageUnderstandingForm) {
+  catalog.services.image_understanding = catalog.services.image_understanding ?? {
+    active_profile_id: undefined,
+    profiles: [],
+  };
+  const profile = ensureProfile(catalog.services.image_understanding, "image-understanding-profile-default");
+  profile.provider = form.provider;
+  profile.base_url = form.baseUrl.trim();
+  profile.timeout = form.timeout.trim();
+  if (form.apiKey.trim()) profile.api_key = form.apiKey.trim();
+  profile.extra_headers = {
+    ...(profile.extra_headers || {}),
+    app_id: form.appId.trim(),
+    api_secret: form.apiSecret.trim(),
+    protocol: form.protocol.trim() || "spark_image",
+    domain: form.domain.trim() || "imagev3",
+    max_tokens: form.maxTokens.trim() || "2048",
+    temperature: form.temperature.trim() || "0.2",
+    top_k: form.topK.trim() || "4",
+    uid: form.uid.trim() || "sparkweave",
+  };
+  profile.models = [];
+}
+
+export function applySpeechForm(catalog: ModelCatalog, form: SpeechForm) {
+  catalog.services.tts = catalog.services.tts ?? { active_profile_id: undefined, profiles: [] };
+  catalog.services.asr = catalog.services.asr ?? { active_profile_id: undefined, profiles: [] };
+  catalog.services.speech_eval = catalog.services.speech_eval ?? { active_profile_id: undefined, profiles: [] };
+
+  const tts = ensureProfile(catalog.services.tts, "tts-profile-default");
+  tts.provider = form.ttsProvider;
+  tts.base_url = form.ttsBaseUrl.trim();
+  tts.timeout = "";
+  tts.api_key = form.ttsApiKey.trim();
+  tts.models = [];
+  tts.extra_headers = {
+    ...(tts.extra_headers || {}),
+    app_id: form.ttsAppId.trim(),
+    api_secret: form.ttsApiSecret.trim(),
+    voice: form.ttsVoice.trim() || "x5_lingxiaoxuan_flow",
+    encoding: form.ttsEncoding.trim() || "lame",
+    sample_rate: form.ttsSampleRate.trim() || "24000",
+    channels: "1",
+    bit_depth: "16",
+    frame_size: "0",
+    speed: normalizeSpeechRange(form.ttsSpeed),
+    volume: normalizeSpeechRange(form.ttsVolume),
+    pitch: normalizeSpeechRange(form.ttsPitch),
+  };
+
+  const asr = ensureProfile(catalog.services.asr, "asr-profile-default");
+  asr.provider = form.asrProvider;
+  asr.base_url = form.asrBaseUrl.trim();
+  asr.timeout = "";
+  asr.api_key = form.asrApiKey.trim();
+  asr.models = [];
+  asr.extra_headers = {
+    ...(asr.extra_headers || {}),
+    app_id: form.asrAppId.trim(),
+    api_secret: form.asrApiSecret.trim(),
+    language: form.asrLanguage.trim() || "zh_cn",
+    accent: form.asrAccent.trim() || "mandarin",
+    domain: form.asrDomain.trim() || "iat",
+    vad_eos: form.asrVadEos.trim() || "3000",
+  };
+
+  const speechEval = ensureProfile(catalog.services.speech_eval, "speech-eval-profile-default");
+  speechEval.provider = form.speechEvalProvider;
+  speechEval.base_url = form.speechEvalBaseUrl.trim();
+  speechEval.timeout = "";
+  speechEval.api_key = form.speechEvalApiKey.trim();
+  speechEval.models = [];
+  speechEval.extra_headers = {
+    ...(speechEval.extra_headers || {}),
+    app_id: form.speechEvalAppId.trim(),
+    api_secret: form.speechEvalApiSecret.trim(),
+    category: form.speechEvalCategory.trim() || "read_sentence",
+    language: form.speechEvalLanguage.trim() || "zh_cn",
+  };
+}
+
 export function optionalOcrSetting(value: string | undefined, ...defaultValues: string[]) {
   const normalized = String(value ?? "").trim();
   return normalized && !defaultValues.includes(normalized) ? normalized : "";
+}
+
+function normalizeSpeechRange(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return "50";
+  return String(Math.max(0, Math.min(100, parsed)));
 }
 
 function splitAkSk(value?: string) {
@@ -298,45 +503,87 @@ function stripSharedCredentialDuplicates(catalog: ModelCatalog) {
   const hasIflytek = Boolean(iflytek?.app_id || iflytek?.api_key || iflytek?.api_secret || iflytek?.api_password);
   const hasSiliconFlow = Boolean(siliconflow?.api_key);
 
-  const clearApiKey = (profile?: EndpointProfile) => {
-    if (profile) profile.api_key = "";
+  const clearApiKey = (profile: EndpointProfile | undefined, candidates: Array<string | undefined>) => {
+    if (profile && candidates.some((candidate) => sameNonEmptySecret(profile.api_key, candidate))) profile.api_key = "";
   };
   const clearIflytekExtra = (profile?: EndpointProfile) => {
     if (!profile?.extra_headers) return;
-    profile.extra_headers.app_id = "";
-    profile.extra_headers.api_secret = "";
+    if (sameNonEmptySecret(profile.extra_headers.app_id, iflytek?.app_id)) profile.extra_headers.app_id = "";
+    if (sameNonEmptySecret(profile.extra_headers.api_secret, iflytek?.api_secret)) {
+      profile.extra_headers.api_secret = "";
+    }
   };
+  const iflytekCredentialCandidates = [
+    iflytek?.api_key,
+    iflytek?.api_password,
+    iflytek?.api_key && iflytek?.api_secret ? `${iflytek.api_key}:${iflytek.api_secret}` : undefined,
+  ];
 
   for (const profile of catalog.services.llm.profiles) {
     if (profile.binding === "iflytek_spark_ws" && hasIflytek) {
-      clearApiKey(profile);
+      clearApiKey(profile, iflytekCredentialCandidates);
       clearIflytekExtra(profile);
     }
-    if (profileUsesSiliconFlow(profile) && hasSiliconFlow) clearApiKey(profile);
+    if (profileUsesSiliconFlow(profile) && hasSiliconFlow) clearApiKey(profile, [siliconflow?.api_key]);
   }
   for (const profile of catalog.services.embedding.profiles) {
     if (profile.binding === "iflytek_spark" && hasIflytek) {
-      clearApiKey(profile);
+      clearApiKey(profile, iflytekCredentialCandidates);
       clearIflytekExtra(profile);
     }
-    if (profileUsesSiliconFlow(profile) && hasSiliconFlow) clearApiKey(profile);
+    if (profileUsesSiliconFlow(profile) && hasSiliconFlow) clearApiKey(profile, [siliconflow?.api_key]);
   }
   for (const profile of catalog.services.search.profiles) {
-    if (profile.provider === "iflytek_spark" && hasIflytek) clearApiKey(profile);
+    if (profile.provider === "iflytek_spark" && hasIflytek) clearApiKey(profile, iflytekCredentialCandidates);
   }
   for (const profile of catalog.services.ocr?.profiles ?? []) {
     if (profile.provider === "iflytek" && hasIflytek) {
-      clearApiKey(profile);
+      clearApiKey(profile, [iflytek?.api_key]);
       clearIflytekExtra(profile);
     }
-    if (profile.provider === "siliconflow" && hasSiliconFlow) clearApiKey(profile);
+    if (profile.provider === "siliconflow" && hasSiliconFlow) clearApiKey(profile, [siliconflow?.api_key]);
+  }
+  for (const profile of catalog.services.formula_ocr?.profiles ?? []) {
+    if (profile.provider === "iflytek" && hasIflytek) {
+      clearApiKey(profile, [iflytek?.api_key]);
+      clearIflytekExtra(profile);
+    }
+  }
+  for (const profile of catalog.services.image_understanding?.profiles ?? []) {
+    if (profile.provider === "iflytek" && hasIflytek) {
+      clearApiKey(profile, [iflytek?.api_key]);
+      clearIflytekExtra(profile);
+    }
   }
   for (const profile of catalog.services.tts?.profiles ?? []) {
     if (profile.provider === "iflytek" && hasIflytek) {
-      clearApiKey(profile);
+      clearApiKey(profile, [iflytek?.api_key]);
       clearIflytekExtra(profile);
     }
   }
+  for (const profile of catalog.services.asr?.profiles ?? []) {
+    if (profile.provider === "iflytek" && hasIflytek) {
+      clearApiKey(profile, [iflytek?.api_key]);
+      clearIflytekExtra(profile);
+    }
+  }
+  for (const profile of catalog.services.speech_eval?.profiles ?? []) {
+    if (profile.provider === "iflytek" && hasIflytek) {
+      clearApiKey(profile, [iflytek?.api_key]);
+      clearIflytekExtra(profile);
+    }
+  }
+}
+
+function sameNonEmptySecret(value: unknown, candidate: unknown) {
+  const left = String(value ?? "").trim();
+  const right = String(candidate ?? "").trim();
+  if (isRedactedSecret(left) || isRedactedSecret(right)) return false;
+  return Boolean(left && right && left === right);
+}
+
+function isRedactedSecret(value: string) {
+  return value === "********";
 }
 
 function ensureProfile(service: ServiceCatalog, fallbackId: string) {

@@ -1,0 +1,6 @@
+short_description: "Call a published iFlytek Xingchen workflow and attach the external agent workflow to the current learning task."
+when_to_use: "Use when the learner explicitly asks for an iFlytek workflow, competition workflow, course-resource workflow, PPT outline workflow, or oral-practice workflow."
+input_format: "Use prompt for the learner request; parameters may include course id, task id, learner profile summary, or other workflow inputs."
+guideline: "Do not call this just to show capability. Use it when the configured iFlytek workflow is part of the requested learning path."
+note: "Workflow output comes from an external iFlytek platform; important claims should still be checked against SparkWeave evidence."
+phase: "action"

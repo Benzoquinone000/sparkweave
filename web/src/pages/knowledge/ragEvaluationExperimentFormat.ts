@@ -8,7 +8,7 @@ import { isRecord, readNumber } from "./ragUtils";
 export function formatRagExperimentHeadline(summary: Record<string, unknown>) {
   const leader = String(summary.quality_leader || "strategy");
   const metrics = isRecord(summary.quality_leader_metrics) ? summary.quality_leader_metrics : {};
-  return `当前领先策略：${formatStrategyName(leader)}，来源命中 ${formatRagEvalRate(readNumber(metrics, "source_hit_rate"))}，证据排序 ${formatRagEvalRate(readNumber(metrics, "avg_source_ndcg"))}，关键词召回 ${formatRagEvalRate(readNumber(metrics, "keyword_recall"))}，较慢请求 ${formatRagEvalMs(readNumber(metrics, "p95_latency_ms"))}。`;
+  return `当前领先方案：${formatStrategyName(leader)}，来源命中 ${formatRagEvalRate(readNumber(metrics, "source_hit_rate"))}，来源排序 ${formatRagEvalRate(readNumber(metrics, "avg_source_ndcg"))}，关键词覆盖 ${formatRagEvalRate(readNumber(metrics, "keyword_recall"))}，较慢请求 ${formatRagEvalMs(readNumber(metrics, "p95_latency_ms"))}。`;
 }
 
 export function formatRagExperimentRecommendation(summary: Record<string, unknown>) {
@@ -18,8 +18,8 @@ export function formatRagExperimentRecommendation(summary: Record<string, unknow
   const sourceDelta = readNumber(delta, "source_hit_delta") ?? 0;
   const keywordDelta = readNumber(delta, "keyword_recall_delta") ?? 0;
   const latencyDelta = readNumber(delta, "p95_latency_delta_ms") ?? 0;
-  if (!leader) return "先运行评测，再决定默认检索策略。";
-  if (leader === baseline) return "当前基础策略仍然最稳，优先检查资料覆盖、分块和索引质量。";
+  if (!leader) return "先运行评测，再决定默认查找策略。";
+  if (leader === baseline) return "当前基础策略仍然最稳，优先检查资料覆盖、切片和整理质量。";
   if (latencyDelta > 1000 && Math.max(sourceDelta, keywordDelta) < 0.05) {
     return "质量收益不大但耗时明显变高，建议作为复杂问题的可选方案，不要直接设为默认。";
   }

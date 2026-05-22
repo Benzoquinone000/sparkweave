@@ -33,6 +33,9 @@ ENV_PATH = PROJECT_ROOT / ".env"
 IFLYTEK_SPARK_MODEL = "spark-x"
 IFLYTEK_SPARK_X2_BASE_URL = "https://spark-api-open.xf-yun.com/x2/"
 IFLYTEK_SPARK_X15_BASE_URL = "https://spark-api-open.xf-yun.com/v2/"
+IFLYTEK_MAAS_CODING_MODEL = "astron-code-latest"
+IFLYTEK_MAAS_CODING_BASE_URL = "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2"
+IFLYTEK_MAAS_CODING_ANTHROPIC_URL = "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic"
 
 
 class LLMConfigError(RuntimeError):
@@ -62,6 +65,9 @@ class ProviderSpec:
     model_overrides: tuple[tuple[str, dict[str, Any]], ...] = ()
     is_oauth: bool = False
     is_direct: bool = False
+    credential_hint: str = ""
+    model_hint: str = ""
+    docs_url: str = ""
 
     @property
     def mode(self) -> str:
@@ -123,6 +129,17 @@ PROVIDER_ALIASES = {
     "x1_5": "iflytek_spark_ws",
     "x1.5": "iflytek_spark_ws",
     "iflytek_spark_x15": "iflytek_spark_ws",
+    "maas": "iflytek_maas_coding",
+    "iflytek_maas": "iflytek_maas_coding",
+    "xfyun_maas": "iflytek_maas_coding",
+    "xunfei_maas": "iflytek_maas_coding",
+    "maas_coding": "iflytek_maas_coding",
+    "iflytek_maas_code": "iflytek_maas_coding",
+    "iflytek_coding": "iflytek_maas_coding",
+    "xfyun_coding": "iflytek_maas_coding",
+    "astron": "iflytek_maas_coding",
+    "astron_code": "iflytek_maas_coding",
+    "astron-code": "iflytek_maas_coding",
 }
 
 
@@ -146,14 +163,20 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="openrouter",
         default_api_base="https://openrouter.ai/api/v1",
         supports_prompt_caching=True,
-        default_model="openai/gpt-5.2",
+        default_model="openai/gpt-5.5",
         model_options=(
-            "openai/gpt-5.2",
-            "anthropic/claude-opus-4-1-20250805",
-            "anthropic/claude-sonnet-4-20250514",
-            "google/gemini-3-pro-preview",
-            "deepseek/deepseek-reasoner",
+            "openai/gpt-5.5",
+            "openai/gpt-5.4",
+            "openai/gpt-5.4-mini",
+            "anthropic/claude-opus-4-7",
+            "anthropic/claude-sonnet-4-6",
+            "google/gemini-3.5-flash",
+            "deepseek/deepseek-v4-pro",
+            "deepseek/deepseek-v4-flash",
         ),
+        credential_hint="OpenRouter API Key",
+        model_hint="聚合平台模型名通常保留 provider/model 前缀。",
+        docs_url="https://openrouter.ai/docs",
     ),
     ProviderSpec(
         "aihubmix",
@@ -164,8 +187,11 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="aihubmix",
         default_api_base="https://aihubmix.com/v1",
         strip_model_prefix=True,
-        default_model="gpt-5.2",
-        model_options=("gpt-5.2", "gpt-5-mini", "claude-opus-4-1-20250805", "gemini-3-pro-preview"),
+        default_model="gpt-5.5",
+        model_options=("gpt-5.5", "gpt-5.4-mini", "claude-opus-4-7", "gemini-3.5-flash", "deepseek-v4-flash"),
+        credential_hint="AiHubMix API Key",
+        model_hint="如果平台模型清单更新，可直接手动输入新的模型 ID。",
+        docs_url="https://docs.aihubmix.com",
     ),
     ProviderSpec(
         "siliconflow",
@@ -176,7 +202,15 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         detect_by_base_keyword="siliconflow",
         default_api_base="https://api.siliconflow.cn/v1",
         default_model="deepseek-ai/DeepSeek-R1",
-        model_options=("deepseek-ai/DeepSeek-R1", "deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-235B-A22B"),
+        model_options=(
+            "deepseek-ai/DeepSeek-R1",
+            "deepseek-ai/DeepSeek-V3",
+            "Qwen/Qwen3-235B-A22B",
+            "Pro/zai-org/GLM-4.7",
+        ),
+        credential_hint="SiliconFlow API Key",
+        model_hint="硅基流动会频繁上新，预设保留官方 OpenAI 接口示例模型，也支持手动输入模型广场 ID。",
+        docs_url="https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions",
     ),
     ProviderSpec(
         "volcengine",
@@ -223,13 +257,17 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         backend="anthropic",
         default_api_base="https://api.anthropic.com/v1",
         supports_prompt_caching=True,
-        default_model="claude-opus-4-1-20250805",
+        default_model="claude-opus-4-7",
         model_options=(
+            "claude-opus-4-7",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
             "claude-opus-4-1-20250805",
-            "claude-opus-4-20250514",
             "claude-sonnet-4-20250514",
-            "claude-3-5-haiku-20241022",
         ),
+        credential_hint="ANTHROPIC_API_KEY",
+        model_hint="Opus 适合复杂推理和 Agent，Sonnet 更适合日常速度/质量平衡。",
+        docs_url="https://docs.claude.com/en/docs/about-claude/models/overview",
     ),
     ProviderSpec(
         "openai",
@@ -238,8 +276,11 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="OpenAI",
         default_api_base="https://api.openai.com/v1",
         supports_max_completion_tokens=True,
-        default_model="gpt-5.2",
-        model_options=("gpt-5.2", "gpt-5.2-pro", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini"),
+        default_model="gpt-5.5",
+        model_options=("gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-4.1", "gpt-4.1-mini"),
+        credential_hint="OPENAI_API_KEY",
+        model_hint="复杂推理选 gpt-5.5；日常学习场景可选 gpt-5.4-mini / nano 降低延迟和成本。",
+        docs_url="https://developers.openai.com/api/docs/models",
     ),
     ProviderSpec(
         "openai_codex",
@@ -266,8 +307,11 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "DEEPSEEK_API_KEY",
         display_name="DeepSeek",
         default_api_base="https://api.deepseek.com",
-        default_model="deepseek-chat",
-        model_options=("deepseek-chat", "deepseek-reasoner"),
+        default_model="deepseek-v4-flash",
+        model_options=("deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"),
+        credential_hint="DEEPSEEK_API_KEY",
+        model_hint="deepseek-chat/reasoner 仍兼容，但官方已说明未来会弃用，优先使用 v4-flash / v4-pro。",
+        docs_url="https://api-docs.deepseek.com/quick_start/pricing",
     ),
     ProviderSpec(
         "gemini",
@@ -275,14 +319,20 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         "GEMINI_API_KEY",
         display_name="Gemini",
         default_api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        default_model="gemini-3-pro-preview",
+        default_model="gemini-3.5-flash",
         model_options=(
-            "gemini-3-pro-preview",
+            "gemini-3.5-flash",
+            "gemini-3.1-pro-preview",
             "gemini-3-flash-preview",
+            "gemini-3.1-flash-lite",
             "gemini-2.5-pro",
             "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
             "gemini-2.0-flash-lite",
         ),
+        credential_hint="GEMINI_API_KEY",
+        model_hint="Gemini 3 Pro Preview 已关闭，官方建议迁移到 3.1 Pro Preview；稳定默认使用 3.5 Flash。",
+        docs_url="https://ai.google.dev/gemini-api/docs/openai",
     ),
     ProviderSpec(
         "zhipu",
@@ -291,8 +341,11 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Zhipu AI",
         env_extras=(("ZHIPUAI_API_KEY", "{api_key}"),),
         default_api_base="https://open.bigmodel.cn/api/paas/v4",
-        default_model="glm-4.5",
-        model_options=("glm-4.5", "glm-4.5-air", "glm-4-plus", "glm-4-air"),
+        default_model="glm-5.1",
+        model_options=("glm-5.1", "glm-5", "glm-5-turbo", "glm-4.7", "glm-4.6", "glm-4.5"),
+        credential_hint="ZAI_API_KEY / ZHIPUAI_API_KEY",
+        model_hint="GLM-5.1 面向长程 Agent 与复杂任务，GLM-5-Turbo 更适合成本敏感场景。",
+        docs_url="https://docs.bigmodel.cn/cn/guide/models/text/glm-5.1",
     ),
     ProviderSpec(
         "dashscope",
@@ -305,10 +358,16 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
             "qwen3.6-plus",
             "qwen3.6-flash",
             "qwen3.6-max-preview",
+            "qwen3-max",
             "qwen3.5-plus",
             "qwen3.5-flash",
             "qwen3-coder-plus",
+            "qwen3-coder-flash",
+            "qwen3-next-80b-a3b-thinking",
         ),
+        credential_hint="DASHSCOPE_API_KEY",
+        model_hint="教育问答默认 Plus；高质量可选 Max Preview；低延迟可选 Flash。",
+        docs_url="https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope",
     ),
     ProviderSpec(
         "iflytek_spark_ws",
@@ -330,16 +389,57 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         default_api_base=IFLYTEK_SPARK_X2_BASE_URL,
         default_model=IFLYTEK_SPARK_MODEL,
         model_options=(IFLYTEK_SPARK_MODEL,),
+        credential_hint="IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET，或 APIPassword",
+        model_hint="X2 与 X1.5 的模型名均为 spark-x，通过服务地址区分版本。",
+        docs_url="https://www.xfyun.cn/doc/spark/X1http.html",
+    ),
+    ProviderSpec(
+        "iflytek_maas_coding",
+        (
+            "iflytek_maas",
+            "xfyun_maas",
+            "xunfei_maas",
+            "maas-coding",
+            "maas_coding",
+            "astron",
+            "astron-code",
+            "astron_code",
+        ),
+        "IFLYTEK_MAAS_API_PASSWORD",
+        display_name="iFlytek MaaS Coding",
+        is_direct=True,
+        detect_by_base_keyword="maas-coding-api.cn-huabei-1.xf-yun.com",
+        default_api_base=IFLYTEK_MAAS_CODING_BASE_URL,
+        default_model=IFLYTEK_MAAS_CODING_MODEL,
+        model_options=(IFLYTEK_MAAS_CODING_MODEL,),
+        credential_hint="IFLYTEK_MAAS_API_PASSWORD（MaaS APIPassword，形如 APIKey:APISecret）",
+        model_hint=(
+            "Astron Code 适合代码智能体、工具编排和工程化生成；"
+            f"OpenAI-compatible 使用 {IFLYTEK_MAAS_CODING_BASE_URL}，"
+            f"Anthropic-compatible 入口可作为自定义端点使用 {IFLYTEK_MAAS_CODING_ANTHROPIC_URL}。"
+        ),
+        docs_url="https://maas.xfyun.cn/",
     ),
     ProviderSpec(
         "moonshot",
         ("moonshot", "kimi"),
         "MOONSHOT_API_KEY",
         display_name="Moonshot",
-        default_api_base="https://api.moonshot.ai/v1",
+        default_api_base="https://api.moonshot.cn/v1",
         default_model="kimi-k2.5",
-        model_options=("kimi-k2.5", "kimi-k2-turbo-preview", "moonshot-v1-128k", "moonshot-v1-32k"),
+        model_options=(
+            "kimi-k2.5",
+            "kimi-k2-thinking",
+            "kimi-k2-thinking-turbo",
+            "kimi-k2-0905-Preview",
+            "kimi-k2-turbo-preview",
+            "moonshot-v1-128k",
+            "moonshot-v1-32k",
+        ),
         model_overrides=(("kimi-k2.5", {"temperature": 1.0}),),
+        credential_hint="MOONSHOT_API_KEY",
+        model_hint="Kimi K2.5 系列支持 256K 上下文，适合长资料理解和 Agent 任务。",
+        docs_url="https://platform.moonshot.cn/docs/guide/kimi-k2-5-quickstart",
     ),
     ProviderSpec(
         "minimax",
@@ -348,7 +448,10 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="MiniMax",
         default_api_base="https://api.minimax.io/v1",
         default_model="MiniMax-M2.7",
-        model_options=("MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2"),
+        model_options=("MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5"),
+        credential_hint="MINIMAX_API_KEY",
+        model_hint="M2.7 面向复杂生产力和 Agent 任务，M2.5 可作为兼容备选。",
+        docs_url="https://www.minimax.io/models/text/m27",
     ),
     ProviderSpec(
         "mistral",
@@ -357,7 +460,16 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Mistral",
         default_api_base="https://api.mistral.ai/v1",
         default_model="mistral-large-2512",
-        model_options=("mistral-large-2512", "mistral-medium-2508", "mistral-small-2603", "magistral-medium-2509"),
+        model_options=(
+            "mistral-large-2512",
+            "mistral-small-2603",
+            "magistral-medium-2509",
+            "ministral-14b-2512",
+            "ministral-8b-2512",
+        ),
+        credential_hint="MISTRAL_API_KEY",
+        model_hint="Large 3 适合高质量多模态，Small 4 更适合低延迟任务。",
+        docs_url="https://docs.mistral.ai/models/overview",
     ),
     ProviderSpec(
         "stepfun",
@@ -500,6 +612,10 @@ class EmbeddingProviderSpec:
     mode: str = "standard"
     default_model: str = ""
     default_dim: int = 0
+    model_options: tuple[str, ...] = ()
+    credential_hint: str = ""
+    model_hint: str = ""
+    docs_url: str = ""
 
 
 EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
@@ -511,6 +627,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=("OPENAI_API_KEY",),
         default_model="text-embedding-3-large",
         default_dim=3072,
+        model_options=("text-embedding-3-large", "text-embedding-3-small"),
+        credential_hint="OPENAI_API_KEY",
+        model_hint="3-large 质量更高，3-small 更省成本。",
+        docs_url="https://platform.openai.com/docs/guides/embeddings",
     ),
     "azure_openai": EmbeddingProviderSpec(
         label="Azure OpenAI",
@@ -519,6 +639,9 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         keywords=("azure", "aoai"),
         is_local=False,
         api_key_envs=("AZURE_OPENAI_API_KEY", "AZURE_API_KEY"),
+        credential_hint="AZURE_OPENAI_API_KEY",
+        model_hint="模型名通常填写 Azure deployment name。",
+        docs_url="https://learn.microsoft.com/azure/ai-services/openai/reference",
     ),
     "cohere": EmbeddingProviderSpec(
         label="Cohere",
@@ -529,6 +652,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=("COHERE_API_KEY",),
         default_model="embed-v4.0",
         default_dim=1024,
+        model_options=("embed-v4.0", "embed-english-v3.0", "embed-multilingual-v3.0"),
+        credential_hint="COHERE_API_KEY",
+        model_hint="embed-v4.0 同时支持文本和图像；多语言资料也可使用 multilingual v3。",
+        docs_url="https://docs.cohere.com/docs/cohere-embed",
     ),
     "jina": EmbeddingProviderSpec(
         label="Jina",
@@ -539,6 +666,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=("JINA_API_KEY",),
         default_model="jina-embeddings-v3",
         default_dim=1024,
+        model_options=("jina-embeddings-v3", "jina-clip-v2"),
+        credential_hint="JINA_API_KEY",
+        model_hint="jina-embeddings-v3 适合通用文本检索；CLIP 模型适合多模态资料。",
+        docs_url="https://jina.ai/embeddings/",
     ),
     "siliconflow": EmbeddingProviderSpec(
         label="SiliconFlow",
@@ -548,6 +679,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=("SILICONFLOW_API_KEY",),
         default_model="Qwen/Qwen3-Embedding-8B",
         default_dim=4096,
+        model_options=("Qwen/Qwen3-Embedding-8B", "BAAI/bge-m3", "netease-youdao/bce-embedding-base_v1"),
+        credential_hint="SILICONFLOW_API_KEY",
+        model_hint="Qwen3 Embedding 适合中文高校课程资料；切换模型后需重建知识库索引。",
+        docs_url="https://docs.siliconflow.cn/cn/api-reference/embeddings/create-embeddings",
     ),
     "iflytek_spark": EmbeddingProviderSpec(
         label="iFlytek Spark Embedding",
@@ -566,6 +701,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         ),
         default_model="llm-embedding",
         default_dim=2560,
+        model_options=("llm-embedding",),
+        credential_hint="IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+        model_hint="讯飞 llm-embedding 固定 2560 维，domain 可在 para/query 间切换。",
+        docs_url="https://www.xfyun.cn/doc/spark/Embedding_api.html",
     ),
     "ollama": EmbeddingProviderSpec(
         label="Ollama",
@@ -577,6 +716,10 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         api_key_envs=(),
         default_model="nomic-embed-text",
         default_dim=768,
+        model_options=("nomic-embed-text", "mxbai-embed-large", "snowflake-arctic-embed"),
+        credential_hint="本地服务无需密钥",
+        model_hint="容器内访问宿主机 Ollama 时，地址通常要写 host.docker.internal。",
+        docs_url="https://ollama.com/blog/embedding-models",
     ),
     "vllm": EmbeddingProviderSpec(
         label="vLLM / LM Studio",
@@ -585,6 +728,8 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         keywords=("vllm", "lmstudio"),
         is_local=True,
         api_key_envs=("HOSTED_VLLM_API_KEY",),
+        credential_hint="本地服务可留空，托管服务填写 HOSTED_VLLM_API_KEY",
+        model_hint="填写本地 OpenAI-compatible embedding 模型名。",
     ),
     "custom": EmbeddingProviderSpec(
         label="OpenAI Compatible",
@@ -593,6 +738,8 @@ EMBEDDING_PROVIDERS: dict[str, EmbeddingProviderSpec] = {
         keywords=(),
         is_local=False,
         api_key_envs=("OPENAI_API_KEY",),
+        credential_hint="按兼容服务要求填写 API Key",
+        model_hint="用于任何 OpenAI-compatible embedding endpoint。",
     ),
 }
 
@@ -678,6 +825,14 @@ DEFAULT_OCR_MIN_TEXT_CHARS = "40"
 DEFAULT_SILICONFLOW_OCR_MAX_TOKENS = "8192"
 DEFAULT_IFLYTEK_TTS_URL = "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6"
 DEFAULT_IFLYTEK_TTS_VOICE = "x5_lingxiaoxuan_flow"
+DEFAULT_IFLYTEK_ASR_URL = "wss://iat-api.xfyun.cn/v2/iat"
+DEFAULT_IFLYTEK_SPEECH_EVAL_URL = "wss://ise-api.xfyun.cn/v2/open-ise"
+DEFAULT_IFLYTEK_FORMULA_URL = "https://rest-api.xfyun.cn/v2/itr"
+DEFAULT_IFLYTEK_FORMULA_ENT = "teach-photo-print"
+DEFAULT_IFLYTEK_FORMULA_AUE = "raw"
+DEFAULT_IFLYTEK_VISION_URL = "wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image"
+DEFAULT_IFLYTEK_VISION_PROTOCOL = "spark_image"
+DEFAULT_IFLYTEK_VISION_DOMAIN = "imagev3"
 
 
 ENV_KEY_ORDER = (
@@ -687,6 +842,7 @@ ENV_KEY_ORDER = (
     "IFLYTEK_API_KEY",
     "IFLYTEK_API_SECRET",
     "IFLYTEK_API_PASSWORD",
+    "IFLYTEK_MAAS_API_PASSWORD",
     "SILICONFLOW_API_KEY",
     "LLM_BINDING",
     "LLM_MODEL",
@@ -734,6 +890,46 @@ ENV_KEY_ORDER = (
     "IFLYTEK_TTS_SPEED",
     "IFLYTEK_TTS_VOLUME",
     "IFLYTEK_TTS_PITCH",
+    "SPARKWEAVE_ASR_PROVIDER",
+    "SPARKWEAVE_ASR_TIMEOUT",
+    "IFLYTEK_ASR_APPID",
+    "IFLYTEK_ASR_API_KEY",
+    "IFLYTEK_ASR_API_SECRET",
+    "IFLYTEK_ASR_URL",
+    "IFLYTEK_ASR_LANGUAGE",
+    "IFLYTEK_ASR_ACCENT",
+    "IFLYTEK_ASR_DOMAIN",
+    "IFLYTEK_ASR_VAD_EOS",
+    "SPARKWEAVE_SPEECH_EVAL_PROVIDER",
+    "SPARKWEAVE_SPEECH_EVAL_TIMEOUT",
+    "IFLYTEK_SPEECH_EVAL_APPID",
+    "IFLYTEK_SPEECH_EVAL_API_KEY",
+    "IFLYTEK_SPEECH_EVAL_API_SECRET",
+    "IFLYTEK_SPEECH_EVAL_URL",
+    "IFLYTEK_SPEECH_EVAL_CATEGORY",
+    "IFLYTEK_SPEECH_EVAL_LANGUAGE",
+    "SPARKWEAVE_FORMULA_OCR_PROVIDER",
+    "IFLYTEK_FORMULA_URL",
+    "IFLYTEK_FORMULA_APPID",
+    "IFLYTEK_FORMULA_API_KEY",
+    "IFLYTEK_FORMULA_API_SECRET",
+    "IFLYTEK_FORMULA_ENT",
+    "IFLYTEK_FORMULA_AUE",
+    "IFLYTEK_FORMULA_TIMEOUT",
+    "SPARKWEAVE_IMAGE_UNDERSTANDING_PROVIDER",
+    "IFLYTEK_VISION_PROTOCOL",
+    "IFLYTEK_VISION_URL",
+    "IFLYTEK_VISION_APPID",
+    "IFLYTEK_VISION_API_KEY",
+    "IFLYTEK_VISION_API_SECRET",
+    "IFLYTEK_VISION_DOMAIN",
+    "IFLYTEK_VISION_MAX_TOKENS",
+    "IFLYTEK_VISION_TEMPERATURE",
+    "IFLYTEK_VISION_TOP_K",
+    "IFLYTEK_VISION_TIMEOUT",
+    "IFLYTEK_VISION_UID",
+    "SPARKWEAVE_IFLYTEK_OFFLINE_FALLBACK",
+    "SPARKWEAVE_OFFLINE_ASR_TEXT",
 )
 
 
@@ -764,6 +960,8 @@ class ConfigSummary:
     search: dict[str, str]
     ocr: dict[str, str]
     tts: dict[str, str]
+    asr: dict[str, str]
+    speech_eval: dict[str, str]
 
 
 class EnvStore:
@@ -823,6 +1021,8 @@ class EnvStore:
             llm_provider = canonical_provider_name(llm_binding)
             if llm_provider == "iflytek_spark_ws":
                 llm_api_key = iflytek_api_password or iflytek_api_key
+            elif llm_provider == "iflytek_maas_coding":
+                llm_api_key = value("IFLYTEK_MAAS_API_PASSWORD") or value("IFLYTEK_MAAS_CODING_API_PASSWORD")
             elif llm_provider == "siliconflow" or "siliconflow" in llm_host.lower():
                 llm_api_key = siliconflow_api_key
 
@@ -909,6 +1109,28 @@ class EnvStore:
                 "volume": value("IFLYTEK_TTS_VOLUME", "50"),
                 "pitch": value("IFLYTEK_TTS_PITCH", "50"),
             },
+            asr={
+                "provider": value("SPARKWEAVE_ASR_PROVIDER", "iflytek"),
+                "timeout": value("SPARKWEAVE_ASR_TIMEOUT", "60"),
+                "app_id": value("IFLYTEK_ASR_APPID") or iflytek_app_id,
+                "api_key": value("IFLYTEK_ASR_API_KEY") or iflytek_api_key,
+                "api_secret": value("IFLYTEK_ASR_API_SECRET") or iflytek_api_secret,
+                "url": value("IFLYTEK_ASR_URL", DEFAULT_IFLYTEK_ASR_URL),
+                "language": value("IFLYTEK_ASR_LANGUAGE", "zh_cn"),
+                "accent": value("IFLYTEK_ASR_ACCENT", "mandarin"),
+                "domain": value("IFLYTEK_ASR_DOMAIN", "iat"),
+                "vad_eos": value("IFLYTEK_ASR_VAD_EOS", "3000"),
+            },
+            speech_eval={
+                "provider": value("SPARKWEAVE_SPEECH_EVAL_PROVIDER", "iflytek"),
+                "timeout": value("SPARKWEAVE_SPEECH_EVAL_TIMEOUT", "60"),
+                "app_id": value("IFLYTEK_SPEECH_EVAL_APPID") or iflytek_app_id,
+                "api_key": value("IFLYTEK_SPEECH_EVAL_API_KEY") or iflytek_api_key,
+                "api_secret": value("IFLYTEK_SPEECH_EVAL_API_SECRET") or iflytek_api_secret,
+                "url": value("IFLYTEK_SPEECH_EVAL_URL", DEFAULT_IFLYTEK_SPEECH_EVAL_URL),
+                "category": value("IFLYTEK_SPEECH_EVAL_CATEGORY", "read_sentence"),
+                "language": value("IFLYTEK_SPEECH_EVAL_LANGUAGE", "zh_cn"),
+            },
         )
 
     def write(self, values: dict[str, str]) -> None:
@@ -943,7 +1165,11 @@ class EnvStore:
         embedding_service = services.get("embedding", {})
         search_service = services.get("search", {})
         ocr_service = services.get("ocr", {})
+        formula_ocr_service = services.get("formula_ocr", {})
+        image_understanding_service = services.get("image_understanding", {})
         tts_service = services.get("tts", {})
+        asr_service = services.get("asr", {})
+        speech_eval_service = services.get("speech_eval", {})
 
         llm_profile = self._get_active_profile(llm_service)
         llm_model = self._get_active_model(llm_service, llm_profile)
@@ -952,8 +1178,16 @@ class EnvStore:
         search_profile = self._get_active_profile(search_service)
         ocr_profile = self._get_active_profile(ocr_service)
         ocr_extra = (ocr_profile or {}).get("extra_headers") or {}
+        formula_ocr_profile = self._get_active_profile(formula_ocr_service)
+        formula_ocr_extra = (formula_ocr_profile or {}).get("extra_headers") or {}
+        image_understanding_profile = self._get_active_profile(image_understanding_service)
+        image_understanding_extra = (image_understanding_profile or {}).get("extra_headers") or {}
         tts_profile = self._get_active_profile(tts_service)
         tts_extra = (tts_profile or {}).get("extra_headers") or {}
+        asr_profile = self._get_active_profile(asr_service)
+        asr_extra = (asr_profile or {}).get("extra_headers") or {}
+        speech_eval_profile = self._get_active_profile(speech_eval_service)
+        speech_eval_extra = (speech_eval_profile or {}).get("extra_headers") or {}
 
         current = self.load()
         provider_credentials = catalog.get("provider_credentials") or {}
@@ -980,6 +1214,8 @@ class EnvStore:
             "IFLYTEK_OCR_APPID",
             "IFLYTEK_TTS_APPID",
             "IFLYTEK_EMBEDDING_APPID",
+            "IFLYTEK_ASR_APPID",
+            "IFLYTEK_SPEECH_EVAL_APPID",
         )
         iflytek_api_key = credential(
             iflytek_credentials,
@@ -988,6 +1224,8 @@ class EnvStore:
             "IFLYTEK_OCR_API_KEY",
             "IFLYTEK_TTS_API_KEY",
             "IFLYTEK_EMBEDDING_API_KEY",
+            "IFLYTEK_ASR_API_KEY",
+            "IFLYTEK_SPEECH_EVAL_API_KEY",
         )
         iflytek_api_secret = credential(
             iflytek_credentials,
@@ -996,6 +1234,8 @@ class EnvStore:
             "IFLYTEK_OCR_API_SECRET",
             "IFLYTEK_TTS_API_SECRET",
             "IFLYTEK_EMBEDDING_API_SECRET",
+            "IFLYTEK_ASR_API_SECRET",
+            "IFLYTEK_SPEECH_EVAL_API_SECRET",
         )
         iflytek_api_password = _as_str(iflytek_credentials.get("api_password"))
         if not iflytek_api_password and iflytek_api_key and iflytek_api_secret:
@@ -1093,17 +1333,17 @@ class EnvStore:
                 (ocr_profile or {}).get("min_text_chars") or ""
             ),
             "IFLYTEK_OCR_APPID": str(
-                "" if iflytek_app_id else ocr_extra.get("app_id") or current.get("IFLYTEK_OCR_APPID", "")
+                ocr_extra.get("app_id") or ("" if iflytek_app_id else current.get("IFLYTEK_OCR_APPID", ""))
             ),
             "IFLYTEK_OCR_API_KEY": str(
                 ""
-                if ocr_is_siliconflow or iflytek_api_key
-                else (ocr_profile or {}).get("api_key") or current.get("IFLYTEK_OCR_API_KEY", "")
+                if ocr_is_siliconflow
+                else (ocr_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_OCR_API_KEY", ""))
             ),
             "IFLYTEK_OCR_API_SECRET": str(
-                ""
-                if iflytek_api_secret
-                else ocr_extra.get("api_secret") or current.get("IFLYTEK_OCR_API_SECRET", "")
+                ocr_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_OCR_API_SECRET", ""))
             ),
             "IFLYTEK_OCR_URL": str(
                 current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
@@ -1144,15 +1384,15 @@ class EnvStore:
                 (tts_profile or {}).get("timeout") or current.get("SPARKWEAVE_TTS_TIMEOUT", "30")
             ),
             "IFLYTEK_TTS_APPID": str(
-                "" if iflytek_app_id else tts_extra.get("app_id") or current.get("IFLYTEK_TTS_APPID", "")
+                tts_extra.get("app_id") or ("" if iflytek_app_id else current.get("IFLYTEK_TTS_APPID", ""))
             ),
             "IFLYTEK_TTS_API_KEY": str(
-                "" if iflytek_api_key else (tts_profile or {}).get("api_key") or current.get("IFLYTEK_TTS_API_KEY", "")
+                (tts_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_TTS_API_KEY", ""))
             ),
             "IFLYTEK_TTS_API_SECRET": str(
-                ""
-                if iflytek_api_secret
-                else tts_extra.get("api_secret") or current.get("IFLYTEK_TTS_API_SECRET", "")
+                tts_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_TTS_API_SECRET", ""))
             ),
             "IFLYTEK_TTS_URL": str(
                 (tts_profile or {}).get("base_url")
@@ -1184,6 +1424,142 @@ class EnvStore:
             ),
             "IFLYTEK_TTS_PITCH": str(
                 tts_extra.get("pitch") or current.get("IFLYTEK_TTS_PITCH", "50")
+            ),
+            "SPARKWEAVE_ASR_PROVIDER": str(
+                (asr_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_ASR_PROVIDER", "iflytek")
+            ),
+            "SPARKWEAVE_ASR_TIMEOUT": str(
+                (asr_profile or {}).get("timeout") or current.get("SPARKWEAVE_ASR_TIMEOUT", "60")
+            ),
+            "IFLYTEK_ASR_APPID": str(
+                asr_extra.get("app_id") or ("" if iflytek_app_id else current.get("IFLYTEK_ASR_APPID", ""))
+            ),
+            "IFLYTEK_ASR_API_KEY": str(
+                (asr_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_ASR_API_KEY", ""))
+            ),
+            "IFLYTEK_ASR_API_SECRET": str(
+                asr_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_ASR_API_SECRET", ""))
+            ),
+            "IFLYTEK_ASR_URL": str(
+                (asr_profile or {}).get("base_url")
+                or current.get("IFLYTEK_ASR_URL", DEFAULT_IFLYTEK_ASR_URL)
+            ),
+            "IFLYTEK_ASR_LANGUAGE": str(
+                asr_extra.get("language") or current.get("IFLYTEK_ASR_LANGUAGE", "zh_cn")
+            ),
+            "IFLYTEK_ASR_ACCENT": str(
+                asr_extra.get("accent") or current.get("IFLYTEK_ASR_ACCENT", "mandarin")
+            ),
+            "IFLYTEK_ASR_DOMAIN": str(
+                asr_extra.get("domain") or current.get("IFLYTEK_ASR_DOMAIN", "iat")
+            ),
+            "IFLYTEK_ASR_VAD_EOS": str(
+                asr_extra.get("vad_eos") or current.get("IFLYTEK_ASR_VAD_EOS", "3000")
+            ),
+            "SPARKWEAVE_SPEECH_EVAL_PROVIDER": str(
+                (speech_eval_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_SPEECH_EVAL_PROVIDER", "iflytek")
+            ),
+            "SPARKWEAVE_SPEECH_EVAL_TIMEOUT": str(
+                (speech_eval_profile or {}).get("timeout")
+                or current.get("SPARKWEAVE_SPEECH_EVAL_TIMEOUT", "60")
+            ),
+            "IFLYTEK_SPEECH_EVAL_APPID": str(
+                speech_eval_extra.get("app_id")
+                or ("" if iflytek_app_id else current.get("IFLYTEK_SPEECH_EVAL_APPID", ""))
+            ),
+            "IFLYTEK_SPEECH_EVAL_API_KEY": str(
+                (speech_eval_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_SPEECH_EVAL_API_KEY", ""))
+            ),
+            "IFLYTEK_SPEECH_EVAL_API_SECRET": str(
+                speech_eval_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_SPEECH_EVAL_API_SECRET", ""))
+            ),
+            "IFLYTEK_SPEECH_EVAL_URL": str(
+                (speech_eval_profile or {}).get("base_url")
+                or current.get("IFLYTEK_SPEECH_EVAL_URL", DEFAULT_IFLYTEK_SPEECH_EVAL_URL)
+            ),
+            "IFLYTEK_SPEECH_EVAL_CATEGORY": str(
+                speech_eval_extra.get("category")
+                or current.get("IFLYTEK_SPEECH_EVAL_CATEGORY", "read_sentence")
+            ),
+            "IFLYTEK_SPEECH_EVAL_LANGUAGE": str(
+                speech_eval_extra.get("language") or current.get("IFLYTEK_SPEECH_EVAL_LANGUAGE", "zh_cn")
+            ),
+            "SPARKWEAVE_FORMULA_OCR_PROVIDER": str(
+                (formula_ocr_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_FORMULA_OCR_PROVIDER", "iflytek")
+            ),
+            "IFLYTEK_FORMULA_URL": str(
+                (formula_ocr_profile or {}).get("base_url")
+                or current.get("IFLYTEK_FORMULA_URL", DEFAULT_IFLYTEK_FORMULA_URL)
+            ),
+            "IFLYTEK_FORMULA_APPID": str(
+                formula_ocr_extra.get("app_id")
+                or ("" if iflytek_app_id else current.get("IFLYTEK_FORMULA_APPID", ""))
+            ),
+            "IFLYTEK_FORMULA_API_KEY": str(
+                (formula_ocr_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_FORMULA_API_KEY", ""))
+            ),
+            "IFLYTEK_FORMULA_API_SECRET": str(
+                formula_ocr_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_FORMULA_API_SECRET", ""))
+            ),
+            "IFLYTEK_FORMULA_ENT": str(
+                formula_ocr_extra.get("ent") or current.get("IFLYTEK_FORMULA_ENT", DEFAULT_IFLYTEK_FORMULA_ENT)
+            ),
+            "IFLYTEK_FORMULA_AUE": str(
+                formula_ocr_extra.get("aue") or current.get("IFLYTEK_FORMULA_AUE", DEFAULT_IFLYTEK_FORMULA_AUE)
+            ),
+            "IFLYTEK_FORMULA_TIMEOUT": str(
+                (formula_ocr_profile or {}).get("timeout") or current.get("IFLYTEK_FORMULA_TIMEOUT", "30")
+            ),
+            "SPARKWEAVE_IMAGE_UNDERSTANDING_PROVIDER": str(
+                (image_understanding_profile or {}).get("provider")
+                or current.get("SPARKWEAVE_IMAGE_UNDERSTANDING_PROVIDER", "iflytek")
+            ),
+            "IFLYTEK_VISION_PROTOCOL": str(
+                image_understanding_extra.get("protocol")
+                or current.get("IFLYTEK_VISION_PROTOCOL", DEFAULT_IFLYTEK_VISION_PROTOCOL)
+            ),
+            "IFLYTEK_VISION_URL": str(
+                (image_understanding_profile or {}).get("base_url")
+                or current.get("IFLYTEK_VISION_URL", DEFAULT_IFLYTEK_VISION_URL)
+            ),
+            "IFLYTEK_VISION_APPID": str(
+                image_understanding_extra.get("app_id")
+                or ("" if iflytek_app_id else current.get("IFLYTEK_VISION_APPID", ""))
+            ),
+            "IFLYTEK_VISION_API_KEY": str(
+                (image_understanding_profile or {}).get("api_key")
+                or ("" if iflytek_api_key else current.get("IFLYTEK_VISION_API_KEY", ""))
+            ),
+            "IFLYTEK_VISION_API_SECRET": str(
+                image_understanding_extra.get("api_secret")
+                or ("" if iflytek_api_secret else current.get("IFLYTEK_VISION_API_SECRET", ""))
+            ),
+            "IFLYTEK_VISION_DOMAIN": str(
+                image_understanding_extra.get("domain") or current.get("IFLYTEK_VISION_DOMAIN", DEFAULT_IFLYTEK_VISION_DOMAIN)
+            ),
+            "IFLYTEK_VISION_MAX_TOKENS": str(
+                image_understanding_extra.get("max_tokens") or current.get("IFLYTEK_VISION_MAX_TOKENS", "2048")
+            ),
+            "IFLYTEK_VISION_TEMPERATURE": str(
+                image_understanding_extra.get("temperature") or current.get("IFLYTEK_VISION_TEMPERATURE", "0.2")
+            ),
+            "IFLYTEK_VISION_TOP_K": str(
+                image_understanding_extra.get("top_k") or current.get("IFLYTEK_VISION_TOP_K", "4")
+            ),
+            "IFLYTEK_VISION_TIMEOUT": str(
+                (image_understanding_profile or {}).get("timeout") or current.get("IFLYTEK_VISION_TIMEOUT", "45")
+            ),
+            "IFLYTEK_VISION_UID": str(
+                image_understanding_extra.get("uid") or current.get("IFLYTEK_VISION_UID", "sparkweave")
             ),
         }
 
@@ -1233,7 +1609,23 @@ def _ocr_shell() -> dict[str, Any]:
     return {"active_profile_id": None, "profiles": []}
 
 
+def _formula_ocr_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
+def _image_understanding_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
 def _tts_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
+def _asr_shell() -> dict[str, Any]:
+    return {"active_profile_id": None, "profiles": []}
+
+
+def _speech_eval_shell() -> dict[str, Any]:
     return {"active_profile_id": None, "profiles": []}
 
 
@@ -1260,7 +1652,11 @@ def _default_catalog() -> dict[str, Any]:
             "embedding": _service_shell(),
             "search": _search_shell(),
             "ocr": _ocr_shell(),
+            "formula_ocr": _formula_ocr_shell(),
+            "image_understanding": _image_understanding_shell(),
             "tts": _tts_shell(),
+            "asr": _asr_shell(),
+            "speech_eval": _speech_eval_shell(),
         },
     }
 
@@ -1484,6 +1880,68 @@ class ModelCatalogService:
             }
             changed = True
 
+        asr_service = services.setdefault("asr", _asr_shell())
+        if not asr_service.get("profiles") and (
+            summary.asr["provider"]
+            or summary.asr["app_id"]
+            or summary.asr["api_key"]
+            or summary.asr["api_secret"]
+        ):
+            profile_id = "asr-profile-default"
+            services["asr"] = {
+                "active_profile_id": profile_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default ASR Provider",
+                        "provider": summary.asr["provider"] or "iflytek",
+                        "base_url": summary.asr["url"],
+                        "api_key": summary.asr["api_key"],
+                        "timeout": summary.asr["timeout"] or "60",
+                        "extra_headers": {
+                            "app_id": summary.asr["app_id"],
+                            "api_secret": summary.asr["api_secret"],
+                            "language": summary.asr["language"] or "zh_cn",
+                            "accent": summary.asr["accent"] or "mandarin",
+                            "domain": summary.asr["domain"] or "iat",
+                            "vad_eos": summary.asr["vad_eos"] or "3000",
+                        },
+                        "models": [],
+                    }
+                ],
+            }
+            changed = True
+
+        speech_eval_service = services.setdefault("speech_eval", _speech_eval_shell())
+        if not speech_eval_service.get("profiles") and (
+            summary.speech_eval["provider"]
+            or summary.speech_eval["app_id"]
+            or summary.speech_eval["api_key"]
+            or summary.speech_eval["api_secret"]
+        ):
+            profile_id = "speech-eval-profile-default"
+            services["speech_eval"] = {
+                "active_profile_id": profile_id,
+                "profiles": [
+                    {
+                        "id": profile_id,
+                        "name": "Default Speech Evaluation Provider",
+                        "provider": summary.speech_eval["provider"] or "iflytek",
+                        "base_url": summary.speech_eval["url"],
+                        "api_key": summary.speech_eval["api_key"],
+                        "timeout": summary.speech_eval["timeout"] or "60",
+                        "extra_headers": {
+                            "app_id": summary.speech_eval["app_id"],
+                            "api_secret": summary.speech_eval["api_secret"],
+                            "category": summary.speech_eval["category"] or "read_sentence",
+                            "language": summary.speech_eval["language"] or "zh_cn",
+                        },
+                        "models": [],
+                    }
+                ],
+            }
+            changed = True
+
         return changed
 
     def _sync_active_services_from_env(
@@ -1641,6 +2099,56 @@ class ModelCatalogService:
                 service["profiles"] = [profile]
                 service["active_profile_id"] = profile_id
             return self.get_active_profile(catalog, "tts") or service["profiles"][0]
+
+        def ensure_asr_profile() -> dict[str, Any]:
+            service = services.setdefault("asr", _asr_shell())
+            profiles = service.setdefault("profiles", [])
+            if not profiles:
+                profile_id = "asr-profile-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default ASR Provider",
+                    "provider": "iflytek",
+                    "base_url": DEFAULT_IFLYTEK_ASR_URL,
+                    "api_key": "",
+                    "timeout": "60",
+                    "extra_headers": {
+                        "app_id": "",
+                        "api_secret": "",
+                        "language": "zh_cn",
+                        "accent": "mandarin",
+                        "domain": "iat",
+                        "vad_eos": "3000",
+                    },
+                    "models": [],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+            return self.get_active_profile(catalog, "asr") or service["profiles"][0]
+
+        def ensure_speech_eval_profile() -> dict[str, Any]:
+            service = services.setdefault("speech_eval", _speech_eval_shell())
+            profiles = service.setdefault("profiles", [])
+            if not profiles:
+                profile_id = "speech-eval-profile-default"
+                profile = {
+                    "id": profile_id,
+                    "name": "Default Speech Evaluation Provider",
+                    "provider": "iflytek",
+                    "base_url": DEFAULT_IFLYTEK_SPEECH_EVAL_URL,
+                    "api_key": "",
+                    "timeout": "60",
+                    "extra_headers": {
+                        "app_id": "",
+                        "api_secret": "",
+                        "category": "read_sentence",
+                        "language": "zh_cn",
+                    },
+                    "models": [],
+                }
+                service["profiles"] = [profile]
+                service["active_profile_id"] = profile_id
+            return self.get_active_profile(catalog, "speech_eval") or service["profiles"][0]
 
         if {"LLM_BINDING", "LLM_MODEL", "LLM_API_KEY", "LLM_HOST", "LLM_API_VERSION"}.intersection(
             env_values
@@ -1810,6 +2318,77 @@ class ModelCatalogService:
                     extra_headers[field_name] = value
                     changed = True
 
+        asr_keys = {
+            "SPARKWEAVE_ASR_PROVIDER",
+            "SPARKWEAVE_ASR_TIMEOUT",
+            "IFLYTEK_ASR_APPID",
+            "IFLYTEK_ASR_API_KEY",
+            "IFLYTEK_ASR_API_SECRET",
+            "IFLYTEK_ASR_URL",
+            "IFLYTEK_ASR_LANGUAGE",
+            "IFLYTEK_ASR_ACCENT",
+            "IFLYTEK_ASR_DOMAIN",
+            "IFLYTEK_ASR_VAD_EOS",
+        }
+        if asr_keys.intersection(env_values) and can_sync_service("asr", "asr-profile-default"):
+            profile = ensure_asr_profile()
+            extra_headers = profile.setdefault("extra_headers", {})
+            for env_key, field_name, value in (
+                ("SPARKWEAVE_ASR_PROVIDER", "provider", summary.asr["provider"]),
+                ("SPARKWEAVE_ASR_TIMEOUT", "timeout", summary.asr["timeout"]),
+                ("IFLYTEK_ASR_API_KEY", "api_key", summary.asr["api_key"]),
+                ("IFLYTEK_ASR_URL", "base_url", summary.asr["url"]),
+            ):
+                if env_key in env_values and profile.get(field_name) != value:
+                    profile[field_name] = value
+                    changed = True
+            for env_key, field_name, value in (
+                ("IFLYTEK_ASR_APPID", "app_id", summary.asr["app_id"]),
+                ("IFLYTEK_ASR_API_SECRET", "api_secret", summary.asr["api_secret"]),
+                ("IFLYTEK_ASR_LANGUAGE", "language", summary.asr["language"]),
+                ("IFLYTEK_ASR_ACCENT", "accent", summary.asr["accent"]),
+                ("IFLYTEK_ASR_DOMAIN", "domain", summary.asr["domain"]),
+                ("IFLYTEK_ASR_VAD_EOS", "vad_eos", summary.asr["vad_eos"]),
+            ):
+                if env_key in env_values and extra_headers.get(field_name) != value:
+                    extra_headers[field_name] = value
+                    changed = True
+
+        speech_eval_keys = {
+            "SPARKWEAVE_SPEECH_EVAL_PROVIDER",
+            "SPARKWEAVE_SPEECH_EVAL_TIMEOUT",
+            "IFLYTEK_SPEECH_EVAL_APPID",
+            "IFLYTEK_SPEECH_EVAL_API_KEY",
+            "IFLYTEK_SPEECH_EVAL_API_SECRET",
+            "IFLYTEK_SPEECH_EVAL_URL",
+            "IFLYTEK_SPEECH_EVAL_CATEGORY",
+            "IFLYTEK_SPEECH_EVAL_LANGUAGE",
+        }
+        if speech_eval_keys.intersection(env_values) and can_sync_service(
+            "speech_eval",
+            "speech-eval-profile-default",
+        ):
+            profile = ensure_speech_eval_profile()
+            extra_headers = profile.setdefault("extra_headers", {})
+            for env_key, field_name, value in (
+                ("SPARKWEAVE_SPEECH_EVAL_PROVIDER", "provider", summary.speech_eval["provider"]),
+                ("SPARKWEAVE_SPEECH_EVAL_TIMEOUT", "timeout", summary.speech_eval["timeout"]),
+                ("IFLYTEK_SPEECH_EVAL_API_KEY", "api_key", summary.speech_eval["api_key"]),
+                ("IFLYTEK_SPEECH_EVAL_URL", "base_url", summary.speech_eval["url"]),
+            ):
+                if env_key in env_values and profile.get(field_name) != value:
+                    profile[field_name] = value
+                    changed = True
+            for env_key, field_name, value in (
+                ("IFLYTEK_SPEECH_EVAL_APPID", "app_id", summary.speech_eval["app_id"]),
+                ("IFLYTEK_SPEECH_EVAL_API_SECRET", "api_secret", summary.speech_eval["api_secret"]),
+                ("IFLYTEK_SPEECH_EVAL_CATEGORY", "category", summary.speech_eval["category"]),
+                ("IFLYTEK_SPEECH_EVAL_LANGUAGE", "language", summary.speech_eval["language"]),
+            ):
+                if env_key in env_values and extra_headers.get(field_name) != value:
+                    extra_headers[field_name] = value
+                    changed = True
+
         return changed
 
     def _sync_provider_credentials(self, catalog: dict[str, Any]) -> bool:
@@ -1854,7 +2433,11 @@ class ModelCatalogService:
             env.get("IFLYTEK_APPID")
             or env.get("IFLYTEK_OCR_APPID")
             or env.get("IFLYTEK_TTS_APPID")
-            or env.get("IFLYTEK_EMBEDDING_APPID"),
+            or env.get("IFLYTEK_EMBEDDING_APPID")
+            or env.get("IFLYTEK_ASR_APPID")
+            or env.get("IFLYTEK_SPEECH_EVAL_APPID")
+            or env.get("IFLYTEK_FORMULA_APPID")
+            or env.get("IFLYTEK_VISION_APPID"),
         )
         set_if_empty(
             iflytek,
@@ -1862,7 +2445,11 @@ class ModelCatalogService:
             env.get("IFLYTEK_API_KEY")
             or env.get("IFLYTEK_OCR_API_KEY")
             or env.get("IFLYTEK_TTS_API_KEY")
-            or env.get("IFLYTEK_EMBEDDING_API_KEY"),
+            or env.get("IFLYTEK_EMBEDDING_API_KEY")
+            or env.get("IFLYTEK_ASR_API_KEY")
+            or env.get("IFLYTEK_SPEECH_EVAL_API_KEY")
+            or env.get("IFLYTEK_FORMULA_API_KEY")
+            or env.get("IFLYTEK_VISION_API_KEY"),
         )
         set_if_empty(
             iflytek,
@@ -1870,7 +2457,11 @@ class ModelCatalogService:
             env.get("IFLYTEK_API_SECRET")
             or env.get("IFLYTEK_OCR_API_SECRET")
             or env.get("IFLYTEK_TTS_API_SECRET")
-            or env.get("IFLYTEK_EMBEDDING_API_SECRET"),
+            or env.get("IFLYTEK_EMBEDDING_API_SECRET")
+            or env.get("IFLYTEK_ASR_API_SECRET")
+            or env.get("IFLYTEK_SPEECH_EVAL_API_SECRET")
+            or env.get("IFLYTEK_FORMULA_API_SECRET")
+            or env.get("IFLYTEK_VISION_API_SECRET"),
         )
         set_if_empty(
             iflytek,
@@ -1892,8 +2483,16 @@ class ModelCatalogService:
                 if service_name == "search"
                 else _ocr_shell()
                 if service_name == "ocr"
+                else _formula_ocr_shell()
+                if service_name == "formula_ocr"
+                else _image_understanding_shell()
+                if service_name == "image_understanding"
                 else _tts_shell()
                 if service_name == "tts"
+                else _asr_shell()
+                if service_name == "asr"
+                else _speech_eval_shell()
+                if service_name == "speech_eval"
                 else _service_shell(),
             )
             profiles = service.setdefault("profiles", [])
@@ -1940,6 +2539,22 @@ class ModelCatalogService:
         elif ocr_provider in {"siliconflow", "silicon_flow", "deepseekocr", "deepseek_ocr"}:
             set_if_empty(siliconflow, "api_key", ocr_profile.get("api_key"))
 
+        formula_ocr_profile = active_profile("formula_ocr")
+        formula_ocr_provider = _as_str(formula_ocr_profile.get("provider")).lower().replace("-", "_")
+        formula_ocr_extra = formula_ocr_profile.get("extra_headers") or {}
+        if formula_ocr_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", formula_ocr_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", formula_ocr_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", formula_ocr_extra.get("api_secret"))
+
+        image_understanding_profile = active_profile("image_understanding")
+        image_understanding_provider = _as_str(image_understanding_profile.get("provider")).lower().replace("-", "_")
+        image_understanding_extra = image_understanding_profile.get("extra_headers") or {}
+        if image_understanding_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", image_understanding_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", image_understanding_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", image_understanding_extra.get("api_secret"))
+
         tts_profile = active_profile("tts")
         tts_provider = _as_str(tts_profile.get("provider")).lower().replace("-", "_")
         tts_extra = tts_profile.get("extra_headers") or {}
@@ -1947,6 +2562,22 @@ class ModelCatalogService:
             set_if_empty(iflytek, "api_key", tts_profile.get("api_key"))
             set_if_empty(iflytek, "app_id", tts_extra.get("app_id"))
             set_if_empty(iflytek, "api_secret", tts_extra.get("api_secret"))
+
+        asr_profile = active_profile("asr")
+        asr_provider = _as_str(asr_profile.get("provider")).lower().replace("-", "_")
+        asr_extra = asr_profile.get("extra_headers") or {}
+        if asr_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", asr_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", asr_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", asr_extra.get("api_secret"))
+
+        speech_eval_profile = active_profile("speech_eval")
+        speech_eval_provider = _as_str(speech_eval_profile.get("provider")).lower().replace("-", "_")
+        speech_eval_extra = speech_eval_profile.get("extra_headers") or {}
+        if speech_eval_provider in {"iflytek", "xfyun", "xunfei"}:
+            set_if_empty(iflytek, "api_key", speech_eval_profile.get("api_key"))
+            set_if_empty(iflytek, "app_id", speech_eval_extra.get("app_id"))
+            set_if_empty(iflytek, "api_secret", speech_eval_extra.get("api_secret"))
 
         changed = self._strip_shared_credentials_from_profiles(catalog) or changed
         return changed
@@ -1968,53 +2599,92 @@ class ModelCatalogService:
         has_siliconflow = bool(_as_str(siliconflow.get("api_key")))
         services = catalog.setdefault("services", {})
 
-        def clear_profile_key(profile: dict[str, Any]) -> None:
+        def same_non_empty(value: Any, candidate: Any) -> bool:
+            parsed = _as_str(value)
+            target = _as_str(candidate)
+            return bool(parsed and target and parsed == target)
+
+        iflytek_key_candidates = [
+            iflytek.get("api_key"),
+            iflytek.get("api_password"),
+            (
+                f"{_as_str(iflytek.get('api_key'))}:{_as_str(iflytek.get('api_secret'))}"
+                if _as_str(iflytek.get("api_key")) and _as_str(iflytek.get("api_secret"))
+                else ""
+            ),
+        ]
+
+        def clear_profile_key(profile: dict[str, Any], *candidates: Any) -> None:
             nonlocal changed
-            if _as_str(profile.get("api_key")):
+            if any(same_non_empty(profile.get("api_key"), candidate) for candidate in candidates):
                 profile["api_key"] = ""
                 changed = True
 
-        def clear_extra(profile: dict[str, Any], *keys: str) -> None:
+        def clear_extra(profile: dict[str, Any], *pairs: tuple[str, Any]) -> None:
             nonlocal changed
             extra = profile.setdefault("extra_headers", {})
-            for key in keys:
-                if _as_str(extra.get(key)):
+            for key, candidate in pairs:
+                if same_non_empty(extra.get(key), candidate):
                     extra[key] = ""
                     changed = True
 
         for profile in services.get("llm", {}).get("profiles", []):
             if canonical_provider_name(_as_str(profile.get("binding"))) == "iflytek_spark_ws" and has_iflytek:
-                clear_profile_key(profile)
-                clear_extra(profile, "app_id", "appid", "api_secret")
+                clear_profile_key(profile, *iflytek_key_candidates)
+                clear_extra(
+                    profile,
+                    ("app_id", iflytek.get("app_id")),
+                    ("appid", iflytek.get("app_id")),
+                    ("api_secret", iflytek.get("api_secret")),
+                )
             elif self._profile_uses_siliconflow(profile) and has_siliconflow:
-                clear_profile_key(profile)
+                clear_profile_key(profile, siliconflow.get("api_key"))
 
         for profile in services.get("embedding", {}).get("profiles", []):
             binding = _canonical_embedding_provider_name(_as_str(profile.get("binding")))
             if binding == "iflytek_spark" and has_iflytek:
-                clear_profile_key(profile)
-                clear_extra(profile, "app_id", "api_secret")
+                clear_profile_key(profile, iflytek.get("api_key"))
+                clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
             elif self._profile_uses_siliconflow(profile) and has_siliconflow:
-                clear_profile_key(profile)
+                clear_profile_key(profile, siliconflow.get("api_key"))
 
         for profile in services.get("search", {}).get("profiles", []):
             provider = _as_str(profile.get("provider")).lower().replace("-", "_")
             if provider == "iflytek_spark" and has_iflytek:
-                clear_profile_key(profile)
+                clear_profile_key(profile, *iflytek_key_candidates)
 
         for profile in services.get("ocr", {}).get("profiles", []):
             provider = _as_str(profile.get("provider")).lower().replace("-", "_")
             if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
-                clear_profile_key(profile)
-                clear_extra(profile, "app_id", "api_secret")
+                clear_profile_key(profile, iflytek.get("api_key"))
+                clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
             elif provider in {"siliconflow", "silicon_flow", "deepseekocr", "deepseek_ocr"} and has_siliconflow:
-                clear_profile_key(profile)
+                clear_profile_key(profile, siliconflow.get("api_key"))
+
+        for service_name in ("formula_ocr", "image_understanding"):
+            for profile in services.get(service_name, {}).get("profiles", []):
+                provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+                if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
+                    clear_profile_key(profile, iflytek.get("api_key"))
+                    clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
 
         for profile in services.get("tts", {}).get("profiles", []):
             provider = _as_str(profile.get("provider")).lower().replace("-", "_")
             if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
-                clear_profile_key(profile)
-                clear_extra(profile, "app_id", "api_secret")
+                clear_profile_key(profile, iflytek.get("api_key"))
+                clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
+
+        for profile in services.get("asr", {}).get("profiles", []):
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
+                clear_profile_key(profile, iflytek.get("api_key"))
+                clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
+
+        for profile in services.get("speech_eval", {}).get("profiles", []):
+            provider = _as_str(profile.get("provider")).lower().replace("-", "_")
+            if provider in {"iflytek", "xfyun", "xunfei"} and has_iflytek:
+                clear_profile_key(profile, iflytek.get("api_key"))
+                clear_extra(profile, ("app_id", iflytek.get("app_id")), ("api_secret", iflytek.get("api_secret")))
 
         return changed
 
@@ -2047,8 +2717,22 @@ class ModelCatalogService:
         services.setdefault("embedding", _service_shell())
         services.setdefault("search", _search_shell())
         services.setdefault("ocr", _ocr_shell())
+        services.setdefault("formula_ocr", _formula_ocr_shell())
+        services.setdefault("image_understanding", _image_understanding_shell())
         services.setdefault("tts", _tts_shell())
-        for service_name in ("llm", "embedding", "search", "ocr", "tts"):
+        services.setdefault("asr", _asr_shell())
+        services.setdefault("speech_eval", _speech_eval_shell())
+        for service_name in (
+            "llm",
+            "embedding",
+            "search",
+            "ocr",
+            "formula_ocr",
+            "image_understanding",
+            "tts",
+            "asr",
+            "speech_eval",
+        ):
             service = services[service_name]
             profiles = service.setdefault("profiles", [])
             for profile in profiles:
@@ -2077,6 +2761,30 @@ class ModelCatalogService:
                     extra_headers.setdefault("model", DEFAULT_SILICONFLOW_OCR_MODEL)
                     extra_headers.setdefault("prompt", DEFAULT_SILICONFLOW_OCR_PROMPT)
                     profile["models"] = []
+                elif service_name == "formula_ocr":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_FORMULA_URL)
+                    profile.setdefault("timeout", "30")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("ent", DEFAULT_IFLYTEK_FORMULA_ENT)
+                    extra_headers.setdefault("aue", DEFAULT_IFLYTEK_FORMULA_AUE)
+                    profile["models"] = []
+                elif service_name == "image_understanding":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_VISION_URL)
+                    profile.setdefault("timeout", "45")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("protocol", DEFAULT_IFLYTEK_VISION_PROTOCOL)
+                    extra_headers.setdefault("domain", DEFAULT_IFLYTEK_VISION_DOMAIN)
+                    extra_headers.setdefault("max_tokens", "2048")
+                    extra_headers.setdefault("temperature", "0.2")
+                    extra_headers.setdefault("top_k", "4")
+                    extra_headers.setdefault("uid", "sparkweave")
+                    profile["models"] = []
                 elif service_name == "tts":
                     profile.setdefault("provider", "iflytek")
                     profile.setdefault("base_url", DEFAULT_IFLYTEK_TTS_URL)
@@ -2093,6 +2801,28 @@ class ModelCatalogService:
                     extra_headers.setdefault("speed", "50")
                     extra_headers.setdefault("volume", "50")
                     extra_headers.setdefault("pitch", "50")
+                    profile["models"] = []
+                elif service_name == "asr":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_ASR_URL)
+                    profile.setdefault("timeout", "60")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("language", "zh_cn")
+                    extra_headers.setdefault("accent", "mandarin")
+                    extra_headers.setdefault("domain", "iat")
+                    extra_headers.setdefault("vad_eos", "3000")
+                    profile["models"] = []
+                elif service_name == "speech_eval":
+                    profile.setdefault("provider", "iflytek")
+                    profile.setdefault("base_url", DEFAULT_IFLYTEK_SPEECH_EVAL_URL)
+                    profile.setdefault("timeout", "60")
+                    extra_headers = profile.setdefault("extra_headers", {})
+                    extra_headers.setdefault("app_id", "")
+                    extra_headers.setdefault("api_secret", "")
+                    extra_headers.setdefault("category", "read_sentence")
+                    extra_headers.setdefault("language", "zh_cn")
                     profile["models"] = []
                 else:
                     profile.setdefault("binding", "openai")
@@ -2510,6 +3240,17 @@ def _llm_provider_env_key(spec: ProviderSpec, env: EnvStore) -> str:
                 "SPARK_WS_API_KEY",
             ]
         )
+    elif spec.name == "iflytek_maas_coding":
+        env_names.extend(
+            [
+                "IFLYTEK_MAAS_CODING_API_PASSWORD",
+                "IFLYTEK_MAAS_CODING_API_KEY",
+                "XFYUN_MAAS_CODING_API_PASSWORD",
+                "XFYUN_MAAS_CODING_API_KEY",
+                "ASTRON_CODE_API_PASSWORD",
+                "ASTRON_CODE_API_KEY",
+            ]
+        )
     elif spec.name == "siliconflow":
         env_names.insert(0, "SILICONFLOW_API_KEY")
     for key in env_names:
@@ -2681,7 +3422,7 @@ def resolve_llm_runtime_config(
 
     resolved_model = _as_str((model or {}).get("model")) or summary.llm.get("model", "").strip()
     if not resolved_model:
-        resolved_model = "gpt-4o-mini"
+        resolved_model = "gpt-5.4-mini"
 
     binding_hint_raw = _as_str((profile or {}).get("binding"))
     if not binding_hint_raw and "LLM_BINDING" in env_values:

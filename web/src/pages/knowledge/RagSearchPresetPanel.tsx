@@ -13,8 +13,8 @@ export function RagSearchPresetPanel({
     <div className="rounded-lg border border-line bg-canvas p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-ink">检索方案</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">按问题复杂度选择一组稳定参数。</p>
+          <p className="text-sm font-semibold text-ink">查找方案</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">按问题复杂度选择一组稳定策略，复杂题会启用多路查找。</p>
         </div>
         <Badge tone={presetId === "custom" ? "neutral" : "success"}>{presetId === "custom" ? "自定义" : "已套用"}</Badge>
       </div>

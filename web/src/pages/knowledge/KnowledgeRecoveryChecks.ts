@@ -18,7 +18,7 @@ export function buildRecoveryChecks(
       tone: vectorCount === null ? "neutral" : vectorCount > 0 ? "success" : "warning",
     },
     {
-      label: "检索状态",
+      label: "资料状态",
       detail: String(readinessLabel),
       tone: normalize(input.readinessState) === "ready" ? "success" : input.diagnosticStatus === "异常" ? "danger" : "neutral",
     },

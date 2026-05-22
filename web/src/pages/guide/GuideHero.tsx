@@ -30,7 +30,7 @@ export function GuideHero({
       transition={{ duration: 0.2, ease: "easeOut" }}
     >
       <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1fr)_292px]">
-        <div className="min-w-0 rounded-lg border border-line bg-white/92 p-3.5 shadow-[0_8px_24px_rgba(15,15,15,0.035)] sm:p-4">
+        <div className="dt-page-header dt-page-header-accent-teal min-w-0 p-3.5 sm:p-4">
           <p className="text-xs font-semibold text-steel">今天先做</p>
           <h1 className="mt-1.5 max-w-3xl text-xl font-semibold leading-tight text-ink sm:text-2xl">
             {primaryActionLabel}
@@ -68,7 +68,7 @@ export function GuideHero({
           </div>
         </div>
 
-        <aside className="rounded-lg border border-line bg-[#fbfbfa] p-3.5">
+        <aside className="dt-dynamic-card rounded-lg border border-line bg-[#fbfbfa] p-3.5">
           <p className="text-xs font-semibold text-steel">当前卡片</p>
           <h2 className="mt-2 text-base font-semibold leading-6 text-ink">
             {currentTask?.title || "先生成一条学习路线"}
@@ -77,7 +77,7 @@ export function GuideHero({
             {currentTask?.instruction || "写下课程目标和时间预算，系统会把它拆成可以马上执行的小任务。"}
           </p>
           <div className="mt-4 rounded-lg border border-dashed border-line bg-white px-3 py-2 text-xs leading-5 text-slate-500">
-            完成后会自动进入下一步，不需要在一堆工具里找入口。
+            完成后会自动进入下一步，不需要在一堆入口里来回找。
           </div>
         </aside>
       </div>

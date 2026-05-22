@@ -28,26 +28,20 @@ export function RuntimeStatus({
         title={apiBase}
         aria-label={label}
       >
-        <span
-          className={`flex h-2 w-2 ${backendOnline ? "dt-live-dot bg-emerald-500" : "bg-brand-red"}`}
-          style={{ borderRadius: "50%" }}
-        />
+        <span className={`flex h-2 w-2 rounded-sm ${backendOnline ? "dt-live-dot bg-emerald-500" : "bg-brand-red"}`} />
       </button>
     );
   }
 
   return (
     <div className="flex min-h-8 min-w-0 items-center gap-2 rounded-lg px-2.5 text-steel" data-testid={testId} title={apiBase}>
-      <span
-        className={`h-2 w-2 shrink-0 ${backendOnline ? "dt-live-dot bg-emerald-500" : "bg-brand-red"}`}
-        style={{ borderRadius: "50%" }}
-      />
+      <span className={`h-2 w-2 shrink-0 rounded-sm ${backendOnline ? "dt-live-dot bg-emerald-500" : "bg-brand-red"}`} />
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-steel">{label}</span>
       <button
         type="button"
         onClick={onRetry}
         disabled={checking}
-        className="dt-interactive flex h-6 items-center justify-center rounded-md px-1.5 text-steel hover:bg-white hover:text-brand-purple disabled:cursor-not-allowed disabled:opacity-60"
+        className="dt-interactive flex h-6 items-center justify-center rounded-md px-1.5 text-steel hover:bg-white hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="重试连接"
       >
         <RefreshCw size={13} className={checking ? "animate-spin" : ""} />
@@ -69,10 +63,9 @@ export function BrandInline({
         <img src="/logo-ver2.png" alt="" className="h-6 w-6 object-contain" />
         <span
           data-testid={statusTestId}
-          className={`absolute -right-0.5 -top-0.5 h-2 w-2 border border-white ${
+          className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-sm border border-white ${
             backendOnline ? "bg-emerald-500" : "bg-brand-red"
           }`}
-          style={{ borderRadius: "50%" }}
         />
       </div>
       <div className="min-w-0">

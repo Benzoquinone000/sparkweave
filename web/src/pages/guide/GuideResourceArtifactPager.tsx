@@ -153,7 +153,7 @@ function MultiModalResourceStudio({
             <span className="text-xs font-medium text-ink">{readyCount}/{lanes.length} 类资源已入列</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            同一学习任务被拆成图解、视频、语音、练习和证据卡，评委能直接看到“资源生成”不是单一文本输出。
+            同一学习任务被拆成图解、视频、语音、练习和记录卡，评委能直接看到“资源生成”不是单一文本输出。
           </p>
         </div>
         <Badge tone="neutral">{artifacts.length} 个产物</Badge>
@@ -226,7 +226,7 @@ function buildResourceStudioLanes(artifacts: GuideV2Artifact[]) {
     {
       key: "external_video",
       label: "精选视频",
-      detail: "从公开资源中筛出适合当前画像的补充讲解。",
+      detail: "从公开资源中筛出适合当前学习情况的补充讲解。",
       icon: SearchCheck,
       types: ["external_video"],
       count: count(["external_video"]),
@@ -241,8 +241,8 @@ function buildResourceStudioLanes(artifacts: GuideV2Artifact[]) {
     },
     {
       key: "evidence",
-      label: "证据",
-      detail: "把画像信号、生成理由和评估结果连成闭环。",
+      label: "记录",
+      detail: "把学习信号、生成理由和评估结果连成完整过程。",
       icon: FileSearch,
       types: artifacts.map((artifact) => String(artifact.type)),
       count: artifacts.length,
@@ -264,9 +264,9 @@ function buildIflytekCapabilityBadges(artifacts: GuideV2Artifact[]) {
     { label: "讯飞星火生成", ready: artifacts.length > 0 },
     { label: "多模态图解", ready: types.has("visual") || capabilities.has("visualize") },
     { label: "TTS 语音讲解", ready: types.has("audio") || capabilities.has("tts") },
-    { label: "公开视频检索", ready: types.has("external_video") || capabilities.has("external_video_search") },
+    { label: "公开视频查找", ready: types.has("external_video") || capabilities.has("external_video_search") },
     { label: "智能出题评估", ready: types.has("quiz") || capabilities.has("deep_question") },
-    { label: "RAG/Embedding 证据", ready: artifacts.some((artifact) => Boolean(extractArtifactPersonalization(artifact))) },
+    { label: "资料来源", ready: artifacts.some((artifact) => Boolean(extractArtifactPersonalization(artifact))) },
   ];
 }
 
@@ -452,10 +452,10 @@ function ArtifactAgentChain({
   const specialist = agentRoleForArtifact(artifact);
   const evidenceText = personalization?.signals?.[0]
     ? `${personalization.signals[0].label}：${personalization.signals[0].value}`
-    : "当前任务与学习画像";
+    : "当前任务与学习记录";
   const steps = [
     {
-      label: "画像智能体",
+      label: "学习记录",
       detail: `先判断入口：${evidenceText}`,
       tone: "brand" as const,
     },
@@ -465,21 +465,21 @@ function ArtifactAgentChain({
       tone: "neutral" as const,
     },
     {
-      label: "评估智能体",
-      detail: artifact.type === "quiz" ? "提交后批改并更新下一步" : "学完后通过提交页回写画像",
+      label: "反馈评估",
+      detail: artifact.type === "quiz" ? "提交后批改并更新下一步" : "学完后通过提交页更新学习记录",
       tone: "success" as const,
     },
   ];
   const summary =
     artifact.type === "quiz"
-      ? "画像定向出题，提交后直接进入反馈和下一步调整。"
-      : `画像先定向，再由${specialist.label}生成当前材料，学完后回到提交页形成闭环。`;
+      ? "按学习记录定向出题，提交后直接进入反馈和下一步调整。"
+      : `先根据学习记录定向，再由${specialist.label}生成当前材料，学完后回到提交页完成复盘。`;
 
   return (
     <div className="mt-3 rounded-lg border border-line bg-white px-3 py-3" data-testid="guide-artifact-agent-route">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Badge tone="brand">智能体接力</Badge>
+          <Badge tone="brand">学习流程</Badge>
           <span className="text-xs font-medium text-ink">{summary}</span>
         </div>
       </div>
@@ -507,7 +507,23 @@ function ArtifactAgentChain({
 }
 
 function shortGuideAgentName(label: string) {
-  return label.replace(/智能体$/, "");
+  const normalized = label.trim();
+  const labels: Record<string, string> = {
+    画像智能体: "学习记录",
+    学习画像智能体: "学习记录",
+    资源智能体: "资源整理",
+    出题智能体: "练习生成",
+    反馈智能体: "反馈复盘",
+    评估智能体: "学习评估",
+    图解智能体: "图解整理",
+    视频智能体: "视频整理",
+  };
+  if (labels[normalized]) return labels[normalized];
+  return normalized
+    .replace(/学习画像|用户画像|画像/g, "学习记录")
+    .replace(/智能体/g, "步骤")
+    .replace(/\s*Agent/gi, "")
+    .replace(/步骤$/, "");
 }
 
 function agentRouteDotTone(tone: "brand" | "neutral" | "success") {
@@ -533,7 +549,7 @@ function ArtifactPersonalizationCard({
   return (
     <div className="mt-3 rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">生成依据</Badge>
+        <Badge tone="brand">生成来源</Badge>
         {personalization.signals.slice(0, 4).map((item) => (
           <Badge key={`${item.label}-${item.value}`} tone="neutral">
             {item.label}：{item.value}
@@ -569,42 +585,42 @@ function agentRoleForArtifact(artifact: GuideV2Artifact) {
   const type = String(artifact.type || "");
   if (type === "video" || capability === "math_animator") {
     return {
-      label: "动画智能体",
+      label: "动画讲解",
       detail: "把关键步骤拆成可播放的短视频讲解。",
     };
   }
   if (type === "audio" || capability === "tts") {
     return {
-      label: "语音讲解智能体",
+      label: "语音讲解",
       detail: "把当前任务压缩成一段可以直接听的语音讲解。",
     };
   }
   if (type === "external_video" || capability === "external_video_search") {
     return {
-      label: "视频检索智能体",
-      detail: "从公开视频中筛选适合当前画像和任务的学习材料。",
+      label: "视频查找",
+      detail: "从公开视频中筛选适合当前学习情况和任务的学习材料。",
     };
   }
   if (type === "quiz" || capability === "deep_question") {
     return {
-      label: "出题智能体",
+      label: "练习生成",
       detail: "生成可提交、可反馈的交互练习。",
     };
   }
   if (type === "visual" || capability === "visualize") {
     return {
-      label: "图解智能体",
+      label: "图解整理",
       detail: "把概念关系整理成图解或结构化可视化。",
     };
   }
   if (type === "research" || capability === "deep_research") {
     return {
-      label: "资料整理智能体",
-      detail: "补充依据并整理成当前任务可用的材料。",
+      label: "资料整理",
+      detail: "补充来源并整理成当前任务可用的材料。",
     };
   }
   return {
-    label: "资源智能体",
+    label: "资源生成",
     detail: "按当前任务生成一份可继续学习的材料。",
   };
 }
@@ -854,7 +870,7 @@ function QuestionPreview({
           </p>
           <p className="mt-1 text-xs">
             {scoreRatio >= 0.8
-              ? "整体不错，提交后系统会把掌握证据写回路线。"
+              ? "整体不错，提交后系统会把掌握记录写回路线。"
               : scoreRatio >= 0.5
                 ? "有一部分已经掌握，提交后系统会根据错题安排补强。"
                 : "先别急着继续推进，提交后系统会优先帮你补错因。"}
@@ -992,7 +1008,7 @@ function extractArtifactPersonalization(artifact: GuideV2Artifact) {
 
   const headline =
     uniqueReasons[0] ||
-    `这份${resourceLabel(String(artifact.type))}不是随机生成的，而是结合你当前的学习画像、卡点和偏好做了针对性调整。`;
+    `这份${resourceLabel(String(artifact.type))}不是随机生成的，而是结合你当前的学习记录、卡点和偏好做了针对性调整。`;
 
   return {
     headline,

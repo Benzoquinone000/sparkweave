@@ -173,7 +173,7 @@ def save_ui_settings(settings: dict[str, Any]) -> None:
         json.dump(settings, handle, ensure_ascii=False, indent=2)
 
 
-def _provider_choices() -> dict[str, list[dict[str, str]]]:
+def _provider_choices() -> dict[str, list[dict[str, Any]]]:
     """Build dropdown options for provider selection, keyed by service type."""
     llm = sorted(
         [
@@ -183,6 +183,10 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
                 "base_url": s.default_api_base,
                 "default_model": s.default_model,
                 "models": list(s.model_options),
+                "mode": s.mode,
+                "credential_hint": s.credential_hint,
+                "model_hint": s.model_hint,
+                "docs_url": s.docs_url,
             }
             for s in PROVIDERS
         ],
@@ -195,25 +199,82 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
                 "label": spec.label,
                 "base_url": spec.default_api_base,
                 "default_model": spec.default_model,
-                "models": [spec.default_model] if spec.default_model else [],
+                "models": list(spec.model_options) or ([spec.default_model] if spec.default_model else []),
                 "default_dim": str(spec.default_dim) if spec.default_dim else "",
+                "mode": spec.mode,
+                "credential_hint": spec.credential_hint,
+                "model_hint": spec.model_hint,
+                "docs_url": spec.docs_url,
             }
             for name, spec in EMBEDDING_PROVIDERS.items()
         ],
         key=lambda p: p["label"].lower(),
     )
     search = [
-        {"value": "brave", "label": "Brave", "base_url": "https://api.search.brave.com/res/v1/web/search"},
-        {"value": "tavily", "label": "Tavily", "base_url": "https://api.tavily.com/search"},
-        {"value": "jina", "label": "Jina", "base_url": "https://s.jina.ai"},
-        {"value": "searxng", "label": "SearXNG", "base_url": "http://localhost:8080"},
-        {"value": "duckduckgo", "label": "DuckDuckGo", "base_url": "https://duckduckgo.com"},
-        {"value": "perplexity", "label": "Perplexity", "base_url": "https://api.perplexity.ai"},
-        {"value": "serper", "label": "Serper", "base_url": "https://google.serper.dev"},
+        {
+            "value": "brave",
+            "label": "Brave",
+            "base_url": "https://api.search.brave.com/res/v1/web/search",
+            "credential_hint": "BRAVE_API_KEY",
+            "model_hint": "通用网页搜索，稳定适合作为默认外部资料补充。",
+            "docs_url": "https://api-dashboard.search.brave.com/app/documentation/web-search/get-started",
+        },
+        {
+            "value": "tavily",
+            "label": "Tavily",
+            "base_url": "https://api.tavily.com/search",
+            "credential_hint": "TAVILY_API_KEY",
+            "model_hint": "面向 AI Agent 的搜索 API，适合研究和资料扩展。",
+            "docs_url": "https://docs.tavily.com/documentation/api-reference/endpoint/search",
+        },
+        {
+            "value": "jina",
+            "label": "Jina",
+            "base_url": "https://s.jina.ai",
+            "credential_hint": "JINA_API_KEY",
+            "model_hint": "适合把网页搜索结果转成可引用文本。",
+            "docs_url": "https://jina.ai/reader/",
+        },
+        {
+            "value": "searxng",
+            "label": "SearXNG",
+            "base_url": "http://localhost:8080",
+            "mode": "local",
+            "credential_hint": "本地服务无需密钥",
+            "model_hint": "自托管搜索聚合器，适合离线/隐私优先部署。",
+            "docs_url": "https://docs.searxng.org/",
+        },
+        {
+            "value": "duckduckgo",
+            "label": "DuckDuckGo",
+            "base_url": "https://duckduckgo.com",
+            "credential_hint": "无需密钥",
+            "model_hint": "无需配置即可兜底，但稳定性和速率不可控。",
+            "docs_url": "https://duckduckgo.com/",
+        },
+        {
+            "value": "perplexity",
+            "label": "Perplexity",
+            "base_url": "https://api.perplexity.ai",
+            "credential_hint": "PERPLEXITY_API_KEY",
+            "model_hint": "适合带引用的实时问答与资料补充。",
+            "docs_url": "https://docs.perplexity.ai/",
+        },
+        {
+            "value": "serper",
+            "label": "Serper",
+            "base_url": "https://google.serper.dev",
+            "credential_hint": "SERPER_API_KEY",
+            "model_hint": "Google SERP 风格结果，适合外部资料发现。",
+            "docs_url": "https://serper.dev/api-key",
+        },
         {
             "value": "iflytek_spark",
             "label": "iFlytek ONE SEARCH",
             "base_url": "https://search-api-open.cn-huabei-1.xf-yun.com/v2/search",
+            "credential_hint": "IFLYTEK_API_PASSWORD，或 IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "比赛指定科大讯飞工具链时优先选择。",
+            "docs_url": "https://www.xfyun.cn/doc/spark/Search_API/search_API.html",
         },
     ]
     ocr = [
@@ -221,6 +282,9 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
             "value": "iflytek",
             "label": "iFlytek OCR for LLM",
             "base_url": "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "扫描 PDF 和图片题目识别优先选项。",
+            "docs_url": "https://www.xfyun.cn/doc/words/OCR_for_llm/API.html",
         },
         {
             "value": "siliconflow",
@@ -228,18 +292,78 @@ def _provider_choices() -> dict[str, list[dict[str, str]]]:
             "base_url": "https://api.siliconflow.cn/v1",
             "default_model": "deepseek-ai/DeepSeek-OCR",
             "models": ["deepseek-ai/DeepSeek-OCR"],
+            "credential_hint": "SILICONFLOW_API_KEY",
+            "model_hint": "OpenAI-compatible 图像转 Markdown OCR。",
+            "docs_url": "https://docs.siliconflow.cn/cn/usercases/use-siliconcloud-to-call-deepseek-ocr",
         },
-        {"value": "disabled", "label": "Disabled", "base_url": ""},
+        {"value": "disabled", "label": "停用", "base_url": ""},
     ]
     tts = [
         {
             "value": "iflytek",
             "label": "iFlytek Super Smart TTS",
             "base_url": "wss://cbm01.cn-huabei-1.xf-yun.com/v1/private/mcd9m97e6",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "用于多模态讲解语音生成。",
+            "docs_url": "https://www.xfyun.cn/doc/spark/super%20smart-tts.html",
         },
-        {"value": "disabled", "label": "Disabled", "base_url": ""},
+        {"value": "disabled", "label": "停用", "base_url": ""},
     ]
-    return {"llm": llm, "embedding": embedding, "search": search, "ocr": ocr, "tts": tts}
+    asr = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek Voice Dictation",
+            "base_url": "wss://iat-api.xfyun.cn/v2/iat",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "用于聊天语音输入、课堂录音转写和学习行为证据采集。",
+            "docs_url": "https://www.xfyun.cn/doc/asr/voicedictation/API.html",
+        },
+        {"value": "disabled", "label": "停用", "base_url": ""},
+    ]
+    speech_eval = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek Speech Evaluation",
+            "base_url": "wss://ise-api.xfyun.cn/v2/open-ise",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "用于口语跟读、表达训练与学习效果评估闭环。",
+            "docs_url": "https://www.xfyun.cn/doc/Ise/IseAPI.html",
+        },
+        {"value": "disabled", "label": "停用", "base_url": ""},
+    ]
+    formula_ocr = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek Formula Recognition",
+            "base_url": "https://rest-api.xfyun.cn/v2/itr",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "用于题图、手写公式和高校数学/工科推导识别。",
+            "docs_url": "https://www.xfyun.cn/doc/words/formula-discern/API.html",
+        },
+        {"value": "disabled", "label": "停用", "base_url": ""},
+    ]
+    image_understanding = [
+        {
+            "value": "iflytek",
+            "label": "iFlytek Spark Image Understanding",
+            "base_url": "wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image",
+            "credential_hint": "IFLYTEK_APPID + IFLYTEK_API_KEY + IFLYTEK_API_SECRET",
+            "model_hint": "用于截图、板书、示意图和实验图的多模态理解。",
+            "docs_url": "https://www.xfyun.cn/doc/spark/ImageUnderstanding.html",
+        },
+        {"value": "disabled", "label": "停用", "base_url": ""},
+    ]
+    return {
+        "llm": llm,
+        "embedding": embedding,
+        "search": search,
+        "ocr": ocr,
+        "tts": tts,
+        "asr": asr,
+        "speech_eval": speech_eval,
+        "formula_ocr": formula_ocr,
+        "image_understanding": image_understanding,
+    }
 
 
 @router.get("")

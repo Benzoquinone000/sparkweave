@@ -54,8 +54,8 @@ const ROUTES: Array<{
   {
     mode: "evidence",
     href: "/memory/evidence",
-    label: "依据",
-    helper: "查看判断来源",
+    label: "记录来源",
+    helper: "建议从哪来",
     icon: Database,
     testId: "learner-profile-tab-evidence",
   },
@@ -95,7 +95,7 @@ export function MemoryPage() {
   const refreshProfile = async () => {
     setNotice("");
     await profileMutations.refresh.mutateAsync({ force: true });
-    setNotice("画像已重新整理。");
+    setNotice("学习建议已重新整理。");
   };
 
   const calibrateProfile: CalibrateProfile = async (input) => {
@@ -136,7 +136,7 @@ export function MemoryPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
+    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto flex min-h-full max-w-[1080px] flex-col gap-3.5">
         <MemoryHeader mode={mode} refreshing={profileMutations.refresh.isPending} onRefresh={() => void refreshProfile()} />
         <MemoryRouteNav activeMode={mode} />
@@ -160,7 +160,7 @@ export function MemoryPage() {
 
           {mode === "evidence" ? (
             <div className="h-full overflow-y-auto pr-1">
-              <Suspense fallback={<RouteLoading label="正在准备画像依据" />}>
+              <Suspense fallback={<RouteLoading label="正在准备记录来源" />}>
                 <EvidencePanel profile={profile.data} />
               </Suspense>
             </div>
@@ -190,25 +190,25 @@ function MemoryHeader({
 }) {
   const copy = {
     overview: {
-      eyebrow: "学习画像",
+      eyebrow: "学习记录",
       title: "先看系统建议你做什么",
-      detail: "默认页只保留当前建议和最少依据。想看证据或手动补充，进入对应页面。",
+      detail: "默认页只保留当前建议和少量记录。想看系统参考过什么或手动补充，进入对应页面。",
     },
     evidence: {
-      eyebrow: "画像依据",
-      title: "这些判断从哪里来",
-      detail: "这里单独查看证据，不和行动建议混在一起。",
+      eyebrow: "记录来源",
+      title: "这条建议从哪里来",
+      detail: "这里单独查看系统参考过的学习记录，不和行动建议混在一起。",
     },
     edit: {
       eyebrow: "手动补充",
-      title: "修正长期记忆",
+      title: "修正长期信息",
       detail: "只在需要时补目标、偏好或背景，不打断主学习流程。",
     },
   }[mode];
 
   return (
     <motion.header
-      className="rounded-lg border border-line bg-white/90 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(15,15,15,0.025)]"
+      className="dt-page-header dt-page-header-accent-orange px-3.5 py-2.5"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
@@ -239,7 +239,7 @@ function MemoryHeader({
 
 function MemoryRouteNav({ activeMode }: { activeMode: MemoryPageMode }) {
   return (
-    <nav className="grid gap-2 sm:grid-cols-3" aria-label="学习画像页面">
+    <nav className="grid gap-2 sm:grid-cols-3" aria-label="学习记录页面">
       {ROUTES.map((route) => {
         const Icon = route.icon;
         const active = activeMode === route.mode;
@@ -251,7 +251,7 @@ function MemoryRouteNav({ activeMode }: { activeMode: MemoryPageMode }) {
             className={`dt-interactive rounded-lg border px-3 py-2 transition ${
               active
                 ? "border-ink bg-white text-ink shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
-                : "border-line bg-white/72 text-slate-600 hover:border-line-strong hover:bg-white hover:text-ink"
+                : "border-line bg-white/75 text-slate-600 hover:border-line-strong hover:bg-white hover:text-ink"
             }`}
           >
             <span className="flex items-center gap-2 text-sm font-semibold">
@@ -292,7 +292,7 @@ function MemoryOverview({
   onSubmitCorrection: () => void;
 }) {
   if (isLoading) {
-    return <RouteLoading label="正在读取学习画像" />;
+    return <RouteLoading label="正在读取学习记录" />;
   }
 
   if (isError || !profile) {
@@ -300,8 +300,8 @@ function MemoryOverview({
       <section className="rounded-lg border border-line bg-white p-6">
         <EmptyState
           icon={<AlertCircle size={24} />}
-          title="画像暂时不可用"
-          description="可以先重新整理一次，系统会从现有学习证据聚合画像。"
+          title="学习记录暂时不可用"
+          description="可以先重新整理一次，系统会从现有学习记录生成建议。"
           action={
             <Button tone="primary" onClick={onRefresh} disabled={refreshing}>
               {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -320,7 +320,7 @@ function MemoryOverview({
   const primarySummary =
     nextAction?.summary?.trim() ||
     profile.overview.summary ||
-    "系统会根据导学、练习和笔记证据，逐步整理出更准确的学习重点。";
+    "系统会根据导学、练习和笔记记录，逐步整理出更准确的学习重点。";
   const primaryActionHref = nextAction ? buildNextActionHref(nextAction) : "/guide?new=1";
   const primaryActionLabel = nextAction?.primary_label?.trim() || "进入导学";
   return (
@@ -340,7 +340,7 @@ function MemoryOverview({
             <h2 className="mt-2 text-xl font-semibold leading-tight text-ink">{primaryTitle}</h2>
           </div>
           <span className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-slate-600">
-            可信 {formatPercent(profile.confidence)}
+            建议稳定度 {formatPercent(profile.confidence)}
           </span>
         </div>
         <p className="mt-2.5 max-w-3xl text-xs leading-5 text-slate-600">{primarySummary}</p>
@@ -395,25 +395,25 @@ function MemoryOverview({
         </form>
       </section>
 
-      <aside className="rounded-lg border border-line bg-white/86 p-4 shadow-[0_1px_2px_rgba(15,15,15,0.025)]">
+      <aside className="rounded-lg border border-line bg-white/90 p-4 shadow-[0_1px_2px_rgba(15,15,15,0.025)]">
         <div className="flex items-center justify-between gap-3 border-b border-line-soft pb-3">
           <div>
-            <p className="text-sm font-semibold text-ink">画像信号</p>
-            <p className="mt-0.5 text-xs text-steel">只保留会影响下一步的判断</p>
+            <p className="text-sm font-semibold text-ink">影响建议的记录</p>
+            <p className="mt-0.5 text-xs text-steel">只保留会影响下一步的内容</p>
           </div>
           <span className="rounded-md bg-surface px-2 py-1 text-xs font-medium text-slate-500">
-            {profile.data_quality.evidence_count ?? 0} 条证据
+            {profile.data_quality.evidence_count ?? 0} 条记录
           </span>
         </div>
         <div className="divide-y divide-line-soft">
-          <SignalRow icon={<Target size={16} />} label="当前重点" value={profile.overview.current_focus || "等待更多学习证据"} />
+          <SignalRow icon={<Target size={16} />} label="当前重点" value={profile.overview.current_focus || "等待更多学习记录"} />
           <SignalRow icon={<AlertCircle size={16} />} label="优先卡点" value={weakPoint?.label || "还没有明显薄弱点"} />
           <SignalRow
-          icon={<BookOpen size={17} />}
-          label="你的学习推进方式"
-          value={`系统接下来会优先${preferred ? `使用${preferred}` : "用图解和低门槛练习"}推进。`}
-          testId="learner-progress-style-card"
-        />
+            icon={<BookOpen size={17} />}
+            label="你的学习推进方式"
+            value={`系统接下来会优先${preferred ? `使用${preferred}` : "用图解和低门槛练习"}推进。`}
+            testId="learner-progress-style-card"
+          />
         </div>
         <a
           href="/memory/evidence"
@@ -422,9 +422,9 @@ function MemoryOverview({
           <span>
             <span className="flex items-center gap-2 font-semibold">
               <Database size={16} />
-              看判断依据
+              查看记录来源
             </span>
-            <span className="mt-1 block text-xs text-steel">单独打开证据页</span>
+            <span className="mt-1 block text-xs text-steel">看系统参考了哪些学习记录</span>
           </span>
           <ArrowRight size={16} className="text-steel" />
         </a>
@@ -435,7 +435,7 @@ function MemoryOverview({
 
 function DecisionPath({ focus, weakPoint, action }: { focus?: string; weakPoint?: string; action: string }) {
   const items = [
-    { label: "目标", value: focus || "先形成学习证据" },
+    { label: "目标", value: focus || "先留下学习记录" },
     { label: "判断", value: weakPoint || "暂无明显卡点" },
     { label: "行动", value: action },
   ];
@@ -466,7 +466,7 @@ function SignalRow({ icon, label, value, testId }: { icon: ReactNode; label: str
 
 function RouteLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/82 p-4">
+    <section className="rounded-lg border border-line bg-white/90 p-4">
       <p className="text-sm font-semibold text-ink">{label}</p>
       <div className="mt-3 space-y-2">
         <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />

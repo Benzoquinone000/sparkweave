@@ -46,7 +46,7 @@ export function KnowledgeRecoveryPanel({
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-ink">修复向导</p>
+              <p className="text-sm font-semibold text-ink">整理向导</p>
               <Badge tone={plan.tone}>{plan.badge}</Badge>
             </div>
             <h2 className="mt-2 text-lg font-semibold text-ink">{plan.title}</h2>

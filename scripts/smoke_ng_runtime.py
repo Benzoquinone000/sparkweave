@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+import argparse
 from collections import deque
 from dataclasses import dataclass, field
-import argparse
 import json
 import os
 from pathlib import Path

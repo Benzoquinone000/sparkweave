@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronUp, Edit3, ExternalLink, Loader2, Save, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, ExternalLink, Loader2, MoreHorizontal, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -119,15 +119,26 @@ export function RecordCard({
             <Edit3 size={14} />
             编辑
           </Button>
-          <Button
-            tone="danger"
-            className="min-h-8 px-2 text-xs"
-            onClick={onDelete}
-            data-testid={recordKey ? `notebook-record-delete-${recordKey}` : undefined}
-          >
-            <Trash2 size={14} />
-            删除
-          </Button>
+          <details className="rounded-lg border border-transparent px-1 py-1 [&>summary::-webkit-details-marker]:hidden">
+            <summary
+              className="dt-interactive flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-slate-600 hover:bg-surface hover:text-ink"
+              data-testid={recordKey ? `notebook-record-management-${recordKey}` : undefined}
+            >
+              <MoreHorizontal size={14} />
+              管理
+            </summary>
+            <div className="mt-1 flex flex-col gap-1">
+              <Button
+                tone="danger"
+                className="min-h-8 justify-start px-2 text-xs"
+                onClick={onDelete}
+                data-testid={recordKey ? `notebook-record-delete-${recordKey}` : undefined}
+              >
+                <Trash2 size={14} />
+                删除记录
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
       <h3 className="mt-3 font-semibold text-ink">{record.title}</h3>
@@ -194,7 +205,7 @@ export function RecordEditor({
             value={output}
             onChange={(event) => setOutput(event.target.value)}
             maxLength={NOTEBOOK_LIMITS.output}
-            className="min-h-56"
+            className="min-h-44"
             data-testid="record-editor-output"
           />
         </FieldShell>

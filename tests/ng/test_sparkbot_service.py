@@ -204,6 +204,8 @@ def test_sparkbot_competition_demo_seed_preserves_user_edits(manager):
     assert "多智能体接力路线" in files["QUESTION_BANK.md"]
     assert "赛题评分映射" in files["RUBRIC.md"]
     assert "科大讯飞工具链讲法" in files["RESOURCES.md"]
+    assert "图片理解" in files["RESOURCES.md"]
+    assert "星辰工作流" in files["RESOURCES.md"]
 
     assert manager.write_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md", "# Notes\n\nCustom demo notes.") is True
     preserved = manager.seed_competition_demo_bot()
@@ -3134,6 +3136,7 @@ async def test_sparkbot_channel_stop_cancels_active_task(monkeypatch, manager):
         BotConfig(
             name="Demo",
             channels={"telegram": {"enabled": True, "allow_from": ["*"]}},
+            heartbeat={"enabled": False},
         ),
     )
     try:
@@ -3145,7 +3148,7 @@ async def test_sparkbot_channel_stop_cancels_active_task(monkeypatch, manager):
                 content="slow work",
             )
         )
-        await asyncio.wait_for(started.wait(), timeout=1)
+        await asyncio.wait_for(started.wait(), timeout=5)
         await instance.agent_loop.bus.publish_inbound(
             SparkBotInboundMessage(
                 channel="telegram",

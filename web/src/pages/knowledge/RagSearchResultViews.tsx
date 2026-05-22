@@ -73,17 +73,17 @@ export function RagSearchContextView({
   return (
     <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="knowledge-rag-test-context-page">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink">召回上下文</p>
+        <p className="text-sm font-semibold text-ink">回答材料</p>
         <div className="flex flex-wrap gap-2">
           <Badge tone="neutral">{knowledgeProviderLabel(result.provider)}</Badge>
           <Badge tone="neutral">{String(result.retrieval_profile || "auto")}</Badge>
           <Badge tone={result.success === false ? "warning" : "success"}>
-            {result.success === false ? "检索失败" : "检索完成"}
+            {result.success === false ? "查找失败" : "已找到来源"}
           </Badge>
         </div>
       </div>
       <p className="mt-3 max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-sm leading-6 text-slate-700">
-        {content || result.error || "没有召回上下文。"}
+        {content || result.error || "没有可预览的回答材料。"}
       </p>
     </div>
   );

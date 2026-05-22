@@ -56,7 +56,7 @@ export function AudioNarrationViewer({
 
   if (!audio?.asset_url) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+      <div className="dt-dynamic-empty rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         语音讲解已生成，但暂时没有可播放的音频地址。
       </div>
     );
@@ -64,7 +64,7 @@ export function AudioNarrationViewer({
 
   return (
     <div
-      className={embedded ? "" : "rounded-lg border border-line bg-canvas p-3"}
+      className={embedded ? "" : "dt-dynamic-result rounded-lg border border-line bg-canvas p-3"}
       data-testid="audio-narration-viewer"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -76,7 +76,7 @@ export function AudioNarrationViewer({
       {result.response ? <p className="mt-3 text-sm leading-6 text-charcoal">{result.response}</p> : null}
       <PersonalizationBrief hints={result.learner_profile_hints} styleHint={result.style_hint} className="mt-3" />
 
-      <div className="mt-4 rounded-lg border border-line bg-white p-3">
+      <div className="dt-dynamic-panel mt-4 rounded-lg border border-line bg-white p-3">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
           <Volume2 size={16} className="text-brand-purple" />
           点击播放，先听一遍
@@ -89,7 +89,7 @@ export function AudioNarrationViewer({
       </div>
 
       {result.script_text ? (
-        <details className="mt-3 rounded-lg border border-line bg-white p-3">
+        <details className="dt-dynamic-panel mt-3 rounded-lg border border-line bg-white p-3">
           <summary className="cursor-pointer text-sm font-medium text-ink">查看讲解稿</summary>
           <p className="mt-2 text-sm leading-6 text-charcoal">{result.script_text}</p>
         </details>

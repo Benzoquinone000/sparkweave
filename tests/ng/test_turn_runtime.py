@@ -477,6 +477,48 @@ async def test_langgraph_turn_runtime_injects_notebook_and_history_context(
 
 
 @pytest.mark.asyncio
+async def test_langgraph_turn_runtime_preserves_canvas_context(tmp_path):
+    store = create_session_store(tmp_path / "chat_history.db")
+    runner = FakeRunner(
+        [
+            StreamEvent(
+                type=StreamEventType.CONTENT,
+                source="chat",
+                stage="responding",
+                content="Updated canvas draft.",
+            ),
+            StreamEvent(type=StreamEventType.DONE, source="langgraph"),
+        ]
+    )
+    runtime = LangGraphTurnRuntimeManager(
+        store=store,
+        runner=runner,
+        memory_service=FakeMemory(),
+    )
+
+    await runtime.run_turn(
+        {
+            "content": "润色这份草稿",
+            "session_id": "session-with-canvas",
+            "capability": "chat",
+            "canvas_context": {
+                "id": "canvas-1",
+                "message_id": "assistant-1",
+                "title": "梯度下降解释草稿",
+                "content": "# 梯度下降解释草稿\n\n已补充：学习率控制每一步的步长。",
+                "updated_at": 1_700_000_000,
+            },
+        }
+    )
+
+    context = runner.contexts[0]
+    assert context.user_message == "润色这份草稿"
+    assert context.metadata["canvas_context"]["title"] == "梯度下降解释草稿"
+    assert "学习率控制每一步的步长" in context.metadata["canvas_context"]["content"]
+    assert "canvas_context" not in context.config_overrides
+
+
+@pytest.mark.asyncio
 async def test_langgraph_turn_runtime_start_turn_streams_live_events(tmp_path):
     store = create_session_store(tmp_path / "chat_history.db")
     runner = StreamingRunner()

@@ -92,7 +92,7 @@ export function GuideSetupPage({
             value={goal}
             onChange={(event) => onGoalChange(event.target.value)}
             data-testid="guide-goal-input"
-            className="min-h-32 text-base leading-7"
+            className="min-h-28 text-sm leading-6"
             placeholder="例如：我想在 30 分钟内理解梯度下降，并做几道题确认掌握。"
           />
         </FieldShell>

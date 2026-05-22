@@ -55,7 +55,7 @@ function safeParseEvent(data: string): QuestionEvent {
 function eventText(event: QuestionEvent) {
   const content = event.content;
   if (typeof content === "string") return content;
-  if (content == null) return event.type || "事件";
+  if (content == null) return event.type || "进度";
   if (typeof content === "object") {
     const record = content as Record<string, unknown>;
     for (const key of ["message", "content", "text", "summary", "title"]) {
@@ -247,7 +247,7 @@ export function QuestionLabPage() {
 
   const runMimicGeneration = async () => {
     if (!paperPath.trim() && !pdfFile) {
-      setError("请填写已解析试卷目录，或上传一份 PDF");
+      setError("请填写试卷解析目录，或上传一份 PDF");
       return;
     }
     const payload: Record<string, unknown> = {
@@ -284,7 +284,7 @@ export function QuestionLabPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-canvas">
+    <div className="dt-dynamic-page h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3.5 px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
         <QuestionLabHeader
           mode={mode}
@@ -333,7 +333,7 @@ export function QuestionLabPage() {
                   data-testid="question-mode-topic"
                   onClick={() => setMode("topic")}
                   layout
-                  whileHover={{ y: -1 }}
+                  whileHover={{ y: -0.5 }}
                   whileTap={{ scale: 0.99 }}
                   className={`dt-interactive rounded-lg border px-3 py-3 text-left text-sm transition ${
                     mode === "topic" ? "border-brand-purple-300 bg-tint-lavender text-brand-purple" : "border-line bg-white text-slate-600 hover:border-brand-purple-300"
@@ -347,14 +347,14 @@ export function QuestionLabPage() {
                   data-testid="question-mode-mimic"
                   onClick={() => setMode("mimic")}
                   layout
-                  whileHover={{ y: -1 }}
+                  whileHover={{ y: -0.5 }}
                   whileTap={{ scale: 0.99 }}
                   className={`dt-interactive rounded-lg border px-3 py-3 text-left text-sm transition ${
                     mode === "mimic" ? "border-blue-200 bg-blue-50 text-brand-blue" : "border-line bg-white text-slate-600 hover:border-blue-200"
                   }`}
                 >
                   <span className="block font-semibold">试卷仿题</span>
-                  <span className="mt-1 block text-xs text-slate-500">PDF 或解析目录</span>
+                  <span className="mt-1 block text-xs text-slate-500">上传 PDF 或填目录</span>
                 </motion.button>
               </div>
 
@@ -426,7 +426,7 @@ export function QuestionLabPage() {
                       </SelectInput>
                     </FieldShell>
                     <FieldShell label="出题要求">
-                      <TextArea value={preference} onChange={(event) => setPreference(event.target.value)} className="min-h-24" />
+                      <TextArea value={preference} onChange={(event) => setPreference(event.target.value)} className="min-h-20" />
                     </FieldShell>
                     <Button tone="primary" onClick={runTopicGeneration} disabled={running} className="w-full" data-testid="question-generate-topic">
                       {running ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
@@ -442,7 +442,7 @@ export function QuestionLabPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                    <FieldShell label="已解析试卷目录" hint="有本地试卷解析结果时使用">
+                    <FieldShell label="试卷解析目录" hint="有本地试卷解析结果时使用">
                       <TextInput
                         data-testid="question-mimic-paper-path"
                         value={paperPath}
@@ -541,8 +541,8 @@ export function QuestionLabPage() {
                   data-testid="question-lab-events-toggle"
                 >
                   <span>
-                    <span className="block text-base font-semibold text-ink">生成过程</span>
-                    <span className="mt-1 block text-sm text-slate-500">出题进度和仿题事件，需要复盘时查看。</span>
+                    <span className="block text-base font-semibold text-ink">生成进度</span>
+                    <span className="mt-1 block text-sm text-slate-500">出题进度和仿题记录，需要复盘时查看。</span>
                   </span>
                   <Badge tone={events.length ? "brand" : "neutral"}>{events.length ? `${events.length} 条` : "等待"}</Badge>
                 </summary>
@@ -550,7 +550,7 @@ export function QuestionLabPage() {
                   <AnimatePresence initial={false} mode="wait">
                     {!events.length ? (
                       <motion.p key="empty" className="text-slate-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                        等待任务开始。
+                        等待生成开始。
                       </motion.p>
                     ) : (
                       <motion.div key="events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -609,7 +609,7 @@ export function QuestionLabPage() {
                     >
                       <EmptyState
                         title="还没有题目"
-                        description="从左侧启动一次生成任务，题目会在这里变成可交互练习。"
+                        description="从左侧开始生成，题目会在这里变成可交互练习。"
                       />
                     </motion.div>
                   )}
@@ -650,7 +650,7 @@ function QuestionLabHeader({
   onMimic: () => void;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-3.5 shadow-[0_8px_24px_rgba(15,15,15,0.03)]">
+    <section className="dt-page-header dt-page-header-accent-pink p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-3.5">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-steel">练一练</p>
@@ -673,7 +673,7 @@ function QuestionLabHeader({
 }
 
 function statusLabel(status: RunStatus) {
-  if (status === "running") return "运行中";
+  if (status === "running") return "生成中";
   if (status === "complete") return "已完成";
   if (status === "error") return "异常";
   return "待开始";
@@ -690,7 +690,7 @@ function questionEventTone(event: QuestionEvent): "brand" | "success" | "warning
 function questionEventTitle(event: QuestionEvent) {
   const type = String(event.type || "").toLowerCase();
   const stage = String(event.stage || "").toLowerCase();
-  if (type === "task_id") return "任务已创建";
+  if (type === "task_id") return "已开始";
   if (type === "progress" && (stage.includes("mimic") || event.source === "question_mimic")) return "正在提取题型风格";
   if (type === "progress") return "正在设计题目";
   if (type === "result") return "题目已生成";
@@ -709,11 +709,11 @@ function questionEventDetail(event: QuestionEvent) {
   }
   const text = eventText(event).trim();
   const lower = text.toLowerCase();
-  if (!text) return "任务正在推进。";
-  if (text === "任务已创建") return "任务已创建，开始生成题目。";
+  if (!text) return "正在推进。";
+  if (text === "任务已创建") return "已开始生成题目。";
   if (text === "生成模板") return "正在确定题型、考点和解析结构。";
   if (text === "题目生成完成") return "题目已整理成可答练习。";
-  if (lower === "mimic task created") return "仿题任务已创建，开始读取试卷风格。";
+  if (lower === "mimic task created") return "已开始读取试卷风格。";
   if (lower === "mimic template ready") return "已提取原试卷的题型与推理节奏。";
   if (lower === "mimic questions ready") return "仿题已整理成可答练习。";
   return text;
@@ -722,7 +722,7 @@ function questionEventDetail(event: QuestionEvent) {
 function questionEventSource(source: unknown) {
   const value = String(source || "").toLowerCase();
   if (!value) return "";
-  if (value.includes("mimic")) return "仿题智能体";
-  if (value.includes("deep_question")) return "出题智能体";
-  return "题目智能体";
+  if (value.includes("mimic")) return "仿题步骤";
+  if (value.includes("deep_question")) return "出题步骤";
+  return "题目步骤";
 }

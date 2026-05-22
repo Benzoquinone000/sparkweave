@@ -1,5 +1,19 @@
 # SparkWeave 智能体编排设计
 
+范围：记录当前 Agent Runtime、Tool、Capability、Graph 和事件流实现。本文档只描述代码中已经存在的行为；未落地能力统一放到“限制与待实现”，不写成当前能力。
+
+代码事实来源：
+
+| 模块 | 事实来源 |
+| --- | --- |
+| 统一入口 | `sparkweave/app/facade.py`, `sparkweave/runtime/orchestrator.py`, `sparkweave/runtime/routing.py` |
+| Turn Runtime | `sparkweave/runtime/turn_runtime.py`, `sparkweave/runtime/context_enrichment.py`, `sparkweave/runtime/runner.py` |
+| Capability 路由 | `sparkweave/runtime/capability_router.py`, `sparkweave/graphs/chat.py` |
+| Tool 层 | `sparkweave/tools/registry.py`, `sparkweave/tools/builtin.py`, `sparkweave/runtime/tool_execution.py` |
+| Graph 能力 | `sparkweave/graphs/deep_solve.py`, `sparkweave/graphs/deep_question.py`, `sparkweave/graphs/deep_research.py`, `sparkweave/graphs/visualize.py`, `sparkweave/graphs/math_animator.py` |
+| 插件发现 | `sparkweave/plugins/loader.py`, `sparkweave/runtime/registry/capability_registry.py` |
+| 前端消费 | `web/src/hooks/useChatRuntime.ts`, `web/src/components/chat/AgentCollaborationPanel.tsx`, `web/src/lib/capabilities.ts` |
+
 ## 1. 定位
 
 SparkWeave 的智能体编排核心是：
@@ -76,6 +90,7 @@ Tool 是轻量原子能力，适合边界明确的外部动作。
 | `web_search` | 联网搜索并返回引用 |
 | `external_video_search` | 公开视频 / 公开课推荐 |
 | `external_image_search` | 公开图片 / 示意图推荐 |
+| `canvas` | 按需打开 / 更新右侧可编辑文档 |
 | `code_execution` | 沙箱 Python 执行 |
 | `reason` | 专门推理调用 |
 | `brainstorm` | 发散式思考 |
@@ -90,7 +105,7 @@ ToolResult = content + sources + metadata + success
 
 `ToolRegistry` 负责注册工具、解析别名、生成 function schema、转换 `StructuredTool`、标准化结果。
 
-创新点：Tool 只暴露动作能力，不承载学习流程。工具结果通过 `sources` 和 `metadata` 被统一汇总，避免每个智能体各自定义证据格式。
+当前实现体现：Tool 只暴露动作能力，不承载学习流程。工具结果通过 `sources` 和 `metadata` 被统一汇总，避免每个智能体各自定义证据格式。
 
 ### 3.3 Capability 层
 
@@ -107,7 +122,7 @@ Capability 是面向学习任务的专业智能体。
 
 Capability manifest 描述 `name`、`description`、`stages`、`tools_used`、`cli_aliases`、`request_schema`、`config_defaults`。
 
-创新点：复杂能力不是一次 prompt，而是有阶段、有校验、有事件的 graph。比如 `deep_question` 把出题拆成“构思、生成、校验、修复”，`deep_solve` 把“推理”和“教学表达”拆开，并加入验证阶段。
+当前实现体现：复杂能力不是一次 prompt，而是有阶段、有校验、有事件的 graph。比如 `deep_question` 把出题拆成“构思、生成、校验、修复”，`deep_solve` 把“推理”和“教学表达”拆开，并加入验证阶段。
 
 ### 3.4 双层协同流程
 
@@ -150,7 +165,7 @@ SparkWeaveApp / ChatOrchestrator
 | 工具协同 | 将 enabled tools 注入 graph，统一执行、追踪、汇总证据 |
 | 流程编排 | 将复杂任务交给专业 Capability Graph，并用事件流暴露进展 |
 
-创新点：用户只需要从“学习”入口表达任务，不需要理解 Agent、RAG、Tool、Capability。工程能力被后台化，符合学习产品入口设计。
+当前实现体现：用户只需要从“学习”入口表达任务，不需要理解 Agent、RAG、Tool、Capability。工程能力被后台化，符合学习产品入口设计。
 
 ## 5. 动态路由
 
@@ -189,6 +204,7 @@ UnifiedContext
 | 动画讲解、Manim、视频化说明 | `math_animator` |
 | 公开视频 / 公开课推荐 | `external_video_search` tool |
 | 公开图片 / 示意图素材 | `external_image_search` tool |
+| 草稿、学习计划、报告、提纲 | `chat` + `canvas` tool |
 
 协调结果包含 `capability`、`confidence`、`reason`、`config`、`tools`。
 
@@ -199,7 +215,7 @@ UnifiedContext
 - `coordinator_capability=...`：指定协调目标。
 - `coordinator_llm=auto|true|false` / `intent_classifier=...`：控制 LLM 意图判别。
 
-创新点：画像 hints 不只进入 prompt，也进入确定性路由。模糊请求可以被转成具体学习动作，例如继续练习、找资料、画图、生成动画。
+当前实现体现：画像 hints 不只进入 prompt，也进入确定性路由。模糊请求可以被转成具体学习动作，例如继续练习、找资料、画图、生成动画。
 
 ### 5.3 LLM 意图判断提示词
 
@@ -220,11 +236,11 @@ UnifiedContext
 ```json
 {
   "capability": "chat | deep_solve | deep_question | deep_research | visualize | math_animator",
-  "direct_tool": "external_video_search | external_image_search |",
+  "direct_tool": "external_video_search | external_image_search | null",
   "confidence": 0.0,
   "reason": "short reason",
   "rewritten_user_message": "optional clearer task",
-  "tools": ["rag", "web_search", "external_video_search", "external_image_search"],
+  "tools": ["canvas", "rag", "web_search", "external_video_search", "external_image_search"],
   "config": {
     "mode": "learning_path",
     "render_mode": "mermaid",
@@ -235,7 +251,9 @@ UnifiedContext
 }
 ```
 
-LLM 判别结果不会直接执行。运行时还会做 capability 白名单、置信度阈值、工具名过滤和 config 标准化，失败时回退到规则结果。
+LLM 判别结果不会直接执行。运行时还会做 capability 白名单、置信度阈值、工具名过滤、用户约束复核和 config 标准化，失败时回退到规则结果。
+
+硬约束优先级高于 LLM 分类器：用户说“不要用工具 / 直接回答”时，本轮 `tools=[]`；用户说“不要打开画布 / no canvas”时，只移除 `canvas`，保留 RAG、联网检索等其他可用工具；用户说“不要联网 / 不要搜索 / offline”时，只移除 RAG、联网搜索、论文搜索、公开视频和公开图片检索。
 
 ### 5.4 Tool 路由
 
@@ -268,6 +286,10 @@ agent -> tools -> agent -> respond
 - 最多并行执行多个工具调用。
 - 每次工具调用发出 `tool_call` / `tool_result`。
 - 工具证据统一进入最终 `result.sources`。
+- `canvas` 只由工具结果触发右侧文档，不靠长文本启发式自动弹出。
+- 模型吐出未启用工具时，`ChatGraph` 会跳过调用并写入内部 ToolMessage，避免越权执行。
+- 模型一次请求过多工具时，只执行上限内的调用，其余调用补齐“已跳过” ToolMessage，保持后续模型轮次协议完整。
+- 每轮系统提示都会注入 tool policy：模型只能调用 `enabled_tools`，没有启用 `canvas` 时必须把草稿写在聊天里。
 
 ## 6. 流程编排
 
@@ -291,7 +313,7 @@ start_turn
 - 接续 live events。
 - WebSocket 断线后按 `seq` 补发。
 
-创新点：一次智能体执行不是临时函数调用，而是可持久化、可重放、可取消、可订阅的学习任务。
+当前实现体现：一次智能体执行不是临时函数调用，而是可持久化、可重放、可取消、可订阅的学习任务。
 
 ### 6.2 事件流
 
@@ -310,7 +332,7 @@ start_turn
 
 ### 6.3 专业 Graph 流程
 
-| Graph | 编排重点 | 创新点 |
+| Graph | 编排重点 | 当前实现体现 |
 | --- | --- | --- |
 | `deep_solve` | 先规划，后工具，再求解、验证、讲解 | 解题推理和教学表达分离 |
 | `deep_question` | 题目生成后校验，不合格自动修复 | 出题从一次生成升级为生产线 |
@@ -346,7 +368,7 @@ start_turn
 - 单题追问上下文。
 - 附件。
 
-创新点：学习画像有双通道用途。
+当前实现体现：学习画像有双通道用途。
 
 ```text
 memory_context
@@ -377,7 +399,7 @@ prefetch_rag=true
   -> 后续回答直接使用
 ```
 
-创新点：知识库能力不完全依赖模型主动调用工具。系统可以在 runtime 层主动把学习资料变成上下文，提高资料问答稳定性。
+当前实现体现：知识库能力不完全依赖模型主动调用工具。系统可以在 runtime 层主动把学习资料变成上下文，提高资料问答稳定性。
 
 ## 9. 长任务与扩展控制
 
@@ -391,17 +413,17 @@ partial events + partial response + original question
   -> metadata.answer_now=true
 ```
 
-价值：用户不用等完整流程结束，也不是简单取消，而是基于已有执行轨迹得到当前可交付答案。
+当前用途：用户不用等完整流程结束，也不是简单取消，而是基于已有执行轨迹得到当前可交付答案。
 
 ### 9.2 Deep Research Checkpoint
 
 `deep_research` 可先返回研究大纲和 checkpoint id。用户确认后，带 `confirmed_outline` 继续执行。
 
-价值：长研究任务可以先确认方向，再消耗搜索和写作成本。
+当前用途：长研究任务可以先确认方向，再消耗搜索和写作成本。
 
 ### 9.3 Plugin Capability
 
-插件能力目标路径：
+插件能力预留路径：
 
 ```text
 discover manifest
@@ -411,11 +433,11 @@ discover manifest
   -> runtime execute
 ```
 
-当前 manifest discovery 已实现，`CapabilityRegistry.load_plugins()` 仍需补齐执行闭环。
+当前代码里，`sparkweave/plugins/loader.py` 已实现 manifest 发现和读取，主要服务插件 API / CLI 列表；`CapabilityRegistry.load_plugins()` 仍是预留方法，尚未把第三方插件能力注册到运行时执行闭环。
 
-## 10. 创新点汇总
+## 10. 当前实现要点
 
-| 创新点 | 说明 |
+| 要点 | 说明 |
 | --- | --- |
 | Turn-native Runtime | 把一次智能体执行变成可持久化、可重放、可取消、可订阅的 turn |
 | Chat as Coordinator | 默认 chat 是学习任务协调器，不只是问答模型 |
@@ -425,6 +447,30 @@ discover manifest
 | Structured Collaboration | 智能体委派、工具调用、证据来源都通过事件结构化输出 |
 | Checkpoint / Answer Now | 长任务支持先确认计划，也支持中途收束 |
 
-## 11. 总结
+## 11. 测试覆盖
+
+| 测试 | 覆盖 |
+| --- | --- |
+| `tests/ng/test_turn_runtime.py` | turn 生命周期、事件订阅、上下文合并 |
+| `tests/ng/test_chat_graph.py` | ChatGraph 工具循环、RAG 预取、协调行为 |
+| `tests/ng/test_capability_router.py` | `LearningCapabilityRouter` 规则、LLM 分类、用户约束 |
+| `tests/capabilities/test_answer_now.py` | answer_now 上下文和中途收束 |
+| `tests/ng/test_deep_research_graph.py` | deep research checkpoint 与继续执行 |
+| `tests/core/test_builtin_tools.py` | 内置工具契约和工具结果结构 |
+
+聚焦命令：
+
+```powershell
+uv run pytest tests/ng/test_turn_runtime.py tests/ng/test_chat_graph.py tests/ng/test_capability_router.py tests/capabilities/test_answer_now.py tests/ng/test_deep_research_graph.py tests/core/test_builtin_tools.py -q
+```
+
+## 12. 限制与待实现
+
+- `CapabilityRegistry.load_plugins()` 当前没有加载第三方 capability 的执行闭环。
+- 自动路由仍依赖规则、关键词、画像 hints 和可选 LLM 分类；不是全局最优规划器。
+- `answer_now` 是基于已有事件和部分结果的 best-effort 收束，不保证等价于完整任务最终答案。
+- 工具调用权限由 `enabled_tools`、工具白名单和 graph 检查共同约束；新增工具时必须同步 schema、前端结果渲染和测试。
+
+## 13. 总结
 
 SparkWeave 的编排设计把学习请求拆成三层控制：统一 Orchestrator 负责入口和路由，Capability 负责学习流程，Tool 负责原子动作。所有执行都落在 turn 生命周期内，通过 `StreamEvent` 暴露过程、证据和结果，从而支持多类学习智能体的动态路由、工具协同和可观测流程编排。

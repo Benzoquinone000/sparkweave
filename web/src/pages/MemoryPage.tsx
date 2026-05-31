@@ -299,7 +299,9 @@ function MemoryOverview({
     return (
       <section className="rounded-lg border border-line bg-white p-6">
         <EmptyState
-          icon={<AlertCircle size={24} />}
+          tone="record"
+          icon={<AlertCircle size={22} />}
+          eyebrow="需要刷新"
           title="学习记录暂时不可用"
           description="可以先重新整理一次，系统会从现有学习记录生成建议。"
           action={

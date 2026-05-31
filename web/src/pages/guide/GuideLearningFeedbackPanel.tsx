@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { BarChart3, Brain, CheckCircle2, Compass, Lightbulb, Target } from "lucide-react";
+import { ArrowRight, BarChart3, Brain, CheckCircle2, Compass, Lightbulb, Target } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -97,6 +97,7 @@ export function GuideLearningFeedbackCard({
         report={learningEffectReport ?? null}
         profileRefreshing={profileRefreshing}
       />
+      <FeedbackDecisionTrail feedback={feedback} decision={decision} primaryPath={primaryPath} />
 
       {remediationTask ? (
         <MinimalRemediationTaskCard
@@ -147,6 +148,66 @@ export function GuideLearningFeedbackCard({
         </a>
       </div>
     </motion.section>
+  );
+}
+
+function FeedbackDecisionTrail({
+  feedback,
+  decision,
+  primaryPath,
+}: {
+  feedback: GuideV2LearningFeedback;
+  decision: ReturnType<typeof buildFeedbackDecision>;
+  primaryPath: FeedbackDecisionPath;
+}) {
+  const scoreLabel = feedback.score_percent == null ? "已记录" : `${Math.round(feedback.score_percent)} 分`;
+  const concept = feedback.concept_feedback?.[0]?.concept || feedback.task_title || "当前任务";
+  const rows = [
+    {
+      label: "本次结果",
+      value: scoreLabel,
+      detail: feedback.evidence_quality?.label || feedback.summary || "这次提交已经进入学习记录。",
+      tone: feedbackTone(feedback.tone),
+    },
+    {
+      label: "系统判断",
+      value: decision.badge,
+      detail: decision.summary,
+      tone: decision.tone,
+    },
+    {
+      label: "现在先做",
+      value: primaryPath.label,
+      detail: primaryPath.description || `围绕「${concept}」继续推进。`,
+      tone: primaryPath.primary ? "brand" : "neutral",
+    },
+  ] as const;
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-canvas p-3" data-testid="guide-feedback-decision-trail">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-ink">为什么安排这一步</p>
+        <Badge tone={decision.tone}>{decision.badge}</Badge>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)_2rem_minmax(0,1fr)]">
+        {rows.map((row, index) => (
+          <div key={row.label} className="contents">
+            <div className="rounded-lg border border-line bg-white p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-steel">{row.label}</p>
+                <Badge tone={row.tone}>{row.value}</Badge>
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{row.detail}</p>
+            </div>
+            {index < rows.length - 1 ? (
+              <div className="hidden place-items-center text-slate-300 md:grid">
+                <ArrowRight size={16} />
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

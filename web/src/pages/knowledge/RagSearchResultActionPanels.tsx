@@ -1,4 +1,4 @@
-import { Database, GitBranch, ListChecks, MessageSquareText, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, Database, GitBranch, ListChecks, MessageSquareText, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ export function RagSearchRecoveryCard({
   onAction: (action: RagSearchRecoveryAction) => void;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-3" data-testid="knowledge-rag-test-recovery">
+    <div className="rounded-lg border border-accent-blue-line bg-accent-blue-active/80 p-3" data-testid="knowledge-rag-test-recovery">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -35,6 +35,23 @@ export function RagSearchRecoveryCard({
           ) : null}
         </div>
       </div>
+      {recovery.steps?.length ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)_2rem_minmax(0,1fr)]">
+          {recovery.steps.slice(0, 3).map((step, index) => (
+            <div key={`${step.label}-${index}`} className="contents">
+              <div className="rounded-lg border border-accent-blue-line bg-white/85 p-3">
+                <p className="text-xs font-semibold text-accent-blue-ink">{step.label}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{step.detail}</p>
+              </div>
+              {index < Math.min(recovery.steps?.length ?? 0, 3) - 1 ? (
+                <div className="hidden place-items-center text-slate-300 md:grid">
+                  <ArrowRight size={15} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

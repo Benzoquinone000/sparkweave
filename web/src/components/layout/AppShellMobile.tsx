@@ -28,6 +28,7 @@ export function MobileBottomNav({ currentPath }: { currentPath: string }) {
               active ? `${accent.active} font-medium` : "text-steel"
             }`}
           >
+            <span className={`mb-0.5 h-1.5 w-1.5 rounded-sm ${accent.dot}`} />
             <item.icon size={16} />
             <span className="mt-0.5">{item.shortLabel}</span>
           </Link>
@@ -63,7 +64,9 @@ export function MobileNavigation({
                       active ? `border-transparent ${accent.active}` : "border-line bg-white text-charcoal"
                     }`}
                   >
-                    <item.icon size={16} />
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${accent.bg} ${accent.text}`}>
+                      <item.icon size={15} />
+                    </span>
                     <span className="text-xs font-medium">{item.label}</span>
                   </Link>
                 );
@@ -96,7 +99,9 @@ export function MobileNavigation({
                           active ? `border-transparent ${accent.active}` : "border-line bg-surface text-charcoal"
                         }`}
                       >
-                        <item.icon size={16} />
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${accent.bg} ${accent.text}`}>
+                          <item.icon size={15} />
+                        </span>
                         <span className="text-xs font-medium">{item.label}</span>
                       </Link>
                     );

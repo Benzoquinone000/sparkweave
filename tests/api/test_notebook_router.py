@@ -20,7 +20,11 @@ from sparkweave.services.session_store import SQLiteSessionStore
 
 
 class _EvidenceRecorder:
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
     def append_events(self, events: list[dict], *, dedupe: bool = True):
+        self.events.extend(events)
         return {"added": len(events), "skipped": 0, "events": events}
 
 
@@ -227,6 +231,52 @@ def test_lookup_entry_by_question(store: SQLiteSessionStore) -> None:
             params={"session_id": session["id"], "question_id": "nope"},
         )
         assert resp404.status_code == 404
+
+
+def test_upsert_entry_creates_manual_session(store: SQLiteSessionStore) -> None:
+    with TestClient(_build_app(store)) as client:
+        resp = client.post(
+            "/api/v1/question-notebook/entries/upsert",
+            json={
+                "session_id": "manual-session",
+                "question_id": "manual-q1",
+                "question": "Manually collected question?",
+                "correct_answer": "A",
+                "is_correct": False,
+            },
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["session_id"] == "manual-session"
+    assert body["question_id"] == "manual-q1"
+    assert asyncio.run(store.get_session("manual-session"))["title"] == "题目快录"
+
+
+def test_upsert_entry_can_skip_evidence_for_mirrored_question(store: SQLiteSessionStore, monkeypatch) -> None:
+    recorder = _EvidenceRecorder()
+    monkeypatch.setattr(
+        "sparkweave.api.routers.question_notebook.get_learner_evidence_service",
+        lambda: recorder,
+    )
+
+    with TestClient(_build_app(store)) as client:
+        resp = client.post(
+            "/api/v1/question-notebook/entries/upsert",
+            json={
+                "session_id": "manual-question-lab",
+                "question_id": "lab-q1",
+                "question": "Mirrored wrong question?",
+                "correct_answer": "B",
+                "user_answer": "A",
+                "is_correct": False,
+                "record_evidence": False,
+            },
+        )
+
+    assert resp.status_code == 200
+    assert recorder.events == []
+    assert asyncio.run(store.list_notebook_entries())["total"] == 1
 
 
 def test_upsert_entry_rejects_oversized_question(store: SQLiteSessionStore) -> None:

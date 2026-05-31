@@ -29,13 +29,21 @@ jobs:
       - name: Validate course templates
         run: python scripts/check_course_templates.py
 
+      - name: Check project standards
+        run: python scripts/check_project_standards.py
+
       - name: Check release safety
         run: python scripts/check_release_safety.py
+
+      - name: Run project verification profile
+        run: python scripts/verify_project.py --profile quick
 
       - name: Run focused backend tests
         run: |
           python -m pytest \
             tests/cli/test_chat_cli.py \
+            tests/scripts/test_check_project_standards.py \
+            tests/scripts/test_verify_project.py \
             tests/scripts/test_check_release_safety.py \
             tests/services/test_video_search.py \
             tests/ng/test_chat_graph.py \

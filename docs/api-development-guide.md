@@ -82,6 +82,20 @@ class CreateThingResponse(BaseModel):
 - 返回给前端的枚举值要有明确 fallback，避免未知值导致页面崩溃。
 - 涉及工具结果、RAG 证据、讯飞能力的响应要保留 metadata，便于前端展示证据链。
 
+### 3.3 题目本写入
+
+`sparkweave/api/routers/question_notebook.py` 的 `POST /api/v1/question-notebook/entries/upsert` 当前行为：
+
+- 默认写入或更新题目本记录，并通过 `build_quiz_answer_events()` 写入学习画像证据。
+- `record_evidence=false` 时只保存题目本记录，不追加画像证据；练习实验室把已记录到 `learning-effect` 的错题镜像到题目本时使用该模式，避免同一次作答重复计分。
+- `session_id` 以 `manual-` 开头且不存在时，接口会自动创建标题为“题目快录”的本地会话。
+
+`web/src/pages/QuestionLabPage.tsx` 当前把整组练习提交结果写入 `/api/v1/learning-effect/events`：
+
+- 事件 `id` 包含题目 ID 和 `attempt_count`，同一轮重做会形成新的尝试记录。
+- 前端去重签名使用题目 ID、用户答案、正确性和 `attempt_count`，不使用耗时字段。
+- 错题镜像到题目本时仍复用同一个 `manual-question-lab` 会话，便于错题本集中复盘。
+
 ## 4. 错误处理
 
 ### 4.1 HTTP 错误

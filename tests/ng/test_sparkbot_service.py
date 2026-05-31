@@ -2134,7 +2134,7 @@ class FakeWeComClient:
         self.welcomes = []
 
     async def download_file(self, file_url, aes_key):
-        return b"image-bytes", "remote.png"
+        return {"buffer": b"image-bytes", "filename": "remote.png"}
 
     async def reply_stream(self, frame, stream_id, content, finish=True):
         self.streams.append(
@@ -2148,6 +2148,74 @@ class FakeWeComClient:
 
     async def reply_welcome(self, frame, payload):
         self.welcomes.append({"frame": frame, "payload": payload})
+
+
+class FakeLatestWeComSDKClient:
+    instances = []
+
+    def __init__(self, bot_id, secret, **kwargs):
+        self.bot_id = bot_id
+        self.secret = secret
+        self.kwargs = kwargs
+        self.handlers = {}
+        self.connected = False
+        self.disconnected = False
+        FakeLatestWeComSDKClient.instances.append(self)
+
+    def on(self, name, handler):
+        self.handlers[name] = handler
+
+    async def connect(self):
+        self.connected = True
+
+    async def disconnect(self):
+        self.disconnected = True
+
+
+@pytest.mark.asyncio
+async def test_sparkbot_wecom_start_uses_latest_sdk_signature(monkeypatch, manager):
+    FakeLatestWeComSDKClient.instances.clear()
+    monkeypatch.setitem(
+        sys.modules,
+        "wecom_aibot_sdk",
+        SimpleNamespace(
+            WSClient=FakeLatestWeComSDKClient,
+            generate_req_id=lambda prefix: f"{prefix}-id",
+        ),
+    )
+    channel_manager = manager._build_channel_manager(
+        BotConfig(
+            name="Demo",
+            channels={
+                "wecom": {
+                    "enabled": True,
+                    "bot_id": "bot-id",
+                    "secret": "secret",
+                    "allow_from": ["*"],
+                },
+            },
+        ),
+        SparkBotMessageBus(),
+        bot_id="demo",
+    )
+    channel = channel_manager.get_channel("wecom")
+
+    task = asyncio.create_task(channel.start())
+    for _ in range(20):
+        if FakeLatestWeComSDKClient.instances:
+            break
+        await asyncio.sleep(0.01)
+    assert FakeLatestWeComSDKClient.instances
+    client = FakeLatestWeComSDKClient.instances[0]
+    await channel.stop()
+    await asyncio.wait_for(task, timeout=2)
+
+    assert client.bot_id == "bot-id"
+    assert client.secret == "secret"
+    assert client.kwargs["max_reconnect_attempts"] == -1
+    assert client.connected is True
+    assert client.disconnected is True
+    assert "message.text" in client.handlers
 
 
 @pytest.mark.asyncio

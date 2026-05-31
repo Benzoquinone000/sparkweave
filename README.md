@@ -348,7 +348,9 @@ docker compose exec frontend npm run build
 本地开发环境可以先跑与 CI 对齐的轻量检查：
 
 ```powershell
+python scripts/verify_project.py --profile quick
 python scripts/check_course_templates.py
+python scripts/check_project_standards.py
 python scripts/check_release_safety.py
 
 cd web
@@ -390,12 +392,14 @@ data/              本地知识库、Milvus、记忆和用户数据
 | [docs/agent-orchestration-design.md](docs/agent-orchestration-design.md) | 智能体编排设计 |
 | [docs/rag-system-design.md](docs/rag-system-design.md) | Evidence RAG 系统设计 |
 | [docs/learner-profile-memory-design.md](docs/learner-profile-memory-design.md) | 学习画像与记忆设计 |
+| [docs/engineering-standards.md](docs/engineering-standards.md) | 软件工程边界、目录规范、文档治理和自动化门禁 |
 | [docs/development-guide.md](docs/development-guide.md) | 开发流程、质量检查和文档规范 |
 | [docs/configuration-guide.md](docs/configuration-guide.md) | 环境变量、供应商配置和讯飞工具链 |
 | [docs/api-development-guide.md](docs/api-development-guide.md) | 后端 API、WebSocket 和前后端契约规范 |
 | [docs/testing-guide.md](docs/testing-guide.md) | 测试分层、运行命令和提交前验证规范 |
 | [docs/frontend-design-guide.md](docs/frontend-design-guide.md) | 前端信息架构、视觉约束和动效规范 |
 | [docs/data-storage-guide.md](docs/data-storage-guide.md) | 本地数据目录、持久化边界和提交规范 |
+| [docs/software-cup-delivery-checklist.md](docs/software-cup-delivery-checklist.md) | 软件杯提交前的源码、文档、质量、安全和演示检查清单 |
 
 ## License
 

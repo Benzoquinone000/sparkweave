@@ -244,20 +244,20 @@ function QuickActionButton({
 function quickActionTone(actionId: string) {
   const tones: Record<string, { card: string; icon: string }> = {
     explain: {
-      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
-      icon: "border border-line bg-white text-steel",
+      card: "border-accent-yellow-line bg-accent-yellow-soft hover:border-accent-yellow-marker hover:bg-white",
+      icon: "border border-accent-yellow-line bg-accent-yellow-active text-accent-yellow-ink",
     },
     practice: {
-      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
-      icon: "border border-line bg-white text-steel",
+      card: "border-accent-pink-line bg-accent-pink-active hover:border-accent-pink-marker hover:bg-white",
+      icon: "border border-accent-pink-line bg-accent-pink-soft text-accent-pink-ink",
     },
     video: {
-      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
-      icon: "border border-line bg-white text-steel",
+      card: "border-accent-blue-line bg-accent-blue-active hover:border-accent-blue-marker hover:bg-white",
+      icon: "border border-accent-blue-line bg-accent-blue-soft text-accent-blue-ink",
     },
     visual: {
-      card: "border-line bg-white/90 hover:border-[#d5dbe5] hover:bg-white",
-      icon: "border border-line bg-white text-steel",
+      card: "border-accent-teal-line bg-accent-teal-active hover:border-accent-teal-marker hover:bg-white",
+      icon: "border border-accent-teal-line bg-accent-teal-soft text-accent-teal-ink",
     },
   };
   return tones[actionId] ?? { card: "border-line bg-white/90 hover:border-[#d5dbe5]", icon: "border border-line bg-white text-steel" };

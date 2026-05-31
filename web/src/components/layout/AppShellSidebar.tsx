@@ -135,7 +135,7 @@ export function CollapsedSidebar({
                 active ? `${accent.active} shadow-sm` : "text-steel hover:bg-white hover:text-ink"
               }`}
             >
-              <span className={`h-2 w-2 rounded-sm ${accent.dot}`} />
+              <span className={`h-2.5 w-2.5 rounded-sm ${accent.dot}`} />
             </Link>
           );
         })}
@@ -210,7 +210,7 @@ function SidebarPrimaryLinks({ currentPath }: { currentPath: string }) {
                 transition={{ duration: 0.18, ease: "easeOut" }}
               />
             ) : null}
-            <span className={`relative h-2 w-2 shrink-0 rounded-sm ${accent.dot}`} />
+            <span className={`relative h-2.5 w-2.5 shrink-0 rounded-sm ${accent.dot}`} />
             <span className="relative min-w-0 truncate">{item.label}</span>
           </Link>
         );

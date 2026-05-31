@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, CheckCircle2, FileQuestion, Loader2, Save, Sparkles, Upload } from "lucide-react";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, ArrowRight, Brain, CheckCircle2, FileQuestion, Loader2, Save, Sparkles, Upload } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -9,13 +10,22 @@ import { FieldShell, FileInput, SelectInput, TextArea, TextInput } from "@/compo
 import { Metric } from "@/components/ui/Metric";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { useKnowledgeBases, useNotebookMutations, useNotebooks } from "@/hooks/useApiQueries";
-import { questionGenerateSocketUrl, questionMimicSocketUrl } from "@/lib/api";
-import type { QuestionGenerationSummary, QuizQuestion } from "@/lib/types";
+import { appendLearningEffectEvent, questionGenerateSocketUrl, questionMimicSocketUrl, upsertQuestionEntry } from "@/lib/api";
+import { invalidateLearningQueries } from "@/lib/queryInvalidation";
+import type { QuestionGenerationSummary, QuizQuestion, QuizResultItem } from "@/lib/types";
+import type { QuizCompletionSummary } from "@/components/quiz/QuizViewer";
 
 const QuizViewer = lazy(() => import("@/components/quiz/QuizViewer").then((module) => ({ default: module.QuizViewer })));
 
 type RunMode = "topic" | "mimic";
 type RunStatus = "idle" | "running" | "complete" | "error";
+type QuestionLabSeed = {
+  topic: string;
+  preference: string;
+  difficulty: string;
+  questionType: string;
+  count: number;
+};
 
 type QuestionEvent = {
   type?: string;
@@ -132,6 +142,46 @@ function questionsToMarkdown(questions: QuizQuestion[]) {
     .join("\n\n");
 }
 
+function quizResultsToMarkdown(results: QuizResultItem[]) {
+  return results
+    .map((item, index) => {
+      const lines = [`### ${index + 1}. ${item.question}`];
+      if (item.options) {
+        for (const [key, value] of Object.entries(item.options)) {
+          lines.push(`- ${key}. ${value}`);
+        }
+      }
+      lines.push(`\n**我的答案：** ${item.user_answer || "未填写"}`);
+      if (item.correct_answer) lines.push(`\n**参考答案：** ${item.correct_answer}`);
+      lines.push(`\n**结果：** ${item.is_correct ? "正确" : "待复盘"}`);
+      if (item.explanation) lines.push(`\n**解析：** ${item.explanation}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
+}
+
+function quizResultSummary(item: QuizResultItem) {
+  const parts = [
+    `作答：${item.user_answer || "未填写"}`,
+    item.correct_answer ? `参考答案：${item.correct_answer}` : "",
+    item.explanation ? `解析：${item.explanation}` : "",
+  ].filter(Boolean);
+  return parts.join("；");
+}
+
+function quizMistakeTypes(item: QuizResultItem) {
+  const concepts = item.concepts?.length ? item.concepts : item.knowledge_points ?? [];
+  return [
+    ...concepts.slice(0, 2).map((concept) => `concept:${concept}`),
+    item.question_type ? `题型：${item.question_type}` : "",
+    item.difficulty ? `难度：${item.difficulty}` : "",
+  ].filter(Boolean);
+}
+
+function safeKey(value: string, limit = 80) {
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "").slice(0, limit) || "quiz";
+}
+
 function readFileAsBase64(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -144,17 +194,35 @@ function readFileAsBase64(file: File) {
   });
 }
 
+function readQuestionLabSeed(): QuestionLabSeed {
+  if (typeof window === "undefined") {
+    return { topic: "", preference: "", difficulty: "", questionType: "", count: 3 };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const topic = (params.get("topic") || params.get("knowledge_point") || "").trim().slice(0, 240);
+  const preference = (params.get("preference") || params.get("prompt") || "").trim().slice(0, 360);
+  const difficulty = DIFFICULTIES.some((item) => item.value === params.get("difficulty")) ? params.get("difficulty") || "" : "";
+  const questionType = QUESTION_TYPES.some((item) => item.value === params.get("question_type")) ? params.get("question_type") || "" : "";
+  const parsedCount = Number(params.get("count") || 3);
+  const count = Number.isFinite(parsedCount) ? Math.min(10, Math.max(1, Math.round(parsedCount))) : 3;
+  return { topic, preference, difficulty, questionType, count };
+}
+
 export function QuestionLabPage() {
+  const queryClient = useQueryClient();
   const knowledgeBases = useKnowledgeBases();
   const notebookMutations = useNotebookMutations();
   const socketRef = useRef<WebSocket | null>(null);
+  const runKeyRef = useRef("");
+  const recordedPracticeKeyRef = useRef("");
+  const initialSeed = useMemo(() => readQuestionLabSeed(), []);
 
   const [mode, setMode] = useState<RunMode>("topic");
-  const [topic, setTopic] = useState("函数极限与连续");
-  const [preference, setPreference] = useState("贴近高等数学期末题，解析要指出易错点。");
-  const [difficulty, setDifficulty] = useState("medium");
-  const [questionType, setQuestionType] = useState("");
-  const [count, setCount] = useState(3);
+  const [topic, setTopic] = useState(initialSeed.topic || "函数极限与连续");
+  const [preference, setPreference] = useState(initialSeed.preference || "贴近高等数学期末题，解析要指出易错点。");
+  const [difficulty, setDifficulty] = useState(initialSeed.difficulty || "medium");
+  const [questionType, setQuestionType] = useState(initialSeed.questionType);
+  const [count, setCount] = useState(initialSeed.count);
   const [kbName, setKbName] = useState("");
   const [paperPath, setPaperPath] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -163,15 +231,24 @@ export function QuestionLabPage() {
   const [summary, setSummary] = useState<QuestionGenerationSummary | null>(null);
   const [status, setStatus] = useState<RunStatus>("idle");
   const [error, setError] = useState("");
+  const [practiceReceiptState, setPracticeReceiptState] = useState<{ signature: string; receipt: QuizCompletionSummary } | null>(null);
+  const [practiceRecordStatus, setPracticeRecordStatus] = useState<"idle" | "recording" | "recorded" | "error">("idle");
+  const [practiceRecordError, setPracticeRecordError] = useState("");
 
   const kbItems = useMemo(() => knowledgeBases.data ?? [], [knowledgeBases.data]);
   const questions = useMemo(() => normalizeQuestions(summary), [summary]);
+  const questionSignature = useMemo(() => questions.map((item) => `${item.question_id}:${item.question}`).join("|"), [questions]);
+  const practiceReceipt = practiceReceiptState?.signature === questionSignature ? practiceReceiptState.receipt : null;
   const shouldLoadNotebooks = questions.length > 0 || Boolean(targetNotebookId);
   const notebooks = useNotebooks({ enabled: shouldLoadNotebooks });
   const notebookItems = useMemo(() => notebooks.data ?? [], [notebooks.data]);
-  const markdown = useMemo(() => questionsToMarkdown(questions), [questions]);
+  const quizMarkdown = useMemo(() => questionsToMarkdown(questions), [questions]);
   const completed = summary?.completed ?? questions.length;
   const failed = summary?.failed ?? 0;
+  const practiceMarkdown = useMemo(() => {
+    if (!practiceReceipt) return quizMarkdown;
+    return quizResultsToMarkdown(practiceReceipt.results);
+  }, [practiceReceipt, quizMarkdown]);
 
   useEffect(
     () => () => {
@@ -189,10 +266,15 @@ export function QuestionLabPage() {
   const resetRun = () => {
     socketRef.current?.close();
     socketRef.current = null;
+    runKeyRef.current = "";
     setEvents([]);
     setSummary(null);
     setError("");
     setStatus("idle");
+    setPracticeReceiptState(null);
+    setPracticeRecordStatus("idle");
+    setPracticeRecordError("");
+    recordedPracticeKeyRef.current = "";
   };
 
   const handleEvent = (event: QuestionEvent) => {
@@ -210,10 +292,15 @@ export function QuestionLabPage() {
 
   const openRunSocket = (url: string, payload: Record<string, unknown>) => {
     socketRef.current?.close();
+    runKeyRef.current = `${mode}:${topic.trim() || paperPath.trim() || pdfFile?.name || "quiz"}:${Date.now().toString(36)}`;
     setEvents([]);
     setSummary(null);
     setError("");
     setStatus("running");
+    setPracticeReceiptState(null);
+    setPracticeRecordStatus("idle");
+    setPracticeRecordError("");
+    recordedPracticeKeyRef.current = "";
 
     const socket = new WebSocket(url);
     socketRef.current = socket;
@@ -272,16 +359,126 @@ export function QuestionLabPage() {
       record_type: "question",
       title: mode === "topic" ? `题目生成：${topic.trim()}` : `仿题生成：${pdfFile?.name || paperPath.trim()}`,
       user_query: mode === "topic" ? topic.trim() : pdfFile?.name || paperPath.trim(),
-      output: markdown,
-      summary: `${questions.length} 道题，完成 ${completed}，失败 ${failed}`,
+      output: practiceMarkdown,
+      summary: practiceReceipt
+        ? `${practiceReceipt.total} 道题，答对 ${practiceReceipt.correct}，得分 ${practiceReceipt.scorePercent}%`
+        : `${questions.length} 道题，完成 ${completed}，失败 ${failed}`,
       kb_name: selectedKb,
       metadata: {
         source: "question_lab",
         mode,
         summary,
+        practice_receipt: practiceReceipt,
       },
     });
   };
+
+  const handleQuizComplete = useCallback(
+    async (completion: QuizCompletionSummary) => {
+      const receipt = { signature: questionSignature, receipt: completion };
+      setPracticeReceiptState(receipt);
+      const runKey = runKeyRef.current || `${mode}:${topic.trim() || paperPath.trim() || pdfFile?.name || selectedKb}`;
+      const signature = JSON.stringify(
+        completion.results.map((item) => [
+          item.question_id,
+          item.user_answer,
+          item.is_correct ? "1" : "0",
+          item.attempt_count ?? 1,
+        ]),
+      );
+      const dedupeKey = `${runKey}:${signature}`;
+      if (recordedPracticeKeyRef.current === dedupeKey) {
+        setPracticeRecordStatus("recorded");
+        setPracticeRecordError("");
+        return;
+      }
+      recordedPracticeKeyRef.current = dedupeKey;
+      setPracticeRecordStatus("recording");
+      setPracticeRecordError("");
+      try {
+        await Promise.all(
+          completion.results.map((item, index) =>
+            appendLearningEffectEvent({
+              id: `ev_question_lab_${safeKey(runKey)}_${safeKey(item.question_id || String(index + 1))}_attempt_${item.attempt_count || 1}`,
+              source: "question_lab",
+              source_id: `${runKey}:${item.question_id || index + 1}`,
+              actor: "learner",
+              verb: "answered",
+              object_type: "quiz",
+              object_id: item.concepts?.[0] || item.knowledge_points?.[0] || item.question_id || String(index + 1),
+              title: item.question,
+              summary: quizResultSummary(item),
+              resource_type: "quiz",
+              score: item.is_correct ? 1 : 0,
+              is_correct: item.is_correct,
+              duration_seconds: item.duration_seconds ?? null,
+              confidence: 0.86,
+              weight: 1,
+              mistake_types: item.is_correct ? [] : quizMistakeTypes(item),
+              metadata: {
+                source: "question_lab",
+                mode,
+                question_id: item.question_id || String(index + 1),
+                question_type: item.question_type || "written",
+                difficulty: item.difficulty || "",
+                attempt_count: item.attempt_count || 1,
+                concepts: item.concepts || item.knowledge_points || [],
+                knowledge_points: item.knowledge_points || item.concepts || [],
+                total_questions: completion.total,
+                correct_count: completion.correct,
+                score_percent: completion.scorePercent,
+                run_key: runKey,
+              },
+            }),
+          ),
+        );
+        const wrongItems = completion.results.filter((item) => !item.is_correct);
+        const notebookSyncResults = await Promise.allSettled(
+          wrongItems.map((item, index) =>
+            upsertQuestionEntry({
+              session_id: "manual-question-lab",
+              question_id: `lab_${safeKey(runKey, 42)}_${safeKey(item.question_id || String(index + 1), 28)}`,
+              question: item.question,
+              question_type: item.question_type || "written",
+              options: item.options || {},
+              correct_answer: item.correct_answer || "",
+              explanation: item.explanation || "",
+              difficulty: item.difficulty || "",
+              concepts: item.concepts || item.knowledge_points || [],
+              knowledge_points: item.knowledge_points || item.concepts || [],
+              user_answer: item.user_answer || "",
+              is_correct: false,
+              record_evidence: false,
+            }),
+          ),
+        );
+        const failedNotebookSync = notebookSyncResults.filter((item) => item.status === "rejected").length;
+        invalidateLearningQueries(queryClient);
+        if (wrongItems.length) {
+          void queryClient.invalidateQueries({ queryKey: ["question-entries"] });
+          void queryClient.invalidateQueries({ queryKey: ["question-categories"] });
+        }
+        if (failedNotebookSync) {
+          recordedPracticeKeyRef.current = "";
+          setPracticeRecordStatus("error");
+          setPracticeRecordError(`学习画像已更新，但 ${failedNotebookSync} 道错题同步到错题本失败。`);
+          return;
+        }
+        setPracticeRecordStatus("recorded");
+      } catch (recordError) {
+        recordedPracticeKeyRef.current = "";
+        setPracticeRecordStatus("error");
+        setPracticeRecordError(recordError instanceof Error ? recordError.message : "练习回写失败");
+      }
+    },
+    [mode, paperPath, pdfFile?.name, queryClient, questionSignature, selectedKb, topic],
+  );
+
+  const handleQuizIncomplete = useCallback(() => {
+    setPracticeReceiptState(null);
+    setPracticeRecordStatus("idle");
+    setPracticeRecordError("");
+  }, []);
 
   return (
     <div className="dt-dynamic-page h-full overflow-y-auto">
@@ -384,7 +581,10 @@ export function QuestionLabPage() {
                       min={1}
                       max={10}
                       value={count}
-                      onChange={(event) => setCount(Number(event.target.value || 1))}
+                      onChange={(event) => {
+                        const parsed = Number(event.target.value || 1);
+                        setCount(Number.isFinite(parsed) ? Math.min(10, Math.max(1, Math.round(parsed))) : 1);
+                      }}
                     />
                   </FieldShell>
                   <FieldShell label="难度">
@@ -596,8 +796,29 @@ export function QuestionLabPage() {
                       transition={{ duration: 0.18 }}
                     >
                       <Suspense fallback={<QuizViewerSkeleton />}>
-                        <QuizViewer questions={questions} />
+                        <QuizViewer
+                          questions={questions}
+                          onComplete={(completion) => void handleQuizComplete(completion)}
+                          onIncomplete={handleQuizIncomplete}
+                        />
                       </Suspense>
+                      {practiceReceipt ? (
+                        <PracticeReceiptCard
+                          receipt={practiceReceipt}
+                          recordStatus={practiceRecordStatus}
+                          recordError={practiceRecordError}
+                          canSave={Boolean(selectedNotebookId)}
+                          saving={notebookMutations.addRecord.isPending}
+                          onSave={saveToNotebook}
+                          onRegenerate={() => {
+                            if (mode === "topic") {
+                              runTopicGeneration();
+                              return;
+                            }
+                            void runMimicGeneration();
+                          }}
+                        />
+                      ) : null}
                     </motion.div>
                   ) : (
                     <motion.div
@@ -608,8 +829,36 @@ export function QuestionLabPage() {
                       transition={{ duration: 0.18 }}
                     >
                       <EmptyState
+                        tone="practice"
+                        icon={<FileQuestion size={22} />}
+                        eyebrow={mode === "topic" ? "准备练习" : "仿题模式"}
                         title="还没有题目"
-                        description="从左侧开始生成，题目会在这里变成可交互练习。"
+                        description={
+                          mode === "topic"
+                            ? "用当前主题生成一组可直接作答的练习，提交后会进入复盘。"
+                            : "上传试卷或填写解析目录后，生成同风格练习题。"
+                        }
+                        action={
+                          <Button
+                            tone="primary"
+                            onClick={() => {
+                              if (mode === "topic") {
+                                runTopicGeneration();
+                                return;
+                              }
+                              void runMimicGeneration();
+                            }}
+                            disabled={running}
+                          >
+                            {running ? <Loader2 size={16} className="animate-spin" /> : mode === "topic" ? <Sparkles size={16} /> : <Upload size={16} />}
+                            {mode === "topic" ? "生成题目" : "生成仿题"}
+                          </Button>
+                        }
+                        secondaryAction={
+                          <Button tone="secondary" onClick={() => setMode(mode === "topic" ? "mimic" : "topic")} disabled={running}>
+                            {mode === "topic" ? "试卷仿题" : "按知识点出题"}
+                          </Button>
+                        }
                       />
                     </motion.div>
                   )}
@@ -619,6 +868,94 @@ export function QuestionLabPage() {
           </div>
         </motion.section>
       </div>
+    </div>
+  );
+}
+
+function PracticeReceiptCard({
+  receipt,
+  recordStatus,
+  recordError,
+  canSave,
+  saving,
+  onSave,
+  onRegenerate,
+}: {
+  receipt: QuizCompletionSummary;
+  recordStatus: "idle" | "recording" | "recorded" | "error";
+  recordError: string;
+  canSave: boolean;
+  saving: boolean;
+  onSave: () => void;
+  onRegenerate: () => void;
+}) {
+  const wrongCount = Math.max(0, receipt.total - receipt.correct);
+  const scoreTone = receipt.scorePercent >= 80 ? "success" : receipt.scorePercent >= 60 ? "brand" : "warning";
+  return (
+    <motion.div
+      className="mt-4 rounded-lg border border-accent-pink-line bg-accent-pink-active/80 p-4"
+      data-testid="question-lab-practice-receipt"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={scoreTone}>得分 {receipt.scorePercent}%</Badge>
+            <Badge tone="neutral">{receipt.correct}/{receipt.total} 正确</Badge>
+            {recordStatus === "recorded" ? <Badge tone="success">已同步学习记录</Badge> : null}
+            {recordStatus === "recording" ? (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                <Loader2 size={12} className="animate-spin" />
+                正在同步
+              </span>
+            ) : null}
+          </div>
+          <h3 className="mt-3 text-base font-semibold text-ink">这组练习已经进入学习闭环</h3>
+          <p className="mt-1 text-sm leading-6 text-charcoal">
+            系统会把正确率、错题概念和作答记录写入学习画像，待复盘题也会同步到错题本，方便之后继续练相似题。
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <PracticeReceiptFact label="作答" value={`${receipt.completed} 题`} detail="本轮已提交的题目数" />
+        <PracticeReceiptFact label="待复盘" value={`${wrongCount} 题`} detail={wrongCount ? "建议先看解析和错因" : "可以继续推进下一步"} />
+        <PracticeReceiptFact label="画像" value={recordStatus === "recorded" ? "已更新" : "同步中"} detail="影响后续导学和资源推荐" />
+      </div>
+
+      {recordStatus === "error" && recordError ? (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-brand-red">{recordError}</p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button tone="primary" onClick={onSave} disabled={!canSave || saving}>
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          保存完整练习记录
+        </Button>
+        <a
+          href="/memory"
+          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-white/70 px-3.5 text-sm font-medium text-ink hover:border-line-strong hover:bg-white"
+        >
+          <Brain size={16} />
+          查看画像变化
+        </a>
+        <Button tone="secondary" onClick={onRegenerate}>
+          再来一组
+          <ArrowRight size={16} />
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+function PracticeReceiptFact({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-lg border border-accent-pink-line bg-white/85 p-3">
+      <p className="text-xs font-semibold text-accent-pink-ink">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-ink">{value}</p>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{detail}</p>
     </div>
   );
 }

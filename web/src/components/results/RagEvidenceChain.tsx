@@ -255,6 +255,10 @@ type EvidenceStatus = {
   title: string;
   summary: string;
   nextAction: string;
+  steps?: Array<{
+    label: string;
+    detail: string;
+  }>;
 };
 
 function describeEvidenceStatus(evidence: RagEvidence, visibleSourceCount: number): EvidenceStatus {
@@ -274,6 +278,11 @@ function describeEvidenceStatus(evidence: RagEvidence, visibleSourceCount: numbe
       title: "这次没有找到可引用资料",
       summary: "回答可能主要来自模型已有知识，不能代表资料库里的确定内容。",
       nextAction: "下一步：确认已选择资料库，或到资料库页面检查文档是否处理完成。",
+      steps: [
+        { label: "确认资料库", detail: "先确认本轮问题绑定了正确资料库。" },
+        { label: "检查整理", detail: "确认文档已经处理出引用片段。" },
+        { label: "复测问题", detail: "带这个问题去预检，扩大来源后再问。" },
+      ],
     };
   }
 
@@ -284,16 +293,26 @@ function describeEvidenceStatus(evidence: RagEvidence, visibleSourceCount: numbe
       title: "回答有资料支撑，但来源还不够稳",
       summary: "系统已经找到资料片段，但覆盖、相关性或回答材料长度仍可能不足。",
       nextAction: "下一步：可以把问题说得更具体，或补充相关资料后再问一次。",
+      steps: [
+        { label: "收窄问题", detail: "把问题改得更具体，减少无关片段。" },
+        { label: "提高来源", detail: "扩大来源上限或回答材料上限。" },
+        { label: "核对片段", detail: "展开来源，确认关键结论来自可信资料。" },
+      ],
     };
   }
 
   return {
     tone: "success",
-    badge: "来源可用",
-    title: "回答已有资料支撑",
-    summary: "系统找到了可引用片段，并把它们作为本轮回答的来源。",
-    nextAction: "下一步：可以展开下方来源，核对关键结论是否来自你信任的资料。",
-  };
+      badge: "来源可用",
+      title: "回答已有资料支撑",
+      summary: "系统找到了可引用片段，并把它们作为本轮回答的来源。",
+      nextAction: "下一步：可以展开下方来源，核对关键结论是否来自你信任的资料。",
+      steps: [
+        { label: "核对来源", detail: "先看关键来源是否覆盖核心结论。" },
+        { label: "继续追问", detail: "再问一个更具体的应用或例题。" },
+        { label: "保存记录", detail: "把有价值结论沉淀到学习记录。" },
+      ],
+    };
 }
 
 function EvidenceSummaryCard({
@@ -328,6 +347,23 @@ function EvidenceSummaryCard({
         <EvidenceFact label="覆盖情况" value={formatCoverageLabel(evidence)} />
         <EvidenceFact label="回答材料" value={contextLabel} warning={evidence.contextTruncated} />
       </div>
+      {status.steps?.length ? (
+        <div className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_1.75rem_minmax(0,1fr)_1.75rem_minmax(0,1fr)]">
+          {status.steps.slice(0, 3).map((step, index) => (
+            <div key={`${step.label}-${index}`} className="contents">
+              <div className="rounded-md border border-line bg-canvas px-2 py-1.5">
+                <p className="text-[11px] font-semibold text-ink">{step.label}</p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-steel">{step.detail}</p>
+              </div>
+              {index < Math.min(status.steps?.length ?? 0, 3) - 1 ? (
+                <div className="hidden place-items-center text-slate-300 md:grid">
+                  <ArrowRight size={13} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <p className="dt-dynamic-empty mt-2 rounded-md border border-line bg-canvas px-2 py-1.5 text-xs leading-5 text-steel">{status.nextAction}</p>
       {recoveryHref ? (
         <a

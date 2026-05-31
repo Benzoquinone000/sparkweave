@@ -35,6 +35,7 @@ EXPECTED_BUILTIN_CHANNELS = {
     "wecom",
     "whatsapp",
 }
+EXPECTED_SCHEMA_CHANNELS = EXPECTED_BUILTIN_CHANNELS | {"web"}
 
 
 class TestResolveConfigModel:
@@ -199,13 +200,24 @@ class TestEndpoint:
         assert res.status_code == 200
         body = res.json()
         assert set(body.keys()) >= {"channels", "global"}
-        assert set(body["channels"]) == EXPECTED_BUILTIN_CHANNELS
+        assert set(body["channels"]) == EXPECTED_SCHEMA_CHANNELS
 
     def test_telegram_entry_has_secret_fields(self, client: TestClient) -> None:
         res = client.get("/api/v1/sparkbot/channels/schema")
         tg = res.json()["channels"]["telegram"]
         assert tg["secret_fields"] == ["token"]
         assert "token" in tg["json_schema"]["properties"]
+
+    def test_web_entry_is_exposed_for_frontend_configuration(self, client: TestClient) -> None:
+        res = client.get("/api/v1/sparkbot/channels/schema")
+        web = res.json()["channels"]["web"]
+        assert web["display_name"] == "网页"
+        assert web["default_config"] == {
+            "enabled": True,
+            "welcome_text": "我会先看学习画像和课程资料，再给出今天最应该完成的一步。",
+            "rate_limit": 8,
+        }
+        assert {"enabled", "welcome_text", "rate_limit"} <= set(web["json_schema"]["properties"])
 
     def test_global_schema_uses_snake_case(self, client: TestClient) -> None:
         res = client.get("/api/v1/sparkbot/channels/schema")
@@ -222,7 +234,7 @@ class TestEndpoint:
 class TestAllChannelSchemas:
     def test_returns_all_migrated_builtin_channels(self) -> None:
         out = all_channel_schemas()
-        assert set(out) == EXPECTED_BUILTIN_CHANNELS
+        assert set(out) == EXPECTED_SCHEMA_CHANNELS
         # Every payload has the four documented keys.
         for entry in out.values():
             assert {

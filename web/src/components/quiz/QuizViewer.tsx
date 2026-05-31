@@ -20,6 +20,21 @@ type AnswerState = {
   attemptCount: number;
 };
 
+export type QuizCompletionSummary = {
+  total: number;
+  completed: number;
+  correct: number;
+  scorePercent: number;
+  results: QuizResultItem[];
+};
+
+type QuizViewerProps = {
+  questions: QuizQuestion[];
+  sessionId?: string | null;
+  onComplete?: (summary: QuizCompletionSummary) => void;
+  onIncomplete?: () => void;
+};
+
 const EMPTY_ANSWER: AnswerState = {
   selected: null,
   typed: "",
@@ -127,16 +142,27 @@ function labelsFromUnknown(value: unknown): string[] {
 export function QuizViewer({
   questions,
   sessionId,
-}: {
-  questions: QuizQuestion[];
-  sessionId?: string | null;
-}) {
+  onComplete,
+  onIncomplete,
+}: QuizViewerProps) {
+  const questionSignature = useMemo(() => questions.map((item) => `${item.question_id}:${item.question}`).join("|"), [questions]);
+
+  return <QuizViewerInner key={questionSignature} questions={questions} sessionId={sessionId} onComplete={onComplete} onIncomplete={onIncomplete} />;
+}
+
+function QuizViewerInner({
+  questions,
+  sessionId,
+  onComplete,
+  onIncomplete,
+}: QuizViewerProps) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState(false);
   const [recordError, setRecordError] = useState("");
   const lastSignature = useRef("");
+  const lastCompletionSignature = useRef("");
   const startedAtByIndex = useRef<Record<number, number>>({});
   const question = questions[index];
   const kind = questionKind(question);
@@ -169,6 +195,33 @@ export function QuizViewer({
       }),
     [answers, questions],
   );
+  const correctCount = useMemo(() => submittedResults.filter((item) => item.is_correct).length, [submittedResults]);
+  const quizCompletionSummary = useMemo<QuizCompletionSummary>(
+    () => ({
+      total,
+      completed,
+      correct: correctCount,
+      scorePercent: total ? Math.round((correctCount / total) * 100) : 0,
+      results: submittedResults,
+    }),
+    [completed, correctCount, submittedResults, total],
+  );
+
+  useEffect(() => {
+    if (!total) return;
+    if (completed !== total) {
+      if (lastCompletionSignature.current) {
+        lastCompletionSignature.current = "";
+        onIncomplete?.();
+      }
+      return;
+    }
+    if (!onComplete) return;
+    const signature = JSON.stringify(submittedResults);
+    if (!signature || signature === lastCompletionSignature.current) return;
+    lastCompletionSignature.current = signature;
+    onComplete(quizCompletionSummary);
+  }, [completed, onComplete, onIncomplete, quizCompletionSummary, submittedResults, total]);
 
   useEffect(() => {
     if (!sessionId || !total || completed !== total) return;

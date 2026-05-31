@@ -21,20 +21,22 @@ export function RagSearchSourcesList({
       ))}
       {!sources.length ? (
         <EmptyState
-          icon={<Search size={24} />}
+          tone="knowledge"
+          icon={<Search size={22} />}
+          eyebrow="检索结果"
           title="没有找到可引用资料"
           description="尝试扩大来源数量、切换问题侧重，或先检查资料库是否已经整理完成。"
           action={
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button tone="primary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("deep")}>
-                <GitBranch size={15} />
-                套用复杂问题
-              </Button>
-              <Button tone="secondary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("setup")}>
-                <SlidersHorizontal size={15} />
-                调整查找
-              </Button>
-            </div>
+            <Button tone="primary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("deep")}>
+              <GitBranch size={15} />
+              套用复杂问题
+            </Button>
+          }
+          secondaryAction={
+            <Button tone="secondary" className="min-h-9 px-3 text-xs" type="button" onClick={() => onAction("setup")}>
+              <SlidersHorizontal size={15} />
+              调整查找
+            </Button>
           }
         />
       ) : null}

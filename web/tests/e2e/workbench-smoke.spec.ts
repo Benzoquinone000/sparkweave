@@ -209,7 +209,7 @@ test("exposes migrated phase-two work areas", async ({ page }) => {
 
   await page.goto("/question");
   await expect(page.getByRole("heading", { name: "生成一组能立刻作答的练习" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /生成题目/ })).toBeVisible();
+  await expect(page.getByTestId("question-generate-topic")).toBeVisible();
 
   await page.goto("/vision");
   await expect(page.getByRole("heading", { name: "上传题图，直接得到讲解和作图指令" })).toBeVisible();
@@ -520,8 +520,8 @@ test("question lab streams generated questions and saves a notebook record", asy
 
   await page.goto("/question");
   await expect(page.getByRole("heading", { name: "生成一组能立刻作答的练习" })).toBeVisible();
-  await page.getByLabel("练习主题").fill("函数极限");
-  await page.getByRole("button", { name: /生成题目/ }).click();
+  await page.getByTestId("question-topic-input").fill("函数极限");
+  await page.getByTestId("question-generate-topic").click();
 
   await expect
     .poll(async () =>
@@ -540,8 +540,8 @@ test("question lab streams generated questions and saves a notebook record", asy
   await expect(page.getByTestId("question-lab-events")).toContainText("正在确定题型、考点和解析结构");
   await expect(page.getByTestId("question-lab-events")).not.toContainText("progress");
   await expect(page.getByText("函数极限存在的充分条件是什么？")).toBeVisible();
-  await page.getByRole("button", { name: /A\./ }).click();
-  await page.getByRole("button", { name: /提交答案/ }).click();
+  await page.getByTestId("quiz-option-0-A").click();
+  await page.getByTestId("quiz-submit").click();
   await expect(page.getByText(/参考答案：A/)).toBeVisible();
 
   await page.getByTestId("question-lab-save").click();
@@ -550,6 +550,61 @@ test("question lab streams generated questions and saves a notebook record", asy
       record_type: "question",
       title: "题目生成：函数极限",
       output: expect.stringContaining("函数极限存在的充分条件是什么？"),
+    }),
+  );
+});
+
+test("question lab mirrors wrong answers without duplicating learner evidence", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "question lab practice write-back smoke runs once");
+  const reference = await mockReferenceApis(page);
+  await installMockQuestionWebSocket(page);
+
+  await page.goto("/question");
+  await page.getByTestId("question-topic-input").fill("函数极限");
+  await page.getByTestId("question-generate-topic").click();
+  await expect(page.getByTestId("quiz-viewer")).toBeVisible();
+
+  await page.getByTestId("quiz-option-0-B").click();
+  await page.getByTestId("quiz-submit").click();
+
+  const receipt = page.getByTestId("question-lab-practice-receipt");
+  await expect(receipt).toContainText("待复盘");
+  await expect(receipt).toContainText("已同步学习记录");
+  await expect.poll(() => reference.evidencePayload).toEqual(
+    expect.objectContaining({
+      id: expect.stringMatching(/_attempt_1$/),
+      source: "question_lab",
+      verb: "answered",
+      score: 0,
+      is_correct: false,
+      metadata: expect.objectContaining({ question_id: "q-limit-1", attempt_count: 1 }),
+    }),
+  );
+  await expect.poll(() => reference.questionUpsertPayload).toEqual(
+    expect.objectContaining({
+      session_id: "manual-question-lab",
+      question_id: expect.stringMatching(/^lab_.*_q_limit_1$/),
+      question: "函数极限存在的充分条件是什么？",
+      user_answer: "B",
+      is_correct: false,
+      record_evidence: false,
+    }),
+  );
+
+  await page.getByRole("button", { name: /重做本题/ }).click();
+  await expect(receipt).toBeHidden();
+  await page.getByTestId("quiz-option-0-A").click();
+  await page.getByTestId("quiz-submit").click();
+
+  await expect(page.getByTestId("question-lab-practice-receipt")).toContainText("得分 100%");
+  await expect.poll(() => reference.evidencePayload).toEqual(
+    expect.objectContaining({
+      id: expect.stringMatching(/_attempt_2$/),
+      source: "question_lab",
+      verb: "answered",
+      score: 1,
+      is_correct: true,
+      metadata: expect.objectContaining({ question_id: "q-limit-1", attempt_count: 2 }),
     }),
   );
 });
@@ -847,24 +902,24 @@ test("sparkbot profile channels and workspace files save", async ({ page }, test
 
   await page.getByTestId("agent-workspace-tab-workspace").click();
   const globalChannel = page.getByTestId("sparkbot-global-channel-editor");
-  await globalChannel.locator("textarea").fill(
-    JSON.stringify(
-      {
-        send_progress: true,
-        send_tool_hints: true,
-        web: { enabled: true, welcome_text: "Hello from web", rate_limit: 9 },
-      },
-      null,
-      2,
-    ),
-  );
-  await globalChannel.getByRole("button").click();
+  await globalChannel.getByTestId("channel-field-send_tool_hints").click();
+  await globalChannel.getByRole("button", { name: "保存全局" }).click();
   await expect.poll(() => sparkbot.updatePayload).toEqual(
     expect.objectContaining({
       channels: expect.objectContaining({
         send_progress: true,
         send_tool_hints: true,
-        web: expect.objectContaining({ welcome_text: "Hello from web", rate_limit: 9 }),
+      }),
+    }),
+  );
+  await page.getByTestId("sparkbot-channel-card-web").click();
+  await page.getByTestId("channel-field-welcome_text").fill("Hello from web");
+  await page.getByTestId("channel-field-rate_limit").fill("9");
+  await page.getByRole("button", { name: "保存渠道" }).click();
+  await expect.poll(() => sparkbot.updatePayload).toEqual(
+    expect.objectContaining({
+      channels: expect.objectContaining({
+        web: expect.objectContaining({ enabled: true, welcome_text: "Hello from web", rate_limit: 9 }),
       }),
     }),
   );
@@ -1916,7 +1971,9 @@ test("mobile knowledge creation streams task progress", async ({ page }, testInf
     mimeType: "text/markdown",
     buffer: Buffer.from("# Limits\nUse notebook context."),
   });
-  await page.getByTestId("knowledge-create-submit").click();
+  await expect(page.getByText("limits.md", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("knowledge-create-submit")).toBeEnabled();
+  await page.locator('[data-testid="knowledge-create-panel"] form').evaluate((form) => (form as HTMLFormElement).requestSubmit());
 
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("资料已保存，正在准备整理");
   await expect(page.getByTestId("knowledge-task-logs")).toContainText("整理完成: 资料库已创建");
@@ -3463,6 +3520,87 @@ test("chat opens editable canvas when the canvas tool is used", async ({ page },
   await expect(page.getByTestId("chat-task-snapshot")).not.toContainText("补充资料");
 });
 
+test("chat canvas preview keeps its own scroll area", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "canvas preview scroll smoke runs once");
+  await mockReferenceApis(page);
+  const documentContent = [
+    "# Long canvas preview",
+    "This document is intentionally long so the preview pane must scroll inside the canvas drawer.",
+    ...Array.from({ length: 90 }, (_, index) => [
+      `## Section ${index + 1}`,
+      `- Learning note ${index + 1}: keep this line readable inside preview mode.`,
+      `- Follow-up action ${index + 1}: review, summarize, and continue.`,
+    ].join("\n")),
+  ].join("\n\n");
+  const documentEvents = [
+    {
+      type: "tool_result",
+      stage: "acting",
+      content: "Canvas document ready: Long canvas preview",
+      metadata: {
+        tool_name: "canvas",
+        tool_call_id: "canvas-scroll-1",
+        result_metadata: {
+          render_type: "canvas_document",
+          tool_name: "canvas",
+          canvas_document: {
+            title: "Long canvas preview",
+            content: documentContent,
+            operation: "create",
+          },
+        },
+      },
+    },
+    {
+      type: "result",
+      stage: "final",
+      content: "",
+      metadata: {
+        response: "Canvas is ready.",
+        tool_traces: [
+          {
+            name: "canvas",
+            metadata: {
+              render_type: "canvas_document",
+              tool_name: "canvas",
+              canvas_document: {
+                title: "Long canvas preview",
+                content: documentContent,
+                operation: "create",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  await installMockWebSocket(page, { events: documentEvents });
+
+  await page.goto("/chat");
+  await page.locator("textarea").first().fill("Create a long canvas document");
+  await page.getByTestId("chat-send").click();
+
+  await expect(page.getByTestId("chat-canvas-panel")).toBeVisible();
+  await page.getByTestId("chat-canvas-preview-toggle").click();
+  const preview = page.getByTestId("chat-canvas-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText("Section 90");
+
+  const metrics = await preview.evaluate((element) => {
+    const node = element as HTMLElement;
+    node.scrollTop = 0;
+    node.scrollTop = node.scrollHeight;
+    return {
+      clientHeight: node.clientHeight,
+      scrollHeight: node.scrollHeight,
+      scrollTop: node.scrollTop,
+    };
+  });
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight + 200);
+  expect(metrics.scrollTop).toBeGreaterThan(0);
+});
+
 test("chat lets learners open a normal answer in canvas manually", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "canvas manual smoke runs once");
   const reference = await mockReferenceApis(page);
@@ -4992,6 +5130,7 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
     quizResultPayload?: { sessionId: string; answers: Array<Record<string, unknown>> };
     calibrationPayload?: Record<string, unknown>;
     evidencePayload?: Record<string, unknown>;
+    questionUpsertPayload?: Record<string, unknown>;
   } = {};
   let chatSessions = [
     {
@@ -5360,6 +5499,18 @@ async function mockReferenceApis(page: import("@playwright/test").Page) {
         success: true,
         added_to_notebooks: ["nb1"],
         record: { id: "saved-learning-asset", record_type: state.savedPayload.record_type, title: state.savedPayload.title },
+      },
+    });
+  });
+  await page.route("**/api/v1/question-notebook/entries/upsert", async (route) => {
+    state.questionUpsertPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        id: 18,
+        ...state.questionUpsertPayload,
+        categories: [],
+        created_at: 1_700_000_400,
+        updated_at: 1_700_000_400,
       },
     });
   });

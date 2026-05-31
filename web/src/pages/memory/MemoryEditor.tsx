@@ -176,7 +176,13 @@ export function MemoryEditor({
                 {activeContent.trim() ? (
                   <MarkdownRenderer>{activeContent}</MarkdownRenderer>
                 ) : (
-                  <EmptyState icon={<BookOpen size={24} />} title="暂无内容" description="切回编辑页补充这部分内容。" />
+                  <EmptyState
+                    tone="record"
+                    icon={<BookOpen size={22} />}
+                    eyebrow="手动记忆"
+                    title="暂无内容"
+                    description="切回编辑页补充这部分内容，或从最近会话刷新一次。"
+                  />
                 )}
               </motion.div>
             )}

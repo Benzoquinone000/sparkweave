@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from sparkweave.services.sparkbot import (
     ChannelsConfig,
+    WebConfig,
     _is_secret_field,
     discover_builtin_channels,
 )
@@ -127,6 +128,21 @@ def channel_schema_payload(channel_cls: type) -> dict[str, Any] | None:
     if model is None:
         return None
 
+    return config_schema_payload(
+        name=getattr(channel_cls, "name", channel_cls.__name__),
+        display_name=getattr(channel_cls, "display_name", channel_cls.__name__),
+        model=model,
+    )
+
+
+def config_schema_payload(
+    *,
+    name: str,
+    display_name: str,
+    model: type[BaseModel],
+) -> dict[str, Any]:
+    """Build a schema payload from a Pydantic channel config model."""
+
     # by_alias=False → property names match Python field names (snake_case),
     # which is exactly the shape we persist in ``config.yaml`` and what every
     # channel's ``__init__`` expects when ``model_validate(dict)`` is called.
@@ -142,8 +158,8 @@ def channel_schema_payload(channel_cls: type) -> dict[str, Any] | None:
         default_config = {}
 
     return {
-        "name": getattr(channel_cls, "name", channel_cls.__name__),
-        "display_name": getattr(channel_cls, "display_name", channel_cls.__name__),
+        "name": name,
+        "display_name": display_name,
         "default_config": default_config,
         "secret_fields": secret_fields,
         "json_schema": flat,
@@ -152,7 +168,9 @@ def channel_schema_payload(channel_cls: type) -> dict[str, Any] | None:
 
 def all_channel_schemas() -> dict[str, dict[str, Any]]:
     """Build the schema dict for every discovered channel (built-in + plugins)."""
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, dict[str, Any]] = {
+        "web": config_schema_payload(name="web", display_name="网页", model=WebConfig)
+    }
     for name, cls in discover_builtin_channels().items():
         payload = channel_schema_payload(cls)
         if payload is not None:

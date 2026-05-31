@@ -815,6 +815,12 @@ class SQLiteSessionStore:
                         created_at, updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', ?, ?)
                     ON CONFLICT(session_id, question_id) DO UPDATE SET
+                        question = excluded.question,
+                        question_type = excluded.question_type,
+                        options_json = excluded.options_json,
+                        correct_answer = excluded.correct_answer,
+                        explanation = excluded.explanation,
+                        difficulty = excluded.difficulty,
                         user_answer = excluded.user_answer,
                         is_correct = excluded.is_correct,
                         updated_at = excluded.updated_at

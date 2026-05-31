@@ -75,17 +75,20 @@ export function KnowledgeLibrarySidebar({
         })}
 
         {!bases.length ? (
-          <div className="rounded-lg border border-dashed border-line bg-canvas p-4">
-            <EmptyState
-              icon={<FileUp size={24} />}
-              title="还没有资料库"
-              description="先创建一个资料库并上传课程资料。"
-            />
-            <Button tone="primary" className="mt-3 w-full" onClick={onCreate}>
-              <UploadCloud size={16} />
-              新建资料库
-            </Button>
-          </div>
+          <EmptyState
+            align="left"
+            tone="knowledge"
+            icon={<FileUp size={22} />}
+            eyebrow="第一步"
+            title="还没有资料库"
+            description="先创建一个资料库并上传课程资料，之后就能围绕资料提问和导学。"
+            action={
+              <Button tone="primary" className="w-full" onClick={onCreate}>
+                <UploadCloud size={16} />
+                新建资料库
+              </Button>
+            }
+          />
         ) : null}
       </div>
     </section>

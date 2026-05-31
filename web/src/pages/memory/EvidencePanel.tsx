@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Database, Loader2 } from "lucide-react";
+import { ArrowRight, Database, ListChecks, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -60,9 +60,29 @@ export function EvidencePanel({ profile }: { profile?: LearnerProfileSnapshot })
         </div>
       ) : (
         <EmptyState
-          icon={<Database size={24} />}
+          tone="record"
+          icon={<Database size={22} />}
+          eyebrow="记录还少"
           title="还没有可用来源"
           description="完成导学任务、提交练习或保存笔记后，这里会展示建议参考过的记录。"
+          action={
+            <a
+              href="/guide?new=1"
+              className="dt-interactive inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-ink bg-ink px-3.5 text-sm font-medium text-white hover:bg-charcoal"
+            >
+              开始导学
+              <ArrowRight size={16} />
+            </a>
+          }
+          secondaryAction={
+            <a
+              href="/question"
+              className="dt-interactive inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-white/70 px-3.5 text-sm font-medium text-ink hover:border-line-strong hover:bg-white"
+            >
+              <ListChecks size={16} />
+              做一组练习
+            </a>
+          }
         />
       )}
     </motion.section>

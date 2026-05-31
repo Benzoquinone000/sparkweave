@@ -61,6 +61,7 @@ from sparkweave.services.sparkbot_support.config_models import (
     SparkBotMCPServerConfig,
     SparkBotToolsConfig,
     TelegramConfig,
+    WebConfig,
     WecomConfig,
     WhatsAppConfig,
     _is_secret_field,
@@ -4735,13 +4736,11 @@ class WecomChannel(SparkBotChannel):
         self._stop_event.clear()
         self._generate_req_id = generate_req_id
         self._client = WSClient(
-            {
-                "bot_id": self.config.bot_id,
-                "secret": self.config.secret,
-                "reconnect_interval": 1000,
-                "max_reconnect_attempts": -1,
-                "heartbeat_interval": 30000,
-            }
+            self.config.bot_id,
+            self.config.secret,
+            reconnect_interval=1000,
+            max_reconnect_attempts=-1,
+            heartbeat_interval=30000,
         )
         for name, handler in {
             "connected": self._on_connected,
@@ -4756,7 +4755,7 @@ class WecomChannel(SparkBotChannel):
             "event.enter_chat": self._on_enter_chat,
         }.items():
             self._client.on(name, handler)
-        await self._client.connect_async()
+        await self._client.connect()
         while self._running:
             await asyncio.sleep(1)
 
@@ -4788,13 +4787,13 @@ class WecomChannel(SparkBotChannel):
         await self._client.reply_stream(frame, stream_id, content, finish=True)
         self.sent_messages.append(msg)
 
-    async def _on_connected(self, _frame: Any) -> None:
+    async def _on_connected(self, _frame: Any = None) -> None:
         return None
 
-    async def _on_authenticated(self, _frame: Any) -> None:
+    async def _on_authenticated(self, _frame: Any = None) -> None:
         return None
 
-    async def _on_disconnected(self, _frame: Any) -> None:
+    async def _on_disconnected(self, _frame: Any = None) -> None:
         return None
 
     async def _on_error(self, frame: Any) -> None:
@@ -4922,10 +4921,18 @@ class WecomChannel(SparkBotChannel):
         if self._client is None:
             return None
         try:
-            data, remote_name = await self._client.download_file(file_url, aes_key)
+            result = await self._client.download_file(file_url, aes_key)
         except Exception:
             logger.exception("WeCom media download failed")
             return None
+        if isinstance(result, tuple):
+            data, remote_name = result
+        elif isinstance(result, dict):
+            data = result.get("buffer") or result.get("data") or b""
+            remote_name = result.get("filename") or result.get("name")
+        else:
+            data = b""
+            remote_name = None
         if not data:
             return None
         name = Path(filename or remote_name or f"{media_type}_{abs(hash(file_url)) % 100000}").name
@@ -10785,6 +10792,7 @@ __all__ = [
     "SlackDMConfig",
     "TelegramChannel",
     "TelegramConfig",
+    "WebConfig",
     "SparkBotAgentLoop",
     "SparkBotChannel",
     "SparkBotChannelManager",

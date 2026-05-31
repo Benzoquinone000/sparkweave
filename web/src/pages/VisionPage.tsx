@@ -400,7 +400,13 @@ export function VisionPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                      <EmptyState icon={<Camera size={22} />} title="等待图片" description="选择一张题目截图，或填写图片 URL。" />
+                      <EmptyState
+                        tone="knowledge"
+                        icon={<Camera size={22} />}
+                        eyebrow="解析入口"
+                        title="等待图片"
+                        description="选择一张题目截图，或填写图片 URL。"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -559,7 +565,13 @@ export function VisionPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
                     >
-                      <EmptyState icon={<ScanLine size={22} />} title="暂无指令" description="解析完成后，作图指令会显示在这里。" />
+                      <EmptyState
+                        tone="practice"
+                        icon={<ScanLine size={22} />}
+                        eyebrow="作图结果"
+                        title="暂无指令"
+                        description="解析完成后，作图指令会显示在这里。"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 SessionIdQuery = Annotated[str, Query(min_length=1, max_length=MAX_QUIZ_SESSION_ID_CHARS)]
 QuestionIdQuery = Annotated[str, Query(min_length=1, max_length=MAX_QUIZ_QUESTION_ID_CHARS)]
+MANUAL_SESSION_PREFIX = "manual-"
 
 
 # ── Models ────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ class UpsertEntryRequest(BaseModel):
     attempt_count: int = Field(default=1, ge=1, le=MAX_QUIZ_ATTEMPT_COUNT)
     user_answer: str = Field(default="", max_length=MAX_QUIZ_ANSWER_CHARS)
     is_correct: bool = False
+    record_evidence: bool = True
 
     @field_validator("options", mode="before")
     @classmethod
@@ -138,30 +140,44 @@ class UpsertEntryRequest(BaseModel):
         return strip_required_text(value, info.field_name)
 
 
+async def _ensure_manual_session(store, session_id: str) -> bool:
+    if not session_id.startswith(MANUAL_SESSION_PREFIX):
+        return False
+    if await store.get_session(session_id) is not None:
+        return False
+    await store.create_session(title="题目快录", session_id=session_id)
+    return True
+
+
 # ── Entry endpoints ──────────────────────────────────────────────
 
 @router.post("/entries/upsert")
 async def upsert_single_entry(payload: UpsertEntryRequest):
     store = get_sqlite_session_store()
+    entry_payload = payload.model_dump(exclude={"record_evidence"})
     try:
-        await store.upsert_notebook_entries(payload.session_id, [payload.model_dump()])
+        await store.upsert_notebook_entries(payload.session_id, [entry_payload])
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        if await _ensure_manual_session(store, payload.session_id):
+            await store.upsert_notebook_entries(payload.session_id, [entry_payload])
+        else:
+            raise HTTPException(status_code=404, detail=str(e))
     entry = await store.find_notebook_entry(payload.session_id, payload.question_id)
     if entry is None:
         raise HTTPException(status_code=500, detail="Upsert failed")
-    try:
-        get_learner_evidence_service().append_events(
-            build_quiz_answer_events(
-                [payload.model_dump()],
-                source="question_notebook",
-                session_id=payload.session_id,
-                source_id_prefix=payload.session_id,
-            ),
-            dedupe=True,
-        )
-    except Exception:
-        logger.warning("Failed to append question notebook learner evidence", exc_info=True)
+    if payload.record_evidence:
+        try:
+            get_learner_evidence_service().append_events(
+                build_quiz_answer_events(
+                    [entry_payload],
+                    source="question_notebook",
+                    session_id=payload.session_id,
+                    source_id_prefix=payload.session_id,
+                ),
+                dedupe=True,
+            )
+        except Exception:
+            logger.warning("Failed to append question notebook learner evidence", exc_info=True)
     return entry
 
 @router.get("/entries", response_model=NotebookEntryListResponse)

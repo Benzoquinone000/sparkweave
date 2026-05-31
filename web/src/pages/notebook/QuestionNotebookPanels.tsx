@@ -1,4 +1,4 @@
-import { ExternalLink, Loader2, RefreshCw, Save, Star, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, RefreshCw, Save, Sparkles, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +16,37 @@ export type QuickQuestionDraft = {
   explanation: string;
   difficulty: string;
 };
+
+function questionLabReviewHref(entry: QuestionNotebookEntry) {
+  const params = new URLSearchParams();
+  const topic = entry.question.trim().slice(0, 220);
+  params.set("topic", topic);
+  params.set(
+    "preference",
+    `围绕这道${entry.is_correct ? "已做题" : "错题"}生成相似练习，保持同一考点，解析要指出易错点。原题：${topic}`.slice(0, 360),
+  );
+  params.set("count", "3");
+  const difficulty = normalizeDifficultyParam(entry.difficulty);
+  const questionType = normalizeQuestionTypeParam(entry.question_type);
+  if (difficulty) params.set("difficulty", difficulty);
+  if (questionType) params.set("question_type", questionType);
+  return `/question?${params.toString()}`;
+}
+
+function normalizeDifficultyParam(value?: string) {
+  const normalized = String(value || "").toLowerCase();
+  return ["easy", "medium", "hard"].includes(normalized) ? normalized : "";
+}
+
+function normalizeQuestionTypeParam(value?: string) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized.includes("choice") || normalized.includes("select") || normalized.includes("选择")) return "choice";
+  if (normalized.includes("true_false") || normalized.includes("true-false") || normalized.includes("judge") || normalized.includes("判断")) return "true_false";
+  if (normalized.includes("fill") || normalized.includes("blank") || normalized.includes("填空")) return "fill_blank";
+  if (normalized.includes("code") || normalized.includes("编程")) return "coding";
+  if (normalized.includes("written") || normalized.includes("主观")) return "written";
+  return "";
+}
 
 export function CategoryManager({
   categories,
@@ -119,7 +150,7 @@ export function QuickQuestionPanel({
         <div>
           <h3 className="font-semibold text-ink">题目快录</h3>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            如果你从聊天或题目生成结果里复制了记录编号，可以在这里找回或补录单题。
+            如果你从聊天或题目生成结果里复制了记录编号，可以在这里找回或补录单题。首次写入会自动创建题目快录会话。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -269,6 +300,13 @@ export function QuestionDetail({
         <p><span className="font-semibold text-ink">解析：</span>{entry.explanation || "暂无解析"}</p>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
+        <a
+          href={questionLabReviewHref(entry)}
+          className="dt-interactive inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-line bg-white/70 px-3 text-xs font-medium text-ink hover:border-line-strong hover:bg-white"
+        >
+          <Sparkles size={14} />
+          练相似题
+        </a>
         {entry.session_id ? (
           <Button tone="secondary" className="min-h-9 text-xs" onClick={() => window.location.assign(`/chat/${encodeURIComponent(entry.session_id)}`)}>
             <ExternalLink size={14} />

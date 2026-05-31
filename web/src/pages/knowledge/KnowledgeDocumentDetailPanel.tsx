@@ -66,7 +66,13 @@ export function KnowledgeDocumentDetailPanel({
           />
         </>
       ) : (
-        <EmptyState icon={<FileText size={24} />} title="选择一个文档" description="左侧选择文档后，可以查看文本预览和引用片段。" />
+        <EmptyState
+          tone="knowledge"
+          icon={<FileText size={22} />}
+          eyebrow="文档预览"
+          title="选择一个文档"
+          description="左侧选择文档后，可以查看文本预览和引用片段。"
+        />
       )}
     </div>
   );

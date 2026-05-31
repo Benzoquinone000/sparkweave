@@ -1128,8 +1128,11 @@ export function upsertQuestionEntry(input: {
   correct_answer?: string;
   explanation?: string;
   difficulty?: string;
+  concepts?: string[];
+  knowledge_points?: string[];
   user_answer?: string;
   is_correct?: boolean;
+  record_evidence?: boolean;
 }) {
   return fetchJson<QuestionNotebookEntry>("/api/v1/question-notebook/entries/upsert", jsonBody(input));
 }

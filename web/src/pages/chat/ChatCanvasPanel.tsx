@@ -86,7 +86,7 @@ export function ChatCanvasPanel({
       {open ? (
         <motion.aside
           data-testid="chat-canvas-panel"
-          className="dt-dynamic-drawer fixed inset-0 z-30 flex flex-col border-l border-line bg-surface shadow-panel lg:static lg:z-auto lg:w-[clamp(460px,44vw,760px)] lg:shrink-0 lg:shadow-none"
+          className="dt-dynamic-drawer fixed inset-0 z-30 flex h-full min-h-0 flex-col border-l border-line bg-surface shadow-panel lg:static lg:z-auto lg:w-[clamp(460px,44vw,760px)] lg:shrink-0 lg:shadow-none"
           initial={{ x: 620, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 620, opacity: 0 }}
@@ -124,6 +124,7 @@ export function ChatCanvasPanel({
             <div className="dt-dynamic-panel inline-flex rounded-lg border border-line bg-white p-0.5">
               <button
                 type="button"
+                data-testid="chat-canvas-edit-toggle"
                 aria-pressed={mode === "edit"}
                 onClick={() => setMode("edit")}
                 className={`dt-interactive inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition ${
@@ -135,6 +136,7 @@ export function ChatCanvasPanel({
               </button>
               <button
                 type="button"
+                data-testid="chat-canvas-preview-toggle"
                 aria-pressed={mode === "preview"}
                 onClick={() => setMode("preview")}
                 className={`dt-interactive inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition ${
@@ -174,7 +176,7 @@ export function ChatCanvasPanel({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden bg-surface">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
             {mode === "edit" ? (
               <textarea
                 ref={editorRef}
@@ -183,11 +185,14 @@ export function ChatCanvasPanel({
                 onInput={(event) => updateDraft(event.currentTarget.value)}
                 onChange={(event) => updateDraft(event.target.value)}
                 spellCheck={false}
-                className="dt-dynamic-code h-full w-full resize-none overflow-y-auto border-0 bg-surface px-4 py-4 text-sm leading-6 text-ink outline-none placeholder:text-stone lg:px-5"
+                className="dt-dynamic-code min-h-0 flex-1 resize-none overflow-y-auto border-0 bg-surface px-4 py-4 text-sm leading-6 text-ink outline-none placeholder:text-stone lg:px-5"
                 placeholder="在这里编辑这份文档..."
               />
             ) : (
-              <div className="dt-dynamic-result h-full overflow-y-auto px-5 py-5 lg:px-7">
+              <div
+                data-testid="chat-canvas-preview"
+                className="dt-dynamic-result min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 lg:px-7"
+              >
                 {draft.trim() ? (
                   <MarkdownRenderer className="markdown-body">{draft}</MarkdownRenderer>
                 ) : (

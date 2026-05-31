@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, Tag } from "lucide-react";
+import { ChevronLeft, FileQuestion, Tag } from "lucide-react";
 import type { FormEvent, Ref } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TextInput } from "@/components/ui/Field";
 import { QUESTION_LIMITS } from "@/lib/requestLimits";
 import type { QuestionCategory, QuestionNotebookEntry } from "@/lib/types";
@@ -162,7 +163,23 @@ export function QuestionNotebookWorkspace({
               </motion.div>
             ))}
           </AnimatePresence>
-          {!entries.length ? <p className="rounded-lg border border-dashed border-line bg-canvas p-4 text-sm text-slate-500">暂无题目记录。</p> : null}
+          {!entries.length ? (
+            <EmptyState
+              tone="practice"
+              icon={<FileQuestion size={22} />}
+              eyebrow="先留下一题"
+              title="暂无题目记录"
+              description="从练习页生成一组题，或在下方快速录入一道错题，之后就能集中复盘。"
+              action={
+                <a
+                  href="/question"
+                  className="dt-interactive inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-ink bg-ink px-3.5 text-sm font-medium text-white hover:bg-charcoal"
+                >
+                  去练一组
+                </a>
+              }
+            />
+          ) : null}
         </div>
 
         <QuestionDetail

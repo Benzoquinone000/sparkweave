@@ -12,12 +12,14 @@
 | Agent 编排 | ![SparkWeave 智能体编排主链路](./assets/agent-orchestration-overview.png) | [智能体编排设计](./agent-orchestration-design.md) |
 | Agentic Evidence RAG | ![SparkWeave RAG 系统总览](./assets/rag-system-overview.png) | [RAG 系统设计](./rag-system-design.md) |
 | 学习画像 / 记忆 | ![学习画像与记忆系统总览](./assets/learner-profile-memory-overview.png) | [学习画像 / 记忆设计](./learner-profile-memory-design.md) |
+| 软件工程规范 | - | [软件工程规范](./engineering-standards.md) |
 | 开发规范 | - | [开发指南](./development-guide.md) |
 | 配置规范 | - | [配置指南](./configuration-guide.md) |
 | API 规范 | - | [API 开发规范](./api-development-guide.md) |
 | 测试规范 | - | [测试规范](./testing-guide.md) |
 | 前端设计规范 | - | [前端设计规范](./frontend-design-guide.md) |
 | 数据存储规范 | - | [数据存储规范](./data-storage-guide.md) |
+| 软件杯交付 | - | [软件杯交付检查清单](./software-cup-delivery-checklist.md) |
 
 ## RAG 图集
 
@@ -53,6 +55,7 @@
 ## 文档检查
 
 ```powershell
+python scripts/check_project_standards.py
 git diff --check -- README.md docs/README.md
 rg -n "\x{FFFD}" README.md docs
 ```

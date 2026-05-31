@@ -13,7 +13,9 @@
 | 前端脚本 | `web/package.json` |
 | 前端 E2E | `web/tests/e2e/`, `web/scripts/e2e-isolated.mjs` |
 | 设计检查 | `web/scripts/check-design.mjs` |
+| 总体验证脚本 | `scripts/verify_project.py`, `tests/scripts/test_verify_project.py` |
 | API 合约检查 | `scripts/check_web_api_contract.py`, `tests/scripts/test_check_web_api_contract.py` |
+| 项目规范检查 | `scripts/check_project_standards.py`, `tests/scripts/test_check_project_standards.py` |
 | 发布安全检查 | `scripts/check_release_safety.py`, `tests/scripts/test_check_release_safety.py` |
 | 课程模板检查 | `scripts/check_course_templates.py` |
 | CI | `.github/workflows/ci.yml` |
@@ -248,6 +250,8 @@ RAG 相关改动至少考虑三类测试：
 ```powershell
 uv run ruff check .
 uv run pytest -q
+python scripts/verify_project.py --profile quick
+python scripts/check_project_standards.py
 python scripts/check_release_safety.py
 python scripts/check_course_templates.py
 python scripts/check_web_api_contract.py
@@ -274,6 +278,8 @@ npm run build
 ```powershell
 uv run ruff check .
 uv run pytest tests/api tests/services -q
+python scripts/verify_project.py --profile quick
+python scripts/check_project_standards.py
 python scripts/check_release_safety.py
 ```
 

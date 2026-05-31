@@ -11,7 +11,7 @@
 | 后端入口 | `sparkweave/api/main.py`, `sparkweave/app/facade.py`, `sparkweave_cli/main.py` |
 | 运行时与服务 | `sparkweave/runtime/`, `sparkweave/services/`, `sparkweave/graphs/`, `sparkweave/tools/` |
 | 前端工程 | `web/package.json`, `web/src/`, `web/scripts/` |
-| 检查脚本 | `scripts/check_release_safety.py`, `scripts/check_web_api_contract.py`, `scripts/check_course_templates.py`, `scripts/check_ng_replacement.py` |
+| 检查脚本 | `scripts/verify_project.py`, `scripts/check_project_standards.py`, `scripts/check_release_safety.py`, `scripts/check_web_api_contract.py`, `scripts/check_course_templates.py`, `scripts/check_ng_replacement.py` |
 | 测试 | `tests/`, `web/tests/e2e/` |
 
 ## 1. 开发原则
@@ -171,12 +171,16 @@ npm run screenshots
 | 设置页、Provider、环境变量 | Provider 测试、release safety、README / `.env.example` 同步检查 |
 | 文档和截图 | `git diff --check`、文档链接检查、截图是否为当前前端 |
 | 参赛交付材料 | release safety、课程模板检查、前后端构建、README 赛题映射复核 |
+| 项目结构、文档索引、提交边界 | `python scripts/check_project_standards.py` |
+| 比赛提交前轻量总检 | `python scripts/verify_project.py --profile quick` |
 
 推荐提交前完整检查：
 
 ```powershell
 uv run ruff check .
 uv run pytest -q
+python scripts/verify_project.py --profile quick
+python scripts/check_project_standards.py
 python scripts/check_release_safety.py
 python scripts/check_course_templates.py
 python scripts/check_web_api_contract.py
@@ -205,6 +209,8 @@ npm run build
 ## 9. 提交前清单
 
 - [ ] 没有提交 `.env`、真实密钥、账号 JSON、临时凭证或私有数据。
+- [ ] `python scripts/verify_project.py --profile quick` 通过。
+- [ ] `python scripts/check_project_standards.py` 通过。
 - [ ] 新增 API 已同步前端类型和 API 调用。
 - [ ] 新增前端入口符合学习、资料、记录、设置的主路径。
 - [ ] 新增工具有配置说明、失败提示和测试覆盖。

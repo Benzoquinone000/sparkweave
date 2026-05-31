@@ -84,9 +84,12 @@ export function KnowledgeDocumentManager({
       ) : null}
 
       {!documentsLoading && !documents.length ? (
-        <div className="mt-4 rounded-lg border border-dashed border-line bg-canvas p-4">
+        <div className="mt-4">
           <EmptyState
-            icon={<FileUp size={24} />}
+            align="left"
+            tone="knowledge"
+            icon={<FileUp size={22} />}
+            eyebrow="等待资料"
             title="还没有可管理的文档"
             description="上传资料并完成整理后，可以在这里查看文档内容和引用片段。"
           />

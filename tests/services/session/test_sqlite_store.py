@@ -97,13 +97,20 @@ def test_upsert_notebook_entries_updates_on_conflict(store: SQLiteSessionStore) 
     assert result["items"][0]["is_correct"] is False
 
     asyncio.run(store.upsert_notebook_entries(sid, [{
-        "question_id": "q1", "question": "Q?", "user_answer": "B",
-        "correct_answer": "B", "is_correct": True,
+        "question_id": "q1", "question": "Updated Q?", "question_type": "written",
+        "options": {}, "user_answer": "B", "correct_answer": "B",
+        "explanation": "updated explanation", "difficulty": "hard",
+        "is_correct": True,
     }]))
     result = asyncio.run(store.list_notebook_entries())
     assert result["total"] == 1
     assert result["items"][0]["is_correct"] is True
     assert result["items"][0]["user_answer"] == "B"
+    assert result["items"][0]["question"] == "Updated Q?"
+    assert result["items"][0]["question_type"] == "written"
+    assert result["items"][0]["correct_answer"] == "B"
+    assert result["items"][0]["explanation"] == "updated explanation"
+    assert result["items"][0]["difficulty"] == "hard"
 
 
 def test_upsert_skips_blank_questions(store: SQLiteSessionStore) -> None:

@@ -81,7 +81,20 @@ export function NotebookListPanel({
       </div>
       {!items.length ? (
         <div className="mt-5">
-          <EmptyState icon={<BookMarked size={24} />} title="先创建一个记录本" description="建好后可以写复盘、存错题，也可以把聊天和导学结果沉淀进来。" />
+          <EmptyState
+            align="left"
+            tone="record"
+            icon={<BookMarked size={22} />}
+            eyebrow="开始沉淀"
+            title="先创建一个记录本"
+            description="建好后可以写复盘、存错题，也可以把聊天和导学结果沉淀进来。"
+            action={
+              <Button tone="primary" className="w-full justify-center" onClick={onCreate}>
+                <Plus size={16} />
+                新建记录本
+              </Button>
+            }
+          />
         </div>
       ) : null}
       <div className="mt-4 border-t border-line pt-3">
@@ -191,7 +204,25 @@ export function NotebookDetailPanel({
           ))}
         </AnimatePresence>
         {activeNotebookId && !detail?.records?.length ? (
-          <EmptyState icon={<FileText size={24} />} title="暂无记录" description="点“写一条记录”补充复盘，或从聊天、导学结果里保存关键内容。" />
+          <EmptyState
+            tone="record"
+            icon={<FileText size={22} />}
+            eyebrow="下一步"
+            title="记录本还是空的"
+            description="写下这次学到了什么，或进入错题本整理一次练习反馈。"
+            action={
+              <Button tone="primary" onClick={onManualRecord}>
+                <Edit3 size={16} />
+                写一条记录
+              </Button>
+            }
+            secondaryAction={
+              <Button tone="secondary" onClick={onQuestions}>
+                <ListChecks size={16} />
+                打开错题本
+              </Button>
+            }
+          />
         ) : null}
       </div>
     </motion.section>

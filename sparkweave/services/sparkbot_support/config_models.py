@@ -159,6 +159,12 @@ class ChannelConfigModel(SparkBotConfigModel):
     pass
 
 
+class WebConfig(ChannelConfigModel):
+    enabled: bool = True
+    welcome_text: str = "我会先看学习画像和课程资料，再给出今天最应该完成的一步。"
+    rate_limit: int = 8
+
+
 class TelegramConfig(ChannelConfigModel):
     enabled: bool = False
     token: str = ""
@@ -248,7 +254,7 @@ class MatrixConfig(ChannelConfigModel):
     access_token: str = ""
     user_id: str = ""
     device_id: str = ""
-    e2ee_enabled: bool = True
+    e2ee_enabled: bool = False
     sync_stop_grace_seconds: int = 2
     max_media_bytes: int = 20 * 1024 * 1024
     allow_from: list[str] = Field(default_factory=list)
@@ -319,6 +325,7 @@ class ChannelsConfig(BaseModel):
     send_progress: bool = True
     send_tool_hints: bool = False
     transcription_api_key: str = ""
+    web: WebConfig = Field(default_factory=WebConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     slack: SlackConfig = Field(default_factory=SlackConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
@@ -357,6 +364,7 @@ __all__ = [
     "SparkBotWebSearchConfig",
     "SparkBotWebToolsConfig",
     "TelegramConfig",
+    "WebConfig",
     "WecomConfig",
     "WhatsAppConfig",
     "_COMPETITION_DEMO_SOUL",

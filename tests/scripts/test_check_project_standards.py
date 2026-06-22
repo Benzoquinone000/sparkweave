@@ -26,7 +26,7 @@ def test_check_project_standards_detects_missing_document_and_private_artifact(
     tmp_path: Path,
 ) -> None:
     build_minimal_project(tmp_path)
-    (tmp_path / "docs" / "configuration-guide.md").unlink()
+    (tmp_path / "docs" / "markdown" / "configuration-guide.md").unlink()
     private_path = tmp_path / "data" / "user" / "profile.json"
     private_path.parent.mkdir(parents=True)
     private_path.write_text("{}", encoding="utf-8")
@@ -54,8 +54,10 @@ def build_minimal_project(root: Path) -> None:
         "LICENSE",
         "README.md",
         "SECURITY.md",
+        ".github/pull_request_template.md",
         ".github/workflows/ci.yml",
         "scripts/check_release_safety.py",
+        "scripts/verify_project.py",
         "scripts/check_web_api_contract.py",
         "sparkweave/api/main.py",
     ]
@@ -96,6 +98,7 @@ def build_minimal_project(root: Path) -> None:
         "data-storage-guide.md",
         "development-guide.md",
         "engineering-standards.md",
+        "feature-code-walkthrough.md",
         "frontend-design-guide.md",
         "learner-profile-memory-design.md",
         "project-structure.md",
@@ -103,11 +106,16 @@ def build_minimal_project(root: Path) -> None:
         "software-cup-delivery-checklist.md",
         "testing-guide.md",
     )
-    docs_root = root / "docs"
-    docs_root.mkdir()
+    docs_root = root / "docs" / "markdown"
+    docs_root.mkdir(parents=True)
     (docs_root / "README.md").write_text(
         "\n".join(f"[{name}](./{name})" for name in indexed_docs),
         encoding="utf-8",
     )
     for name in indexed_docs:
         (docs_root / name).write_text("", encoding="utf-8")
+
+    html_root = root / "docs" / "html"
+    html_root.mkdir()
+    for name in ("README.html", "sparkweave-overview.html", "doc-style.css"):
+        (html_root / name).write_text("", encoding="utf-8")

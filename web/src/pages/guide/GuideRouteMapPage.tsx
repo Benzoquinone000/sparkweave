@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleDot } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,7 +11,6 @@ export function GuideRouteMapPage({
   plan,
   loading,
   metadata,
-  nodes,
   tasks,
   currentTask,
   onBack,
@@ -26,16 +25,19 @@ export function GuideRouteMapPage({
   currentTask: GuideV2Task | null;
   onBack: () => void;
 }) {
-  const [activeIndex, setActiveIndex] = useState(0);
   const orderedTasks = tasks.length ? tasks : currentTask ? [currentTask] : [];
-  const currentIndex = Math.max(0, orderedTasks.findIndex((task) => task.task_id === currentTask?.task_id));
-  const activeTask = orderedTasks[Math.min(activeIndex, Math.max(orderedTasks.length - 1, 0))];
+  const currentTaskId = currentTask?.task_id ?? null;
+  const currentIndex = Math.max(0, orderedTasks.findIndex((task) => task.task_id === currentTaskId));
+  const [manualSelection, setManualSelection] = useState<{ taskId: string | null; index: number } | null>(null);
+  const requestedActiveIndex = manualSelection?.taskId === currentTaskId ? manualSelection.index : currentIndex;
+  const activeIndex = Math.min(requestedActiveIndex, Math.max(orderedTasks.length - 1, 0));
+  const activeTask = orderedTasks[activeIndex];
   const completedCount = orderedTasks.filter((task) => task.status === "completed").length;
   const courseTitle = useMemo(() => String(metadata?.course_name || metadata?.title || "学习路线"), [metadata]);
 
-  useEffect(() => {
-    setActiveIndex(currentIndex >= 0 ? currentIndex : 0);
-  }, [currentIndex]);
+  const selectTaskIndex = (index: number) => {
+    setManualSelection({ taskId: currentTaskId, index: Math.min(Math.max(index, 0), Math.max(orderedTasks.length - 1, 0)) });
+  };
 
   return (
     <GuideSubPageFrame
@@ -101,7 +103,7 @@ export function GuideRouteMapPage({
         )}
 
         <div className="grid shrink-0 gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-          <Button tone="secondary" disabled={activeIndex <= 0} onClick={() => setActiveIndex((index) => Math.max(0, index - 1))}>
+          <Button tone="secondary" disabled={activeIndex <= 0} onClick={() => selectTaskIndex(activeIndex - 1)}>
             <ArrowLeft size={16} />
             上一步
           </Button>
@@ -111,7 +113,7 @@ export function GuideRouteMapPage({
           <Button
             tone="secondary"
             disabled={activeIndex >= orderedTasks.length - 1}
-            onClick={() => setActiveIndex((index) => Math.min(orderedTasks.length - 1, index + 1))}
+            onClick={() => selectTaskIndex(activeIndex + 1)}
           >
             下一步
             <ArrowRight size={16} />

@@ -1,7 +1,6 @@
 import {
   BellRing,
   CalendarClock,
-  Clock3,
   Loader2,
   Pause,
   Play,

@@ -27,7 +27,6 @@ import {
   useRagProviders,
 } from "@/hooks/useApiQueries";
 import type {
-  KnowledgeBase,
   KnowledgeDocumentSummary,
   KnowledgeProgress,
   RagSearchSource,
@@ -40,8 +39,6 @@ import { KnowledgeCreatePanel } from "./knowledge/KnowledgeCreatePanel";
 import { KnowledgeLibrarySidebar } from "./knowledge/KnowledgeLibrarySidebar";
 import { formatKnowledgeLogLine, progressPercent as readProgressPercent } from "./knowledge/progressFormat";
 import { useKnowledgeTaskProgress } from "./knowledge/useKnowledgeTaskProgress";
-
-type KnowledgeView = "browse" | "create";
 
 export function KnowledgePage() {
   const location = useLocation();
@@ -77,7 +74,7 @@ export function KnowledgePage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadInputVersion, setUploadInputVersion] = useState(0);
   const [askQuery, setAskQuery] = useState("");
-  const [ragResult, setRagResult] = useState<RagSearchTestResult | null>(null);
+  const [ragResultState, setRagResultState] = useState<{ kbName: string; result: RagSearchTestResult } | null>(null);
   const consumedSearchParamsRef = useRef("");
 
   const refetchActiveKnowledge = useCallback(() => {
@@ -102,6 +99,7 @@ export function KnowledgePage() {
     mutations.upload.isPending ||
     mutations.reindex.isPending ||
     isBusyProgress(liveProgress);
+  const ragResult = ragResultState?.kbName === activeKb ? ragResultState.result : null;
 
   useEffect(() => {
     if (!routeTaskId || taskId === routeTaskId) return;
@@ -123,13 +121,12 @@ export function KnowledgePage() {
     if (!cacheKey || consumedSearchParamsRef.current === cacheKey) return;
     const handoffQuery = searchParamValue(location.search, "query") || searchParamValue(location.search, "prompt");
     if (!handoffQuery) return;
-    consumedSearchParamsRef.current = cacheKey;
-    setAskQuery(handoffQuery);
+    const timer = window.setTimeout(() => {
+      consumedSearchParamsRef.current = cacheKey;
+      setAskQuery(handoffQuery);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [location.search]);
-
-  useEffect(() => {
-    setRagResult(null);
-  }, [activeKb]);
 
   const activeStatus = kbDetail.data?.status || activeBase?.status || (kbDetail.isLoading ? "loading" : activeKb ? "ready" : "idle");
   const documentCount = documents.data?.document_count ?? activeBase?.document_count ?? documents.data?.documents?.length ?? 0;
@@ -200,7 +197,7 @@ export function KnowledgePage() {
   const askActiveKnowledge = async () => {
     const queryText = askQuery.trim();
     if (!activeKb || !queryText) return;
-    setRagResult(null);
+    setRagResultState(null);
     const result = await mutations.testRagSearch.mutateAsync({
       kbName: activeKb,
       query: queryText,
@@ -213,7 +210,7 @@ export function KnowledgePage() {
       reranker: "keyword",
       maxContextChars: 5000,
     });
-    setRagResult(result);
+    setRagResultState({ kbName: activeKb, result });
   };
 
   const askInChat = () => {
@@ -288,7 +285,7 @@ export function KnowledgePage() {
 
                 <AskPanel
                   query={askQuery}
-                  result={ragResult ?? mutations.testRagSearch.data ?? null}
+                  result={ragResult}
                   running={mutations.testRagSearch.isPending}
                   activeKb={activeKb}
                   onQueryChange={setAskQuery}

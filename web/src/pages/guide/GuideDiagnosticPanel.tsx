@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Brain, CheckCircle2, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -25,9 +25,10 @@ export function GuideDiagnosticPanel({
   onSubmit: (answers: GuideV2DiagnosticAnswer[]) => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, GuideV2DiagnosticValue>>({});
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [requestedActiveIndex, setRequestedActiveIndex] = useState(0);
   const questions = diagnostic?.questions ?? [];
-  const activeQuestion = questions[Math.min(activeIndex, Math.max(questions.length - 1, 0))];
+  const activeIndex = Math.min(requestedActiveIndex, Math.max(questions.length - 1, 0));
+  const activeQuestion = questions[activeIndex];
   const requiredAnswered = questions
     .filter((question) => question.type !== "multi_select")
     .every((question) => isAnswered(answers[question.question_id]));
@@ -35,10 +36,6 @@ export function GuideDiagnosticPanel({
   const currentAnswered = activeQuestion ? activeQuestion.type === "multi_select" || isAnswered(answers[activeQuestion.question_id]) : false;
   const isLast = activeIndex >= questions.length - 1;
   const progress = questions.length ? Math.round((answerCount / questions.length) * 100) : 0;
-
-  useEffect(() => {
-    setActiveIndex((index) => Math.min(index, Math.max(questions.length - 1, 0)));
-  }, [questions.length]);
 
   const submit = () => {
     const payload = questions
@@ -57,7 +54,7 @@ export function GuideDiagnosticPanel({
       submit();
       return;
     }
-    setActiveIndex((index) => Math.min(questions.length - 1, index + 1));
+    setRequestedActiveIndex((index) => Math.min(questions.length - 1, index + 1));
   };
 
   const setAnswer = (questionId: string, value: GuideV2DiagnosticValue) => {
@@ -151,7 +148,7 @@ export function GuideDiagnosticPanel({
       />
 
       <div className="mt-3 flex shrink-0 items-center justify-between gap-2 border-t border-line pt-3">
-        <Button tone="secondary" disabled={activeIndex <= 0 || submitting} onClick={() => setActiveIndex((index) => Math.max(0, index - 1))}>
+        <Button tone="secondary" disabled={activeIndex <= 0 || submitting} onClick={() => setRequestedActiveIndex((index) => Math.max(0, index - 1))}>
           <ArrowLeft size={16} />
           上一题
         </Button>

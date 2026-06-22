@@ -27,6 +27,7 @@ type GuideWorkspaceRouterProps = {
   actions: ReturnType<typeof useGuideActions>;
   derived: ReturnType<typeof useGuideDerivedState>;
   highlightedSectionId: string | null;
+  onContinueAfterFeedback: () => void;
   runtime: ReturnType<typeof useGuideRuntimeData>;
   scrollToGuideSection: (sectionId: string) => void;
   state: ReturnType<typeof useGuidePageState>;
@@ -36,6 +37,7 @@ export function GuideWorkspaceRouter({
   actions,
   derived,
   highlightedSectionId,
+  onContinueAfterFeedback,
   runtime,
   scrollToGuideSection,
   state,
@@ -230,6 +232,7 @@ export function GuideWorkspaceRouter({
         actions={actions}
         derived={derived}
         highlightedSectionId={highlightedSectionId}
+        onContinueAfterFeedback={onContinueAfterFeedback}
         runtime={runtime}
         scrollToGuideSection={scrollToGuideSection}
         state={state}

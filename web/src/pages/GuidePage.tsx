@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { lazy, Suspense, useState } from "react";
 
-import { GuideHero } from "./guide/GuideHero";
 import { GuideWorkspaceRouter } from "./guide/GuideWorkspaceRouter";
 import { useGuideActions } from "./guide/useGuideActions";
 import { useGuideDerivedState } from "./guide/useGuideDerivedState";
@@ -22,6 +21,7 @@ export function GuidePage() {
   const guideState = useGuidePageState();
   const {
     courseTemplateId,
+    dismissedFeedbackKey,
     forceNewSession,
     generatingType,
     goal,
@@ -39,6 +39,7 @@ export function GuidePage() {
     supportOpen,
     weakPoints,
     setForceNewSession,
+    setDismissedFeedbackKey,
     setGoal,
     setGoalTouched,
     setGuideSubPage,
@@ -86,6 +87,7 @@ export function GuidePage() {
     courseTemplateId,
     courseTemplatesData: templates.data,
     diagnosticStatus: diagnostic.data?.status,
+    dismissedFeedbackKey,
     generatingType,
     guideSubPage,
     learnerProfile: learnerProfile.data,
@@ -102,11 +104,10 @@ export function GuidePage() {
     demoRecordingCue,
     guideStage,
     isDemoSeedSession,
-    primaryActionLabel,
-    profileNextAction,
+    activeFeedbackKey,
     profileSuggestedPrompt,
+    profileNextAction,
     routeUsesUnifiedProfile,
-    stageMessage,
   } = guideDerived;
   useGuideLifecycleEffects({
     activeSessionId,
@@ -140,26 +141,37 @@ export function GuidePage() {
     runDemoRecordingCue,
   } = guideActions;
 
+  const continueAfterFeedback = () => {
+    if (activeFeedbackKey) setDismissedFeedbackKey(activeFeedbackKey);
+    setLearningFeedback(null);
+    setGuideSubPage("main");
+  };
+
   const openSupportDrawer = () => {
     setSupportDrawerMounted(true);
     setSupportOpen(true);
   };
 
   return (
-    <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-5">
-      <div className="mx-auto max-w-[940px] space-y-3.5">
-        <GuideHero
-          primaryActionLabel={primaryActionLabel}
-          stageMessage={stageMessage}
-          guideStage={guideStage}
-          currentTask={currentTask}
-          onEnterCurrentStep={() => scrollToGuideSection(currentTask ? "guide-current-task-section" : "guide-create-section")}
-          onOpenSupport={openSupportDrawer}
-        />
+    <div className="dt-dynamic-page h-full overflow-hidden px-3.5 py-3.5 lg:px-4">
+      <div className="mx-auto flex h-full max-w-[940px] flex-col gap-3">
+        <div className="flex h-12 shrink-0 items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-steel">学习</p>
+            <h1 className="truncate text-xl font-semibold text-ink">一步一步来</h1>
+          </div>
+          <button
+            type="button"
+            className="dt-interactive inline-flex min-h-9 items-center rounded-lg border border-line bg-white px-3 text-sm font-medium text-charcoal hover:bg-canvas"
+            onClick={openSupportDrawer}
+          >
+            路线
+          </button>
+        </div>
 
         {saveMessage ? (
           <motion.div
-            className="rounded-lg border border-line bg-tint-lavender px-3 py-2.5 text-xs leading-5 text-brand-purple-800"
+            className="line-clamp-2 shrink-0 rounded-lg border border-line bg-tint-lavender px-3 py-2 text-xs leading-5 text-brand-purple-800"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.16 }}
@@ -178,18 +190,18 @@ export function GuidePage() {
           </Suspense>
         ) : null}
 
-        <div className="grid gap-3.5">
-          <main className="space-y-3.5">
+        <div className="min-h-0 flex-1">
+          <main className="h-full min-h-0">
             <GuideWorkspaceRouter
               actions={guideActions}
               derived={guideDerived}
               highlightedSectionId={highlightedSectionId}
+              onContinueAfterFeedback={continueAfterFeedback}
               runtime={guideRuntime}
               scrollToGuideSection={scrollToGuideSection}
               state={guideState}
             />
           </main>
-
         </div>
 
         {supportDrawerMounted ? (

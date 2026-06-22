@@ -80,6 +80,19 @@ class ProgressTracker:
             except Exception as e:
                 _get_logger().debug("Progress callback error: %s", e)
 
+        if self.task_id:
+            try:
+                from sparkweave.api.utils.task_log_stream import get_task_stream_manager
+
+                get_task_stream_manager().emit_status(
+                    self.task_id,
+                    str(progress.get("stage") or "processing"),
+                    str(progress.get("message") or ""),
+                    progress=progress,
+                )
+            except Exception as e:
+                _get_logger().debug("Task stream progress emit error: %s", e)
+
     def _save_progress(self, progress: dict):
         """Save progress to kb_config.json and local .progress.json file"""
         try:

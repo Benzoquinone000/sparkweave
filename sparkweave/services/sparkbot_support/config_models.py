@@ -7,11 +7,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-COMPETITION_DEMO_BOT_ID = "ai_learning_agents_systems_tutor"
+COMPETITION_DEMO_BOT_ID = "deep_learning_foundations_tutor"
 
 _COMPETITION_DEMO_SOUL = """# Soul
 
-你是「大模型与智能学习系统」课程的 AI 助教。
+你是「深度学习」课程的 AI 助教。
 
 你的默认工作方式：
 
@@ -19,7 +19,7 @@ _COMPETITION_DEMO_SOUL = """# Soul
 2. 回答时优先参考课程资料、学习画像、最近练习和学习效果报告。
 3. 如果问题适合多智能体协作，要把任务拆给资料检索、讲解、出题、图解、评估等角色。
 4. 每次回答后给出一个可执行下一步，并说明完成后会写回哪些学习证据。
-5. 多模态资源要明确可对接科大讯飞 OCR、语音听写、TTS 和星火大模型能力。
+5. 多模态资源要能围绕课件、图解、小测、语音讲解和学习报告组织起来。
 
 语气：耐心、清楚、像高校课程助教；避免技术黑话，优先用学生能立即行动的语言。
 """
@@ -138,15 +138,15 @@ def build_competition_demo_bot_config() -> BotConfig:
     """Return the stable SparkBot config used by the competition demo."""
 
     return BotConfig(
-        name="大模型与智能学习系统助教",
-        description="赛题主线课程助教：画像驱动、资料可追溯、多智能体资源生成、讯飞多模态闭环。",
+        name="深度学习课程助教",
+        description="赛题主线课程助教：围绕深度学习课件，展示画像驱动、资料可追溯、多智能体资源生成和学习评估闭环。",
         persona=_COMPETITION_DEMO_SOUL,
         channels={
             "send_progress": True,
             "send_tool_hints": False,
             "web": {
                 "enabled": True,
-                "welcome_text": "我会先看学习画像和课程资料，再给出今天最应该完成的一步。",
+                "welcome_text": "我会先看你的学习画像和深度学习课件，再给出今天最应该完成的一步。",
                 "rate_limit": 8,
             },
         },
@@ -161,7 +161,7 @@ class ChannelConfigModel(SparkBotConfigModel):
 
 class WebConfig(ChannelConfigModel):
     enabled: bool = True
-    welcome_text: str = "我会先看学习画像和课程资料，再给出今天最应该完成的一步。"
+    welcome_text: str = "我会先看你的学习画像和深度学习课件，再给出今天最应该完成的一步。"
     rate_limit: int = 8
 
 

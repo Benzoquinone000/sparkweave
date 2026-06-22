@@ -1,72 +1,59 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  MessageCircleQuestion,
+  RefreshCw,
+  Search,
+  Send,
+  UploadCloud,
+} from "lucide-react";
 
-import { KnowledgeLibrarySidebar } from "./knowledge/KnowledgeLibrarySidebar";
-import { KnowledgeStatusStrip } from "./knowledge/KnowledgeStatusStrip";
-import {
-  formatProgressStage,
-  formatErrorMessage,
-  formatRagDiagnosticStatus,
-  knowledgeProviderLabel,
-  summarizeKnowledgePayload,
-} from "./knowledge/format";
-import {
-  clampPercent,
-  formatKnowledgeLogLine,
-  formatProgressMessage,
-  summarizeKnowledgeTaskLogs,
-  withLegacyText,
-} from "./knowledge/progressFormat";
-import {
-  RAG_TEST_PRESETS,
-  matchRagTestPreset,
-  type RagTestSettings,
-} from "./knowledge/ragTestConfig";
-import { buildQuickRagEvaluationCases } from "./knowledge/ragEvaluationCases";
-import { isRecord, readNumber, readString } from "./knowledge/ragUtils";
-import { buildKnowledgeRecoveryPlan, type KnowledgeRecoveryActionId } from "./knowledge/recovery";
-import type { KnowledgeWorkspace } from "./knowledge/types";
-import { useKnowledgeTaskProgress } from "./knowledge/useKnowledgeTaskProgress";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FieldShell, FileInput, TextArea } from "@/components/ui/Field";
 import {
   useDefaultKnowledgeBase,
-  useKnowledgeBases,
-  useKnowledgeConfigAudit,
   useKnowledgeBaseDetail,
-  useKnowledgeConfig,
+  useKnowledgeBases,
   useKnowledgeDiagnostics,
-  useKnowledgeDocumentPreview,
   useKnowledgeDocuments,
-  useKnowledgeHealth,
   useKnowledgeMutations,
   useKnowledgeProgress,
-  useKnowledgePreflight,
-  useKnowledgeTaskStatus,
-  useKnowledgeRagEvaluation,
-  useKnowledgeVectorChunks,
-  useLinkedFolders,
   useRagProviders,
 } from "@/hooks/useApiQueries";
-import { isKnowledgeWorkspaceId, parseKnowledgeHandoffSearch, type RagTestHandoff } from "@/lib/ragHandoff";
+import type {
+  KnowledgeBase,
+  KnowledgeDocumentSummary,
+  KnowledgeProgress,
+  RagSearchSource,
+  RagSearchTestResult,
+} from "@/lib/types";
 
-const KnowledgeCreatePanel = lazy(() =>
-  import("./knowledge/KnowledgeCreatePanel").then((module) => ({ default: module.KnowledgeCreatePanel })),
-);
-const KnowledgeWorkspaceContent = lazy(() =>
-  import("./knowledge/KnowledgeWorkspaceContent").then((module) => ({ default: module.KnowledgeWorkspaceContent })),
-);
+import { FileList } from "./knowledge/FileList";
+import { formatBytes, formatDocDate, formatErrorMessage, formatProgressStage, formatRagDiagnosticStatus, knowledgeProviderLabel } from "./knowledge/format";
+import { KnowledgeCreatePanel } from "./knowledge/KnowledgeCreatePanel";
+import { KnowledgeLibrarySidebar } from "./knowledge/KnowledgeLibrarySidebar";
+import { formatKnowledgeLogLine, progressPercent as readProgressPercent } from "./knowledge/progressFormat";
+import { useKnowledgeTaskProgress } from "./knowledge/useKnowledgeTaskProgress";
 
 type KnowledgeView = "browse" | "create";
 
 export function KnowledgePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routeState = useMemo(() => knowledgeRouteStateFromPath(location.pathname), [location.pathname]);
+  const view = location.pathname.split("/").filter(Boolean)[1] === "create" ? "create" : "browse";
+  const routeTaskId = searchParamValue(location.search, "task");
+
   const query = useKnowledgeBases();
-  const providers = useRagProviders();
-  const health = useKnowledgeHealth();
-  const configAudit = useKnowledgeConfigAudit();
   const defaultKb = useDefaultKnowledgeBase();
+  const providers = useRagProviders();
   const mutations = useKnowledgeMutations();
+
   const bases = useMemo(() => query.data ?? [], [query.data]);
   const backendDefaultName = defaultKb.data?.default_kb || "";
   const defaultBase = useMemo(
@@ -74,96 +61,47 @@ export function KnowledgePage() {
     [backendDefaultName, bases],
   );
   const [selectedKb, setSelectedKb] = useState(() => knowledgeBaseNameFromSearch(location.search));
-  const routeTaskId = searchParamValue(location.search, "task");
-  const view = routeState.view;
-  const workspace = routeState.workspace;
+  const activeKb = selectedKb && bases.some((item) => item.name === selectedKb) ? selectedKb : defaultBase?.name || bases[0]?.name || "";
+  const activeBase = bases.find((item) => item.name === activeKb);
+
+  const kbDetail = useKnowledgeBaseDetail(activeKb || null);
+  const documents = useKnowledgeDocuments(activeKb || null);
+  const progress = useKnowledgeProgress(activeKb || null);
+  const ragDiagnostic = useKnowledgeDiagnostics(activeKb || null, true, Boolean(activeKb));
+
+  const providerOptions = providers.data ?? [];
+  const activeProvider = providerOptions.find((item) => item.is_default)?.name || providerOptions[0]?.name || "";
+
   const [createName, setCreateName] = useState("");
-  const [ragProvider, setRagProvider] = useState("");
   const [createFiles, setCreateFiles] = useState<File[]>([]);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
-  const [folderPath, setFolderPath] = useState("");
-  const [ragEvalPreset, setRagEvalPreset] = useState("quick_check");
-  const [ragTestQuery, setRagTestQuery] = useState("");
-  const [ragTestProfile, setRagTestProfile] = useState("auto");
-  const [ragTestMode, setRagTestMode] = useState("hybrid");
-  const [ragTestAgentic, setRagTestAgentic] = useState("auto");
-  const [ragTestTopK, setRagTestTopK] = useState(5);
-  const [ragTestAgenticMaxContextChars, setRagTestAgenticMaxContextChars] = useState(5000);
-  const [ragTestAgenticMaxSources, setRagTestAgenticMaxSources] = useState(8);
-  const [ragTestMinRelevantCoverage, setRagTestMinRelevantCoverage] = useState(0.67);
-  const [selectedDocumentId, setSelectedDocumentId] = useState("");
-  const [previewDocumentId, setPreviewDocumentId] = useState("");
-  const [ragTestHandoff, setRagTestHandoff] = useState<RagTestHandoff | null>(null);
+  const [uploadInputVersion, setUploadInputVersion] = useState(0);
+  const [askQuery, setAskQuery] = useState("");
+  const [ragResult, setRagResult] = useState<RagSearchTestResult | null>(null);
   const consumedSearchParamsRef = useRef("");
-  const activeKb = selectedKb && bases.some((item) => item.name === selectedKb) ? selectedKb : defaultBase?.name || bases[0]?.name || "";
-  const kbDetail = useKnowledgeBaseDetail(activeKb || null);
-  const progress = useKnowledgeProgress(activeKb || null);
-  const kbConfig = useKnowledgeConfig(activeKb || null);
-  const ragDiagnostic = useKnowledgeDiagnostics(activeKb || null, true, false);
-  const ragPreflight = useKnowledgePreflight(activeKb || null, true, false, false);
-  const ragEvaluation = useKnowledgeRagEvaluation(activeKb || null);
-  const documents = useKnowledgeDocuments(activeKb || null);
-  const documentItems = useMemo(() => documents.data?.documents ?? [], [documents.data?.documents]);
-  const effectiveSelectedDocumentId = useMemo(() => {
-    if (documentItems.some((item) => item.id === selectedDocumentId)) return selectedDocumentId;
-    return documentItems[0]?.id ?? "";
-  }, [documentItems, selectedDocumentId]);
-  const effectivePreviewDocumentId = useMemo(() => {
-    if (documentItems.some((item) => item.id === previewDocumentId)) return previewDocumentId;
-    return "";
-  }, [documentItems, previewDocumentId]);
-  const selectedDocument = useMemo(
-    () => documentItems.find((item) => item.id === effectiveSelectedDocumentId) ?? null,
-    [documentItems, effectiveSelectedDocumentId],
-  );
-  const shouldLoadVectorChunks = workspace === "documents" && Boolean(effectiveSelectedDocumentId);
-  const vectorChunks = useKnowledgeVectorChunks(activeKb || null, effectiveSelectedDocumentId || null, shouldLoadVectorChunks);
-  const documentPreview = useKnowledgeDocumentPreview(activeKb || null, effectivePreviewDocumentId || null, Boolean(effectivePreviewDocumentId));
-  const linkedFolders = useLinkedFolders(activeKb || null);
-  const refetchKnowledgeBases = query.refetch;
-  const refetchKnowledgeDetail = kbDetail.refetch;
-  const refetchKnowledgeProgress = progress.refetch;
-  const refetchKnowledgeConfig = kbConfig.refetch;
-  const refetchKnowledgeDocuments = documents.refetch;
-  const refetchKnowledgeVectors = vectorChunks.refetch;
-  const refetchKnowledgeDiagnostic = ragDiagnostic.refetch;
-  const refetchKnowledgePreflight = ragPreflight.refetch;
-  const refetchActiveKnowledgeArtifacts = useCallback(() => {
-    void refetchKnowledgeProgress();
-    void refetchKnowledgeBases();
-    void refetchKnowledgeDetail();
-    void refetchKnowledgeConfig();
-    void refetchKnowledgeDocuments();
-    if (shouldLoadVectorChunks) {
-      void refetchKnowledgeVectors();
-    }
-    void refetchKnowledgeDiagnostic();
-    void refetchKnowledgePreflight();
-  }, [
-    refetchKnowledgeBases,
-    refetchKnowledgeConfig,
-    refetchKnowledgeDetail,
-    refetchKnowledgeDiagnostic,
-    refetchKnowledgeDocuments,
-    refetchKnowledgePreflight,
-    refetchKnowledgeProgress,
-    refetchKnowledgeVectors,
-    shouldLoadVectorChunks,
-  ]);
-  const {
-    taskId,
-    taskLogs,
-    taskProgress,
-    wsProgress,
-    wsStatus,
-    beginTask,
-    pushTaskLog,
-    resetTask,
-    setTaskLogs,
-  } = useKnowledgeTaskProgress({
+
+  const refetchActiveKnowledge = useCallback(() => {
+    void query.refetch();
+    void defaultKb.refetch();
+    void kbDetail.refetch();
+    void documents.refetch();
+    void progress.refetch();
+    void ragDiagnostic.refetch();
+  }, [defaultKb, documents, kbDetail, progress, query, ragDiagnostic]);
+
+  const { taskId, taskProgress, wsProgress, beginTask } = useKnowledgeTaskProgress({
     activeKb,
-    onTerminalProgress: refetchActiveKnowledgeArtifacts,
+    onTerminalProgress: refetchActiveKnowledge,
   });
+
+  const liveProgress = wsProgress ?? taskProgress ?? progress.data;
+  const progressPercent = normalizePercent(readProgressPercent(liveProgress));
+  const taskBusy =
+    Boolean(taskId && !isTerminalProgressState(liveProgress)) ||
+    mutations.create.isPending ||
+    mutations.upload.isPending ||
+    mutations.reindex.isPending ||
+    isBusyProgress(liveProgress);
 
   useEffect(() => {
     if (!routeTaskId || taskId === routeTaskId) return;
@@ -172,156 +110,6 @@ export function KnowledgePage() {
     const timer = window.setTimeout(() => beginTask(routeTaskId, kbName), 0);
     return () => window.clearTimeout(timer);
   }, [activeKb, beginTask, routeTaskId, selectedKb, taskId]);
-  const taskStatus = useKnowledgeTaskStatus(taskId);
-  const activeConfig = kbConfig.data?.config;
-  const liveProgress = wsProgress ?? taskProgress ?? progress.data;
-  const progressPercent = clampPercent(liveProgress?.percent);
-  const progressStage = formatProgressStage(liveProgress?.stage || liveProgress?.status || "idle");
-  const progressMessage = formatProgressMessage(liveProgress, activeKb, Boolean(taskId || taskLogs.length));
-  const taskMilestones = useMemo(() => summarizeKnowledgeTaskLogs(taskLogs), [taskLogs]);
-  const activeStatistics = isRecord(kbDetail.data?.statistics) ? kbDetail.data.statistics : {};
-  const activeMetadata = isRecord(kbDetail.data?.metadata) ? kbDetail.data.metadata : {};
-  const activeDocumentCount =
-    readNumber(kbDetail.data, "document_count") ??
-    readNumber(activeStatistics, "document_count") ??
-    readNumber(activeStatistics, "documents") ??
-    (Array.isArray(kbDetail.data?.documents) ? kbDetail.data.documents.length : undefined);
-  const activeFileCount =
-    readNumber(kbDetail.data, "file_count") ??
-    readNumber(activeStatistics, "file_count") ??
-    readNumber(activeStatistics, "files") ??
-    (Array.isArray(kbDetail.data?.files) ? kbDetail.data.files.length : undefined);
-  const visibleDocumentCount = documents.data?.document_count ?? documents.data?.documents?.length ?? activeDocumentCount;
-  const visibleVectorCount = documents.data?.vector_count ?? readNumber(ragDiagnostic.data, "vector_row_count");
-  const activePath = readString(kbDetail.data, "path") || readString(activeMetadata, "path") || activeKb || "-";
-  const activeStatus = kbDetail.data?.status || (kbDetail.isLoading ? "loading" : activeKb ? "ready" : "idle");
-  const activeSummaryPayload = Object.keys(activeMetadata).length ? activeMetadata : activeStatistics;
-  const activeSummaryItems = summarizeKnowledgePayload(activeSummaryPayload);
-  const latestKnowledgeError =
-    mutations.create.error ||
-    mutations.upload.error ||
-    mutations.reindex.error ||
-    mutations.syncFolder.error ||
-    mutations.runRagEvaluation.error ||
-    mutations.testRagSearch.error ||
-    ragDiagnostic.error ||
-    documents.error ||
-    vectorChunks.error;
-  const recoveryPlan = useMemo(
-    () =>
-      buildKnowledgeRecoveryPlan({
-        activeKb,
-        documentCount: visibleDocumentCount,
-        vectorCount: visibleVectorCount,
-        progressStage: liveProgress?.stage || liveProgress?.status || activeStatus,
-        progressMessage,
-        taskActive: Boolean(taskId),
-        readinessState: String(ragDiagnostic.data?.readiness?.state || ""),
-        readinessLabel: String(ragDiagnostic.data?.readiness?.label || ""),
-        readinessSummary: String(ragDiagnostic.data?.readiness?.summary || ""),
-        readinessAction: String(ragDiagnostic.data?.readiness?.primary_action || ""),
-        diagnosticStatus: ragDiagnostic.data?.readiness?.label || formatRagDiagnosticStatus(ragDiagnostic.data?.status, Boolean(ragDiagnostic.error)),
-        latestError: latestKnowledgeError ? formatErrorMessage(latestKnowledgeError) : "",
-      }),
-    [
-      activeKb,
-      activeStatus,
-      latestKnowledgeError,
-      liveProgress?.stage,
-      liveProgress?.status,
-      progressMessage,
-      ragDiagnostic.data,
-      ragDiagnostic.error,
-      taskId,
-      visibleDocumentCount,
-      visibleVectorCount,
-    ],
-  );
-  const ragTestSettings = useMemo<RagTestSettings>(
-    () => ({
-      profile: ragTestProfile,
-      mode: ragTestMode,
-      agentic: ragTestAgentic,
-      topK: ragTestTopK,
-      agenticMaxContextChars: ragTestAgenticMaxContextChars,
-      agenticMaxSources: ragTestAgenticMaxSources,
-      agenticMinRelevantCoverage: ragTestMinRelevantCoverage,
-    }),
-    [
-      ragTestAgentic,
-      ragTestAgenticMaxContextChars,
-      ragTestAgenticMaxSources,
-      ragTestMinRelevantCoverage,
-      ragTestMode,
-      ragTestProfile,
-      ragTestTopK,
-    ],
-  );
-  const activeRagTestPresetId = useMemo(() => matchRagTestPreset(ragTestSettings), [ragTestSettings]);
-
-  const navigateToOverview = useCallback(
-    (kbName = activeKb) => {
-      void navigate({ to: "/knowledge", search: knowledgeSearch(kbName) });
-    },
-    [activeKb, navigate],
-  );
-
-  const navigateToCreate = useCallback(() => {
-    void navigate({ to: "/knowledge/$workspace", params: { workspace: "create" }, search: knowledgeSearch(activeKb) });
-  }, [activeKb, navigate]);
-
-  const navigateToWorkspace = useCallback(
-    (nextWorkspace: KnowledgeWorkspace, kbName = activeKb, nextTaskId?: string | null) => {
-      if (nextWorkspace === "overview") {
-        void navigate({ to: "/knowledge", search: knowledgeSearch(kbName) });
-        return;
-      }
-      void navigate({ to: "/knowledge/$workspace", params: { workspace: nextWorkspace }, search: knowledgeSearch(kbName, nextTaskId) });
-    },
-    [activeKb, navigate],
-  );
-
-  const applyRagTestPreset = useCallback((presetId: string) => {
-    const preset = RAG_TEST_PRESETS.find((item) => item.id === presetId);
-    if (!preset) return;
-    setRagTestProfile(preset.profile);
-    setRagTestMode(preset.mode);
-    setRagTestAgentic(preset.agentic);
-    setRagTestTopK(preset.topK);
-    setRagTestAgenticMaxContextChars(preset.agenticMaxContextChars);
-    setRagTestAgenticMaxSources(preset.agenticMaxSources);
-    setRagTestMinRelevantCoverage(preset.agenticMinRelevantCoverage);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const intent = parseKnowledgeHandoffSearch(window.location.search);
-    if (!intent || consumedSearchParamsRef.current === intent.cacheKey) return;
-    consumedSearchParamsRef.current = intent.cacheKey;
-    const timer = window.setTimeout(() => {
-      if (intent.kbName) setSelectedKb(intent.kbName);
-      if (intent.query) setRagTestQuery(intent.query);
-      if (intent.handoff) setRagTestHandoff(intent.handoff);
-      if (intent.presetId && RAG_TEST_PRESETS.some((item) => item.id === intent.presetId)) {
-        applyRagTestPreset(intent.presetId);
-      }
-
-      if (intent.profile) setRagTestProfile(intent.profile);
-      if (intent.mode) setRagTestMode(intent.mode);
-      if (intent.agentic) setRagTestAgentic(intent.agentic);
-      if (typeof intent.topK === "number") setRagTestTopK(intent.topK);
-      if (typeof intent.agenticMaxContextChars === "number") setRagTestAgenticMaxContextChars(intent.agenticMaxContextChars);
-      if (typeof intent.agenticMaxSources === "number") setRagTestAgenticMaxSources(intent.agenticMaxSources);
-      if (typeof intent.agenticMinRelevantCoverage === "number") setRagTestMinRelevantCoverage(intent.agenticMinRelevantCoverage);
-
-      if (intent.workspace) {
-        navigateToWorkspace(intent.workspace, intent.kbName || activeKb);
-      } else if (intent.query || intent.presetId) {
-        navigateToWorkspace("test", intent.kbName || activeKb);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [activeKb, applyRagTestPreset, navigateToWorkspace]);
 
   useEffect(() => {
     const kbName = knowledgeBaseNameFromSearch(location.search);
@@ -331,49 +119,40 @@ export function KnowledgePage() {
   }, [location.search, selectedKb]);
 
   useEffect(() => {
-    if (view === "browse" && workspace === "diagnostics" && activeKb) {
-      void refetchKnowledgeDiagnostic();
-      void refetchKnowledgePreflight();
-    }
-  }, [activeKb, refetchKnowledgeDiagnostic, refetchKnowledgePreflight, view, workspace]);
+    const cacheKey = searchCacheKey(location.search);
+    if (!cacheKey || consumedSearchParamsRef.current === cacheKey) return;
+    const handoffQuery = searchParamValue(location.search, "query") || searchParamValue(location.search, "prompt");
+    if (!handoffQuery) return;
+    consumedSearchParamsRef.current = cacheKey;
+    setAskQuery(handoffQuery);
+  }, [location.search]);
 
-  const openDiagnostics = useCallback(() => {
-    navigateToWorkspace("diagnostics");
-    void refetchKnowledgeDiagnostic();
-    void refetchKnowledgePreflight();
-  }, [navigateToWorkspace, refetchKnowledgeDiagnostic, refetchKnowledgePreflight]);
+  useEffect(() => {
+    setRagResult(null);
+  }, [activeKb]);
 
-  const providerOptions = useMemo(() => providers.data ?? [], [providers.data]);
-  const activeProvider = ragProvider || providerOptions.find((item) => item.is_default)?.name || providerOptions[0]?.name || "";
-  const configFormKey = [
-    activeKb,
-    activeConfig?.search_mode,
-    activeConfig?.description,
-    activeConfig?.needs_reindex ? "reindex" : "ready",
-  ].join(":");
+  const activeStatus = kbDetail.data?.status || activeBase?.status || (kbDetail.isLoading ? "loading" : activeKb ? "ready" : "idle");
+  const documentCount = documents.data?.document_count ?? activeBase?.document_count ?? documents.data?.documents?.length ?? 0;
+  const vectorCount = documents.data?.vector_count ?? readNumber(ragDiagnostic.data, "vector_row_count") ?? readNumber(activeBase?.statistics, "vector_count");
+  const providerLabel = knowledgeProviderLabel(kbDetail.data?.rag_provider || activeBase?.rag_provider || ragDiagnostic.data?.provider || "milvus");
+  const readinessLabel =
+    ragDiagnostic.data?.readiness?.label || formatRagDiagnosticStatus(ragDiagnostic.data?.status, Boolean(ragDiagnostic.error));
+  const readinessSummary = ragDiagnostic.data?.readiness?.summary || buildReadinessSummary(activeStatus, documentCount, vectorCount);
+  const statusTone = knowledgeStatusTone(activeStatus, ragDiagnostic.error, ragDiagnostic.data?.status, ragDiagnostic.data?.readiness?.state);
+  const latestError = mutations.create.error || mutations.upload.error || mutations.reindex.error || mutations.testRagSearch.error || documents.error;
 
-  const saveKbConfig = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!activeKb) return;
-    const form = new FormData(event.currentTarget);
-    await mutations.updateConfig.mutateAsync({
-      kbName: activeKb,
-      config: {
-        search_mode: String(form.get("search_mode") || "hybrid"),
-        description: String(form.get("description") || ""),
-        needs_reindex: form.get("needs_reindex") === "on",
-      },
-    });
-    pushTaskLog(`设置已保存：${activeKb}`);
-  };
+  const navigateToOverview = useCallback(
+    (kbName = activeKb, nextTaskId?: string | null) => {
+      void navigate({ to: "/knowledge", search: knowledgeSearch(kbName, nextTaskId) });
+    },
+    [activeKb, navigate],
+  );
 
-  const clearActiveProgress = async () => {
-    if (!activeKb) return;
-    const result = await mutations.clearProgress.mutateAsync(activeKb);
-    resetTask([result.message ? withLegacyText(formatKnowledgeLogLine(result.message), result.message) : `已清理 ${activeKb} 的进度状态。`]);
-  };
+  const navigateToCreate = useCallback(() => {
+    void navigate({ to: "/knowledge/$workspace", params: { workspace: "create" }, search: knowledgeSearch(activeKb) });
+  }, [activeKb, navigate]);
 
-  const createKb = async (event: React.FormEvent<HTMLFormElement>) => {
+  const createKb = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = createName.trim();
     if (!trimmedName || !createFiles.length) return;
@@ -382,16 +161,16 @@ export function KnowledgePage() {
       files: createFiles,
       ragProvider: activeProvider || undefined,
     });
-    const nextTaskId = result.task_id ?? null;
     const nextKbName = result.name || trimmedName;
-    beginTask(nextTaskId, nextKbName);
+    const nextTaskId = result.task_id ?? null;
     setSelectedKb(nextKbName);
-    navigateToWorkspace("progress", nextKbName, nextTaskId);
     setCreateName("");
     setCreateFiles([]);
+    beginTask(nextTaskId, nextKbName);
+    navigateToOverview(nextKbName, nextTaskId);
   };
 
-  const uploadToKb = async (event: React.FormEvent<HTMLFormElement>) => {
+  const uploadToKb = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!activeKb || !uploadFiles.length) return;
     const result = await mutations.upload.mutateAsync({
@@ -400,9 +179,10 @@ export function KnowledgePage() {
       ragProvider: activeProvider || undefined,
     });
     const nextTaskId = result.task_id ?? null;
-    beginTask(nextTaskId, activeKb);
-    navigateToWorkspace("progress", activeKb, nextTaskId);
     setUploadFiles([]);
+    setUploadInputVersion((current) => current + 1);
+    beginTask(nextTaskId, activeKb);
+    navigateToOverview(activeKb, nextTaskId);
   };
 
   const reindexActiveKb = async () => {
@@ -414,95 +194,47 @@ export function KnowledgePage() {
     });
     const nextTaskId = result.task_id ?? null;
     beginTask(nextTaskId, activeKb);
-    navigateToWorkspace("progress", activeKb, nextTaskId);
+    navigateToOverview(activeKb, nextTaskId);
   };
 
-  const runActiveRagEvaluation = async () => {
-    if (!activeKb) return;
-    const report = await mutations.runRagEvaluation.mutateAsync({
+  const askActiveKnowledge = async () => {
+    const queryText = askQuery.trim();
+    if (!activeKb || !queryText) return;
+    setRagResult(null);
+    const result = await mutations.testRagSearch.mutateAsync({
       kbName: activeKb,
-      preset: ragEvalPreset,
-      provider: activeConfig?.rag_provider || kbDetail.data?.rag_provider || activeProvider || undefined,
-      cases: buildQuickRagEvaluationCases(activeKb),
-    });
-    pushTaskLog(`资料质量检查已完成：${report.strategy_count ?? 0} 个方案，${report.case_count ?? 0} 个样本。`);
-    await ragEvaluation.refetch();
-  };
-
-  const runActiveRagTest = async () => {
-    if (!activeKb || !ragTestQuery.trim()) return;
-    await mutations.testRagSearch.mutateAsync({
-      kbName: activeKb,
-      query: ragTestQuery.trim(),
-      provider: activeConfig?.rag_provider || kbDetail.data?.rag_provider || activeProvider || undefined,
-      retrievalProfile: ragTestProfile,
-      retrievalMode: ragTestMode,
-      agenticRag: ragTestAgentic,
-      topK: ragTestTopK,
-      candidateTopK: Math.max(ragTestTopK * 3, ragTestTopK),
+      query: queryText,
+      provider: kbDetail.data?.rag_provider || activeBase?.rag_provider || activeProvider || undefined,
+      retrievalProfile: "auto",
+      retrievalMode: "hybrid",
+      agenticRag: "auto",
+      topK: 5,
+      candidateTopK: 15,
       reranker: "keyword",
-      agenticMaxContextChars: ragTestAgenticMaxContextChars,
-      agenticMaxSources: ragTestAgenticMaxSources,
-      agenticMinRelevantCoverageRatio: ragTestMinRelevantCoverage,
-      maxContextChars: ragTestAgenticMaxContextChars,
+      maxContextChars: 5000,
     });
+    setRagResult(result);
   };
 
-  const handleRecoveryAction = (action: KnowledgeRecoveryActionId) => {
-    if (action === "reindex") {
-      void reindexActiveKb();
-      return;
-    }
-    if (action === "diagnostics") {
-      openDiagnostics();
-      return;
-    }
-    if (action === "test") {
-      navigateToWorkspace("test");
-      return;
-    }
-    navigateToWorkspace(action);
-  };
-
-  const linkFolder = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!activeKb || !folderPath.trim()) return;
-    await mutations.linkFolder.mutateAsync({ kbName: activeKb, folderPath: folderPath.trim() });
-    setFolderPath("");
-  };
-
-  const syncFolder = async (folderId: string) => {
-    if (!activeKb) return;
-    const result = await mutations.syncFolder.mutateAsync({ kbName: activeKb, folderId });
-    const nextTaskId = result.task_id ?? null;
-    beginTask(nextTaskId, activeKb);
-    if (nextTaskId) navigateToWorkspace("progress", activeKb, nextTaskId);
-    if (!result.task_id && result.message) {
-      setTaskLogs((current) => [result.message || "文件夹暂无需要同步的变化。", ...current].slice(0, 80));
-    }
+  const askInChat = () => {
+    if (!activeKb || !askQuery.trim()) return;
+    void navigate({
+      to: "/chat",
+      search: {
+        new: "1",
+        capability: "chat",
+        prompt: askQuery.trim(),
+        kb: activeKb,
+      },
+    });
   };
 
   return (
     <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
-      <div className="mx-auto flex max-w-[980px] flex-col gap-3.5">
-        <Header
-          eyebrow="资料"
-          title="把资料放进来，然后直接提问"
-          description="上传课件、笔记或论文后，系统会准备可引用内容；你可以直接围绕资料提问。"
-        />
+      <div className="mx-auto flex max-w-[1040px] flex-col gap-3.5">
+        <Header />
 
-        <KnowledgeStatusStrip
-          count={bases.length}
-          defaultName={defaultBase?.name || backendDefaultName || "未设置"}
-          staleConfigCount={configAudit.data?.missing_count ?? 0}
-          rag={health.data?.rag}
-          refreshing={query.isFetching}
-          error={Boolean(query.error)}
-          cleaning={mutations.pruneMissingConfigs.isPending}
-          onCleanConfigs={() => void mutations.pruneMissingConfigs.mutateAsync({ dryRun: false })}
-        />
-
-        <div className="grid gap-3.5 lg:grid-cols-[292px_minmax(0,1fr)]">
+        <div className="grid gap-3.5 lg:grid-cols-[270px_minmax(0,1fr)]">
           <KnowledgeLibrarySidebar
             bases={bases}
             activeKb={activeKb}
@@ -516,260 +248,407 @@ export function KnowledgePage() {
             }}
           />
 
-          <div className="space-y-4">
+          <main className="min-w-0 space-y-3.5">
             {view === "create" ? (
-              <Suspense
-                fallback={
-                  <KnowledgeWorkspaceLoading title="正在准备资料库创建页" description="上传入口和查找服务选项马上就绪。" />
-                }
-              >
-                <KnowledgeCreatePanel
-                  name={createName}
-                  files={createFiles}
-                  provider={activeProvider}
-                  providers={providerOptions}
-                  creating={mutations.create.isPending}
-                  error={mutations.create.error}
-                  onNameChange={setCreateName}
-                  onFilesChange={setCreateFiles}
-                  onProviderChange={setRagProvider}
-                  onSubmit={createKb}
-                  onBack={navigateToOverview}
-                />
-              </Suspense>
+              <KnowledgeCreatePanel
+                name={createName}
+                files={createFiles}
+                creating={mutations.create.isPending}
+                error={mutations.create.error}
+                onNameChange={setCreateName}
+                onFilesChange={setCreateFiles}
+                onSubmit={createKb}
+                onBack={() => navigateToOverview()}
+              />
             ) : null}
 
-            {view === "browse" ? (
-              <Suspense
-                fallback={
-                  <KnowledgeWorkspaceLoading title="正在准备资料工作台" description="资料状态、连接检查和管理入口正在加载。" />
-                }
-              >
-                <KnowledgeWorkspaceContent
-                  activeKb={activeKb}
-                  workspace={workspace}
-                  overview={{
-                  activeStatus,
-                  activeFileCount,
-                  activeDocumentCount,
-                  activeSearchLabel: knowledgeProviderLabel(activeConfig?.rag_provider || kbDetail.data?.rag_provider || "milvus"),
-                  activePath,
-                  progressMessage,
-                  progressPercent,
-                  progressStage,
-                  wsStatus,
-                  taskActive: Boolean(taskId),
-                  documentCount: visibleDocumentCount,
-                  vectorCount: visibleVectorCount,
-                  diagnosticStatus:
-                    ragDiagnostic.data?.readiness?.label ||
-                    formatRagDiagnosticStatus(ragDiagnostic.data?.status, Boolean(ragDiagnostic.error)),
-                  recoveryBadge: recoveryPlan.badge,
-                  recoveryNeedsAttention: recoveryPlan.needsAttention,
-                  evaluationAvailable: Boolean(ragEvaluation.data?.available),
-                  testSourceCount: mutations.testRagSearch.data?.source_count,
-                  folderCount: linkedFolders.data?.length ?? 0,
-                  summaryItems: activeSummaryItems,
-                  reindexing: mutations.reindex.isPending,
-                  diagnosing: ragDiagnostic.isFetching,
-                  defaultActive: defaultBase?.name === activeKb,
-                  settingDefault: mutations.setDefault.isPending,
-                  removing: mutations.remove.isPending,
-                  onReindex: () => void reindexActiveKb(),
-                  onDiagnose: openDiagnostics,
-                  onSetDefault: () => activeKb && void mutations.setDefault.mutateAsync(activeKb),
-                  onDelete: () => {
-                    if (activeKb && window.confirm(`删除资料库 ${activeKb}？`)) void mutations.remove.mutateAsync(activeKb);
-                  },
-                }}
-                diagnostics={{
-                  report: ragDiagnostic.data,
-                  error: ragDiagnostic.error,
-                  fetching: ragDiagnostic.isFetching,
-                  preflight: ragPreflight.data,
-                  preflightError: ragPreflight.error,
-                  preflightFetching: ragPreflight.isFetching,
-                  reindexing: mutations.reindex.isPending,
-                  onRefresh: openDiagnostics,
-                  onOpenRecovery: () => navigateToWorkspace("recovery"),
-                  onOpenTest: () => navigateToWorkspace("test"),
-                  onReindex: () => void reindexActiveKb(),
-                }}
-                recoveryPlan={recoveryPlan}
-                quality={{
-                  report: ragEvaluation.data?.report ?? null,
-                  available: Boolean(ragEvaluation.data?.available),
-                  loading: ragEvaluation.isLoading,
-                  error: ragEvaluation.error,
-                  preset: ragEvalPreset,
-                  running: mutations.runRagEvaluation.isPending,
-                  onRefresh: () => void ragEvaluation.refetch(),
-                  onPresetChange: setRagEvalPreset,
-                  onRun: () => void runActiveRagEvaluation(),
-                }}
-                ragTest={{
-                  query: ragTestQuery,
-                  profile: ragTestProfile,
-                  mode: ragTestMode,
-                  agentic: ragTestAgentic,
-                  topK: ragTestTopK,
-                  agenticMaxContextChars: ragTestAgenticMaxContextChars,
-                  agenticMaxSources: ragTestAgenticMaxSources,
-                  agenticMinRelevantCoverage: ragTestMinRelevantCoverage,
-                  presetId: activeRagTestPresetId,
-                  result: mutations.testRagSearch.data ?? null,
-                  error: mutations.testRagSearch.error,
-                  running: mutations.testRagSearch.isPending,
-                  handoff: ragTestHandoff,
-                  onQueryChange: setRagTestQuery,
-                  onProfileChange: setRagTestProfile,
-                  onModeChange: setRagTestMode,
-                  onAgenticChange: setRagTestAgentic,
-                  onTopKChange: setRagTestTopK,
-                  onAgenticMaxContextCharsChange: setRagTestAgenticMaxContextChars,
-                  onAgenticMaxSourcesChange: setRagTestAgenticMaxSources,
-                  onAgenticMinRelevantCoverageChange: setRagTestMinRelevantCoverage,
-                  onPresetApply: applyRagTestPreset,
-                  onRun: () => void runActiveRagTest(),
-                  onHandoffDismiss: () => setRagTestHandoff(null),
-                  onOpenDiagnostics: openDiagnostics,
-                }}
-                documents={{
-                  documents: documents.data?.documents ?? [],
-                  documentsLoading: documents.isLoading,
-                  documentsError: documents.error,
-                  selectedDocumentId: effectiveSelectedDocumentId,
-                  selectedDocument,
-                  preview: documentPreview.data ?? null,
-                  previewLoading: documentPreview.isLoading || documentPreview.isFetching,
-                  vectorChunks: vectorChunks.data?.chunks ?? [],
-                  vectorTotal: vectorChunks.data?.total ?? 0,
-                  vectorsAvailable: vectorChunks.data?.available !== false,
-                  vectorsError: vectorChunks.data?.error || "",
-                  vectorsLoading: vectorChunks.isLoading || vectorChunks.isFetching,
-                  deletingDocument: mutations.removeDocument.isPending,
-                  deletingChunk: mutations.removeVectorChunk.isPending,
-                  onSelectDocument: setSelectedDocumentId,
-                  onRefresh: () => {
-                    void documents.refetch();
-                    void vectorChunks.refetch();
-                  },
-                  onPreview: setPreviewDocumentId,
-                  onDeleteDocument: (document) => {
-                    if (window.confirm(`删除资料 ${document.name}？这会同步删除对应引用片段。`)) {
-                      void mutations.removeDocument.mutateAsync({
-                        kbName: activeKb,
-                        documentId: document.id,
-                        removeRaw: true,
-                        removeVectors: true,
-                      });
-                    }
-                  },
-                  onDeleteChunk: (chunk) => {
-                    const nodeId = chunk.node_id || chunk.id;
-                    if (nodeId && window.confirm("删除这个引用片段？")) {
-                      void mutations.removeVectorChunk.mutateAsync({ kbName: activeKb, nodeId });
-                    }
-                  },
-                }}
-                upload={{
-                  bases,
-                  files: uploadFiles,
-                  uploading: mutations.upload.isPending,
-                  error: mutations.upload.error,
-                  onKbChange: setSelectedKb,
-                  onFilesChange: setUploadFiles,
-                  onSubmit: uploadToKb,
-                  onRecover: () => navigateToWorkspace("recovery"),
-                }}
-                settings={{
-                  activeConfig,
-                  configFormKey,
-                  saving: mutations.updateConfig.isPending,
-                  onSubmit: saveKbConfig,
-                }}
-                folders={{
-                  folderPath,
-                  folders: linkedFolders.data ?? [],
-                  linking: mutations.linkFolder.isPending,
-                  syncing: mutations.syncFolder.isPending,
-                  unlinking: mutations.unlinkFolder.isPending,
-                  onFolderPathChange: setFolderPath,
-                  onLink: linkFolder,
-                  onSync: (folderId) => void syncFolder(folderId),
-                  onUnlink: (folderId) => {
-                    if (activeKb) void mutations.unlinkFolder.mutateAsync({ kbName: activeKb, folderId });
-                  },
-                }}
-                progress={{
-                  progressStage,
-                  progressMessage,
-                  progressPercent,
-                  wsStatus,
-                  taskMilestones,
-                  taskLogs,
-                  taskStatus: taskStatus.data ?? null,
-                  taskStatusLoading: taskStatus.isLoading || taskStatus.isFetching,
-                  clearing: mutations.clearProgress.isPending,
-                  onClear: () => void clearActiveProgress(),
-                }}
-                  onNavigate={navigateToWorkspace}
-                  onRecoveryAction={handleRecoveryAction}
-                />
-              </Suspense>
+            {view === "browse" && !activeKb && !query.isLoading ? (
+              <EmptyKnowledge onCreate={navigateToCreate} />
             ) : null}
-          </div>
+
+            {view === "browse" && activeKb ? (
+              <>
+                <KnowledgeSummary
+                  activeKb={activeKb}
+                  activeStatus={activeStatus}
+                  defaultActive={activeBase?.is_default || activeKb === backendDefaultName}
+                  documentCount={documentCount}
+                  vectorCount={vectorCount}
+                  providerLabel={providerLabel}
+                  readinessLabel={readinessLabel}
+                  readinessSummary={readinessSummary}
+                  statusTone={statusTone}
+                  settingDefault={mutations.setDefault.isPending}
+                  reindexing={mutations.reindex.isPending}
+                  onSetDefault={() => void mutations.setDefault.mutateAsync(activeKb)}
+                  onReindex={() => void reindexActiveKb()}
+                />
+
+                {latestError ? <ErrorNotice error={latestError} /> : null}
+
+                <AskPanel
+                  query={askQuery}
+                  result={ragResult ?? mutations.testRagSearch.data ?? null}
+                  running={mutations.testRagSearch.isPending}
+                  activeKb={activeKb}
+                  onQueryChange={setAskQuery}
+                  onAsk={() => void askActiveKnowledge()}
+                  onAskInChat={askInChat}
+                />
+
+                <ProgressPanel
+                  progress={liveProgress}
+                  percent={progressPercent}
+                  busy={taskBusy}
+                />
+
+                <UploadPanel
+                  key={`${activeKb}-${uploadInputVersion}`}
+                  files={uploadFiles}
+                  uploading={mutations.upload.isPending}
+                  disabled={!activeKb}
+                  onFilesChange={setUploadFiles}
+                  onSubmit={uploadToKb}
+                />
+
+                <DocumentsPanel
+                  documents={documents.data?.documents ?? []}
+                  loading={documents.isLoading}
+                  refreshing={documents.isFetching}
+                  onRefresh={() => void documents.refetch()}
+                />
+              </>
+            ) : null}
+          </main>
         </div>
       </div>
     </div>
   );
 }
 
-function KnowledgeWorkspaceLoading({ title, description }: { title: string; description: string }) {
-  return (
-    <section className="rounded-lg border border-line bg-white/90 p-5">
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold text-ink">{title}</span>
-        <span className="text-sm leading-6 text-slate-500">{description}</span>
-      </div>
-      <div className="mt-4 space-y-3">
-        <span className="block h-3 w-56 max-w-full rounded bg-slate-100" />
-        <span className="block h-20 rounded bg-slate-100/80" />
-        <span className="block h-20 rounded bg-slate-100/60" />
-      </div>
-    </section>
-  );
-}
-
-function Header({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
+function Header() {
   return (
     <section className="dt-page-header dt-page-header-accent-blue px-3.5 py-3.5">
-      <p className="text-xs font-semibold text-steel">{eyebrow}</p>
-      <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">
-        {title}
-      </h1>
-      <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">{description}</p>
+      <p className="text-xs font-semibold text-steel">资料</p>
+      <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">上传资料，然后直接提问</h1>
+      <p className="mt-2 text-xs leading-5 text-slate-600">默认只保留学习会用到的入口：选资料库、问资料、上传新资料。</p>
     </section>
   );
 }
 
-function knowledgeRouteStateFromPath(pathname: string): { view: KnowledgeView; workspace: KnowledgeWorkspace } {
-  const workspaceSlug = pathname.split("/").filter(Boolean)[1] || "";
-  if (workspaceSlug === "create") {
-    return { view: "create", workspace: "overview" };
-  }
-  if (isKnowledgeWorkspaceId(workspaceSlug)) {
-    return { view: "browse", workspace: workspaceSlug };
-  }
-  return { view: "browse", workspace: "overview" };
+function EmptyKnowledge({ onCreate }: { onCreate: () => void }) {
+  return (
+    <section className="rounded-lg border border-line bg-white p-5">
+      <EmptyState
+        align="left"
+        tone="knowledge"
+        icon={<UploadCloud size={22} />}
+        eyebrow="开始"
+        title="先放入一份资料"
+        description="创建资料库并上传课件、论文或笔记，整理完成后就可以围绕资料提问。"
+        action={
+          <Button tone="primary" onClick={onCreate}>
+            <UploadCloud size={16} />
+            新建资料库
+          </Button>
+        }
+      />
+    </section>
+  );
+}
+
+function KnowledgeSummary({
+  activeKb,
+  activeStatus,
+  defaultActive,
+  documentCount,
+  vectorCount,
+  providerLabel,
+  readinessLabel,
+  readinessSummary,
+  statusTone,
+  settingDefault,
+  reindexing,
+  onSetDefault,
+  onReindex,
+}: {
+  activeKb: string;
+  activeStatus: string;
+  defaultActive: boolean;
+  documentCount: number;
+  vectorCount?: number;
+  providerLabel: string;
+  readinessLabel: string;
+  readinessSummary: string;
+  statusTone: "neutral" | "success" | "warning" | "danger" | "brand";
+  settingDefault: boolean;
+  reindexing: boolean;
+  onSetDefault: () => void;
+  onReindex: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-line bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate text-lg font-semibold leading-tight text-ink">{activeKb}</h2>
+            <Badge tone={statusTone}>{readinessLabel}</Badge>
+            {defaultActive ? <Badge tone="brand">默认</Badge> : null}
+          </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{readinessSummary}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {!defaultActive ? (
+            <Button tone="secondary" className="min-h-9 px-3 text-xs" disabled={settingDefault} onClick={onSetDefault}>
+              {settingDefault ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              设为默认
+            </Button>
+          ) : null}
+          <Button tone="secondary" className="min-h-9 px-3 text-xs" disabled={reindexing} onClick={onReindex}>
+            {reindexing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+            重新整理
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
+        <span className="rounded-md bg-canvas px-2.5 py-1.5">状态：{formatProgressStage(activeStatus)}</span>
+        <span className="rounded-md bg-canvas px-2.5 py-1.5">文档：{documentCount}</span>
+        <span className="rounded-md bg-canvas px-2.5 py-1.5">引用片段：{typeof vectorCount === "number" ? vectorCount : "待整理"}</span>
+        <span className="rounded-md bg-canvas px-2.5 py-1.5">服务：{providerLabel}</span>
+      </div>
+    </section>
+  );
+}
+
+function AskPanel({
+  query,
+  result,
+  running,
+  activeKb,
+  onQueryChange,
+  onAsk,
+  onAskInChat,
+}: {
+  query: string;
+  result: RagSearchTestResult | null;
+  running: boolean;
+  activeKb: string;
+  onQueryChange: (value: string) => void;
+  onAsk: () => void;
+  onAskInChat: () => void;
+}) {
+  const answer = result?.answer || result?.content || "";
+  const sources = result?.sources ?? [];
+
+  return (
+    <section className="rounded-lg border border-line bg-white p-4">
+      <div className="flex items-center gap-2">
+        <MessageCircleQuestion size={18} className="text-charcoal" />
+        <h2 className="text-base font-semibold text-ink">问资料</h2>
+      </div>
+      <div className="mt-3 grid gap-3">
+        <TextArea
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={`例如：这份资料里 ${activeKb} 的核心结论是什么？`}
+          className="min-h-24"
+          data-testid="knowledge-ask-input"
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button tone="primary" disabled={!query.trim() || running} onClick={onAsk} data-testid="knowledge-ask-submit">
+            {running ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            查找答案
+          </Button>
+          <Button tone="secondary" disabled={!query.trim()} onClick={onAskInChat}>
+            <Send size={16} />
+            去对话中问
+          </Button>
+        </div>
+      </div>
+
+      {result ? (
+        <div className="mt-4 border-t border-line pt-4">
+          {answer ? (
+            <div className="max-h-72 overflow-y-auto rounded-lg bg-canvas p-3 text-sm leading-6 text-slate-700 whitespace-pre-wrap">
+              {answer}
+            </div>
+          ) : (
+            <p className="rounded-lg bg-canvas p-3 text-sm leading-6 text-slate-600">
+              找到了 {result.source_count ?? sources.length} 条相关引用，可以打开对话继续追问。
+            </p>
+          )}
+          <SourceList sources={sources} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SourceList({ sources }: { sources: RagSearchSource[] }) {
+  if (!sources.length) return null;
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold text-charcoal">引用来源</p>
+      <div className="mt-2 divide-y divide-line rounded-lg border border-line">
+        {sources.slice(0, 5).map((source, index) => {
+          const title = source.title || source.source || source.chunk_id || `引用 ${index + 1}`;
+          const body = String(source.content || source.evidence_reason || "").trim();
+          return (
+            <div key={`${title}-${index}`} className="p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-medium text-ink">{title}</p>
+                <span className="text-xs text-steel">{formatSourceMeta(source)}</span>
+              </div>
+              {body ? <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">{body}</p> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ProgressPanel({
+  progress,
+  percent,
+  busy,
+}: {
+  progress?: KnowledgeProgress | null;
+  percent: number;
+  busy: boolean;
+}) {
+  if (!progress && !busy) return null;
+  const label = progress?.message
+    ? formatKnowledgeLogLine(progress.message)
+    : busy
+      ? "正在整理资料..."
+      : "资料处理完成";
+  const stage = formatProgressStage(progress?.stage || progress?.status || (busy ? "processing" : "ready"));
+
+  return (
+    <section className="rounded-lg border border-line bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">整理进度</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{label}</p>
+        </div>
+        <Badge tone={busy ? "warning" : "success"}>{stage}</Badge>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${busy ? Math.max(percent, 8) : percent}%` }} />
+      </div>
+    </section>
+  );
+}
+
+function UploadPanel({
+  files,
+  uploading,
+  disabled,
+  onFilesChange,
+  onSubmit,
+}: {
+  files: File[];
+  uploading: boolean;
+  disabled: boolean;
+  onFilesChange: (files: File[]) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-line bg-white p-4">
+      <div className="flex items-center gap-2">
+        <UploadCloud size={18} className="text-charcoal" />
+        <h2 className="text-base font-semibold text-ink">上传资料</h2>
+      </div>
+      <form className="mt-3 grid gap-3" onSubmit={onSubmit}>
+        <FieldShell label="选择文件" hint="支持 PDF、Markdown、文本和代码文件">
+          <FileInput
+            multiple
+            disabled={disabled || uploading}
+            buttonLabel="选择资料"
+            emptyLabel="未选择资料"
+            onChange={(event) => onFilesChange(Array.from(event.target.files ?? []))}
+            data-testid="knowledge-upload-files"
+          />
+        </FieldShell>
+        {files.length ? <FileList files={files} /> : null}
+        <div>
+          <Button tone="primary" type="submit" disabled={!files.length || uploading || disabled} data-testid="knowledge-upload-submit">
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+            上传并整理
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function DocumentsPanel({
+  documents,
+  loading,
+  refreshing,
+  onRefresh,
+}: {
+  documents: KnowledgeDocumentSummary[];
+  loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-line bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FileText size={18} className="text-charcoal" />
+          <h2 className="text-base font-semibold text-ink">已整理的文档</h2>
+        </div>
+        <Button tone="quiet" className="min-h-8 px-2 text-xs" onClick={onRefresh} title="刷新文档" aria-label="刷新文档">
+          {refreshing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 space-y-2">
+          <span className="block h-10 rounded bg-slate-100" />
+          <span className="block h-10 rounded bg-slate-100/80" />
+        </div>
+      ) : null}
+
+      {!loading && !documents.length ? (
+        <p className="mt-3 rounded-lg bg-canvas p-3 text-sm leading-6 text-slate-600">还没有文档。先上传一份资料，整理完成后会出现在这里。</p>
+      ) : null}
+
+      {!loading && documents.length ? (
+        <div className="mt-3 divide-y divide-line rounded-lg border border-line">
+          {documents.slice(0, 8).map((document) => (
+            <div key={document.id} className="flex items-center justify-between gap-3 p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">{document.name}</p>
+                <p className="mt-1 text-xs text-steel">
+                  {document.size_human || (typeof document.size === "number" ? formatBytes(document.size) : "未知大小")} ·{" "}
+                  {formatDocDate(document.modified_at)}
+                </p>
+              </div>
+              <Badge tone={document.vectors_available || document.vector_count ? "success" : "neutral"}>
+                {document.vector_count ? `${document.vector_count} 片段` : document.vectors_available ? "可引用" : "待整理"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ErrorNotice({ error }: { error: unknown }) {
+  return (
+    <section className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
+      <div className="flex gap-2">
+        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+        <span>{formatErrorMessage(error)}</span>
+      </div>
+    </section>
+  );
 }
 
 function knowledgeSearch(kbName: string, taskId?: string | null) {
@@ -796,4 +675,63 @@ function searchParamValue(search: unknown, key: string) {
   const value = (search as Record<string, unknown>)[key];
   if (Array.isArray(value)) return String(value[0] ?? "").trim();
   return value == null ? "" : String(value).trim();
+}
+
+function searchCacheKey(search: unknown) {
+  if (typeof search === "string") return search;
+  if (!search || typeof search !== "object") return "";
+  return JSON.stringify(search);
+}
+
+function readNumber(source: unknown, key: string) {
+  if (!source || typeof source !== "object" || !(key in source)) return undefined;
+  const value = (source as Record<string, unknown>)[key];
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizePercent(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(100, Math.max(0, parsed));
+}
+
+function isBusyProgress(progress?: KnowledgeProgress | null) {
+  const status = String(progress?.stage || progress?.status || "").toLowerCase();
+  return ["queued", "init", "running", "processing", "indexing", "uploaded"].some((item) => status.includes(item));
+}
+
+function isTerminalProgressState(progress?: KnowledgeProgress | null) {
+  const status = String(progress?.stage || progress?.status || "").toLowerCase();
+  return ["complete", "completed", "done", "failed", "error", "cancelled", "canceled"].includes(status);
+}
+
+function knowledgeStatusTone(
+  activeStatus: string,
+  diagnosticError: unknown,
+  diagnosticStatus?: string,
+  readinessState?: string,
+): "neutral" | "success" | "warning" | "danger" | "brand" {
+  if (diagnosticError) return "danger";
+  const readiness = String(readinessState || "").toLowerCase();
+  const diagnostic = String(diagnosticStatus || "").toLowerCase();
+  const status = String(activeStatus || "").toLowerCase();
+  if (readiness.includes("ready") || diagnostic === "ok" || status === "ready" || status === "done" || status === "completed") return "success";
+  if (diagnostic === "error" || status.includes("error") || status.includes("fail")) return "danger";
+  if (diagnostic === "warning" || isBusyProgress({ status })) return "warning";
+  return "neutral";
+}
+
+function buildReadinessSummary(activeStatus: string, documentCount: number, vectorCount?: number) {
+  if (!documentCount) return "当前资料库还没有文档，上传后系统会自动整理为可引用内容。";
+  if (typeof vectorCount === "number" && vectorCount > 0) return "资料已经整理好，可以直接提问或在对话中引用。";
+  if (isBusyProgress({ status: activeStatus })) return "资料正在整理，完成后就能稳定引用。";
+  return "资料已保存，如回答找不到内容，可以重新整理一次。";
+}
+
+function formatSourceMeta(source: RagSearchSource) {
+  const parts: string[] = [];
+  if (source.page) parts.push(`第 ${source.page} 页`);
+  if (source.score !== undefined && source.score !== null) parts.push(`相关度 ${source.score}`);
+  return parts.join(" · ");
 }

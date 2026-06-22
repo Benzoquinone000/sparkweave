@@ -1,0 +1,377 @@
+{
+  "id": "intelligent_robot_systems",
+  "title": "完整课程：智能机器人系统",
+  "course_id": "ROBOT301",
+  "course_name": "智能机器人系统",
+  "description": "面向人工智能、自动化、计算机和机器人工程相关专业本科高年级学生的 11 周实践课程。课程依据 ppts/智能机器人系统 目录下的课件组织，覆盖智能机器人概论、运动机构、运动控制与规划、机器人传感、导航定位、ROS 基础、ROS 通信机制、roscpp/rospy 编程、常用工具、TF/URDF 以及基于 ROS 的导航应用。",
+  "target_learners": "具备 Python 或 C++ 基础，了解基本线性代数和控制概念，希望完成 ROS 机器人导航入门项目的本科生。",
+  "level": "intermediate",
+  "suggested_weeks": 11,
+  "credits": 3,
+  "estimated_minutes": 820,
+  "knowledge_base_name": "智能机器人系统",
+  "tags": ["robotics", "ros", "navigation", "slam", "tf", "urdf", "simulation"],
+  "source_materials": [
+    "ppts/智能机器人系统/第1章 智能机器人概论.pdf",
+    "ppts/智能机器人系统/第2章 智能机器人运动.pdf",
+    "ppts/智能机器人系统/第3章 智能机器人运动控制与规划.pdf",
+    "ppts/智能机器人系统/第4章 机器人传感.pdf",
+    "ppts/智能机器人系统/第5章 机器人导航定位.pdf",
+    "ppts/智能机器人系统/第6章 ROS基础.pdf",
+    "ppts/智能机器人系统/第7章 ROS通信机制.pdf",
+    "ppts/智能机器人系统/第8章 ROS编程roscpp+rospy.pdf",
+    "ppts/智能机器人系统/第9章 常用工具.pdf",
+    "ppts/智能机器人系统/第10章 TF&&URDF.pdf",
+    "ppts/智能机器人系统/第11章 基于ROS的智能机器人导航应用.pdf"
+  ],
+  "default_goal": "我想系统学习智能机器人系统，从机器人组成、运动、传感和导航定位学到 ROS 通信、编程、TF/URDF 和导航应用，并完成一个基于 ROS 的机器人导航项目报告。",
+  "default_preferences": ["visual", "practice", "external_video"],
+  "default_time_budget_minutes": 45,
+  "learning_outcomes": [
+    "能说明智能机器人的系统组成、关键技术和课程实践目标。",
+    "能解释机器人运动机构、驱动方式和移动机器人运动学直觉。",
+    "能理解移动机器人曲线规划、运动学模型、动力学模型和误差控制的基本关系。",
+    "能比较测距、视觉、双目立体等传感器在机器人任务中的作用。",
+    "能说明自主导航中的定位、建图、SLAM 和地图表示方法。",
+    "能使用 ROS 基础概念解释工作空间、节点、包、命令和运行架构。",
+    "能区分 Topic、Service、Parameter Server 和 Action 的适用场景。",
+    "能用 roscpp 或 rospy 说明节点编程、发布订阅、服务调用和运动控制示例。",
+    "能使用 Gazebo、Rviz、rqt、命令行工具和 MoveIt 辅助仿真与调试。",
+    "能解释 TF 坐标转换和 URDF 机器人描述在导航应用中的作用。",
+    "能整理一份基于 ROS 的导航应用学习报告，包含地图、定位、路径规划、调试证据和复盘。"
+  ],
+  "assessment": [
+    { "name": "章节小测", "weight": 20, "description": "围绕机器人系统、运动控制、传感、SLAM 和 ROS 概念完成小测。" },
+    { "name": "实践练习", "weight": 30, "description": "完成 ROS 节点通信、工具使用、TF/URDF 和导航流程练习。" },
+    { "name": "资料问答与调试证据", "weight": 15, "description": "使用课件和可公开资料回答问题，并保留来源、命令输出或调试记录。" },
+    { "name": "课程项目报告", "weight": 25, "description": "完成一个基于 ROS 的机器人导航应用报告，说明地图、定位、规划和工具链。" },
+    { "name": "学习反思", "weight": 10, "description": "记录薄弱点、资源使用体验和下一步补救计划。" }
+  ],
+  "project_milestones": [
+    { "week": 1, "topic": "智能机器人概论", "deliverable": "机器人系统组成图和课程目标卡" },
+    { "week": 2, "topic": "智能机器人运动", "deliverable": "运动机构、驱动方式和底盘结构说明" },
+    { "week": 3, "topic": "运动控制与规划", "deliverable": "曲线规划、误差控制和运动学模型图" },
+    { "week": 4, "topic": "机器人传感", "deliverable": "传感器类型、作用和应用场景对比表" },
+    { "week": 5, "topic": "机器人导航定位", "deliverable": "定位、建图、SLAM 和地图表示关系图" },
+    { "week": 6, "topic": "ROS 基础", "deliverable": "ROS 架构、工作空间、包和常用命令清单" },
+    { "week": 7, "topic": "ROS 通信机制", "deliverable": "Topic、Service、Parameter、Action 场景判断表" },
+    { "week": 8, "topic": "ROS 编程 roscpp / rospy", "deliverable": "一个发布订阅或运动控制节点练习" },
+    { "week": 9, "topic": "常用工具", "deliverable": "Gazebo、Rviz、rqt、命令行工具调试记录" },
+    { "week": 10, "topic": "TF 与 URDF", "deliverable": "机器人坐标树和 URDF 结构说明" },
+    { "week": 11, "topic": "基于 ROS 的导航应用", "deliverable": "导航应用项目报告和 7 分钟演示素材" }
+  ],
+  "nodes": [
+    {
+      "node_id": "RB1",
+      "title": "智能机器人概论",
+      "description": "理解机器人发展历史、智能机器人关键组成和课程项目目标。",
+      "difficulty": "easy",
+      "estimated_minutes": 55,
+      "tags": ["overview", "robotics"],
+      "mastery_target": "能用一张图说明智能机器人由感知、运动、控制、规划和执行组成。",
+      "resource_strategy": ["concept map", "external_video"]
+    },
+    {
+      "node_id": "RB2",
+      "title": "智能机器人运动",
+      "description": "学习机器人运动机构、机构设计和驱动方式，建立移动平台直觉。",
+      "prerequisites": ["RB1"],
+      "difficulty": "medium",
+      "estimated_minutes": 65,
+      "tags": ["motion", "mechanism"],
+      "mastery_target": "能解释移动机器人常见运动机构和驱动方式的差异。",
+      "resource_strategy": ["comparison table", "visual"]
+    },
+    {
+      "node_id": "RB3",
+      "title": "运动控制与规划",
+      "description": "理解移动机器人的曲线规划、运动学模型、动力学模型和误差控制。",
+      "prerequisites": ["RB2"],
+      "difficulty": "hard",
+      "estimated_minutes": 85,
+      "tags": ["control", "planning"],
+      "mastery_target": "能画出目标轨迹、误差、控制器和实际运动之间的闭环关系。",
+      "resource_strategy": ["diagram", "practice"]
+    },
+    {
+      "node_id": "RB4",
+      "title": "机器人传感",
+      "description": "学习传感器概述、测距传感器、针孔相机、透视投影和双目立体视觉。",
+      "prerequisites": ["RB1"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["sensor", "vision"],
+      "mastery_target": "能比较激光雷达、相机、IMU 和双目视觉在机器人感知中的作用。",
+      "resource_strategy": ["case study", "visual"]
+    },
+    {
+      "node_id": "RB5",
+      "title": "机器人导航定位",
+      "description": "理解自主导航的三个基本问题、定位、建图、SLAM 和地图表示。",
+      "prerequisites": ["RB4"],
+      "difficulty": "hard",
+      "estimated_minutes": 85,
+      "tags": ["navigation", "slam", "localization"],
+      "mastery_target": "能说明我在哪里、如何到达目标、如何表达地图这三件事如何配合。",
+      "resource_strategy": ["concept map", "quiz"]
+    },
+    {
+      "node_id": "RB6",
+      "title": "ROS 基础",
+      "description": "学习 ROS 的缘由、发展历史、架构、安装配置、文件系统级工程概念和常用命令。",
+      "prerequisites": ["RB1"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["ros", "workspace"],
+      "mastery_target": "能说明 ROS 工作空间、package、node 和常用命令的关系。",
+      "resource_strategy": ["step-by-step", "practice"]
+    },
+    {
+      "node_id": "RB7",
+      "title": "ROS 通信机制",
+      "description": "学习 Master、Node、Topic、Service、Parameter Server 和 Action 的通信方式。",
+      "prerequisites": ["RB6"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["ros", "topic", "service", "action"],
+      "mastery_target": "能按场景判断应使用 Topic、Service、Parameter 还是 Action。",
+      "resource_strategy": ["quiz", "comparison table"]
+    },
+    {
+      "node_id": "RB8",
+      "title": "ROS 编程 roscpp 与 rospy",
+      "description": "学习 Client Library、roscpp、rospy、发布订阅、服务和运动控制节点示例。",
+      "prerequisites": ["RB7"],
+      "difficulty": "hard",
+      "estimated_minutes": 85,
+      "tags": ["roscpp", "rospy", "coding"],
+      "mastery_target": "能写出一个简单 ROS 节点的结构，并说明消息如何流动。",
+      "resource_strategy": ["code walkthrough", "practice"]
+    },
+    {
+      "node_id": "RB9",
+      "title": "ROS 常用工具",
+      "description": "学习 Gazebo、Rviz、rqt、命令行工具和 MoveIt 在仿真、可视化和调试中的作用。",
+      "prerequisites": ["RB6"],
+      "difficulty": "medium",
+      "estimated_minutes": 65,
+      "tags": ["gazebo", "rviz", "rqt", "moveit"],
+      "mastery_target": "能选择合适工具观察模型、话题、坐标和仿真结果。",
+      "resource_strategy": ["tool checklist", "practice"]
+    },
+    {
+      "node_id": "RB10",
+      "title": "TF 与 URDF",
+      "description": "学习 ROS 中坐标转换 TF 和统一机器人描述格式 URDF。",
+      "prerequisites": ["RB7"],
+      "difficulty": "hard",
+      "estimated_minutes": 80,
+      "tags": ["tf", "urdf", "coordinate"],
+      "mastery_target": "能画出机器人坐标树，并解释 URDF 如何描述机器人结构。",
+      "resource_strategy": ["visual", "debug drill"]
+    },
+    {
+      "node_id": "RB11",
+      "title": "基于 ROS 的导航应用",
+      "description": "综合 ROS 地图、SLAM、AMCL、全局路径规划、局部路径规划和 Navigation 流程。",
+      "prerequisites": ["RB5", "RB10"],
+      "difficulty": "hard",
+      "estimated_minutes": 105,
+      "tags": ["navigation", "slam", "amcl", "path-planning"],
+      "mastery_target": "能说明 ROS 导航应用中地图、定位、规划和控制之间的关系。",
+      "resource_strategy": ["project checklist", "report"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "R1",
+      "node_id": "RB1",
+      "type": "visualize",
+      "title": "画出智能机器人系统组成图",
+      "instruction": "用一张图说明智能机器人由运动平台、传感器、控制器、规划算法、执行机构和 ROS 软件层组成。",
+      "estimated_minutes": 14,
+      "success_criteria": ["包含硬件和软件层", "能说出至少三类关键技术"]
+    },
+    {
+      "task_id": "R2",
+      "node_id": "RB2",
+      "type": "compare",
+      "title": "比较机器人运动机构和驱动方式",
+      "instruction": "选择轮式、履带式或足式等运动机构，比较它们的运动特点、适用场景和驱动方式。",
+      "estimated_minutes": 16,
+      "success_criteria": ["至少比较两类机构", "能说明适用场景"]
+    },
+    {
+      "task_id": "R3",
+      "node_id": "RB3",
+      "type": "visualize",
+      "title": "画出移动机器人控制闭环",
+      "instruction": "画出目标轨迹、误差、控制器、机器人实际位置和传感器反馈之间的关系。",
+      "estimated_minutes": 20,
+      "success_criteria": ["闭环关系完整", "能解释误差如何影响控制量"]
+    },
+    {
+      "task_id": "R4",
+      "node_id": "RB4",
+      "type": "compare",
+      "title": "整理机器人传感器对比表",
+      "instruction": "比较激光雷达、RGBD 相机、IMU、编码器和双目相机的输入数据、优点、限制和典型用途。",
+      "estimated_minutes": 18,
+      "success_criteria": ["至少覆盖四类传感器", "能说明感知数据如何服务导航或控制"]
+    },
+    {
+      "task_id": "R5",
+      "node_id": "RB5",
+      "type": "explain",
+      "title": "解释机器人导航定位三问",
+      "instruction": "围绕“我在哪里”“怎样到达那里”“地图如何表示”三个问题，说明定位、SLAM 和路径规划的关系。",
+      "estimated_minutes": 18,
+      "success_criteria": ["三问对应清楚", "能说出 SLAM 的作用"]
+    },
+    {
+      "task_id": "R6",
+      "node_id": "RB6",
+      "type": "practice",
+      "title": "整理 ROS 工作空间和常用命令",
+      "instruction": "写出 ROS 工作空间、package、node、launch 和常用命令之间的关系，并说明一次节点启动流程。",
+      "estimated_minutes": 18,
+      "success_criteria": ["术语关系清楚", "包含至少四条常用命令"]
+    },
+    {
+      "task_id": "R7",
+      "node_id": "RB7",
+      "type": "quiz",
+      "title": "判断 ROS 通信机制适用场景",
+      "instruction": "完成一组选择或判断题，区分 Topic、Service、Parameter Server 和 Action 的典型使用场景。",
+      "estimated_minutes": 15,
+      "success_criteria": ["能说明选择依据", "至少举出三个机器人场景"]
+    },
+    {
+      "task_id": "R8",
+      "node_id": "RB8",
+      "type": "code",
+      "title": "写出 ROS 节点编程骨架",
+      "instruction": "用 roscpp 或 rospy 写出一个发布订阅节点的伪代码，并解释初始化、NodeHandle、Publisher、Subscriber 和回调函数。",
+      "estimated_minutes": 24,
+      "success_criteria": ["代码结构完整", "能说明消息流动方向"]
+    },
+    {
+      "task_id": "R9",
+      "node_id": "RB9",
+      "type": "practice",
+      "title": "完成 ROS 工具调试清单",
+      "instruction": "列出 Gazebo、Rviz、rqt、命令行工具和 MoveIt 的作用，并给出一个调试坐标或话题问题的工具选择方案。",
+      "estimated_minutes": 18,
+      "success_criteria": ["工具用途清楚", "能选择工具解决具体调试问题"]
+    },
+    {
+      "task_id": "R10",
+      "node_id": "RB10",
+      "type": "visualize",
+      "title": "画出 TF 坐标树和 URDF 结构",
+      "instruction": "画出 base_link、odom、map、laser_frame 等坐标关系，并说明 URDF 如何描述机器人 link 和 joint。",
+      "estimated_minutes": 22,
+      "success_criteria": ["坐标父子关系清楚", "能解释 link 和 joint"]
+    },
+    {
+      "task_id": "R11",
+      "node_id": "RB11",
+      "type": "project",
+      "title": "完成 ROS 导航应用项目报告",
+      "instruction": "整理地图、SLAM、AMCL、全局路径规划、局部路径规划、TF/URDF 和调试记录，完成一份导航应用项目报告。",
+      "estimated_minutes": 30,
+      "success_criteria": ["报告结构完整", "包含资料来源和调试证据", "能说明导航流程闭环"]
+    }
+  ],
+  "learning_path": {
+    "title": "智能机器人系统 11 周实践路线",
+    "rationale": "先建立智能机器人系统全景，再学习运动、控制、传感和导航定位；随后进入 ROS 基础、通信、编程和工具链，最后用 TF/URDF 与导航应用收束到课程项目。",
+    "node_sequence": ["RB1", "RB2", "RB3", "RB4", "RB5", "RB6", "RB7", "RB8", "RB9", "RB10", "RB11"],
+    "today_focus": "先完成智能机器人系统组成图，再进入运动机构和传感器对比。",
+    "next_recommendation": "如果 ROS 通信机制还不稳，先做 Topic、Service、Parameter、Action 判断题；如果已经掌握，再进入 TF/URDF 和导航应用。"
+  },
+  "recommendations": [
+    "先用图解建立智能机器人系统全景，再进入 ROS 工具和命令。",
+    "运动控制、导航定位和 TF 坐标容易混在一起，建议每学完一章都保存一张关系图。",
+    "ROS 通信机制适合用场景判断题巩固，避免只背 Topic、Service 等术语。",
+    "课程项目报告要保存调试证据，例如话题列表、坐标树、地图截图和导航流程说明。"
+  ],
+  "demo_seed": {
+    "title": "智能机器人系统课程学习样例",
+    "scenario": "从机器人系统组成图开始，接入传感与导航定位，再进入 ROS 通信、TF/URDF 和导航应用，最后用学习记录生成项目报告。",
+    "persona": {
+      "goal": "系统学习智能机器人系统，先补齐 ROS 通信、TF/URDF 和导航定位这几块薄弱点。",
+      "weak_points": ["ROS 通信机制适用场景不清楚", "TF 坐标父子关系容易混淆", "导航应用中地图、定位、规划的边界不稳"],
+      "preferences": ["visual", "practice", "external_video"],
+      "time_budget_minutes": 45
+    },
+    "task_chain": ["R1", "R5", "R7", "R10", "R11"],
+    "resource_prompts": {
+      "R1": "生成一张智能机器人系统组成图，展示运动平台、传感器、控制器、规划算法、执行机构和 ROS 软件层。",
+      "R5": "生成一张导航定位三问关系图，解释定位、SLAM、地图表示和路径规划如何配合。",
+      "R7": "生成一组 ROS Topic、Service、Parameter、Action 场景判断题，并等我作答后分析错因。",
+      "R10": "生成一张 TF 坐标树和 URDF link/joint 结构图，解释 base_link、odom、map 和传感器坐标。",
+      "R11": "根据学习记录生成 ROS 导航应用项目报告提纲，包含地图、定位、规划、TF 和调试证据。"
+    },
+    "sample_artifacts": [
+      {
+        "task_id": "R1",
+        "type": "visual",
+        "title": "智能机器人系统组成图学习素材",
+        "preview": "运动平台、传感器、控制器、规划算法、执行机构和 ROS 软件层之间的数据流。",
+        "demo_action": "资源生成较慢时，直接展示这张组成图结构，说明系统会先帮学生建立全景。",
+        "talking_point": "机器人课程概念多，先画系统图能让学生知道后面每章放在什么位置。",
+        "diagram_nodes": ["运动平台", "传感器", "控制器", "规划算法", "执行机构", "ROS 软件层"],
+        "key_takeaways": ["先看系统层次", "再看运动与传感", "最后进入 ROS 和导航"],
+        "evidence_points": ["第1章 智能机器人概论课件", "学习任务 R1", "学生反馈"]
+      },
+      {
+        "task_id": "R7",
+        "type": "quiz",
+        "title": "ROS 通信机制辨析练习素材",
+        "preview": "连续数据流、一问一答、运行配置和长任务反馈四类场景的选择题。",
+        "demo_action": "提交练习后展示错因反馈，说明练习结果会回写画像。",
+        "talking_point": "Topic、Service、Parameter 和 Action 是 ROS 学习高频卡点，适合用小测而不是只背定义。",
+        "quiz_items": [
+          { "type": "choice", "question": "持续发布激光雷达扫描数据更适合用什么机制？", "answer": "Topic" },
+          { "type": "choice", "question": "请求一次抓取动作并等待结果更适合用什么机制？", "answer": "Action" },
+          { "type": "judgement", "question": "最大速度、地图路径这类运行配置可以放入 Parameter Server。", "answer": "正确" }
+        ],
+        "key_takeaways": ["连续数据用 Topic", "长耗时任务用 Action", "配置数据用 Parameter"]
+      },
+      {
+        "task_id": "R10",
+        "type": "visual",
+        "title": "TF 与 URDF 图解素材",
+        "preview": "map、odom、base_link、laser_frame 的坐标父子关系，以及 URDF 中 link 和 joint 的结构。",
+        "demo_action": "展示 TF 坐标树和 URDF 结构图，说明图解智能体如何服务抽象空间关系。",
+        "talking_point": "TF 和 URDF 是机器人导航项目的关键前置知识，用图讲会比纯文字更稳。",
+        "diagram_nodes": ["map", "odom", "base_link", "laser_frame", "camera_link", "link", "joint"],
+        "quiz_items": [
+          { "type": "choice", "question": "机器人本体坐标系通常用哪个 frame 表示？", "answer": "base_link" },
+          { "type": "judgement", "question": "URDF 只描述坐标关系，不包含机器人 link 和 joint。", "answer": "错误" }
+        ],
+        "evidence_points": ["第10章 TF&&URDF 课件", "坐标树图解", "学习任务 R10"]
+      },
+      {
+        "task_id": "R11",
+        "type": "report",
+        "title": "ROS 导航应用项目报告素材",
+        "preview": "报告汇总 ROS 地图、SLAM、AMCL、全局路径规划、局部路径规划、TF/URDF 和调试记录。",
+        "demo_action": "在记录页展示学习证据后，打开报告提纲，说明学习效果评估会回到项目产出。",
+        "talking_point": "最终产出回到导航应用项目，能证明系统支持一门真实实践课而不只是聊天。",
+        "report_sections": ["课程主题", "地图与 SLAM", "定位与 AMCL", "路径规划", "TF/URDF", "调试证据", "下一步计划"],
+        "sample_prescription": {
+          "weak_point": "TF 坐标父子关系不稳",
+          "next_action": "先补一张 TF 坐标树，再做 ROS 通信机制复测",
+          "resource_type": "visual"
+        }
+      }
+    ],
+    "sample_reflection": {
+      "score": 0.74,
+      "reflection": "我能说清 ROS 通信机制，但导航应用里地图、定位和路径规划的边界还需要用图再练一次。",
+      "mistake_types": ["concept_boundary", "coordinate_frame"]
+    }
+  }
+}

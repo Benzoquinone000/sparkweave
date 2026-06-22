@@ -1,3 +1,0 @@
-{"id":"concept-gradient-01","kb_name":"ml-course","query_type":"concept","topic":"optimization","question":"为什么梯度下降要沿着负梯度方向更新参数？","expected_keywords":["负梯度","损失函数","最陡下降"],"expected_sources":["gradient"]}
-{"id":"exact-code-01","kb_name":"cpp-course","query_type":"code","topic":"cpp-move","question":"C++ 中 std::move 的作用是什么？","expected_keywords":["右值引用","移动语义","资源转移"],"expected_sources":["std::move"]}
-{"id":"guide-weakness-01","kb_name":"ml-course","query_type":"guide","topic":"generalization","question":"我总是分不清过拟合和欠拟合，应该先补什么？","expected_keywords":["过拟合","欠拟合","泛化"],"expected_sources":["generalization"]}

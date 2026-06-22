@@ -1451,7 +1451,7 @@ class LearningCapabilityRouter:
         output_mode = "video"
         if LearningCapabilityRouter.contains_any(text, ("分镜", "插图", "图片", "image", "storyboard")):
             output_mode = "image"
-        config = {"output_mode": output_mode, "quality": "medium"}
+        config = {"output_mode": output_mode, "quality": "high"}
         hints = LearningCapabilityRouter.learner_profile_hints(context)
         guidance = LearningCapabilityRouter.learner_profile_guidance(context)
         if guidance:

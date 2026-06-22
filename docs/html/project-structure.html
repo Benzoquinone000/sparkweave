@@ -1,0 +1,345 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>项目结构说明</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="项目结构说明">项目结构说明</h1>
+<p>SparkWeave 的提交包由后端服务、前端工作台、课程模板、部署配置、验证文件和配套文档组成。评委可以把它理解为一个可运行的学习系统，而不是只用于展示的页面原型。</p>
+<h2 id="根目录">根目录</h2>
+<table>
+<thead>
+<tr class="header">
+<th>路径</th>
+<th>内容</th>
+<th>对交付的意义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sparkweave/</code></td>
+<td>后端服务、多智能体运行时、RAG、学习画像、讯飞工具和业务能力</td>
+<td>支撑个性化学习、资料问答、资源生成和评估</td>
+</tr>
+<tr class="even">
+<td><code>web/</code></td>
+<td>React 前端工作台</td>
+<td>提供学习、资料、记录、设置和更多工具入口</td>
+</tr>
+<tr class="odd">
+<td><code>data/course_templates/</code></td>
+<td>完整课程模板</td>
+<td>满足“至少一门完整高校专业课程”的要求</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave_cli/</code></td>
+<td>命令行入口</td>
+<td>便于复用能力、检查配置和管理资料库</td>
+</tr>
+<tr class="odd">
+<td><code>scripts/</code></td>
+<td>项目检查、课程模板校验、课程课件入库、API 合约和发布安全检查</td>
+<td>用于提交前验证</td>
+</tr>
+<tr class="even">
+<td><code>tests/</code></td>
+<td>后端服务、API、运行时和验证入口测试</td>
+<td>说明核心行为有自动化覆盖</td>
+</tr>
+<tr class="odd">
+<td><code>requirements/</code></td>
+<td>Python 依赖分层</td>
+<td>区分服务端、数学动画、课程助教和验证环境等依赖</td>
+</tr>
+<tr class="even">
+<td><code>docs/</code></td>
+<td>配套说明文档</td>
+<td>解释赛题对应、架构、配置、数据和测试方式</td>
+</tr>
+<tr class="odd">
+<td><code>docker-compose.yml</code></td>
+<td>本地完整运行编排</td>
+<td>启动后端、前端和 Milvus 资料库依赖</td>
+</tr>
+<tr class="even">
+<td><code>Dockerfile</code></td>
+<td>后端和生产镜像构建</td>
+<td>提供模型服务、前端构建和运行环境基础</td>
+</tr>
+<tr class="odd">
+<td><code>.env.example</code></td>
+<td>环境变量样例</td>
+<td>说明模型、Embedding、搜索、讯飞工具和端口配置</td>
+</tr>
+<tr class="even">
+<td><code>README.md</code></td>
+<td>项目首屏说明</td>
+<td>给出系统入口、Docker 启动、截图和参赛交付说明</td>
+</tr>
+</tbody>
+</table>
+<h2 id="后端结构">后端结构</h2>
+<p><code>sparkweave/</code> 是系统主体，核心目录如下：</p>
+<table>
+<thead>
+<tr class="header">
+<th>路径</th>
+<th>负责内容</th>
+<th>典型能力</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sparkweave/api/</code></td>
+<td>FastAPI 路由和 WebSocket 入口</td>
+<td>前端页面调用、统一对话、资料库、学习画像、设置</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/runtime/</code></td>
+<td>一次学习请求的执行管理</td>
+<td>学习任务状态、上下文注入、能力路由、事件流</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/graphs/</code></td>
+<td>多阶段智能体流程</td>
+<td>对话、解题、出题、研究、可视化、数学动画</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/tools/</code></td>
+<td>大模型可调用工具</td>
+<td>RAG、联网搜索、讯飞工作流、公式识别、图片理解、代码执行</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/services/</code></td>
+<td>可测试的业务服务</td>
+<td>配置、Agentic RAG、学习画像、学习效果、语音、OCR、课程导学、课程助教</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/knowledge/</code></td>
+<td>资料库管理</td>
+<td>文档导入、进度跟踪、知识库状态和重建</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/core/</code></td>
+<td>公共协议和数据结构</td>
+<td>统一上下文、事件、工具协议、能力协议</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/plugins/</code></td>
+<td>可扩展插件入口</td>
+<td>工具和能力的发现与列表展示</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/sparkbot/</code></td>
+<td>长期课程助教相关能力</td>
+<td>课程文件、助教人格、提醒和消息通道</td>
+</tr>
+</tbody>
+</table>
+<p>这部分对应赛题里的“多智能体系统”和“可完整运行的相关文件”。学习请求进入后端后，会被转成统一上下文，再由运行时决定是直接回答、进入 Agentic RAG 检索证据、生成练习、画图、做动画，还是进入课程助教流程。课程助教的外部通道位于 <code>sparkweave/services/sparkbot_support/</code>，其中包含 QQ 通道配置和消息收发实现。</p>
+<h2 id="前端结构">前端结构</h2>
+<p><code>web/</code> 是评委和学生直接看到的工作台。</p>
+<table>
+<thead>
+<tr class="header">
+<th>路径</th>
+<th>内容</th>
+<th>页面体现</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>web/src/pages/</code></td>
+<td>页面级功能</td>
+<td>学习、资料、记录、设置、问问题、练习、画像、课程助教</td>
+</tr>
+<tr class="even">
+<td><code>web/src/components/</code></td>
+<td>可复用组件</td>
+<td>应用壳、聊天消息、资料证据、按钮和结果渲染</td>
+</tr>
+<tr class="odd">
+<td><code>web/src/hooks/</code></td>
+<td>前端数据和运行时状态</td>
+<td>WebSocket 对话、API 查询、页面状态</td>
+</tr>
+<tr class="even">
+<td><code>web/src/lib/</code></td>
+<td>API 客户端、类型和展示工具</td>
+<td>前后端接口、能力说明、路径和格式化</td>
+</tr>
+<tr class="odd">
+<td><code>web/src/styles/</code></td>
+<td>全局样式</td>
+<td>简洁、低噪声的学习工作台视觉风格</td>
+</tr>
+<tr class="even">
+<td><code>web/screenshots-*.png</code></td>
+<td>当前界面截图</td>
+<td>用于 README、文档和展示材料</td>
+</tr>
+</tbody>
+</table>
+<p>前端主入口按真实学习任务组织：学习、资料、记录、设置。Agent、RAG、诊断等能力默认收进“更多工具”，避免让学生先面对一堆技术名词。</p>
+<h2 id="课程与数据">课程与数据</h2>
+<table>
+<thead>
+<tr class="header">
+<th>路径</th>
+<th>内容</th>
+<th>是否建议提交</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>data/course_templates/deep_learning/deep_learning_foundations.json</code></td>
+<td>深度学习课程模板</td>
+<td>提交</td>
+</tr>
+<tr class="even">
+<td><code>data/course_templates/intelligent_robot_systems/intelligent_robot_systems.json</code></td>
+<td>智能机器人系统课程模板</td>
+<td>提交</td>
+</tr>
+<tr class="odd">
+<td><code>ppts/深度学习/</code></td>
+<td>深度学习课程参考课件</td>
+<td>按比赛材料和授权边界确认</td>
+</tr>
+<tr class="even">
+<td><code>ppts/智能机器人系统/</code></td>
+<td>智能机器人系统课程参考课件</td>
+<td>按比赛材料和授权边界确认</td>
+</tr>
+<tr class="odd">
+<td><code>data/knowledge_bases/深度学习/raw/</code></td>
+<td>深度学习课件进入 RAG 前的原始文件区</td>
+<td>仅在资料授权明确时提交</td>
+</tr>
+<tr class="even">
+<td><code>data/knowledge_bases/智能机器人系统/raw/</code></td>
+<td>机器人课件进入 RAG 前的原始文件区</td>
+<td>仅在资料授权明确时提交</td>
+</tr>
+<tr class="odd">
+<td><code>data/user/</code></td>
+<td>本地用户设置、学习记录、画像和会话</td>
+<td>不提交真实数据</td>
+</tr>
+<tr class="even">
+<td><code>data/knowledge_bases/</code></td>
+<td>本地资料库文件和解析结果</td>
+<td>不提交真实用户资料</td>
+</tr>
+<tr class="odd">
+<td><code>data/milvus/</code></td>
+<td>Milvus 向量库运行数据</td>
+<td>不提交</td>
+</tr>
+<tr class="even">
+<td><code>data/memory/</code></td>
+<td>本地长期记忆文件</td>
+<td>不提交真实数据</td>
+</tr>
+</tbody>
+</table>
+<p>提交材料和视频建议固定使用 <code>deep_learning/deep_learning_foundations.json</code>。课程按 <code>ppts/深度学习/</code> 中的课件组织，14 周路线、节点、任务和考核方式见 <a href="./course-template-guide.html">完整课程样例说明</a>。新增的 <code>intelligent_robot_systems/intelligent_robot_systems.json</code> 已单独放在机器人课程目录下，避免两门课程的课件和模板混在一起。课件进入 RAG 的同步命令是 <code>python scripts/sync_course_materials_to_kb.py --stage-only</code>，需要检索时再在完整环境里重建索引。</p>
+<h2 id="部署与依赖">部署与依赖</h2>
+<table>
+<thead>
+<tr class="header">
+<th>文件</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>docker-compose.yml</code></td>
+<td>启动后端、前端、Milvus、etcd 和 minio</td>
+</tr>
+<tr class="even">
+<td><code>docker-compose.dev.yml</code></td>
+<td>本地复核时的 Compose 覆盖配置</td>
+</tr>
+<tr class="odd">
+<td><code>Dockerfile</code></td>
+<td>Python 后端、前端构建和运行镜像</td>
+</tr>
+<tr class="even">
+<td><code>requirements.txt</code></td>
+<td>完整 Python 运行依赖</td>
+</tr>
+<tr class="odd">
+<td><code>requirements/server.txt</code></td>
+<td>后端 API 服务依赖</td>
+</tr>
+<tr class="even">
+<td><code>requirements/cli.txt</code></td>
+<td>CLI 和核心能力依赖</td>
+</tr>
+<tr class="odd">
+<td><code>requirements/math-animator.txt</code></td>
+<td>Manim 数学动画依赖</td>
+</tr>
+<tr class="even">
+<td><code>requirements/sparkbot.txt</code></td>
+<td>课程助教相关依赖</td>
+</tr>
+<tr class="odd">
+<td><code>web/package.json</code></td>
+<td>前端依赖、构建和质量检查入口</td>
+</tr>
+</tbody>
+</table>
+<p>默认运行方式是 Docker Compose。这样评委不需要分别启动前端、后端和向量库服务，也更容易复现资料问答和学习路径流程。</p>
+<h2 id="提交边界">提交边界</h2>
+<p>正式提交应包含：</p>
+<ul>
+<li>源码：<code>sparkweave/</code>、<code>sparkweave_cli/</code>、<code>web/</code>、<code>scripts/</code>。</li>
+<li>课程模板：<code>data/course_templates/</code>。</li>
+<li>部署配置：<code>Dockerfile</code>、<code>docker-compose.yml</code>、<code>.env.example</code>。</li>
+<li>依赖说明：<code>requirements/</code>、<code>requirements.txt</code>、<code>pyproject.toml</code>、<code>web/package.json</code>。</li>
+<li>文档：<code>README.md</code>、<code>docs/</code>、<code>SECURITY.md</code>、<code>CONTRIBUTING.md</code>。</li>
+</ul>
+<p>正式提交不应包含：</p>
+<ul>
+<li><code>.env</code>、真实 API Key、账号凭证。</li>
+<li><code>data/user/</code>、<code>data/knowledge_bases/</code>、<code>data/milvus/</code>、<code>data/memory/</code> 中的真实运行数据。</li>
+<li><code>.venv/</code>、<code>node_modules/</code>、<code>web/dist/</code>、测试报告和本地生成目录。</li>
+<li>本地临时压缩包、日志和 IDE 私有配置。</li>
+</ul>
+<p>这条边界能保证提交包既能复现项目，又不混入用户数据和本地密钥。</p>
+</main>
+</div>
+</body>
+</html>

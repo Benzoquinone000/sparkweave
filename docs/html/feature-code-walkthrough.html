@@ -1,0 +1,549 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>功能代码链路说明</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="功能代码链路说明">功能代码链路说明</h1>
+<p>这篇文档按功能块写，不按目录树写。评委如果问“这个功能是不是只做了页面”，可以顺着每一节看：前端入口在哪里，API 从哪里进，服务层做了什么，数据落在哪里，最后怎样验证。</p>
+<h2 id="代码入口总览">代码入口总览</h2>
+<table>
+<thead>
+<tr class="header">
+<th>功能块</th>
+<th>前端入口</th>
+<th>API 入口</th>
+<th>服务层</th>
+<th>数据落点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>学习路线</td>
+<td><code>web/src/pages/GuidePage.tsx</code>、<code>web/src/pages/guide/</code></td>
+<td><code>sparkweave/api/routers/guide_v2.py</code></td>
+<td><code>sparkweave/services/guide_v2.py</code></td>
+<td><code>data/user/workspace/guide/</code>、<code>data/user/learner_profile/</code></td>
+</tr>
+<tr class="even">
+<td>课程模板</td>
+<td><code>GuideSetupPage</code>、课程选择组件</td>
+<td><code>GET /api/v1/guide/v2/templates</code></td>
+<td><code>GuideV2Manager.list_course_templates()</code></td>
+<td><code>data/course_templates/</code></td>
+</tr>
+<tr class="odd">
+<td>资料库与 RAG</td>
+<td><code>web/src/pages/KnowledgePage.tsx</code>、<code>web/src/pages/knowledge/</code></td>
+<td><code>sparkweave/api/routers/knowledge.py</code></td>
+<td><code>sparkweave/knowledge/manager.py</code>、<code>sparkweave/services/rag_support/</code></td>
+<td><code>data/knowledge_bases/</code>、Milvus</td>
+</tr>
+<tr class="even">
+<td>问问题与多智能体</td>
+<td><code>web/src/pages/ChatPage.tsx</code>、<code>useChatRuntime.ts</code></td>
+<td><code>sparkweave/api/routers/unified_ws.py</code></td>
+<td><code>runtime/context_enrichment.py</code>、<code>runtime/capability_router.py</code>、<code>graphs/</code></td>
+<td>会话库、Notebook、各能力 workspace</td>
+</tr>
+<tr class="odd">
+<td>练习生成</td>
+<td><code>web/src/pages/QuestionLabPage.tsx</code></td>
+<td><code>sparkweave/api/routers/question.py</code></td>
+<td><code>graphs/deep_question.py</code>、<code>agents/question/</code></td>
+<td>题目本、学习证据</td>
+</tr>
+<tr class="even">
+<td>记录 / 画像</td>
+<td><code>web/src/pages/MemoryPage.tsx</code>、<code>web/src/pages/memory/</code></td>
+<td><code>sparkweave/api/routers/learner_profile.py</code>、<code>memory.py</code></td>
+<td><code>learner_evidence.py</code>、<code>learner_profile.py</code>、<code>profile_context.py</code></td>
+<td><code>data/user/learner_profile/</code></td>
+</tr>
+<tr class="odd">
+<td>学习效果评估</td>
+<td>学习页报告、记录页建议</td>
+<td><code>sparkweave/api/routers/learning_effect.py</code></td>
+<td><code>sparkweave/services/learning_effect.py</code></td>
+<td>证据账本、学习报告响应</td>
+</tr>
+<tr class="even">
+<td>课程助教</td>
+<td><code>web/src/pages/AgentsPage.tsx</code>、<code>web/src/pages/agents/</code></td>
+<td><code>sparkweave/api/routers/sparkbot.py</code></td>
+<td><code>sparkweave/services/sparkbot.py</code>、<code>sparkbot_support/</code></td>
+<td><code>data/memory/SparkBots/</code>、助教 workspace</td>
+</tr>
+<tr class="odd">
+<td>设置与讯飞工具</td>
+<td><code>web/src/pages/SettingsPage.tsx</code>、<code>web/src/pages/settings/</code></td>
+<td><code>settings.py</code>、<code>system.py</code>、<code>speech.py</code></td>
+<td><code>config.py</code>、讯飞相关 service</td>
+<td><code>.env</code>、<code>data/user/settings/</code></td>
+</tr>
+<tr class="even">
+<td>笔记和题目本</td>
+<td><code>NotebookPage.tsx</code>、<code>QuestionNotebookWorkspace.tsx</code></td>
+<td><code>notebook.py</code>、<code>question_notebook.py</code></td>
+<td><code>NotebookManager</code>、SQLite session store</td>
+<td><code>data/user/workspace/notebook/</code>、会话库</td>
+</tr>
+</tbody>
+</table>
+<h2 id="学习路线">学习路线</h2>
+<p>学习页不是一个静态课程展示页。前端的 <code>GuidePage.tsx</code> 只是壳，真正的状态被拆在 <code>useGuidePageState.ts</code>、<code>useGuideRuntimeData.ts</code>、<code>useGuideActions.ts</code> 和 <code>GuideWorkspaceRouter.tsx</code>。页面会保存学习目标、课程模板、时间预算、偏好、薄弱点、当前 session、资源生成 job 和反馈输入。</p>
+<p>后端入口集中在 <code>sparkweave/api/routers/guide_v2.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>后端动作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /templates</code></td>
+<td>调 <code>GuideV2Manager.list_course_templates()</code> 读取课程模板</td>
+</tr>
+<tr class="even">
+<td><code>POST /sessions</code></td>
+<td>调 <code>create_session()</code>，把目标、画像、课程模板和笔记上下文转成学习路线</td>
+</tr>
+<tr class="odd">
+<td><code>GET /sessions/{session_id}</code></td>
+<td>读取学习会话、任务、掌握状态和资源产物</td>
+</tr>
+<tr class="even">
+<td><code>POST /tasks/{task_id}/complete</code></td>
+<td>完成任务，写入学习证据</td>
+</tr>
+<tr class="odd">
+<td><code>POST /tasks/{task_id}/resources</code></td>
+<td>同步生成图解、练习、视频等资源</td>
+</tr>
+<tr class="even">
+<td><code>POST /tasks/{task_id}/resources/jobs</code></td>
+<td>后台生成资源，用 SSE 返回进度</td>
+</tr>
+<tr class="odd">
+<td><code>GET /sessions/{session_id}/report</code>、<code>/study-plan</code>、<code>/resource-recommendations</code></td>
+<td>基于当前证据生成报告、计划和推荐</td>
+</tr>
+</tbody>
+</table>
+<p>核心服务在 <code>sparkweave/services/guide_v2.py</code>。关键函数包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>create_session()</code></td>
+<td>读取课程模板、统一画像提示，生成课程地图、任务列表和初始建议</td>
+</tr>
+<tr class="even">
+<td><code>complete_task()</code></td>
+<td>更新任务状态、掌握度和证据，并触发后续建议变化</td>
+</tr>
+<tr class="odd">
+<td><code>generate_resource()</code></td>
+<td>根据任务和资源类型调动图解、题目、视频、语音等能力</td>
+</tr>
+<tr class="even">
+<td><code>_resource_profile_hints()</code></td>
+<td>把当前任务、节点、薄弱点和偏好整理给资源生成器</td>
+</tr>
+<tr class="odd">
+<td><code>_update_profile_from_evidence()</code></td>
+<td>根据低分、错因、反思和高分表现更新导学画像</td>
+</tr>
+<tr class="even">
+<td><code>_save_session()</code></td>
+<td>把学习会话写回用户 workspace</td>
+</tr>
+</tbody>
+</table>
+<p>这块的关键判断有三类：一是课程模板是否完整，二是任务完成后是否形成证据，三是资源生成是否绑定当前任务。验证时不只看页面上有没有卡片，要看完成任务后记录页和学习报告是否发生变化。</p>
+<p>运行目录也能直接核验。<code>PathService.get_guide_dir()</code> 把导学文件放在 <code>data/user/workspace/guide/</code>，<code>GuideV2Manager</code> 默认再进入 <code>v2/</code> 子目录，单个学习会话由 <code>_save_session()</code> 写成 <code>session_&lt;id&gt;.json</code>。如果评委现场追问“学习进度是不是只存在前端状态里”，可以打开这个目录，看任务状态、证据、掌握度和资源引用是否已经落盘。</p>
+<h2 id="课程模板和课件同步">课程模板和课件同步</h2>
+<p>课程模板放在 <code>data/course_templates/</code>。当前主课程是 <code>deep_learning/deep_learning_foundations.json</code>，第二门课程是 <code>intelligent_robot_systems/intelligent_robot_systems.json</code>。模板里不只写标题，还包含课程目标、知识节点、任务、评价方式和 <code>source_materials</code>。</p>
+<p>课件进入 RAG 的脚本是 <code>scripts/sync_course_materials_to_kb.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>--stage-only</code></td>
+<td>把课程模板引用的课件复制到 <code>data/knowledge_bases/&lt;课程名&gt;/raw/</code></td>
+</tr>
+<tr class="even">
+<td><code>--index</code></td>
+<td>在 Milvus 和 Embedding 可用时重建索引</td>
+</tr>
+</tbody>
+</table>
+<p>验证入口是 <code>python scripts/check_course_templates.py</code>。它能检查课程模板结构、课程目录和必要字段，避免演示时选到一门只有标题的“空课程”。</p>
+<h2 id="资料库与-agentic-rag">资料库与 Agentic RAG</h2>
+<p>资料页前端在 <code>KnowledgePage.tsx</code>，具体面板在 <code>web/src/pages/knowledge/</code>。创建、上传、重建索引、查看文档、跑 RAG 测试都通过 <code>web/src/lib/api.ts</code> 和 <code>useKnowledgeMutations()</code> 调后端。</p>
+<p>后端路由在 <code>sparkweave/api/routers/knowledge.py</code>，RAG 返回格式整理在 <code>knowledge_rag_ops.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>代码</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>创建资料库</td>
+<td><code>create_knowledge_base()</code></td>
+</tr>
+<tr class="even">
+<td>上传文件</td>
+<td><code>upload_files()</code></td>
+</tr>
+<tr class="odd">
+<td>重建索引</td>
+<td><code>reindex_knowledge_base()</code></td>
+</tr>
+<tr class="even">
+<td>RAG 测试</td>
+<td><code>POST /{kb_name}/rag-test</code>，先由 <code>build_rag_search_kwargs()</code> 整理参数</td>
+</tr>
+<tr class="odd">
+<td>返回前端</td>
+<td><code>format_rag_search_result()</code> 保留 sources、query plan、质量报告和修复记录</td>
+</tr>
+</tbody>
+</table>
+<p>服务层分两块：<code>sparkweave/knowledge/manager.py</code> 管资料库目录、配置和文档清单；<code>sparkweave/services/rag_support/service.py</code> 管检索。普通检索走 <code>_single_search()</code>，复杂问题走 <code>_agentic_search()</code>。</p>
+<p>RAG 服务不是前端临时拼参数。<code>build_rag_search_kwargs()</code> 会把 <code>top_k</code>、<code>retrieval_profile</code>、<code>retrieval_mode</code>、<code>query_transform</code>、<code>agentic_rag</code> 和质量阈值整理成统一参数；<code>RagSearchService.search()</code> 再根据知识库绑定的 provider 选择 Milvus 或 LlamaIndex pipeline。检索结果最终由 <code>format_rag_search_result()</code> 变成前端稳定结构，里面保留 <code>sources</code>、<code>query_plan</code>、<code>agentic_quality</code>、<code>agentic_repair</code>、<code>context_pack</code> 等字段。</p>
+<p>Agentic RAG 的关键路径是：</p>
+<ol type="1">
+<li><code>retrieval_policy.py</code> 根据请求和环境变量构建检索策略。</li>
+<li><code>query_planner.py</code> 的 <code>plan_rag_queries()</code> 生成多个 focused query。</li>
+<li><code>_agentic_search()</code> 用并发限制执行多个 <code>_single_search()</code>。</li>
+<li><code>agentic_merge.py</code> 合并来源，生成 <code>agentic_evidence_groups</code> 和 <code>agentic_context_pack</code>。</li>
+<li><code>agentic_quality.py</code> 计算来源数、覆盖率、相关覆盖率、上下文长度和分数。</li>
+<li><code>agentic_repair.py</code> 对弱分支补检；仍不够时回退到单路检索。</li>
+<li>前端 <code>RagAgenticTrace.tsx</code> 展示质量指标、阈值、子查询、修复和回退原因。</li>
+</ol>
+<p>这块的验证方式很直接：用同一个知识库问一个单点问题，再问一个包含“解释原因、举例、比较”的复合问题。复合问题应能看到 query plan、子查询结果和质量状态，而不是只有最终回答。</p>
+<h2 id="问问题与自动调度">问问题与自动调度</h2>
+<p>问问题页的前端入口是 <code>ChatPage.tsx</code>。流式运行逻辑在 <code>web/src/hooks/useChatRuntime.ts</code>：它连接 <code>unifiedRuntimeSocketUrl()</code>，发送 <code>start_turn</code>，携带用户问题、能力、工具列表、知识库、附件、画布上下文、笔记引用和语言。后端事件回来后，前端把 <code>content</code>、<code>result</code>、<code>stage_end</code>、<code>error</code> 等事件挂到同一条 assistant message 上。</p>
+<p>后端 WebSocket 入口是 <code>sparkweave/api/routers/unified_ws.py</code>。真正构造上下文的是 <code>sparkweave/runtime/context_enrichment.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>上下文</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>会话历史</td>
+<td>session store 和 <code>ContextBuilder</code></td>
+</tr>
+<tr class="even">
+<td>长期记忆</td>
+<td><code>MemoryService.build_memory_context()</code></td>
+</tr>
+<tr class="odd">
+<td>学习画像</td>
+<td><code>ProfileContextInjector.build_context()</code></td>
+</tr>
+<tr class="even">
+<td>笔记引用</td>
+<td><code>NotebookAnalysisAgent</code></td>
+</tr>
+<tr class="odd">
+<td>附件和画布</td>
+<td>前端 payload</td>
+</tr>
+</tbody>
+</table>
+<p>自动调度在 <code>sparkweave/runtime/capability_router.py</code>。它先检查 <code>auto_delegate</code>、强制能力、是否已委派、是否明确“不联网 / 不用工具 / 不开画布”。然后判断是否进入 <code>deep_solve</code>、<code>deep_question</code>、<code>deep_research</code>、<code>visualize</code>、<code>math_animator</code>，或在 chat 里直接调用 <code>external_video_search</code>、<code>external_image_search</code>、<code>canvas</code>、<code>rag</code> 等工具。置信度不足时可以使用 LLM intent coordinator，但它只返回 JSON 路由决策，不直接回答学生。</p>
+<p>前端的 <code>AgentCollaborationPanel.tsx</code> 会读取协作 metadata。后端的 <code>collaboration_route()</code> 会把画像、协调器和专业智能体步骤整理成可展示路线，所以评委看到的不是硬编码的“智能体列表”，而是本轮请求实际经过的协作链。</p>
+<p>这块还有一个实用边界：<code>unified_ws.py</code> 只负责 WebSocket 协议和 turn 订阅，真正执行在 <code>LangGraphTurnRuntimeManager</code>。<code>start_turn</code> 创建 turn 后，前端收到的是可重放事件流；断线后还能用 <code>subscribe_turn</code> 或 <code>resume_from</code> 继续读事件。会话和题目本共享的 SQLite 存在 <code>data/user/chat_history.db</code>，由 <code>SQLiteSessionStore</code> 管理，不靠浏览器本地缓存保存核心结果。</p>
+<h2 id="练习生成和题目本">练习生成和题目本</h2>
+<p>练习有两条入口：一条在学习页任务资源里生成，一条在 <code>QuestionLabPage.tsx</code> 里单独生成。单独生成使用 <code>questionGenerateSocketUrl()</code> 或 <code>questionMimicSocketUrl()</code>，后端是 <code>sparkweave/api/routers/question.py</code> 的 WebSocket <code>/generate</code> 和 <code>/mimic</code>。</p>
+<p>智能体实现主要在 <code>graphs/deep_question.py</code> 和 <code>agents/question/</code>。练习结果前端会整理成题目列表、答案、解析和知识点；保存时调用 <code>upsertQuestionEntry()</code>，进入 <code>sparkweave/api/routers/question_notebook.py</code>。题目本数据进入 SQLite/session store，画像服务会从 question notebook 读取正确率、题型、难度和概念标签，进一步形成掌握度和薄弱点。</p>
+<p>学习页里生成的 quiz 还会走 <code>guide_v2.py</code> 的资源产物链路。学生提交 quiz 结果后，<code>/artifacts/{artifact_id}/quiz-results</code> 会把每道题变成学习证据，后续学习效果报告能看到这些作答。</p>
+<p>核验时建议走两条线：先在题目工坊生成一组题并保存，确认 <code>question_notebook.py</code> 能查到 entry；再从学习页生成任务 quiz 并提交结果，确认 <code>guide_v2.py</code> 返回的学习报告里出现 quiz attempt。这样能证明练习不是一次性文本输出，而是进入了题目本和学习评估。</p>
+<h2 id="记录画像和上下文注入">记录、画像和上下文注入</h2>
+<p>记录页前端是 <code>MemoryPage.tsx</code>，分为概览、记录来源、补充三块。概览页负责展示当前重点、薄弱点、下一步行动和稳定度；记录来源页展开证据；补充页走长期记忆。</p>
+<p>后端画像接口在 <code>learner_profile.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /api/v1/learner-profile</code></td>
+<td>读取当前画像快照</td>
+</tr>
+<tr class="even">
+<td><code>POST /refresh</code></td>
+<td>从所有来源重新聚合画像</td>
+</tr>
+<tr class="odd">
+<td><code>GET /evidence</code></td>
+<td>查看标准化证据账本</td>
+</tr>
+<tr class="even">
+<td><code>POST /evidence</code>、<code>/evidence/batch</code></td>
+<td>写入学习证据</td>
+</tr>
+<tr class="odd">
+<td><code>POST /calibrations</code></td>
+<td>学生确认、否定或修正画像判断</td>
+</tr>
+</tbody>
+</table>
+<p>证据写入服务是 <code>LearnerEvidenceService</code>。它把事件标准化为追加式 JSONL，路径是 <code>data/user/learner_profile/evidence.jsonl</code>。画像聚合是 <code>LearnerProfileService</code>，读取长期记忆、导学会话、题目本、笔记和正式证据账本，生成 <code>profile.json</code>。</p>
+<p>关键点在于它没有把 <code>profile.json</code> 原样塞进模型。<code>ProfileContextInjector</code> 会抽取 <code>current_focus</code>、<code>goals</code>、<code>preferences</code>、<code>weak_points</code>、<code>mastery_needs_attention</code>、<code>next_action</code> 和 <code>decision_scores</code>，格式化成短提示，由 <code>context_enrichment.py</code> 放进 <code>UnifiedContext.metadata["learner_profile_context"]</code>。这样既能个性化，又保留来源解释。</p>
+<p>画像更新的证据来源比较散，所以代码里专门做了聚合边界：<code>LearnerProfileService.refresh()</code> 会按来源采集长期记忆、导学任务、题目本、笔记和校准记录；<code>POST /calibrations</code> 写的是学生对画像判断的确认或修正，不是直接让模型重写个人档案。评委如果看记录页，重点看“证据来源”和“下一步建议”是否能对上，而不是只看几个标签是否漂亮。</p>
+<h2 id="学习效果评估">学习效果评估</h2>
+<p>学习效果接口在 <code>sparkweave/api/routers/learning_effect.py</code>。服务层是 <code>LearningEffectService</code>，它明确写着从 learner evidence ledger 生成报告，规则透明，方便解释。</p>
+<p>核心函数是：</p>
+<table>
+<thead>
+<tr class="header">
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>append_event()</code></td>
+<td>把外部学习事件整理成标准证据</td>
+</tr>
+<tr class="even">
+<td><code>complete_action()</code></td>
+<td>学生完成一个补救动作后写入证据，并刷新报告</td>
+</tr>
+<tr class="odd">
+<td><code>build_report()</code></td>
+<td>生成综合学习效果报告</td>
+</tr>
+<tr class="even">
+<td><code>_build_concepts()</code></td>
+<td>按概念聚合作答、分数、错因和资源行为</td>
+</tr>
+<tr class="odd">
+<td><code>_build_next_actions()</code></td>
+<td>根据薄弱点、错因闭环和课程上下文生成下一步行动</td>
+</tr>
+<tr class="even">
+<td><code>_dimensions()</code></td>
+<td>计算证据质量、参与度、掌握度等维度</td>
+</tr>
+<tr class="odd">
+<td><code>_remediation_loop()</code></td>
+<td>判断错因是否已补救、待复测或已闭环</td>
+</tr>
+</tbody>
+</table>
+<p>评估不是正式教育测量模型，而是项目内可解释的学习处方。它的价值在于把练习、资源使用、反思和错因串成下一步建议。验证时看三件事：证据数是否增长，薄弱概念是否出现，下一步 action 是否能跳回学习页继续执行。</p>
+<h2 id="课程助教和-qq-通道">课程助教和 QQ 通道</h2>
+<p>课程助教前端在 <code>AgentsPage.tsx</code> 和 <code>web/src/pages/agents/</code>，API 客户端拆在 <code>web/src/lib/api/sparkbot.ts</code> 与 <code>web/src/hooks/api/sparkbot.ts</code>。后端入口是 <code>sparkweave/api/routers/sparkbot.py</code>。</p>
+<p>主要能力和代码关系如下：</p>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>代码</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>创建、更新、删除助教</td>
+<td><code>SparkBotManager</code>、<code>SparkBotInstance</code></td>
+</tr>
+<tr class="even">
+<td>助教人格和默认配置</td>
+<td><code>sparkbot_support/defaults.py</code>、<code>config_models.py</code></td>
+</tr>
+<tr class="odd">
+<td>工作区文件</td>
+<td><code>SparkBotWorkspaceContext</code> 和 <code>/files</code> 接口</td>
+</tr>
+<tr class="even">
+<td>技能上传和编辑</td>
+<td><code>/skills</code> 接口、<code>SparkBotSkillsLoader</code></td>
+</tr>
+<tr class="odd">
+<td>定时提醒</td>
+<td><code>sparkbot_support/cron.py</code>、<code>SparkBotCronService</code></td>
+</tr>
+<tr class="even">
+<td>消息总线</td>
+<td><code>sparkbot_support/messages.py</code></td>
+</tr>
+<tr class="odd">
+<td>通道管理</td>
+<td><code>sparkbot_support/channel_manager.py</code></td>
+</tr>
+<tr class="even">
+<td>QQ 通道</td>
+<td><code>sparkbot_support/channels.py</code> 的 <code>QQChannel</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>QQConfig</code> 定义 <code>enabled</code>、<code>app_id</code>、<code>secret</code>、<code>allow_from</code> 和 <code>msg_format</code>。<code>QQChannel</code> 启动时加载 <code>botpy</code>，监听私聊、直接消息和群 at 消息，把它们统一转成 <code>SparkBotInboundMessage</code>；发送时根据 group/c2c 目标调用 QQ 发送接口。没有真实凭据或依赖时会退回内存通道，所以 Web 管理、工作区、技能和 cron 仍能演示，但不能说成真实 QQ 调用。</p>
+<p>助教运行文件由 <code>SparkBotManager._base_dir()</code> 放在 <code>data/memory/SparkBots/</code>。每个助教有自己的 <code>config.yaml</code>、<code>workspace/</code>、<code>cron/jobs.json</code> 和 <code>history.jsonl</code>；<code>SparkBotWorkspaceContext</code> 读取工作区资料、技能和共享记忆，<code>SparkBotSkillsLoader</code> 负责加载技能文件。评委如果要核验 QQ 接入，先看 <code>/sparkbot/channels/schema</code> 是否暴露 <code>qq</code> 通道字段，再看当前助教配置里 <code>channels.qq.enabled</code> 和凭据状态。</p>
+<h2 id="讯飞工具链">讯飞工具链</h2>
+<p>讯飞能力分散在具体学习链路里，不是一个独立 demo 菜单。</p>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>代码位置</th>
+<th>进入哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>星火大模型</td>
+<td><code>services/iflytek_spark_ws.py</code>、<code>services/llm.py</code></td>
+<td>对话、导学、资源生成</td>
+</tr>
+<tr class="even">
+<td>MaaS Coding</td>
+<td><code>services/llm.py</code> provider 配置</td>
+<td>代码类讲解和工具编排</td>
+</tr>
+<tr class="odd">
+<td>Spark Embedding</td>
+<td><code>embedding_support/adapters/iflytek_spark.py</code></td>
+<td>课程资料向量化</td>
+</tr>
+<tr class="even">
+<td>ONE SEARCH</td>
+<td><code>search_support/providers/iflytek_spark.py</code></td>
+<td>外部资料、公开视频、公开资源</td>
+</tr>
+<tr class="odd">
+<td>OCR</td>
+<td><code>services/ocr.py</code></td>
+<td>扫描课件、图片讲义入库</td>
+</tr>
+<tr class="even">
+<td>公式识别</td>
+<td><code>services/iflytek_formula.py</code>、<code>IflytekFormulaTool</code></td>
+<td>图片题和公式题</td>
+</tr>
+<tr class="odd">
+<td>图片理解</td>
+<td><code>services/iflytek_vision.py</code>、<code>IflytekImageUnderstandingTool</code></td>
+<td>板书、示意图、截图辅导</td>
+</tr>
+<tr class="even">
+<td>TTS</td>
+<td><code>services/tts.py</code></td>
+<td>语音讲解、视频旁白</td>
+</tr>
+<tr class="odd">
+<td>ASR / 语音评测</td>
+<td><code>services/speech.py</code>、<code>api/routers/speech.py</code></td>
+<td>口述提问、口语类证据</td>
+</tr>
+<tr class="even">
+<td>星辰工作流</td>
+<td><code>services/iflytek_workflow.py</code>、<code>IflytekWorkflowTool</code></td>
+<td>课程资源或诊断报告</td>
+</tr>
+</tbody>
+</table>
+<p>设置页读取 <code>settings.py</code> 的 provider catalog，系统检测走 <code>system.py</code> 的 <code>/test/*</code> 接口。正式演示时要区分三种状态：真实配置成功、未配置、使用离线 fallback。文档和视频不要把 fallback 包装成真实云端调用。</p>
+<h2 id="设置配置和系统检测">设置、配置和系统检测</h2>
+<p>设置页前端是 <code>SettingsPage.tsx</code> 和 <code>web/src/pages/settings/</code>。配置 API 在 <code>sparkweave/api/routers/settings.py</code>，系统状态和连接检测在 <code>sparkweave/api/routers/system.py</code>。</p>
+<p>配置服务主要在 <code>sparkweave/services/config.py</code>，Embedding 运行时还有一层 <code>sparkweave/services/embedding_support/config.py</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>代码</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ModelCatalogService.load()</code></td>
+<td>读取模型、Embedding、搜索、OCR、语音等配置目录</td>
+</tr>
+<tr class="even">
+<td><code>ModelCatalogService.save()</code></td>
+<td>保存设置页修改到 <code>data/user/settings/model_catalog.json</code></td>
+</tr>
+<tr class="odd">
+<td><code>ModelCatalogService.apply()</code></td>
+<td>把当前 catalog 渲染成兼容运行时的 <code>.env</code> 键</td>
+</tr>
+<tr class="even">
+<td><code>get_llm_config()</code></td>
+<td>把 catalog 和环境变量解析成 LLM 运行时配置</td>
+</tr>
+<tr class="odd">
+<td><code>embedding_support/config.py:get_embedding_config()</code></td>
+<td>给 <code>EmbeddingClient</code> 解析实际向量服务配置</td>
+</tr>
+<tr class="even">
+<td><code>_inject_runtime_paths()</code></td>
+<td>把 workspace、guide、question、research 等运行目录注入配置</td>
+</tr>
+</tbody>
+</table>
+<p>前端调用集中在 <code>web/src/lib/api.ts</code> 的 settings/system 函数和 <code>useSettingsMutations()</code>。<code>settings.py</code> 返回 catalog 时会经过 <code>_redact_secret_values()</code> 遮罩敏感字段，保存时用 <code>_restore_redacted_secret_values()</code> 保留用户没有重新填写的旧密钥。连接检测有两层：<code>system.py</code> 提供 <code>/test/llm</code>、<code>/test/embeddings</code>、<code>/test/search</code>、<code>/test/ocr</code>、<code>/test/tts</code>、<code>/test/asr</code>、<code>/test/speech_eval</code>、<code>/test/iflytek_workflow</code>、<code>/test/formula_ocr</code>、<code>/test/image_understanding</code>；设置页的 <code>/tests/{service}/start</code> 和 <code>/events</code> 用 SSE 展示更细的测试过程。敏感字段只应该出现在本地 <code>.env</code> 或被遮罩的设置页中，不应写入文档和截图。</p>
+<h2 id="笔记保存和复用">笔记、保存和复用</h2>
+<p>Notebook 不是主赛题能力，但它支撑“学习资源可沉淀”。前端在 <code>NotebookPage.tsx</code>，普通笔记 API 是 <code>sparkweave/api/routers/notebook.py</code>，题目本 API 是 <code>question_notebook.py</code>。</p>
+<p><code>NotebookManager</code> 管 notebook 和 record。资源保存入口常出现在学习页和问问题页：图解、练习、视频推荐、资料问答都可以保存成 record。<code>learner_profile.py</code> 会读取 notebook 里的记录，把资源类型、保存行为和题目概念作为画像的补充证据。</p>
+<h2 id="前后端契约如何保证">前后端契约如何保证</h2>
+<p>前端所有 REST、SSE、WebSocket 地址集中在 <code>web/src/lib/api.ts</code>、<code>web/src/lib/api/</code> 和 <code>web/src/lib/http.ts</code>。后端路由统一由 <code>sparkweave/api/router_registry.py</code> 注册。项目用下面命令检查前端引用的 <code>/api/v1</code> 路径是否真实存在：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>check_web_api_contract<span class="op">.</span><span class="fu">py</span></span></code></pre></div>
+<p>更完整的快速验证是：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>verify_project<span class="op">.</span><span class="fu">py</span> <span class="op">--</span>profile quick</span></code></pre></div>
+<p>这会连同项目结构、发布安全、课程模板、API 合同、替换守卫和 Python 编译一起跑。评委如果只想确认“文档说的代码是不是存在”，这两条命令是最省时间的入口。</p>
+</main>
+</div>
+</body>
+</html>

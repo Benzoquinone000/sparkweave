@@ -192,7 +192,7 @@ class MathAnimatorRequestConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     output_mode: Literal["video", "image"] = "video"
-    quality: Literal["low", "medium", "high"] = "medium"
+    quality: Literal["low", "medium", "high"] = "high"
     style_hint: str = Field(default="", max_length=500)
     max_retries: int = Field(default=4, ge=0, le=10)
     enable_narration_audio: bool | None = None

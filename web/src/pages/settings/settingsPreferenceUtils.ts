@@ -4,10 +4,10 @@ export function normalizeNavOrder(
   value: SettingsResponse["ui"]["sidebar_nav_order"] | undefined,
 ): SidebarSettings["nav_order"] {
   return {
-    start: Array.isArray(value?.start) ? value.start : ["/", "/history", "/knowledge", "/notebook"],
+    start: Array.isArray(value?.start) ? value.start : ["/guide", "/knowledge", "/notebook", "/settings"],
     learnResearch: Array.isArray(value?.learnResearch)
       ? value.learnResearch
-      : ["/question", "/solver", "/guide", "/research", "/co_writer"],
+      : ["/chat", "/question", "/memory", "/agents", "/co-writer", "/vision", "/playground"],
   };
 }
 

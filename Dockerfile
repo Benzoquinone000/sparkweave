@@ -88,8 +88,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     pkg-config \
     libssl-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    && rm -rf /var/lib/apt/lists/*
+
+# Manim's Tex/MathTex rendering requires a local LaTeX toolchain.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    dvisvgm \
+    ffmpeg \
+    fonts-noto-cjk \
+    texlive-fonts-recommended \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # Add Rust to PATH
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -171,6 +183,7 @@ COPY --from=frontend-builder /app/web/scripts/static-server.mjs ./web/scripts/st
 COPY sparkweave/ ./sparkweave/
 COPY sparkweave_cli/ ./sparkweave_cli/
 COPY scripts/ ./scripts/
+COPY data/course_templates/ ./data/course_templates/
 COPY pyproject.toml ./
 COPY requirements/ ./requirements/
 COPY requirements.txt ./
@@ -191,7 +204,8 @@ RUN mkdir -p \
     data/user/workspace/chat/math_animator \
     data/user/workspace/chat/_detached_code_execution \
     data/user/logs \
-    data/knowledge_bases
+    data/knowledge_bases \
+    data/course_templates
 
 # Create supervisord configuration for running both services
 # Log output goes to stdout/stderr so docker logs can capture them

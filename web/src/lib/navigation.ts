@@ -86,7 +86,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "任务补充",
+    label: "学习工具",
     items: [
       { to: "/chat", label: "问资料", shortLabel: "问答", icon: MessageSquareText, accent: "purple" },
       { to: "/question", label: "练一练", shortLabel: "练习", icon: FileQuestion, accent: "pink" },
@@ -95,7 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "按需入口",
+    label: "高级工具",
     items: [
       { to: "/co-writer", label: "写作助手", shortLabel: "写作", icon: PenLine, accent: "orange" },
       { to: "/vision", label: "图像解题", shortLabel: "图像", icon: Image, accent: "blue" },

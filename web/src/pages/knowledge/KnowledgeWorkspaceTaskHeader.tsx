@@ -105,7 +105,7 @@ export function KnowledgeWorkspaceTaskHeader({
           <details className="relative rounded-lg border border-line bg-white px-3 py-2 [&>summary::-webkit-details-marker]:hidden">
             <summary className="dt-interactive flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
               <MoreHorizontal size={15} />
-              更多入口
+              更多工具
             </summary>
             <div className="mt-2 flex min-w-[220px] flex-col gap-2">
               {advancedItems.map((item) => (

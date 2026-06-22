@@ -301,14 +301,23 @@ def test_guide_v2_lists_course_templates(tmp_path) -> None:
     templates = manager.list_course_templates()
 
     assert templates
-    ml = templates[0]
-    assert ml["id"] == "ml_foundations"
-    assert ml["course_id"] == "ML101"
-    assert ml["default_goal"]
-    assert ml["learning_outcomes"]
-    assert ml["assessment"]
-    assert ml["demo_seed"]["task_chain"]
-    assert ml["demo_seed"]["resource_prompts"]
+    template_ids = {item["id"] for item in templates}
+    assert "deep_learning_foundations" in template_ids
+    assert "intelligent_robot_systems" in template_ids
+    deep_learning = next(item for item in templates if item["id"] == "deep_learning_foundations")
+    assert deep_learning["course_id"] == "DL301"
+    assert deep_learning["default_goal"]
+    assert deep_learning["learning_outcomes"]
+    assert deep_learning["assessment"]
+    assert deep_learning["demo_seed"]["task_chain"]
+    assert deep_learning["demo_seed"]["resource_prompts"]
+    robotics = next(item for item in templates if item["id"] == "intelligent_robot_systems")
+    assert robotics["course_id"] == "ROBOT301"
+    assert robotics["default_goal"]
+    assert robotics["learning_outcomes"]
+    assert robotics["assessment"]
+    assert robotics["demo_seed"]["task_chain"]
+    assert robotics["demo_seed"]["resource_prompts"]
 
 
 def test_guide_v2_loads_json_course_templates(tmp_path) -> None:
@@ -348,27 +357,56 @@ async def test_guide_v2_builds_repository_course_template_without_llm(tmp_path) 
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
 
     templates = manager.list_course_templates()
-    robotics = next(item for item in templates if item["id"] == "robotics_ros_foundations")
-    assert robotics["course_id"] == "ROBOT101"
-    assert robotics["demo_seed"]["task_chain"] == ["R1", "R3", "R5", "R6"]
+    deep_learning = next(item for item in templates if item["id"] == "deep_learning_foundations")
+    assert deep_learning["course_id"] == "DL301"
+    assert deep_learning["demo_seed"]["task_chain"] == ["D3", "D5", "D8", "D9", "D10", "D12", "D14"]
 
     created = await manager.create_session(
         GuideV2CreateInput(
-            goal="我想系统学习智能机器人与 ROS 基础",
+            goal="我想系统学习深度学习",
             time_budget_minutes=45,
-            course_template_id="robotics_ros_foundations",
+            course_template_id="deep_learning_foundations",
         )
     )
 
     assert created["success"] is True
     session = created["session"]
-    assert session["course_map"]["generated_by"] == "template:robotics_ros_foundations"
-    assert session["course_map"]["metadata"]["course_id"] == "ROBOT101"
-    assert session["course_map"]["metadata"]["demo_seed"]["title"] == "ROS 机器人稳定演示样例"
+    assert session["course_map"]["generated_by"] == "template:deep_learning_foundations"
+    assert session["course_map"]["metadata"]["course_id"] == "DL301"
+    assert session["course_map"]["metadata"]["demo_seed"]["title"] == "深度学习课程学习样例"
+    assert session["learning_path"]["node_sequence"][:3] == ["DL1", "DL2", "DL3"]
+    assert session["current_task"]["task_id"] == "D1"
+    assert session["current_task"]["title"] == "画出 AI 到深度学习的关系图"
+    assert any("CNN" in item or "神经网络" in item for item in session["recommendations"])
+
+
+@pytest.mark.asyncio
+async def test_guide_v2_builds_robotics_course_template_without_llm(tmp_path) -> None:
+    async def _failing_completion(**_kwargs):
+        raise RuntimeError("llm should not be called for repository templates")
+
+    manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
+
+    templates = manager.list_course_templates()
+    robotics = next(item for item in templates if item["id"] == "intelligent_robot_systems")
+    assert robotics["course_id"] == "ROBOT301"
+    assert robotics["demo_seed"]["task_chain"] == ["R1", "R5", "R7", "R10", "R11"]
+
+    created = await manager.create_session(
+        GuideV2CreateInput(
+            goal="我想系统学习智能机器人系统",
+            time_budget_minutes=60,
+            course_template_id="intelligent_robot_systems",
+        )
+    )
+
+    assert created["success"] is True
+    session = created["session"]
+    assert session["course_map"]["generated_by"] == "template:intelligent_robot_systems"
+    assert session["course_map"]["metadata"]["course_id"] == "ROBOT301"
     assert session["learning_path"]["node_sequence"][:3] == ["RB1", "RB2", "RB3"]
     assert session["current_task"]["task_id"] == "R1"
-    assert session["current_task"]["title"] == "画出机器人系统全景图"
-    assert any("机器人系统全景" in item for item in session["recommendations"])
+    assert session["current_task"]["title"] == "画出智能机器人系统组成图"
 
 
 @pytest.mark.asyncio
@@ -378,72 +416,30 @@ async def test_guide_v2_course_package_normalizes_external_demo_seed(tmp_path) -
 
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
 
-    robotics = await manager.create_session(
+    deep_learning = await manager.create_session(
         GuideV2CreateInput(
-            goal="我想系统学习智能机器人与 ROS 基础",
+            goal="我想系统学习深度学习",
             time_budget_minutes=45,
-            course_template_id="robotics_ros_foundations",
+            course_template_id="deep_learning_foundations",
         )
     )
-    robotics_package = manager.build_course_package(robotics["session"]["session_id"])
+    deep_learning_package = manager.build_course_package(deep_learning["session"]["session_id"])
 
-    assert robotics_package["success"] is True
-    assert robotics_package["demo_seed_pack"]["task_chain"][0]["task_id"] == "R1"
-    assert robotics_package["demo_seed_pack"]["task_chain"][0]["title"] == "画出机器人系统全景图"
-    assert robotics_package["demo_seed_pack"]["resource_prompts"][0]["task_id"] == "R1"
-    assert "机器人系统全景图" in robotics_package["demo_seed_pack"]["resource_prompts"][0]["prompt"]
-    assert robotics_package["demo_seed_pack"]["sample_artifacts"][0]["task_id"] == "R1"
-    assert "兜底素材" in robotics_package["demo_seed_pack"]["sample_artifacts"][0]["title"]
-    assert robotics_package["demo_seed_pack"]["sample_artifacts"][0]["diagram_nodes"]
-    assert robotics_package["demo_seed_pack"]["sample_artifacts"][2]["quiz_items"][0]["answer"] == "话题"
-    assert any("智能机器人与 ROS 基础" in item for item in robotics_package["demo_fallback_kit"]["checklist"])
-
-    calculus = await manager.create_session(
-        GuideV2CreateInput(
-            goal="我想系统学习高等数学极限与导数",
-            time_budget_minutes=40,
-            course_template_id="higher_math_limits_derivatives",
-        )
-    )
-    calculus_package = manager.build_course_package(calculus["session"]["session_id"])
-
-    assert calculus_package["success"] is True
-    assert calculus_package["demo_seed_pack"]["task_chain"][1]["task_id"] == "M4"
-    assert calculus_package["demo_seed_pack"]["task_chain"][1]["title"] == "生成割线逼近切线动画"
-    assert calculus_package["demo_seed_pack"]["resource_prompts"][1]["type"] == "video"
-    assert "Manim" in calculus_package["demo_seed_pack"]["resource_prompts"][1]["prompt"]
-    assert calculus_package["demo_seed_pack"]["sample_artifacts"][1]["type"] == "video"
-    assert "割线逼近切线" in calculus_package["demo_seed_pack"]["sample_artifacts"][1]["title"]
-    assert calculus_package["demo_seed_pack"]["sample_artifacts"][1]["video_beats"]
-    assert "f'(a)" in calculus_package["demo_seed_pack"]["sample_artifacts"][1]["latex_focus"]
-    assert calculus_package["markdown"] and "公式重点" in calculus_package["markdown"]
-    assert any("高等数学极限与导数" in item for item in calculus_package["demo_fallback_kit"]["checklist"])
-
-    ai_agents = await manager.create_session(
-        GuideV2CreateInput(
-            goal="我想系统学习大模型教育智能体系统开发",
-            time_budget_minutes=50,
-            course_template_id="ai_learning_agents_systems",
-        )
-    )
-    ai_agents_package = manager.build_course_package(ai_agents["session"]["session_id"])
-
-    assert ai_agents_package["success"] is True
-    assert ai_agents_package["demo_seed_pack"]["task_chain"][0]["task_id"] == "A1"
-    assert ai_agents_package["demo_seed_pack"]["task_chain"][2]["task_id"] == "A4"
-    assert ai_agents_package["demo_seed_pack"]["resource_prompts"][2]["task_id"] == "A4"
-    assert "多智能体接力路线图" in ai_agents_package["demo_seed_pack"]["resource_prompts"][2]["prompt"]
-    assert any(
-        artifact["task_id"] == "A7" and "学习效果评估报告" in artifact["title"]
-        for artifact in ai_agents_package["demo_seed_pack"]["sample_artifacts"]
-    )
+    assert deep_learning_package["success"] is True
+    assert deep_learning_package["demo_seed_pack"]["task_chain"][0]["task_id"] == "D3"
+    assert deep_learning_package["demo_seed_pack"]["task_chain"][0]["title"] == "生成 CNN 结构图"
+    assert deep_learning_package["demo_seed_pack"]["resource_prompts"][0]["task_id"] == "D3"
+    assert "CNN 结构图" in deep_learning_package["demo_seed_pack"]["resource_prompts"][0]["prompt"]
+    assert deep_learning_package["demo_seed_pack"]["sample_artifacts"][0]["task_id"] == "D3"
+    assert deep_learning_package["demo_seed_pack"]["sample_artifacts"][0]["diagram_nodes"]
+    assert deep_learning_package["demo_seed_pack"]["sample_artifacts"][1]["quiz_items"][0]["answer"] == "图像特征向量"
     report_artifact = next(
-        artifact for artifact in ai_agents_package["demo_seed_pack"]["sample_artifacts"] if artifact["task_id"] == "A7"
+        artifact for artifact in deep_learning_package["demo_seed_pack"]["sample_artifacts"] if artifact["task_id"] == "D14"
     )
-    assert report_artifact["sample_prescription"]["primary_action"]
-    assert "预置练习" in ai_agents_package["markdown"]
-    assert ai_agents_package["competition_alignment"]["coverage_score"] >= 80
-    assert any("大模型教育智能体系统开发" in item for item in ai_agents_package["demo_fallback_kit"]["checklist"])
+    assert report_artifact["sample_prescription"]["next_action"]
+    assert "CNN 结构图" in deep_learning_package["markdown"]
+    assert deep_learning_package["competition_alignment"]["coverage_score"] >= 80
+    assert any("深度学习" in item for item in deep_learning_package["demo_fallback_kit"]["checklist"])
 
 
 @pytest.mark.asyncio
@@ -454,9 +450,9 @@ async def test_guide_v2_builds_study_plan_blocks_and_checkpoints(tmp_path) -> No
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     created = await manager.create_session(
         GuideV2CreateInput(
-            goal="系统学习机器学习基础",
+            goal="系统学习深度学习",
             time_budget_minutes=30,
-            course_template_id="ml_foundations",
+            course_template_id="deep_learning_foundations",
         )
     )
     session_id = created["session"]["session_id"]
@@ -481,7 +477,7 @@ async def test_guide_v2_diagnostic_updates_profile_and_path(tmp_path) -> None:
 
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     created = await manager.create_session(
-        GuideV2CreateInput(goal="系统学习机器学习基础", course_template_id="ml_foundations")
+        GuideV2CreateInput(goal="系统学习深度学习", course_template_id="deep_learning_foundations")
     )
     session_id = created["session"]["session_id"]
 
@@ -525,7 +521,7 @@ async def test_guide_v2_profile_dialogue_updates_profile_and_inserts_focus_task(
 
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     created = await manager.create_session(
-        GuideV2CreateInput(goal="系统学习机器学习基础", course_template_id="ml_foundations")
+        GuideV2CreateInput(goal="系统学习深度学习", course_template_id="deep_learning_foundations")
     )
     session_id = created["session"]["session_id"]
 
@@ -623,9 +619,11 @@ async def test_guide_v2_generates_resource_and_attaches_artifact(tmp_path) -> No
     )
 
     assert result["success"] is True
-    assert [event for event, _payload in events] == ["status", "status"]
+    assert [event for event, _payload in events] == ["status", "status", "status", "status", "status", "status"]
     assert events[0][1]["stage"] == "preparing"
-    assert events[-1][1]["stage"] == "saving"
+    assert events[0][1]["agent_steps"][0]["agent"] == "学情分析 Agent"
+    assert events[-1][1]["stage"] == "completed"
+    assert events[-1][1]["agent_steps"][-1]["status"] == "done"
     assert calls[0][0] == "visualize"
     assert calls[0][1].config_overrides == {"render_mode": "svg"}
     assert "牛顿第二定律" in calls[0][1].user_message
@@ -639,6 +637,9 @@ async def test_guide_v2_generates_resource_and_attaches_artifact(tmp_path) -> No
     artifact = result["artifact"]
     assert artifact["type"] == "visual"
     assert artifact["personalization"]["weak_points"] == ["公式含义"]
+    assert artifact["agent_steps"][0]["status"] == "done"
+    assert artifact["learning_package"]["why_recommended"]
+    assert artifact["quality_review"]["score"] >= 85
     assert artifact["result"]["render_type"] == "svg"
     updated = manager.get_session(session_id)
     assert updated["tasks"][0]["artifact_refs"][0]["id"] == artifact["id"]
@@ -980,8 +981,8 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     created = await manager.create_session(
         GuideV2CreateInput(
-            goal="Build a machine learning study plan",
-            course_template_id="ml_foundations",
+            goal="系统学习深度学习",
+            course_template_id="deep_learning_foundations",
         )
     )
     session_id = created["session"]["session_id"]
@@ -991,7 +992,7 @@ async def test_guide_v2_builds_learning_report(tmp_path) -> None:
         session_id,
         first_task["task_id"],
         score=0.4,
-        reflection="I still confuse features, labels, and examples.",
+        reflection="我仍然分不清卷积核、特征图和分类头之间的关系。",
     )
 
     report = manager.build_learning_report(session_id)
@@ -1089,21 +1090,21 @@ async def test_guide_v2_builds_course_package(tmp_path) -> None:
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     created = await manager.create_session(
         GuideV2CreateInput(
-            goal="Build a complete machine learning foundations portfolio",
-            course_template_id="ml_foundations",
+            goal="完成深度学习课程项目作品集",
+            course_template_id="deep_learning_foundations",
             preferences=["visual", "practice"],
         )
     )
     session_id = created["session"]["session_id"]
     first_task = created["session"]["tasks"][0]
-    manager.complete_task(session_id, first_task["task_id"], score=0.82, reflection="I can explain the course goal.")
+    manager.complete_task(session_id, first_task["task_id"], score=0.82, reflection="我能解释深度学习课程主线。")
 
     package = manager.build_course_package(session_id)
 
     assert package["success"] is True
     assert package["session_id"] == session_id
     assert package["capstone_project"]["deliverables"]
-    assert package["course_metadata"]["course_id"] == "ML101"
+    assert package["course_metadata"]["course_id"] == "DL301"
     assert package["rubric"]
     assert package["review_plan"]
     assert package["demo_outline"]
@@ -1292,25 +1293,28 @@ async def test_guide_v2_adds_transfer_challenge_after_strong_completion(tmp_path
     assert finished["session"]["progress"] == 100
     assert finished["learning_feedback"]["tone"] == "success"
 @pytest.mark.asyncio
-async def test_guide_v2_creates_machine_learning_course_template(tmp_path) -> None:
+async def test_guide_v2_creates_deep_learning_course_template(tmp_path) -> None:
     async def _failing_completion(**_kwargs):
         raise RuntimeError("llm should not be called for templates")
 
     manager = GuideV2Manager(output_dir=tmp_path, completion_fn=_failing_completion)
     result = await manager.create_session(
         GuideV2CreateInput(
-            goal="我想系统学习机器学习基础",
-            course_template_id="ml_foundations",
+            goal="我想系统学习深度学习",
+            course_template_id="deep_learning_foundations",
         )
     )
 
     assert result["success"] is True
     session = result["session"]
-    assert session["course_map"]["generated_by"] == "template:ml_foundations"
-    assert session["course_map"]["metadata"]["course_id"] == "ML101"
-    assert len(session["course_map"]["metadata"]["weekly_schedule"]) == 8
+    assert session["course_map"]["generated_by"] == "template:deep_learning_foundations"
+    assert session["course_map"]["metadata"]["course_id"] == "DL301"
+    assert session["course_map"]["metadata"]["suggested_weeks"] == 14
     assert session["course_map"]["metadata"]["assessment"]
-    assert session["course_map"]["title"].startswith("机器学习基础")
+    assert session["course_map"]["metadata"]["project_milestones"]
+    assert session["course_map"]["metadata"]["demo_seed"]["task_chain"]
+    assert session["course_map"]["title"].startswith("深度学习")
     assert len(session["course_map"]["nodes"]) == 8
-    assert len(session["tasks"]) == 8
+    assert len(session["tasks"]) == 14
+    assert session["learning_path"]["node_sequence"][:3] == ["DL1", "DL2", "DL3"]
     assert session["tasks"][-1]["type"] == "project"

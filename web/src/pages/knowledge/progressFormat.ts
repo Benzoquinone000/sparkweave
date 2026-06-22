@@ -23,7 +23,12 @@ export function withLegacyText(visible: string, legacy: string) {
   return `${visible}${LEGACY_TEXT_SEPARATOR}${legacy}`;
 }
 
-export function formatTaskEvent(label: "log" | "complete" | "failed" | "message", raw: string) {
+export function progressPercent(progress: KnowledgeProgress | undefined | null) {
+  const value = typeof progress?.percent === "number" ? progress.percent : progress?.progress_percent;
+  return typeof value === "number" && Number.isFinite(value) ? clampPercent(value) : undefined;
+}
+
+export function formatTaskEvent(label: "log" | "status" | "complete" | "failed" | "message", raw: string) {
   const payload = parseTaskPayload(raw);
   if (payload) {
     if (payload.line) return withLegacyText(formatKnowledgeLogLine(String(payload.line), label), String(payload.line));
@@ -44,9 +49,10 @@ export function parseTaskPayload(raw: string) {
   }
 }
 
-function formatTaskLabel(label: "log" | "complete" | "failed" | "message") {
+function formatTaskLabel(label: "log" | "status" | "complete" | "failed" | "message") {
   return {
     log: "记录",
+    status: "状态",
     complete: "完成",
     failed: "失败",
     message: "消息",
@@ -56,7 +62,8 @@ function formatTaskLabel(label: "log" | "complete" | "failed" | "message") {
 export function formatWsProgress(progress: KnowledgeProgress) {
   const rawState = progress.stage || progress.status || "progress";
   const state = formatProgressStage(rawState);
-  const percent = typeof progress.percent === "number" ? ` ${clampPercent(progress.percent)}%` : "";
+  const percentValue = progressPercent(progress);
+  const percent = typeof percentValue === "number" ? ` ${percentValue}%` : "";
   const message = progress.message ? ` ${formatKnowledgeLogLine(progress.message)}` : "";
   const legacyMessage = progress.message ? ` ${progress.message}` : "";
   return withLegacyText(`进度 ${state}${percent}${message}`.trim(), `ws: ${rawState}${percent}${legacyMessage}`.trim());
@@ -121,7 +128,7 @@ export function formatKnowledgeWsText(raw: string) {
   return withLegacyText(`进度更新: ${formatKnowledgeLogLine(value)}`, `进度更新: ${value}`);
 }
 
-export function formatKnowledgeLogLine(raw: string, label?: "log" | "complete" | "failed" | "message") {
+export function formatKnowledgeLogLine(raw: string, label?: "log" | "status" | "complete" | "failed" | "message") {
   const original = String(raw || "").trim();
   if (!original) return formatTaskLabel(label || "message");
   const text = original.replace(/^\[[^\]]+\]\s*/, "").trim();

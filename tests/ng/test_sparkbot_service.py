@@ -6,6 +6,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 import sys
+import time
 from types import SimpleNamespace
 import zipfile
 
@@ -193,24 +194,30 @@ def test_sparkbot_competition_demo_seed_preserves_user_edits(manager):
     assert set(result["workspace_files"]) == BASE_WORKSPACE_FILES
     config = manager.load_bot_config(COMPETITION_DEMO_BOT_ID)
     assert config is not None
-    assert config.name == "大模型与智能学习系统助教"
+    assert config.name == "深度学习课程助教"
     assert config.channels["web"]["enabled"] is True
     files = manager.read_all_bot_files(COMPETITION_DEMO_BOT_ID)
     assert "科大讯飞 TTS" in files["TOOLS.md"]
     assert "学习画像智能体 -> 路径规划智能体" in files["AGENTS.md"]
     assert "今日演示目标" in files["NOTES.md"]
-    assert "大模型与智能学习系统" in files["COURSE.md"]
-    assert "8 周课程安排" in files["LESSONS.md"]
-    assert "多智能体接力路线" in files["QUESTION_BANK.md"]
+    assert "深度学习" in files["COURSE.md"]
+    assert "14 周课程安排" in files["LESSONS.md"]
+    assert "Transformer 模块说明" in files["QUESTION_BANK.md"]
     assert "赛题评分映射" in files["RUBRIC.md"]
     assert "科大讯飞工具链讲法" in files["RESOURCES.md"]
     assert "图片理解" in files["RESOURCES.md"]
     assert "星辰工作流" in files["RESOURCES.md"]
 
-    assert manager.write_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md", "# Notes\n\nCustom demo notes.") is True
+    assert (
+        manager.write_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md", "# Notes\n\nCustom demo notes.")
+        is True
+    )
     preserved = manager.seed_competition_demo_bot()
     assert "NOTES.md" in preserved["skipped_files"]
-    assert manager.read_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md") == "# Notes\n\nCustom demo notes."
+    assert (
+        manager.read_bot_file(COMPETITION_DEMO_BOT_ID, "NOTES.md")
+        == "# Notes\n\nCustom demo notes."
+    )
 
     overwritten = manager.seed_competition_demo_bot(overwrite=True)
     assert overwritten["overwritten"] is True
@@ -224,8 +231,8 @@ def test_sparkbot_default_souls_include_competition_demo_tutor(manager):
 
     assert souls["custom"]["content"] == "Keep this custom soul."
     assert COMPETITION_DEMO_BOT_ID in souls
-    assert souls[COMPETITION_DEMO_BOT_ID]["name"] == "大模型与智能学习系统助教"
-    assert "多智能体协作" in souls[COMPETITION_DEMO_BOT_ID]["content"]
+    assert souls[COMPETITION_DEMO_BOT_ID]["name"] == "深度学习课程助教"
+    assert "深度学习" in souls[COMPETITION_DEMO_BOT_ID]["content"]
 
 
 def test_sparkbot_workspace_seeds_builtin_skills_without_overwrite(manager):
@@ -238,7 +245,9 @@ def test_sparkbot_workspace_seeds_builtin_skills_without_overwrite(manager):
 
     assert (workspace / "skills" / "deep-solve" / "SKILL.md").exists()
     assert (workspace / "skills" / "skill-creator" / "scripts" / "init_skill.py").exists()
-    assert (workspace / "skills" / "cron" / "SKILL.md").read_text(encoding="utf-8") == "custom cron skill"
+    assert (workspace / "skills" / "cron" / "SKILL.md").read_text(
+        encoding="utf-8"
+    ) == "custom cron skill"
 
 
 @pytest.mark.asyncio
@@ -262,7 +271,9 @@ async def test_sparkbot_manager_migrates_legacy_bot_layouts(manager, tmp_path):
     assert cfg.auto_start is True
     assert (target / "config.yaml").exists()
     assert (target / "workspace" / "notes.md").read_text(encoding="utf-8") == "legacy notes"
-    assert (target / "workspace" / "memory" / "MEMORY.md").read_text(encoding="utf-8") == "legacy memory"
+    assert (target / "workspace" / "memory" / "MEMORY.md").read_text(
+        encoding="utf-8"
+    ) == "legacy memory"
     assert not (legacy_bot / "config.yaml").exists()
 
     assert manager.load_bot_config("flat").name == "Flat"
@@ -304,7 +315,9 @@ async def test_sparkbot_prompt_includes_workspace_files_and_skills(monkeypatch, 
     monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
     instance = await manager.start_bot("demo", manager.load_bot_config("demo"))
     try:
-        assert await manager.send_message("demo", "teach fractions", chat_id="web") == "context aware"
+        assert (
+            await manager.send_message("demo", "teach fractions", chat_id="web") == "context aware"
+        )
     finally:
         assert await manager.stop_bot("demo") is True
 
@@ -342,8 +355,14 @@ async def test_sparkbot_prompt_includes_memory_and_recent_history(monkeypatch, m
     monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
     instance = await manager.start_bot("demo", manager.load_bot_config("demo"))
     try:
-        assert await manager.send_message("demo", "remember I like diagrams", chat_id="web") == "first reply"
-        assert await manager.send_message("demo", "what should we do next?", chat_id="web") == "second reply"
+        assert (
+            await manager.send_message("demo", "remember I like diagrams", chat_id="web")
+            == "first reply"
+        )
+        assert (
+            await manager.send_message("demo", "what should we do next?", chat_id="web")
+            == "second reply"
+        )
     finally:
         assert await manager.stop_bot("demo") is True
 
@@ -492,7 +511,9 @@ async def test_sparkbot_transcription_provider_returns_empty_without_key(monkeyp
     audio.write_bytes(b"audio")
 
     assert await GroqTranscriptionProvider().transcribe(audio) == ""
-    assert await GroqTranscriptionProvider(api_key="secret").transcribe(tmp_path / "missing.ogg") == ""
+    assert (
+        await GroqTranscriptionProvider(api_key="secret").transcribe(tmp_path / "missing.ogg") == ""
+    )
 
 
 @pytest.mark.asyncio
@@ -524,13 +545,23 @@ async def test_sparkbot_workspace_file_tools_are_workspace_scoped(tmp_path):
             "web": {
                 "proxy": "http://127.0.0.1:7890",
                 "fetchMaxChars": 321,
-                "search": {"provider": "searxng", "baseUrl": "https://search.local", "maxResults": 4},
+                "search": {
+                    "provider": "searxng",
+                    "baseUrl": "https://search.local",
+                    "maxResults": 4,
+                },
             },
         },
     )
-    assert {"read_file", "write_file", "edit_file", "list_dir", "exec", "web_fetch", "code_execution"} <= set(
-        tools.list_tools()
-    )
+    assert {
+        "read_file",
+        "write_file",
+        "edit_file",
+        "list_dir",
+        "exec",
+        "web_fetch",
+        "code_execution",
+    } <= set(tools.list_tools())
     exec_tool = tools.get("exec")
     web_search_tool = tools.get("web_search")
     web_fetch_tool = tools.get("web_fetch")
@@ -689,7 +720,9 @@ async def test_sparkbot_web_search_tool_uses_bot_level_config(monkeypatch, tmp_p
         provider_calls.append((name, kwargs))
         return FakeProvider()
 
-    monkeypatch.setattr("sparkweave.services.search_support.providers.get_provider", fake_get_provider)
+    monkeypatch.setattr(
+        "sparkweave.services.search_support.providers.get_provider", fake_get_provider
+    )
     tools = build_sparkbot_agent_tool_registry(
         tmp_path,
         {
@@ -760,7 +793,9 @@ async def test_sparkbot_agent_loop_runs_workspace_tool_calls(monkeypatch, manage
 
     workspace = manager._workspace_dir("demo")
     assert response == "I saved the study plan."
-    assert (workspace / "notes" / "plan.md").read_text(encoding="utf-8") == "Study fractions with diagrams."
+    assert (workspace / "notes" / "plan.md").read_text(
+        encoding="utf-8"
+    ) == "Study fractions with diagrams."
     tool_log = (workspace / "logs" / "agent_tools.jsonl").read_text(encoding="utf-8")
     assert '"tool": "write_file"' in tool_log
     assert '"tool": "read_file"' in tool_log
@@ -878,7 +913,9 @@ async def test_sparkbot_mcp_tool_wrapper_exposes_schema_and_executes():
     class FakeSession:
         async def call_tool(self, name, arguments):
             calls.append((name, arguments))
-            return SimpleNamespace(content=[SimpleNamespace(text=f"remote says {arguments['query']}")])
+            return SimpleNamespace(
+                content=[SimpleNamespace(text=f"remote says {arguments['query']}")]
+            )
 
     tool = MCPToolWrapper(
         FakeSession(),
@@ -918,7 +955,9 @@ async def test_sparkbot_agent_loop_registers_configured_mcp_tools(monkeypatch, t
 
     class FakeSession:
         async def call_tool(self, name, arguments):
-            return SimpleNamespace(content=[SimpleNamespace(text=f"MCP answer: {arguments['query']}")])
+            return SimpleNamespace(
+                content=[SimpleNamespace(text=f"MCP answer: {arguments['query']}")]
+            )
 
     async def fake_connect_mcp_servers(mcp_servers, registry, stack):
         connected.append(mcp_servers)
@@ -955,7 +994,9 @@ async def test_sparkbot_agent_loop_registers_configured_mcp_tools(monkeypatch, t
         assert "MCP answer: fractions" in prompt
         return "Used MCP."
 
-    monkeypatch.setattr("sparkweave.services.sparkbot.connect_mcp_servers", fake_connect_mcp_servers)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot.connect_mcp_servers", fake_connect_mcp_servers
+    )
     monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
     loop = SparkBotAgentLoop(
         config=BotConfig(
@@ -1080,7 +1121,9 @@ async def test_sparkbot_heartbeat_tick_executes_and_notifies(monkeypatch, tmp_pa
     workspace.mkdir()
     (workspace / "HEARTBEAT.md").write_text("Check algebra reminders.", encoding="utf-8")
 
-    monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.heartbeat.llm_complete", fake_complete
+    )
     heartbeat = SparkBotHeartbeatService(
         workspace=workspace,
         on_execute=execute,
@@ -1118,7 +1161,9 @@ async def test_sparkbot_heartbeat_evaluator_can_suppress_notification(monkeypatc
     workspace.mkdir()
     (workspace / "HEARTBEAT.md").write_text("Check routine status.", encoding="utf-8")
 
-    monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.heartbeat.llm_complete", fake_complete
+    )
     heartbeat = SparkBotHeartbeatService(
         workspace=workspace,
         on_execute=execute,
@@ -1148,7 +1193,9 @@ async def test_sparkbot_heartbeat_skip_does_not_execute(monkeypatch, tmp_path):
     workspace.mkdir()
     (workspace / "HEARTBEAT.md").write_text("No active reminders.", encoding="utf-8")
 
-    monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.heartbeat.llm_complete", fake_complete
+    )
     heartbeat = SparkBotHeartbeatService(workspace=workspace, on_execute=execute)
 
     assert await heartbeat.tick() is None
@@ -1417,7 +1464,9 @@ async def test_sparkbot_telegram_group_message_downloads_media_and_topic_session
     channel._bot_user_id = 99
     channel._bot_username = "DeepSparkBot"
     monkeypatch.setattr(channel, "_start_typing", lambda _chat_id: None)
-    monkeypatch.setattr("sparkweave.services.sparkbot._sparkbot_media_dir", lambda _channel: tmp_path)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.channels._sparkbot_media_dir", lambda _channel: tmp_path
+    )
 
     user = SimpleNamespace(id=12345, username="learner", first_name="Ada")
     photo = SimpleNamespace(file_id="file-1", file_unique_id="unique-photo")
@@ -1869,8 +1918,12 @@ async def test_sparkbot_matrix_media_message_policy_and_download(
     channel = channel_manager.get_channel("matrix")
     fake_client = FakeMatrixClient()
     channel.client = fake_client
-    monkeypatch.setattr("sparkweave.services.sparkbot._sparkbot_media_dir", lambda _channel: tmp_path)
-    room = SimpleNamespace(room_id="!room:matrix.example", display_name="Study Room", member_count=5)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.channels._sparkbot_media_dir", lambda _channel: tmp_path
+    )
+    room = SimpleNamespace(
+        room_id="!room:matrix.example", display_name="Study Room", member_count=5
+    )
 
     unmentioned = SimpleNamespace(
         sender="@alice:matrix.example",
@@ -2244,7 +2297,9 @@ async def test_sparkbot_wecom_image_inbound_and_stream_reply(
     channel = channel_manager.get_channel("wecom")
     channel._client = FakeWeComClient()
     channel._generate_req_id = lambda prefix: f"{prefix}-1"
-    monkeypatch.setattr("sparkweave.services.sparkbot._sparkbot_media_dir", lambda _channel: tmp_path)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.channels._sparkbot_media_dir", lambda _channel: tmp_path
+    )
     frame = SimpleNamespace(
         body={
             "msgid": "wc-1",
@@ -2270,9 +2325,7 @@ async def test_sparkbot_wecom_image_inbound_and_stream_reply(
     }
     assert (tmp_path / "remote.png").read_bytes() == b"image-bytes"
 
-    await channel.send(
-        SparkBotOutboundMessage(channel="wecom", chat_id="chat-1", content="reply")
-    )
+    await channel.send(SparkBotOutboundMessage(channel="wecom", chat_id="chat-1", content="reply"))
     assert channel._client.streams == [
         {"frame": frame, "stream_id": "stream-1", "content": "reply", "finish": True}
     ]
@@ -2330,7 +2383,10 @@ class FakeIMAPClient:
 
 def test_sparkbot_email_fetches_unread_messages(monkeypatch, manager):
     FakeIMAPClient.instances.clear()
-    monkeypatch.setattr("sparkweave.services.sparkbot.imaplib.IMAP4_SSL", FakeIMAPClient)
+    monkeypatch.setattr(
+        "sparkweave.services.sparkbot_support.channels.imaplib.IMAP4_SSL",
+        FakeIMAPClient,
+    )
     channel_manager = manager._build_channel_manager(
         BotConfig(
             name="Demo",
@@ -2659,7 +2715,7 @@ async def test_sparkbot_discord_gateway_message_policy_and_attachment(
     channel._bot_user_id = "bot-1"
     channel._running = True
     monkeypatch.setattr(
-        "sparkweave.services.sparkbot._sparkbot_media_dir",
+        "sparkweave.services.sparkbot_support.channels._sparkbot_media_dir",
         lambda _channel: tmp_path,
     )
 
@@ -2840,9 +2896,9 @@ async def test_sparkbot_commands_help_new_and_cron(monkeypatch, manager):
         assert "/cron add every" in help_text
 
         await manager.send_message("demo", "remember me", chat_id="web")
-        assert "remember me" in (manager._workspace_dir("demo") / "sessions" / "web.jsonl").read_text(
-            encoding="utf-8"
-        )
+        assert "remember me" in (
+            manager._workspace_dir("demo") / "sessions" / "web.jsonl"
+        ).read_text(encoding="utf-8")
         assert await manager.send_message("demo", "/new", chat_id="web") == "New session started."
         session_text = (manager._workspace_dir("demo") / "sessions" / "web.jsonl").read_text(
             encoding="utf-8"
@@ -2867,9 +2923,17 @@ async def test_sparkbot_commands_help_new_and_cron(monkeypatch, manager):
 
         listing = await manager.send_message("demo", "/cron list")
         assert "review notes" in listing
-        assert await manager.send_message("demo", f"/cron run {jobs[0].id}") == f"Ran job {jobs[0].id}"
-        assert await asyncio.wait_for(instance.notify_queue.get(), timeout=1) == "scheduled work complete"
-        assert await manager.send_message("demo", f"/cron remove {jobs[0].id}") == f"Removed job {jobs[0].id}"
+        assert (
+            await manager.send_message("demo", f"/cron run {jobs[0].id}") == f"Ran job {jobs[0].id}"
+        )
+        assert (
+            await asyncio.wait_for(instance.notify_queue.get(), timeout=1)
+            == "scheduled work complete"
+        )
+        assert (
+            await manager.send_message("demo", f"/cron remove {jobs[0].id}")
+            == f"Removed job {jobs[0].id}"
+        )
     finally:
         assert await manager.stop_bot("demo") is True
 
@@ -3226,7 +3290,9 @@ async def test_sparkbot_channel_stop_cancels_active_task(monkeypatch, manager):
             )
         )
 
-        assert await asyncio.wait_for(instance.notify_queue.get(), timeout=1) == "Stopped 1 task(s)."
+        assert (
+            await asyncio.wait_for(instance.notify_queue.get(), timeout=1) == "Stopped 1 task(s)."
+        )
     finally:
         assert await manager.stop_bot("demo") is True
 
@@ -3265,6 +3331,65 @@ async def test_sparkbot_cron_job_delivers_to_web_and_channel(monkeypatch, manage
             content="cron reply",
         )
         assert instance.cron_service.list_jobs(include_disabled=True) == []
+    finally:
+        assert await manager.stop_bot("demo") is True
+
+
+@pytest.mark.asyncio
+async def test_sparkbot_cron_job_created_for_stopped_bot_runs_automatically(monkeypatch, manager):
+    async def fake_complete(**_kwargs):
+        return "scheduled reply"
+
+    monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
+    manager.save_bot_config("demo", BotConfig(name="Demo"))
+
+    job = await manager.add_cron_job(
+        "demo",
+        name="Immediate",
+        schedule=SparkBotCronSchedule(kind="at", at_ms=int(time.time() * 1000) + 50),
+        message="run scheduled check",
+        deliver=True,
+        channel="web",
+        to="web",
+        delete_after_run=True,
+    )
+
+    instance = manager.get_bot("demo")
+    try:
+        assert instance is not None
+        assert instance.cron_service is not None
+        assert instance.cron_service.status()["enabled"] is True
+        assert manager.load_bot_config("demo").auto_start is False
+        assert await asyncio.wait_for(instance.notify_queue.get(), timeout=3) == "scheduled reply"
+        assert instance.cron_service.list_jobs(include_disabled=True) == []
+        assert job["id"]
+    finally:
+        assert await manager.stop_bot("demo") is True
+
+
+@pytest.mark.asyncio
+async def test_sparkbot_auto_start_bots_starts_enabled_cron_jobs(monkeypatch, manager):
+    async def fake_complete(**_kwargs):
+        return "auto cron reply"
+
+    monkeypatch.setattr("sparkweave.services.sparkbot.llm_complete", fake_complete)
+    manager.save_bot_config("demo", BotConfig(name="Demo", auto_start=False))
+    cron = SparkBotCronService(store_path=manager._bot_dir("demo") / "cron" / "jobs.json")
+    cron.add_job(
+        name="Immediate",
+        schedule=SparkBotCronSchedule(kind="at", at_ms=int(time.time() * 1000) + 50),
+        message="auto scheduled check",
+        deliver=True,
+        channel="web",
+        to="web",
+        delete_after_run=True,
+    )
+
+    started = await manager.auto_start_bots()
+    try:
+        assert [instance.bot_id for instance in started] == ["demo"]
+        assert manager.load_bot_config("demo").auto_start is False
+        assert await asyncio.wait_for(started[0].notify_queue.get(), timeout=3) == "auto cron reply"
     finally:
         assert await manager.stop_bot("demo") is True
 
@@ -3371,4 +3496,3 @@ def test_sparkbot_instance_to_dict_masks_secrets():
     assert instance.to_dict()["channels"] == ["telegram"]
     assert instance.to_dict(mask_secrets=True)["channels"]["telegram"]["token"] == "***"
     assert instance.to_dict(include_secrets=True)["channels"]["telegram"]["token"] == "secret"
-

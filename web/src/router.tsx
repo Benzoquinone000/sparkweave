@@ -3,23 +3,15 @@ import {
   createRoute,
   createRouter,
   redirect,
+  type RouteComponent,
 } from "@tanstack/react-router";
 
 import { RootLayout } from "@/components/layout/RootLayout";
-import {
-  AgentsRoute,
-  ChatRoute,
-  CoWriterRoute,
-  GuideRoute,
-  KnowledgeRoute,
-  MemoryRoute,
-  NotebookRoute,
-  PlaygroundRoute,
-  QuestionLabRoute,
-  SettingsRoute,
-  VisionRoute,
-} from "@/routerPages";
 import { isKnowledgeWorkspaceId } from "@/lib/ragHandoff";
+import { REDIRECT_TARGETS, ROUTE_VIEWS, type RedirectTarget } from "@/routeConfig";
+import { KnowledgeRoute } from "@/routerPages";
+
+type RedirectOptions = Parameters<typeof redirect>[0];
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -34,6 +26,24 @@ function searchValue(search: unknown, key: string) {
   return value == null ? "" : String(value);
 }
 
+function pageRoute<const TPath extends string>(path: TPath, component: RouteComponent) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    component,
+  });
+}
+
+function redirectRoute<const TPath extends string>(path: TPath, target: RedirectTarget) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    beforeLoad: () => {
+      throw redirect({ to: target.to, search: target.search } as RedirectOptions);
+    },
+  });
+}
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -46,109 +56,39 @@ const indexRoute = createRoute({
   },
 });
 
-const chatRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/chat",
-  component: ChatRoute,
-});
+const chatRoute = pageRoute("/chat", ROUTE_VIEWS.chat);
+const chatSessionRoute = pageRoute("/chat/$sessionId", ROUTE_VIEWS.chat);
+const questionRoute = pageRoute("/question", ROUTE_VIEWS.question);
+const visionRoute = pageRoute("/vision", ROUTE_VIEWS.vision);
+const notebookRoute = pageRoute("/notebook", ROUTE_VIEWS.notebook);
+const memoryRoute = pageRoute("/memory", ROUTE_VIEWS.memory);
+const memoryEvidenceRoute = pageRoute("/memory/evidence", ROUTE_VIEWS.memory);
+const memoryEditRoute = pageRoute("/memory/edit", ROUTE_VIEWS.memory);
+const playgroundRoute = pageRoute("/playground", ROUTE_VIEWS.playground);
+const guideRoute = pageRoute("/guide", ROUTE_VIEWS.guide);
+const coWriterRoute = pageRoute("/co-writer", ROUTE_VIEWS.coWriter);
+const agentsRoute = pageRoute("/agents", ROUTE_VIEWS.agents);
+const agentChatRoute = pageRoute("/agents/$botId/chat", ROUTE_VIEWS.agents);
+const settingsRoute = pageRoute("/settings", ROUTE_VIEWS.settings);
+const settingsModelsRoute = pageRoute("/settings/models", ROUTE_VIEWS.settings);
+const settingsPreferencesRoute = pageRoute("/settings/preferences", ROUTE_VIEWS.settings);
+const settingsDiagnosticsRoute = pageRoute("/settings/diagnostics", ROUTE_VIEWS.settings);
 
-const chatSessionRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/chat/$sessionId",
-  component: ChatRoute,
-});
-
-const historyRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/history",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat" });
-  },
-});
-
-const questionRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/question",
-  component: QuestionLabRoute,
-});
-
-const solverRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/solver",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat", search: { capability: "deep_solve" } });
-  },
-});
-
-const researchRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/research",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat", search: { capability: "deep_research" } });
-  },
-});
-
-const visualizeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/visualize",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat", search: { capability: "visualize" } });
-  },
-});
-
-const visionRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/vision",
-  component: VisionRoute,
-});
-
-const visionSolverRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/vision-solver",
-  beforeLoad: () => {
-    throw redirect({ to: "/vision" });
-  },
-});
-
-const geogebraRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/geogebra",
-  beforeLoad: () => {
-    throw redirect({ to: "/vision" });
-  },
-});
-
-const mathAnimatorRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/math_animator",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat", search: { capability: "math_animator" } });
-  },
-});
-
-const mathAnimatorHyphenRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/math-animator",
-  beforeLoad: () => {
-    throw redirect({ to: "/chat", search: { capability: "math_animator" } });
-  },
-});
-
-const legacyCoWriterRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/co_writer",
-  beforeLoad: () => {
-    throw redirect({ to: "/co-writer" });
-  },
-});
-
-const compactCoWriterRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/cowriter",
-  beforeLoad: () => {
-    throw redirect({ to: "/co-writer" });
-  },
-});
+const historyRoute = redirectRoute("/history", REDIRECT_TARGETS.history);
+const solverRoute = redirectRoute("/solver", REDIRECT_TARGETS.solver);
+const researchRoute = redirectRoute("/research", REDIRECT_TARGETS.research);
+const visualizeRoute = redirectRoute("/visualize", REDIRECT_TARGETS.visualize);
+const visionSolverRoute = redirectRoute("/vision-solver", REDIRECT_TARGETS.visionSolver);
+const geogebraRoute = redirectRoute("/geogebra", REDIRECT_TARGETS.geogebra);
+const mathAnimatorRoute = redirectRoute("/math_animator", REDIRECT_TARGETS.mathAnimatorLegacy);
+const mathAnimatorHyphenRoute = redirectRoute("/math-animator", REDIRECT_TARGETS.mathAnimator);
+const legacyCoWriterRoute = redirectRoute("/co_writer", REDIRECT_TARGETS.coWriterLegacy);
+const compactCoWriterRoute = redirectRoute("/cowriter", REDIRECT_TARGETS.coWriterCompact);
+const legacySparkBotRoute = redirectRoute("/sparkbot", REDIRECT_TARGETS.sparkBotLegacy);
+const utilityKnowledgeRoute = redirectRoute("/utility/knowledge", REDIRECT_TARGETS.utilityKnowledge);
+const utilityMemoryRoute = redirectRoute("/utility/memory", REDIRECT_TARGETS.utilityMemory);
+const utilityNotebookRoute = redirectRoute("/utility/notebook", REDIRECT_TARGETS.utilityNotebook);
+const utilitySettingsRoute = redirectRoute("/utility/settings", REDIRECT_TARGETS.utilitySettings);
 
 const knowledgeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -173,68 +113,6 @@ const knowledgeWorkspaceRoute = createRoute({
   component: KnowledgeRoute,
 });
 
-const notebookRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/notebook",
-  component: NotebookRoute,
-});
-
-const memoryRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/memory",
-  component: MemoryRoute,
-});
-
-const memoryEvidenceRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/memory/evidence",
-  component: MemoryRoute,
-});
-
-const memoryEditRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/memory/edit",
-  component: MemoryRoute,
-});
-
-const playgroundRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/playground",
-  component: PlaygroundRoute,
-});
-
-const guideRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/guide",
-  component: GuideRoute,
-});
-
-const coWriterRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/co-writer",
-  component: CoWriterRoute,
-});
-
-const agentsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/agents",
-  component: AgentsRoute,
-});
-
-const agentChatRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/agents/$botId/chat",
-  component: AgentsRoute,
-});
-
-const legacySparkBotRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/sparkbot",
-  beforeLoad: () => {
-    throw redirect({ to: "/agents" });
-  },
-});
-
 const legacySparkBotChatRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sparkbot/$botId/chat",
@@ -243,62 +121,6 @@ const legacySparkBotChatRoute = createRoute({
       to: "/agents/$botId/chat",
       params: { botId: params.botId },
     });
-  },
-});
-
-const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/settings",
-  component: SettingsRoute,
-});
-
-const settingsModelsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/settings/models",
-  component: SettingsRoute,
-});
-
-const settingsPreferencesRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/settings/preferences",
-  component: SettingsRoute,
-});
-
-const settingsDiagnosticsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/settings/diagnostics",
-  component: SettingsRoute,
-});
-
-const utilityKnowledgeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/utility/knowledge",
-  beforeLoad: () => {
-    throw redirect({ to: "/knowledge" });
-  },
-});
-
-const utilityMemoryRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/utility/memory",
-  beforeLoad: () => {
-    throw redirect({ to: "/memory" });
-  },
-});
-
-const utilityNotebookRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/utility/notebook",
-  beforeLoad: () => {
-    throw redirect({ to: "/notebook" });
-  },
-});
-
-const utilitySettingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/utility/settings",
-  beforeLoad: () => {
-    throw redirect({ to: "/settings" });
   },
 });
 
@@ -353,4 +175,3 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-

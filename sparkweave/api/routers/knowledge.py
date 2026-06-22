@@ -672,6 +672,14 @@ async def reindex_knowledge_base(
         entry = manager.config.setdefault("knowledge_bases", {}).setdefault(kb_name, {})
         entry["rag_provider"] = rag_provider
         manager._save_config()
+        progress_tracker = ProgressTracker(kb_name, _kb_base_dir)
+        progress_tracker.task_id = task_id
+        progress_tracker.update(
+            ProgressStage.PROCESSING_DOCUMENTS,
+            "Rebuild queued, waiting for indexing worker...",
+            current=0,
+            total=1,
+        )
 
         _ = background_tasks
         _schedule_kb_task(
@@ -763,6 +771,14 @@ async def upload_files(
         )
 
         logger.info(f"Uploading {len(uploaded_files)} files to KB '{kb_name}'")
+        progress_tracker = ProgressTracker(kb_name, _kb_base_dir)
+        progress_tracker.task_id = task_id
+        progress_tracker.update(
+            ProgressStage.PROCESSING_DOCUMENTS,
+            f"Saved {len(uploaded_files)} files, queued for indexing...",
+            current=0,
+            total=max(len(uploaded_files), 1),
+        )
 
         _ = background_tasks
         _schedule_kb_task(

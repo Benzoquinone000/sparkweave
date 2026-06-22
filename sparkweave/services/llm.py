@@ -1103,11 +1103,13 @@ def _resolve_call_config(
     str,
     dict[str, str],
     str | None,
+    int,
     str,
 ]:
     provider_name = binding or "openai"
     provider_mode = "standard"
     resolved_headers: dict[str, str] = {}
+    default_max_tokens = 4096
 
     if not model or not base_url or api_key is None or not binding:
         config = get_llm_config()
@@ -1119,6 +1121,7 @@ def _resolve_call_config(
         provider_name = getattr(config, "provider_name", binding or "openai")
         provider_mode = getattr(config, "provider_mode", "standard")
         resolved_headers = dict(getattr(config, "extra_headers", {}) or {})
+        default_max_tokens = int(getattr(config, "max_tokens", 4096) or 4096)
         if reasoning_effort is None:
             reasoning_effort = getattr(config, "reasoning_effort", None)
     else:
@@ -1142,6 +1145,7 @@ def _resolve_call_config(
         provider_name,
         resolved_headers,
         reasoning_effort,
+        default_max_tokens,
     ) + (provider_mode,)
 
 
@@ -1150,6 +1154,16 @@ def _token_payload(model: str, kwargs: dict[str, object]) -> dict[str, object]:
         return {"max_completion_tokens": kwargs.pop("max_completion_tokens")}
     max_tokens = int(kwargs.pop("max_tokens", 4096) or 4096)
     return get_token_limit_kwargs(model, max_tokens)
+
+
+def _with_default_token_limit(
+    model: str,
+    kwargs: dict[str, object],
+    default_max_tokens: int,
+) -> dict[str, object]:
+    if "max_tokens" in kwargs or "max_completion_tokens" in kwargs:
+        return kwargs
+    return {**kwargs, **get_token_limit_kwargs(model, default_max_tokens)}
 
 
 def _positive_float_from_env(name: str, default: float) -> float:
@@ -1380,6 +1394,7 @@ async def complete(
         provider_name,
         resolved_headers,
         resolved_reasoning_effort,
+        default_max_tokens,
         provider_mode,
     ) = _resolve_call_config(
         model=model,
@@ -1417,7 +1432,7 @@ async def complete(
                 messages=messages,
                 extra_headers=resolved_headers,
                 reasoning_effort=resolved_reasoning_effort,
-                kwargs=dict(kwargs),
+                kwargs=_with_default_token_limit(model, dict(kwargs), default_max_tokens),
             )
         except Exception as exc:
             last_exc = exc
@@ -1464,6 +1479,7 @@ async def stream(
         provider_name,
         resolved_headers,
         resolved_reasoning_effort,
+        default_max_tokens,
         provider_mode,
     ) = _resolve_call_config(
         model=model,
@@ -1502,7 +1518,7 @@ async def stream(
                 messages=messages,
                 extra_headers=resolved_headers,
                 reasoning_effort=resolved_reasoning_effort,
-                kwargs=dict(kwargs),
+                kwargs=_with_default_token_limit(model, dict(kwargs), default_max_tokens),
             ):
                 emitted_any = True
                 yield content
@@ -1537,10 +1553,18 @@ class LLMClient:
         history: list[dict[str, str]] | None = None,
         **kwargs: object,
     ) -> str:
+        resolved_model = kwargs.pop("model", self.config.model)
+        if "max_tokens" not in kwargs and "max_completion_tokens" not in kwargs:
+            kwargs.update(
+                get_token_limit_kwargs(
+                    str(resolved_model),
+                    int(getattr(self.config, "max_tokens", 4096) or 4096),
+                )
+            )
         return await complete(
             prompt=prompt,
             system_prompt=system_prompt or "You are a helpful assistant.",
-            model=kwargs.pop("model", self.config.model),
+            model=resolved_model,
             api_key=kwargs.pop("api_key", self.config.api_key),
             base_url=kwargs.pop("base_url", self.config.effective_url or self.config.base_url),
             api_version=kwargs.pop("api_version", self.config.api_version),

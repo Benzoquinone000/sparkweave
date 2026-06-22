@@ -1,0 +1,385 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>科大讯飞工具链说明</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="科大讯飞工具链说明">科大讯飞工具链说明</h1>
+<p>赛题要求作品选用科大讯飞相关工具。SparkWeave 的处理方式不是把讯飞能力单独做成展示菜单，而是把它们放进学生学习过程：资料先能被读懂，问题先能找到依据，图片和公式能转成可回答内容，讲解可以变成语音，学习结果能回到记录里。</p>
+<p>评委可以从 <a href="../../web/screenshots-settings.png">设置页</a> 查看配置入口，也可以在学习、资料、问问题和记录页面观察这些能力如何参与学习流程。</p>
+<h2 id="学习流程中的讯飞能力">学习流程中的讯飞能力</h2>
+<table>
+<thead>
+<tr class="header">
+<th>学习环节</th>
+<th>使用的讯飞能力</th>
+<th>对学生的价值</th>
+<th>页面入口</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>课程资料入库</td>
+<td>Spark Embedding、OCR for LLM</td>
+<td>让 PDF、扫描讲义和图片资料进入资料库</td>
+<td>资料页</td>
+</tr>
+<tr class="even">
+<td>资料问答</td>
+<td>星火大模型、Spark Embedding、ONE SEARCH</td>
+<td>回答课程问题时先找资料来源，再补充公开资料</td>
+<td>资料页、问问题页</td>
+</tr>
+<tr class="odd">
+<td>图片和公式题</td>
+<td>公式识别、图片理解、OCR</td>
+<td>题图、板书、截图先被转成可解释内容</td>
+<td>问问题页、图像解题</td>
+</tr>
+<tr class="even">
+<td>学习资源生成</td>
+<td>星火大模型、MaaS Coding、星辰工作流</td>
+<td>生成图解、练习、讲解材料和课程成果</td>
+<td>学习页、问问题页</td>
+</tr>
+<tr class="odd">
+<td>语音讲解</td>
+<td>超拟人 TTS、语音听写 ASR</td>
+<td>支持口述提问、音频讲解和短视频旁白</td>
+<td>问问题页、学习页</td>
+</tr>
+<tr class="even">
+<td>学习效果记录</td>
+<td>语音评测、练习反馈、学习报告</td>
+<td>把口语练习、作答结果和反馈写入记录</td>
+<td>记录页</td>
+</tr>
+</tbody>
+</table>
+<p>这张表可以放进“讯飞工具链”相关材料。它比单纯列 API 名更容易说明作品怎么服务学习。</p>
+<h2 id="具体落点">具体落点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>讯飞能力</th>
+<th>SparkWeave 中的落点</th>
+<th>核验方式</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>星火大模型</td>
+<td>问答模型配置</td>
+<td>作为主要对话和资源生成模型，回答课程问题</td>
+</tr>
+<tr class="even">
+<td>MaaS Coding / Astron Code</td>
+<td>代码模型配置</td>
+<td>用于代码类课程任务、工具调用和代码讲解</td>
+</tr>
+<tr class="odd">
+<td>Spark Embedding</td>
+<td>向量模型配置</td>
+<td>上传课程资料后，使用向量检索支撑资料问答</td>
+</tr>
+<tr class="even">
+<td>ONE SEARCH</td>
+<td>搜索服务配置</td>
+<td>当课程资料不足时，补充公开资料和视频线索</td>
+</tr>
+<tr class="odd">
+<td>OCR for LLM</td>
+<td>OCR 配置</td>
+<td>扫描课件、图片讲义或图片资料入库</td>
+</tr>
+<tr class="even">
+<td>公式识别</td>
+<td><code>iflytek_formula_ocr</code></td>
+<td>数学题图和手写公式进入解题流程</td>
+</tr>
+<tr class="odd">
+<td>图片理解</td>
+<td><code>iflytek_image_understanding</code></td>
+<td>板书、实验图、截图进入多模态答疑</td>
+</tr>
+<tr class="even">
+<td>超拟人 TTS</td>
+<td>语音合成配置</td>
+<td>为讲解材料生成音频或短视频旁白</td>
+</tr>
+<tr class="odd">
+<td>语音听写 ASR</td>
+<td>语音识别配置</td>
+<td>学生用口述方式提问或记录反思</td>
+</tr>
+<tr class="even">
+<td>语音评测 ISE</td>
+<td>语音评测配置</td>
+<td>口语、朗读或表达类任务形成学习证据</td>
+</tr>
+<tr class="odd">
+<td>星辰工作流</td>
+<td><code>iflytek_workflow</code></td>
+<td>接入已发布工作流，生成课程资源或诊断报告</td>
+</tr>
+</tbody>
+</table>
+<p>这些能力都能在设置页找到配置或检测入口。不需要逐个点开所有服务，建议固定两到三项真实可用服务，把流程走顺。</p>
+<h2 id="推荐核验路线">推荐核验路线</h2>
+<p>讯飞工具可以这样穿插在学习流程中，不需要单独占满一大段时间：</p>
+<table>
+<thead>
+<tr class="header">
+<th>页面</th>
+<th>操作</th>
+<th>核验重点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>资料页</td>
+<td>上传一份课程资料或展示已有资料库</td>
+<td>OCR、Embedding 与资料问答有关</td>
+</tr>
+<tr class="even">
+<td>问问题页</td>
+<td>围绕资料提问</td>
+<td>回答旁能看到资料来源</td>
+</tr>
+<tr class="odd">
+<td>问问题页</td>
+<td>上传公式题或截图</td>
+<td>公式识别、图片理解把图片转成可辅导内容</td>
+</tr>
+<tr class="even">
+<td>学习页</td>
+<td>生成图解、练习或讲解材料</td>
+<td>资源不是随便生成，而是围绕当前课程任务</td>
+</tr>
+<tr class="odd">
+<td>记录页</td>
+<td>查看学习记录和下一步建议</td>
+<td>学习结果会影响后续推荐</td>
+</tr>
+<tr class="even">
+<td>设置页</td>
+<td>展示讯飞配置和连接检测</td>
+<td>说明哪些服务已真实配置，哪些仅用于流程验证</td>
+</tr>
+</tbody>
+</table>
+<p>更稳的讲法是：先展示一项真实服务调用，再展示学习流程。这样既能看到工具接入，也能看到它确实服务学习任务。</p>
+<h2 id="最小可展示组合">最小可展示组合</h2>
+<p>如果账号权限或现场网络有限，建议优先保证下面这组能力：</p>
+<table>
+<thead>
+<tr class="header">
+<th>优先级</th>
+<th>能力</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>星火大模型</td>
+<td>支撑对话式辅导、资源生成和学习路径解释</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Spark Embedding</td>
+<td>支撑课程资料向量化和资料问答</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>ONE SEARCH</td>
+<td>支撑公开资料补充和视频资源建议</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>OCR 或公式识别</td>
+<td>展示多模态输入，尤其适合数学和扫描讲义</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>TTS</td>
+<td>展示多模态输出，用于语音讲解或短视频旁白</td>
+</tr>
+</tbody>
+</table>
+<p>这组能力已经能覆盖赛题中的资源生成、智能辅导、资料证据和多模态需求。ASR、语音评测和星辰工作流可以作为补充能力。</p>
+<h2 id="页面上如何说明真实性">页面上如何说明真实性</h2>
+<p>提交和核验时，建议把服务状态说清楚：</p>
+<table>
+<thead>
+<tr class="header">
+<th>情况</th>
+<th>建议说法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>已配置真实密钥</td>
+<td>“这里是通过设置页检测通过的讯飞服务，当前结果来自真实调用。”</td>
+</tr>
+<tr class="even">
+<td>暂时没有权限</td>
+<td>“这里展示的是系统流程，页面会标明不是一次真实云端返回。”</td>
+</tr>
+<tr class="odd">
+<td>网络不稳定</td>
+<td>“系统保留已生成材料，真实调用入口仍在设置页和工具层。”</td>
+</tr>
+<tr class="even">
+<td>不展示完整密钥</td>
+<td>“密钥只放在本地 <code>.env</code>，录屏、截图和提交包不会出现真实凭据。”</td>
+</tr>
+</tbody>
+</table>
+<p>把真实调用、替代结果和密钥边界说清楚，比含糊带过更可靠。</p>
+<h2 id="核验动作">核验动作</h2>
+<p>如果需要核验，可以按下面顺序看：</p>
+<table>
+<thead>
+<tr class="header">
+<th>顺序</th>
+<th>页面</th>
+<th>核验内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>设置页</td>
+<td>查看星火、Embedding、搜索、OCR、语音和工作流配置入口</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>设置页</td>
+<td>运行连接检测，确认已配置服务的检测结果</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>资料页</td>
+<td>上传或选择课程资料，确认资料库能用于问答</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>问问题页</td>
+<td>围绕资料提问，展开资料来源</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>问问题页</td>
+<td>使用公式识别、图片理解或 TTS 相关能力生成一次多模态结果</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>记录页</td>
+<td>查看学习记录和下一步建议是否更新</td>
+</tr>
+</tbody>
+</table>
+<p>这条路线能同时看到讯飞工具、资料证据、智能辅导和学习记录，不需要在页面之间来回找功能。</p>
+<h2 id="代码和配置位置">代码和配置位置</h2>
+<table>
+<thead>
+<tr class="header">
+<th>内容</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>设置页</td>
+<td><code>web/src/pages/SettingsPage.tsx</code>、<code>web/src/pages/settings/</code></td>
+</tr>
+<tr class="even">
+<td>设置接口</td>
+<td><code>sparkweave/api/routers/settings.py</code></td>
+</tr>
+<tr class="odd">
+<td>系统检测接口</td>
+<td><code>sparkweave/api/routers/system.py</code></td>
+</tr>
+<tr class="even">
+<td>星火大模型</td>
+<td><code>sparkweave/services/iflytek_spark_ws.py</code></td>
+</tr>
+<tr class="odd">
+<td>Spark Embedding</td>
+<td><code>sparkweave/services/embedding_support/adapters/iflytek_spark.py</code></td>
+</tr>
+<tr class="even">
+<td>ONE SEARCH</td>
+<td><code>sparkweave/services/search_support/providers/iflytek_spark.py</code></td>
+</tr>
+<tr class="odd">
+<td>OCR</td>
+<td><code>sparkweave/services/ocr.py</code></td>
+</tr>
+<tr class="even">
+<td>公式识别</td>
+<td><code>sparkweave/services/iflytek_formula.py</code></td>
+</tr>
+<tr class="odd">
+<td>图片理解</td>
+<td><code>sparkweave/services/iflytek_vision.py</code></td>
+</tr>
+<tr class="even">
+<td>TTS</td>
+<td><code>sparkweave/services/tts.py</code></td>
+</tr>
+<tr class="odd">
+<td>ASR 和语音评测</td>
+<td><code>sparkweave/services/speech.py</code></td>
+</tr>
+<tr class="even">
+<td>星辰工作流</td>
+<td><code>sparkweave/services/iflytek_workflow.py</code></td>
+</tr>
+<tr class="odd">
+<td>工具注册</td>
+<td><code>sparkweave/tools/builtin.py</code></td>
+</tr>
+<tr class="even">
+<td>配置样例</td>
+<td><code>.env.example</code></td>
+</tr>
+</tbody>
+</table>
+<p>更细的变量说明见 <a href="./configuration-guide.html">配置指南</a>。本篇只回答一个问题：讯飞工具用在哪里、怎么核验、边界怎么讲。</p>
+</main>
+</div>
+</body>
+</html>

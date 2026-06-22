@@ -632,7 +632,7 @@ class TestSparkBotCronRoutes:
                 calls["list_include_disabled"] = include_disabled
                 return {"status": {"enabled": False, "jobs": len(calls["jobs"])}, "jobs": calls["jobs"]}
 
-            def add_cron_job(self, bot_id: str, **kwargs):
+            async def add_cron_job(self, bot_id: str, **kwargs):
                 calls["add"] = kwargs
                 job = {
                     "id": "job-1",
@@ -651,7 +651,7 @@ class TestSparkBotCronRoutes:
                 calls["jobs"].append(job)
                 return job
 
-            def set_cron_job_enabled(self, bot_id: str, job_id: str, enabled: bool):
+            async def set_cron_job_enabled(self, bot_id: str, job_id: str, enabled: bool):
                 calls["toggle"] = (job_id, enabled)
                 return {"id": job_id, "enabled": enabled}
 

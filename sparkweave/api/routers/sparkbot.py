@@ -398,7 +398,7 @@ async def create_cron_job(bot_id: str, payload: CronJobCreateRequest):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
     try:
-        return mgr.add_cron_job(
+        return await mgr.add_cron_job(
             bot_id,
             name=(payload.name or message[:30]).strip() or "Scheduled task",
             schedule=schedule,
@@ -415,7 +415,7 @@ async def create_cron_job(bot_id: str, payload: CronJobCreateRequest):
 @router.patch("/{bot_id}/cron/{job_id}")
 async def update_cron_job(bot_id: str, job_id: str, payload: CronJobUpdateRequest):
     mgr = _require_bot_exists(bot_id)
-    result = mgr.set_cron_job_enabled(bot_id, job_id, payload.enabled)
+    result = await mgr.set_cron_job_enabled(bot_id, job_id, payload.enabled)
     if result is None:
         raise HTTPException(status_code=404, detail="Cron job not found")
     return result

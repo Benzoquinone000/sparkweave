@@ -1,0 +1,305 @@
+:root {
+  --bg: #fbfbfa;
+  --paper: #ffffff;
+  --text: #1f2328;
+  --muted: #667085;
+  --line: #e6e4df;
+  --soft: #f7f7f5;
+  --accent: #0f766e;
+  --accent-soft: #e8f3f1;
+  --code-bg: #f6f6f4;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.74 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  padding: 0;
+}
+
+.doc-page,
+.doc-shell {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.doc-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 28px 20px;
+  border-right: 1px solid var(--line);
+  background: rgba(251, 251, 250, 0.94);
+  overflow: auto;
+}
+
+.doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.doc-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.doc-nav-title {
+  margin: 22px 0 8px;
+  color: #8a8f98;
+  font-size: 12px;
+}
+
+.doc-nav a,
+.doc-sidebar nav#TOC a {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.doc-nav a:hover,
+.doc-sidebar nav#TOC a:hover {
+  background: var(--soft);
+  text-decoration: none;
+}
+
+.doc-sidebar nav#TOC {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.doc-sidebar nav#TOC ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.doc-sidebar nav#TOC ul ul {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+.doc-main {
+  min-width: 0;
+  padding: 46px 32px 72px;
+}
+
+.doc-content {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  background: var(--accent-soft);
+  text-decoration: none;
+}
+
+h1 {
+  margin: 0 0 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 38px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+#title-block-header {
+  display: none;
+}
+
+h2 {
+  margin: 42px 0 14px;
+  padding-top: 4px;
+  font-size: 25px;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+h3 {
+  margin: 30px 0 10px;
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+p {
+  margin: 0 0 14px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul,
+ol {
+  padding-left: 1.4em;
+}
+
+li {
+  margin: 4px 0;
+}
+
+table {
+  width: 100%;
+  margin: 18px 0 24px;
+  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--soft);
+  color: #344054;
+  font-weight: 650;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+blockquote {
+  margin: 18px 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: #344054;
+}
+
+code {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--code-bg);
+  color: #374151;
+  font: 13px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+pre {
+  overflow: auto;
+  margin: 18px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #24292f;
+  color: #f6f8fa;
+  font: 13px/1.6 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+nav#TOC,
+.toc {
+  margin: 18px 0 30px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+nav#TOC ul,
+.toc ul {
+  margin: 6px 0;
+}
+
+@media (max-width: 720px) {
+  .doc-page,
+  .doc-shell {
+    display: block;
+  }
+
+  .doc-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-main {
+    padding: 28px 18px 56px;
+  }
+
+  h1 {
+    font-size: 30px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}

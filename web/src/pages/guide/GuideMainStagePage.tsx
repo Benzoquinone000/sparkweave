@@ -4,6 +4,7 @@ import type { useGuideActions } from "./useGuideActions";
 import type { useGuideDerivedState } from "./useGuideDerivedState";
 import type { useGuidePageState } from "./useGuidePageState";
 import type { useGuideRuntimeData } from "./useGuideRuntimeData";
+import { GuideStepFrame } from "./GuideStepFrame";
 
 const GuideCompleteStagePage = lazy(() =>
   import("./GuideCompleteStagePage").then((module) => ({ default: module.GuideCompleteStagePage })),
@@ -25,6 +26,7 @@ type GuideMainStagePageProps = {
   actions: ReturnType<typeof useGuideActions>;
   derived: ReturnType<typeof useGuideDerivedState>;
   highlightedSectionId: string | null;
+  onContinueAfterFeedback: () => void;
   runtime: ReturnType<typeof useGuideRuntimeData>;
   scrollToGuideSection: (sectionId: string) => void;
   state: ReturnType<typeof useGuidePageState>;
@@ -34,6 +36,7 @@ export function GuideMainStagePage({
   actions,
   derived,
   highlightedSectionId,
+  onContinueAfterFeedback,
   runtime,
   scrollToGuideSection,
   state,
@@ -52,6 +55,7 @@ export function GuideMainStagePage({
     generatingType,
     goal,
     prescriptionFeedback,
+    resourceJobSnapshot,
     saveNotebookId,
     sourceAction,
     setGuideSubPage,
@@ -87,10 +91,10 @@ export function GuideMainStagePage({
     submitQuizArtifact,
   } = actions;
 
-  return (
-    <>
-      {!session ? (
-        <Suspense fallback={<GuideStageLoading label="正在准备导学路线创建" />}>
+  if (!session) {
+    return (
+      <GuideStepFrame step={1} total={4} title="先定一个目标" subtitle="写一句话就够，系统会拆成学习路线。">
+        <Suspense fallback={<GuideStageLoading label="正在准备路线" />}>
           <GuideCreateRoutePanel
             primaryActionLabel={primaryActionLabel}
             sourceAction={sourceAction}
@@ -108,10 +112,21 @@ export function GuideMainStagePage({
             onOpenSetup={() => setGuideSubPage("setup")}
           />
         </Suspense>
-      ) : null}
+      </GuideStepFrame>
+    );
+  }
 
-      {session && guideStage === "diagnostic" ? (
-        <Suspense fallback={<GuideStageLoading label="正在准备诊断题" />}>
+  if (guideStage === "diagnostic") {
+    return (
+      <GuideStepFrame
+        step={2}
+        total={4}
+        title="做一个小前测"
+        subtitle="一题一页，答完自动进入学习任务。"
+        previousLabel="补充信息"
+        onPrevious={() => setGuideSubPage("setup")}
+      >
+        <Suspense fallback={<GuideStageLoading label="正在准备前测" />}>
           <GuideDiagnosticStagePanel
             highlightedSectionId={highlightedSectionId}
             diagnostic={diagnostic.data ?? null}
@@ -121,10 +136,23 @@ export function GuideMainStagePage({
             onSubmit={(answers) => void submitDiagnostic(answers)}
           />
         </Suspense>
-      ) : null}
+      </GuideStepFrame>
+    );
+  }
 
-      {session && guideStage === "feedback" ? (
-        <Suspense fallback={<GuideStageLoading label="正在准备学习反馈" />}>
+  if (guideStage === "feedback") {
+    return (
+      <GuideStepFrame
+        step={4}
+        total={4}
+        title="看反馈"
+        subtitle="只看结论和下一步，详细记录放在记录页。"
+        previousLabel="提交记录"
+        nextLabel="继续学习"
+        onPrevious={() => setGuideSubPage("completeTask")}
+        onNext={onContinueAfterFeedback}
+      >
+        <Suspense fallback={<GuideStageLoading label="正在准备反馈" />}>
           <GuideFeedbackStagePanel
             highlightedSectionId={highlightedSectionId}
             feedback={activeLearningFeedback}
@@ -135,7 +163,7 @@ export function GuideMainStagePage({
             report={learningReport.data ?? null}
             reportLoading={learningReport.isFetching}
             onGenerateResource={(type, taskId, prompt) => void generateResource(type, taskId, prompt)}
-            onOpenCurrentTask={() => scrollToGuideSection("guide-current-task-section")}
+            onOpenCurrentTask={onContinueAfterFeedback}
             onOpenRouteMap={() => {
               setGuideSubPage("routeMap");
               scrollToGuideSection("guide-route-map-section");
@@ -143,35 +171,21 @@ export function GuideMainStagePage({
             onOpenCoursePackage={() => setGuideSubPage("coursePackage")}
           />
         </Suspense>
-      ) : null}
+      </GuideStepFrame>
+    );
+  }
 
-      {session && (guideStage === "learn" || guideStage === "feedback") ? (
-        <Suspense fallback={<GuideStageLoading label="正在准备当前任务" />}>
-          <GuideCurrentTaskPanel
-            guideStage={guideStage}
-            currentTask={currentTask}
-            currentDemoStep={currentDemoStep}
-            highlightedSectionId={highlightedSectionId}
-            busy={busy}
-            generatingType={generatingType}
-            activeSessionId={activeSessionId}
-            primaryResourceAction={primaryResourceAction}
-            currentArtifacts={currentArtifacts}
-            adaptiveReason={adaptiveGuideStrategy.reasons[0]?.detail}
-            saveNotebookId={saveNotebookId}
-            savingArtifact={mutations.saveArtifact.isPending}
-            quizSubmitting={mutations.submitQuiz.isPending}
-            onGenerateResource={(type, taskId, prompt) => void generateResource(type, taskId, prompt)}
-            onOpenCompleteTask={() => setGuideSubPage("completeTask")}
-            onOpenResourceChoice={() => setGuideSubPage("resourceChoice")}
-            onSaveArtifact={(artifact) => void saveArtifact(artifact)}
-            onSubmitQuiz={(artifact, answers) => void submitQuizArtifact(artifact, answers)}
-          />
-        </Suspense>
-      ) : null}
-
-      {session && guideStage === "complete" ? (
-        <Suspense fallback={<GuideStageLoading label="正在准备学习报告" />}>
+  if (guideStage === "complete") {
+    return (
+      <GuideStepFrame
+        step={4}
+        total={4}
+        title="学习报告"
+        subtitle="这一轮结束了，先看摘要，再保存或查看成果。"
+        previousLabel="看路线"
+        onPrevious={() => setGuideSubPage("routeMap")}
+      >
+        <Suspense fallback={<GuideStageLoading label="正在准备报告" />}>
           <GuideCompleteStagePage
             highlightedSectionId={highlightedSectionId}
             report={learningReport.data ?? null}
@@ -200,29 +214,54 @@ export function GuideMainStagePage({
             onSubmitQuiz={(artifact, answers) => void submitQuizArtifact(artifact, answers)}
           />
         </Suspense>
-      ) : null}
+      </GuideStepFrame>
+    );
+  }
 
-      {session ? (
-        <button
-          type="button"
-          className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-white hover:text-brand-purple"
-          onClick={() => setGuideSubPage("routeMap")}
-        >
-          查看完整路线
-        </button>
-      ) : null}
-    </>
+  return (
+    <GuideStepFrame
+      step={3}
+      total={4}
+      title={currentTask?.title || "当前任务"}
+      subtitle="这一页只完成当前任务。需要路线或提交结果，用底部按钮切换。"
+      previousLabel="看路线"
+      nextLabel="提交学习记录"
+      onPrevious={() => setGuideSubPage("routeMap")}
+      onNext={() => setGuideSubPage("completeTask")}
+    >
+      <Suspense fallback={<GuideStageLoading label="正在准备当前任务" />}>
+        <GuideCurrentTaskPanel
+          guideStage={guideStage}
+          currentTask={currentTask}
+          currentDemoStep={currentDemoStep}
+          highlightedSectionId={highlightedSectionId}
+          busy={busy}
+          generatingType={generatingType}
+          resourceJobSnapshot={resourceJobSnapshot}
+          activeSessionId={activeSessionId}
+          primaryResourceAction={primaryResourceAction}
+          currentArtifacts={currentArtifacts}
+          adaptiveReason={adaptiveGuideStrategy.reasons[0]?.detail}
+          saveNotebookId={saveNotebookId}
+          savingArtifact={mutations.saveArtifact.isPending}
+          quizSubmitting={mutations.submitQuiz.isPending}
+          onGenerateResource={(type, taskId, prompt) => void generateResource(type, taskId, prompt)}
+          onOpenCompleteTask={() => setGuideSubPage("completeTask")}
+          onOpenResourceChoice={() => setGuideSubPage("resourceChoice")}
+          onSaveArtifact={(artifact) => void saveArtifact(artifact)}
+          onSubmitQuiz={(artifact, answers) => void submitQuizArtifact(artifact, answers)}
+        />
+      </Suspense>
+    </GuideStepFrame>
   );
 }
 
 function GuideStageLoading({ label }: { label: string }) {
   return (
-    <section className="rounded-lg border border-line bg-white/90 p-4">
-      <p className="text-sm font-semibold text-ink">{label}</p>
-      <div className="mt-3 space-y-2">
-        <span className="block h-3 w-44 max-w-full rounded bg-slate-100" />
-        <span className="block h-16 rounded bg-slate-100/80" />
-        <span className="block h-16 rounded bg-slate-100/60" />
+    <section className="grid h-full place-items-center rounded-lg border border-line bg-white/90 p-4">
+      <div className="text-center">
+        <p className="text-sm font-semibold text-ink">{label}</p>
+        <span className="mx-auto mt-3 block h-2.5 w-32 rounded bg-slate-100" />
       </div>
     </section>
   );

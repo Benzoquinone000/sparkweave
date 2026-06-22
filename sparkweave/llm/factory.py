@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from sparkweave.core.dependencies import dependency_error
-from sparkweave.services.config import LLMConfig, get_llm_config
+from sparkweave.services.config import LLMConfig, get_llm_config, get_token_limit_kwargs
 
 
 @dataclass
@@ -28,6 +28,13 @@ class ModelFactory:
         )
         api_version = overrides.pop("api_version", getattr(cfg, "api_version", None))
         temperature = overrides.pop("temperature", getattr(cfg, "temperature", 0.2))
+        if "max_tokens" not in overrides and "max_completion_tokens" not in overrides:
+            overrides.update(
+                get_token_limit_kwargs(
+                    str(model or ""),
+                    int(getattr(cfg, "max_tokens", 4096) or 4096),
+                )
+            )
 
         common = {
             "model": model,

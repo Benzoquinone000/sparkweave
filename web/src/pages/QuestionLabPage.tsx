@@ -218,8 +218,8 @@ export function QuestionLabPage() {
   const initialSeed = useMemo(() => readQuestionLabSeed(), []);
 
   const [mode, setMode] = useState<RunMode>("topic");
-  const [topic, setTopic] = useState(initialSeed.topic || "函数极限与连续");
-  const [preference, setPreference] = useState(initialSeed.preference || "贴近高等数学期末题，解析要指出易错点。");
+  const [topic, setTopic] = useState(initialSeed.topic || "CNN 图像检索与注意力机制");
+  const [preference, setPreference] = useState(initialSeed.preference || "贴近深度学习课程小测，解析要指出易错点。");
   const [difficulty, setDifficulty] = useState(initialSeed.difficulty || "medium");
   const [questionType, setQuestionType] = useState(initialSeed.questionType);
   const [count, setCount] = useState(initialSeed.count);

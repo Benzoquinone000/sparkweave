@@ -662,9 +662,13 @@ export interface KnowledgeProgress {
   stage?: string;
   message?: string;
   percent?: number;
+  progress_percent?: number;
   current?: number;
   total?: number;
   task_id?: string;
+  timestamp?: string;
+  file_name?: string;
+  error?: string | null;
 }
 
 export interface KnowledgeTaskStatusResponse {
@@ -1425,7 +1429,46 @@ export interface GuideV2Artifact {
   status?: string;
   created_at?: number;
   config?: Record<string, unknown>;
+  agent_steps?: GuideResourceAgentStep[];
+  learning_package?: GuideResourceLearningPackage;
+  quality_review?: GuideResourceQualityReview;
+  personalization?: Record<string, unknown>;
   result?: Record<string, unknown>;
+}
+
+export interface GuideResourceAgentStep {
+  id?: string;
+  agent?: string;
+  title?: string;
+  detail?: string;
+  status?: "waiting" | "active" | "done" | "failed" | string;
+}
+
+export interface GuideResourceQualityReview {
+  score?: number;
+  label?: string;
+  summary?: string;
+  reviewer?: string;
+  checks?: Array<{ label?: string; status?: string; detail?: string }>;
+}
+
+export interface GuideResourceLearningPackage {
+  title?: string;
+  summary?: string;
+  why_recommended?: string[];
+  study_order?: string[];
+  quality_score?: number;
+  next_action?: string;
+  source?: Record<string, unknown>;
+}
+
+export interface GuideResourceJobSnapshot {
+  jobId?: string;
+  stage?: string;
+  message?: string;
+  resourceType?: GuideV2ResourceType | string;
+  steps?: GuideResourceAgentStep[];
+  error?: string;
 }
 
 export interface GuideV2Task {

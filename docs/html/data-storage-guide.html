@@ -1,0 +1,301 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>数据存储规范</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="数据存储规范">数据存储规范</h1>
+<p>本篇面向评委说明 SparkWeave 的数据边界：哪些数据随项目提交，哪些数据由系统运行后生成，哪些数据不应放进提交包。这样做的目的很直接，既要让系统可以完整运行，也要避免把真实账号、真实学生记录或未授权资料一起交出去。</p>
+<h2 id="数据分层">数据分层</h2>
+<table>
+<thead>
+<tr class="header">
+<th>位置</th>
+<th>内容</th>
+<th>提交建议</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>data/course_templates/</code></td>
+<td>完整高校课程模板，学习页可直接选用</td>
+<td>随源码提交</td>
+</tr>
+<tr class="even">
+<td><code>data/eval_corpora/</code></td>
+<td>RAG 检索评估材料和小型课程语料</td>
+<td>可提交脱敏样例</td>
+</tr>
+<tr class="odd">
+<td><code>data/knowledge_bases/</code></td>
+<td>资料页上传的文档、解析信息和知识库配置</td>
+<td>示例材料可提交，真实课程资料需确认授权</td>
+</tr>
+<tr class="even">
+<td><code>data/knowledge_bases/&lt;知识库&gt;/raw/</code></td>
+<td>原始 PDF、Markdown、文本等资料</td>
+<td>只放可公开展示的材料</td>
+</tr>
+<tr class="odd">
+<td><code>data/knowledge_bases/&lt;知识库&gt;/milvus_storage/</code></td>
+<td>向量库集合标记和索引信息</td>
+<td>通常由运行环境生成</td>
+</tr>
+<tr class="even">
+<td><code>data/milvus/</code></td>
+<td>Milvus 本地数据、向量索引和检索状态</td>
+<td>不作为源码必交内容</td>
+</tr>
+<tr class="odd">
+<td><code>data/user/</code></td>
+<td>用户设置、学习记录、会话记录、笔记和生成结果</td>
+<td>不提交真实个人数据</td>
+</tr>
+<tr class="even">
+<td><code>data/user/learner_profile/evidence.jsonl</code></td>
+<td>学习行为和反馈证据流水</td>
+<td>运行时生成或提交脱敏样例</td>
+</tr>
+<tr class="odd">
+<td><code>data/user/learner_profile/profile.json</code></td>
+<td>当前学习画像结果</td>
+<td>运行时生成或提交脱敏样例</td>
+</tr>
+<tr class="even">
+<td><code>data/user/workspace/guide/</code></td>
+<td>学习路径、任务进度、学习评估结果</td>
+<td>运行后生成</td>
+</tr>
+<tr class="odd">
+<td><code>data/user/workspace/notebook/</code></td>
+<td>用户保存的学习笔记</td>
+<td>运行后生成</td>
+</tr>
+<tr class="even">
+<td><code>data/user/chat_history.db</code></td>
+<td>问答与学习会话记录</td>
+<td>运行后生成</td>
+</tr>
+<tr class="odd">
+<td><code>data/user/settings/</code></td>
+<td>前端设置页保存的本地配置</td>
+<td>不提交真实密钥</td>
+</tr>
+<tr class="even">
+<td><code>web/screenshots-*.png</code></td>
+<td>当前前端页面截图</td>
+<td>可作为文档和展示材料使用</td>
+</tr>
+<tr class="odd">
+<td><code>.env.example</code></td>
+<td>配置项示例</td>
+<td>随源码提交</td>
+</tr>
+<tr class="even">
+<td><code>.env</code></td>
+<td>本机密钥和私有地址</td>
+<td>不提交</td>
+</tr>
+</tbody>
+</table>
+<h2 id="课程模板">课程模板</h2>
+<p>赛题要求自行构造至少一门完整高校专业课程。SparkWeave 把课程主线放在 <code>data/course_templates/</code>，当前提交包含两门可选课程：</p>
+<table>
+<thead>
+<tr class="header">
+<th>文件</th>
+<th>课程</th>
+<th style="text-align: right;">节点数</th>
+<th style="text-align: right;">任务数</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>deep_learning/deep_learning_foundations.json</code></td>
+<td>深度学习</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">14</td>
+<td>主课程，依据 <code>ppts/深度学习/</code> 课件整理</td>
+</tr>
+<tr class="even">
+<td><code>intelligent_robot_systems/intelligent_robot_systems.json</code></td>
+<td>智能机器人系统</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">11</td>
+<td>新增实践课程，依据 <code>ppts/智能机器人系统/</code> 课件整理</td>
+</tr>
+</tbody>
+</table>
+<p>这些模板不是简单的标题列表。它们包含课程目标、学习产出、知识节点、任务安排、项目里程碑、评价方式和学习样例。学习页创建学习路线时，可以直接读取模板，再结合学习画像生成下一步任务和资源建议。</p>
+<p>课程模板可用下面的命令核验：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/check_course_templates.py</span></code></pre></div>
+<p>这个检查会验证课程 <code>id</code>、课程名称、节点关系、任务归属和学习样例是否完整，避免出现课程能看到但不能正常选用的问题。</p>
+<h2 id="课程资料库">课程资料库</h2>
+<p>课程课件通过模板里的 <code>source_materials</code> 同步到资料库。当前演示课程的对应关系如下：</p>
+<table>
+<thead>
+<tr class="header">
+<th>课程</th>
+<th>资料库目录</th>
+<th style="text-align: right;">原始资料数量</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>深度学习</td>
+<td><code>data/knowledge_bases/深度学习/raw/</code></td>
+<td style="text-align: right;">14</td>
+<td>对应 <code>ppts/深度学习/</code></td>
+</tr>
+<tr class="even">
+<td>智能机器人系统</td>
+<td><code>data/knowledge_bases/智能机器人系统/raw/</code></td>
+<td style="text-align: right;">11</td>
+<td>对应 <code>ppts/智能机器人系统/</code></td>
+</tr>
+</tbody>
+</table>
+<p>同步命令：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/sync_course_materials_to_kb.py <span class="at">--stage-only</span></span></code></pre></div>
+<p>这一步只保证“课程资料已经进入资料库原始文件区”。如果资料页或问问题页要直接检索这些文件，需要在完整运行环境里重建索引：</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/sync_course_materials_to_kb.py <span class="at">--index</span></span></code></pre></div>
+<p>因此提交材料里可以保留可公开展示的课程样例资料，但不要把真实学生上传资料、未授权教材或本机 Milvus 数据混进去。</p>
+<h2 id="运行数据如何产生">运行数据如何产生</h2>
+<p>SparkWeave 启动后会把学习过程写入 <code>data/user/</code>，把资料库数据写入 <code>data/knowledge_bases/</code> 和向量索引目录。一次正常学习流程大致会产生这些数据：</p>
+<ol type="1">
+<li>学习页选择课程并生成路线，系统在 <code>data/user/workspace/guide/</code> 保存学习会话、任务进度和阶段评估。</li>
+<li>学生完成任务、提交反馈或进行练习，系统把证据追加到 <code>data/user/learner_profile/evidence.jsonl</code>。</li>
+<li>学习画像服务读取证据后生成 <code>data/user/learner_profile/profile.json</code>，页面上的薄弱点、偏好和下一步建议由这里支撑。</li>
+<li>资料页上传课程文档，系统在 <code>data/knowledge_bases/&lt;知识库&gt;/raw/</code> 保存原始资料，并在向量检索层建立索引。</li>
+<li>问资料或问课程问题时，系统读取知识库结果，把引用来源带回前端，用于证明回答不是凭空生成。</li>
+<li>用户保存笔记时，笔记写入 <code>data/user/workspace/notebook/</code>，后续问答可以把笔记作为上下文。</li>
+</ol>
+<p>这些数据体现了“学习画像 -&gt; 个性化路径 -&gt; 资料问答 -&gt; 学习评估”的连续过程。它们应该来自真实操作，而不是只在文档里描述。</p>
+<h2 id="提交边界">提交边界</h2>
+<p>建议随项目提交的内容：</p>
+<ul>
+<li>源码、前端工程、Docker 配置和启动说明。</li>
+<li><code>data/course_templates/</code> 中的完整课程模板。</li>
+<li><code>.env.example</code> 等不含密钥的配置示例。</li>
+<li>可公开展示的少量示例资料，放入 <code>data/knowledge_bases/</code> 时需确认来源清楚。</li>
+<li>当前前端截图和配套说明文档。</li>
+</ul>
+<p>不建议随项目提交的内容：</p>
+<ul>
+<li><code>.env</code>、真实 API Key、账号 Token、私有服务地址。</li>
+<li>真实学生姓名、学习记录、聊天记录、语音材料和个人画像。</li>
+<li>未获授权的教材、课件、论文全文或课程资料。</li>
+<li><code>data/milvus/</code> 这类由数据库服务生成的大体量运行数据。</li>
+<li>本机日志、临时文件、前端构建产物和依赖目录。</li>
+</ul>
+<p>如果提交材料需要展示学习记录，可以使用脱敏样例：保留知识点、任务、分数、反馈类型，去掉姓名、账号、学校、手机号、邮箱、原始语音和可识别个人身份的文本。</p>
+<h2 id="配置与密钥">配置与密钥</h2>
+<p>讯飞模型、Embedding、搜索、OCR、语音和工作流等服务配置通过设置页或环境变量注入。提交包只提供字段名称和示例格式，不提供真实密钥。</p>
+<p>评委在本地运行时，可以先使用 <code>.env.example</code> 确认需要哪些变量，再按实际账号填入 <code>.env</code>。设置页会展示服务连接状态，也会对敏感字段做遮盖显示。若没有配置真实密钥，系统仍可进入前端工作台，但涉及外部服务的能力会明确显示未配置或返回带标记的替代结果。</p>
+<h2 id="可复现性">可复现性</h2>
+<p>SparkWeave 不依赖提交包里的个人运行数据来证明功能。评委从干净环境启动后，可以按下面顺序重新得到主要数据：</p>
+<ol type="1">
+<li>用 Docker Compose 启动前后端服务。</li>
+<li>打开学习页，选择 <code>深度学习</code> 课程并生成学习路线。</li>
+<li>在资料页创建知识库、上传可公开的课程材料。</li>
+<li>在问问题页面基于资料提问，查看回答中的来源。</li>
+<li>完成一个学习任务并提交反馈，在记录页查看画像和建议变化。</li>
+</ol>
+<p>这条路线覆盖了课程模板、资料检索、学习记录、画像更新和资源推荐。即使不提交 <code>data/user/</code>，评委也可以现场生成新的学习过程。</p>
+<h2 id="代码落点">代码落点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>代码位置</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sparkweave/services/paths.py</code></td>
+<td>统一管理运行数据路径</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/services/learner_evidence.py</code></td>
+<td>记录学习证据</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/services/learner_profile.py</code></td>
+<td>生成学习画像</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/services/guide_v2.py</code></td>
+<td>保存学习路线、任务进度和学习评估</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/knowledge/manager.py</code></td>
+<td>管理知识库目录和配置</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/services/rag_support/</code></td>
+<td>资料解析、向量索引和检索服务</td>
+</tr>
+<tr class="odd">
+<td><code>sparkweave/api/routers/knowledge.py</code></td>
+<td>资料页相关 API</td>
+</tr>
+<tr class="even">
+<td><code>sparkweave/api/routers/learner_profile.py</code></td>
+<td>画像页相关 API</td>
+</tr>
+<tr class="odd">
+<td><code>web/src/pages/GuidePage.tsx</code></td>
+<td>学习页</td>
+</tr>
+<tr class="even">
+<td><code>web/src/pages/KnowledgePage.tsx</code></td>
+<td>资料页</td>
+</tr>
+<tr class="odd">
+<td><code>web/src/pages/MemoryPage.tsx</code></td>
+<td>记录与画像页</td>
+</tr>
+<tr class="even">
+<td><code>web/src/pages/NotebookPage.tsx</code></td>
+<td>笔记页</td>
+</tr>
+</tbody>
+</table>
+<h2 id="边界说明">边界说明</h2>
+<p>数据存储规范不是为了让提交包看起来更满，而是为了让评委能分清“项目能力”和“个人运行痕迹”。课程模板、源码和配置示例应当稳定；学习记录、知识库索引、画像结果和本机日志应当可以在运行后重新生成。这样提交包更干净，也更容易在评审环境里复现。</p>
+</main>
+</div>
+</body>
+</html>

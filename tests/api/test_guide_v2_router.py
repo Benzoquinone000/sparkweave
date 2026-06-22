@@ -83,9 +83,12 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
     templates_response = client.get("/api/v1/guide/v2/templates")
     assert templates_response.status_code == 200
     templates = templates_response.json()["templates"]
-    assert templates[0]["id"] == "ml_foundations"
-    assert templates[0]["course_id"] == "ML101"
-    assert templates[0]["demo_seed"]["task_chain"]
+    deep_learning = next(item for item in templates if item["id"] == "deep_learning_foundations")
+    robotics = next(item for item in templates if item["id"] == "intelligent_robot_systems")
+    assert deep_learning["course_id"] == "DL301"
+    assert deep_learning["demo_seed"]["task_chain"]
+    assert robotics["course_id"] == "ROBOT301"
+    assert robotics["demo_seed"]["task_chain"]
 
     create_response = client.post(
         "/api/v1/guide/v2/sessions",
@@ -367,11 +370,14 @@ def test_guide_v2_router_create_get_complete_and_delete(tmp_path, monkeypatch) -
         json={"resource_type": "visual", "prompt": "做成图解"},
     )
     assert job_response.status_code == 200
-    job_id = job_response.json()["task_id"]
+    job_payload = job_response.json()
+    assert job_payload["agent_steps"][0]["agent"] == "学情分析 Agent"
+    job_id = job_payload["task_id"]
     events_response = client.get(f"/api/v1/guide/v2/resource-jobs/{job_id}/events")
     assert events_response.status_code == 200
     assert "event: complete" in events_response.text
     assert "event: result" in events_response.text
+    assert "质量评审 Agent" in events_response.text
 
     complete_response = client.post(
         f"/api/v1/guide/v2/sessions/{session_id}/tasks/{task_id}/complete",

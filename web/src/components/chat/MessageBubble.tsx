@@ -63,6 +63,13 @@ export function MessageBubble({
     [isUser, message],
   );
   const showAssistantActions = !isUser && (Boolean(displayContent) || canSaveAsset || Boolean(canvasDocument));
+  const assistantStatusClass = !isUser
+    ? message.status === "streaming"
+      ? "dt-message-card-streaming"
+      : message.status === "done"
+        ? "dt-message-card-done"
+        : ""
+    : "";
 
   return (
     <motion.article
@@ -70,16 +77,28 @@ export function MessageBubble({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
-      className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}
+      className={`dt-message-row flex gap-2.5 ${isUser ? "justify-end" : "justify-start"} ${
+        !isUser && message.status === "streaming" ? "dt-message-row-streaming" : ""
+      }`}
     >
       {!isUser ? (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-tint-lavender text-brand-purple">
+        <div
+          className={`dt-message-avatar dt-message-avatar-assistant flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-tint-lavender text-brand-purple ${
+            message.status === "streaming" ? "dt-message-avatar-active" : ""
+          }`}
+        >
           <Bot size={16} />
         </div>
       ) : null}
-      <div className={`max-w-[min(720px,100%)] ${isUser ? "order-first" : ""}`}>
-        <div className={`rounded-lg border p-3 shadow-sm ${isUser ? "border-transparent bg-tint-yellow" : "border-line bg-white"}`}>
-          <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
+      <div className={`dt-message-stack max-w-[min(720px,100%)] ${isUser ? "order-first" : ""}`}>
+        <div
+          className={`dt-message-card rounded-lg border ${
+            isUser
+              ? "dt-message-card-user border-transparent bg-tint-yellow px-3 py-2.5"
+              : `dt-message-card-assistant ${assistantStatusClass} border-line bg-white px-3.5 py-3.5 sm:px-4 sm:py-4`
+          }`}
+        >
+          <div className="dt-message-meta mb-2.5 flex flex-wrap items-center gap-1.5 text-xs">
             <span className={`font-semibold ${isUser ? "text-charcoal" : "text-ink"}`}>
               {isUser ? "你" : message.status === "streaming" ? "SparkWeave 正在回答" : "SparkWeave"}
             </span>
@@ -87,7 +106,7 @@ export function MessageBubble({
             {hasNarratedMathVideo ? <Badge tone="success">带旁白成片</Badge> : null}
             {message.attachments?.length ? <Badge tone="warning">{message.attachments.length} 个附件</Badge> : null}
             {showAssistantActions ? (
-              <div className="ml-auto flex flex-wrap justify-end gap-2">
+              <div className="dt-message-actions ml-auto flex flex-wrap justify-end gap-2">
                 {onOpenCanvas && canvasDocument ? (
                   <button
                     type="button"
@@ -128,10 +147,12 @@ export function MessageBubble({
               <QuizViewer questions={quizQuestions} sessionId={sessionId} />
             </Suspense>
           ) : displayContent ? (
-            <MarkdownRenderer className="markdown-body">{displayContent}</MarkdownRenderer>
+            <MarkdownRenderer className={`markdown-body ${isUser ? "markdown-body-user" : "markdown-body-chat"}`}>
+              {displayContent}
+            </MarkdownRenderer>
           ) : (
-            <div className="flex items-center gap-2 text-xs text-steel">
-              <span className="h-2 w-2 animate-pulse rounded-sm bg-brand-blue" />
+            <div className="dt-message-empty flex items-center gap-2 text-xs text-steel">
+              <span className="dt-message-thinking-dot h-2 w-2 animate-pulse rounded-sm bg-brand-blue" />
               正在组织解答
             </div>
           )}
@@ -153,7 +174,7 @@ export function MessageBubble({
         ) : null}
       </div>
       {isUser ? (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-purple text-white">
+        <div className="dt-message-avatar dt-message-avatar-user flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-purple text-white">
           <UserRound size={16} />
         </div>
       ) : null}

@@ -56,4 +56,4 @@ npm run verify
 | `/vision` | 图像解题 |
 | `/playground` | 工程调试台 |
 
-页面、组件、动效和色彩约定见 [前端设计规范](../docs/frontend-design-guide.md)，项目工程门禁见 [软件工程规范](../docs/engineering-standards.md)。
+页面、组件、动效和色彩约定见 [前端设计规范](../docs/markdown/frontend-design-guide.md)，项目工程门禁见 [软件工程规范](../docs/markdown/engineering-standards.md)。

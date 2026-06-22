@@ -55,6 +55,8 @@ services:
       - MILVUS_SIMILARITY_METRIC=${MILVUS_SIMILARITY_METRIC:-IP}
       - MILVUS_CONSISTENCY_LEVEL=${MILVUS_CONSISTENCY_LEVEL:-Strong}
       - MILVUS_OVERWRITE_ON_INIT=${MILVUS_OVERWRITE_ON_INIT:-1}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,milvus,milvus-etcd,milvus-minio}
+      - no_proxy=${no_proxy:-localhost,127.0.0.1,milvus,milvus-etcd,milvus-minio}
       - SEARCH_PROVIDER=${SEARCH_PROVIDER:-}
       - SEARCH_API_KEY=${SEARCH_API_KEY:-}
       - SEARCH_BASE_URL=${SEARCH_BASE_URL:-}
@@ -66,9 +68,17 @@ services:
       - ./requirements:/app/requirements:ro
       - ./requirements.txt:/app/requirements.txt:ro
       - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./data/course_templates:/app/data/course_templates:ro
       - ./data/user:/app/data/user
       - ./data/knowledge_bases:/app/data/knowledge_bases
       - ./data/milvus:/app/data/milvus
+    depends_on:
+      milvus:
+        condition: service_healthy
+      milvus-etcd:
+        condition: service_healthy
+      milvus-minio:
+        condition: service_healthy
     networks:
       - sparkweave-network
 

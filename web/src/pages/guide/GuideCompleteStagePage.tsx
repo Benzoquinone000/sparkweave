@@ -1,6 +1,7 @@
-import { Loader2 } from "lucide-react";
+import { Download, Loader2, Save, Trophy } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import type {
   GuideV2Artifact,
   GuideV2LearningFeedback,
@@ -9,12 +10,9 @@ import type {
   GuideV2Task,
   QuizResultItem,
 } from "@/lib/types";
-import { GuideLearningReportPanel } from "./GuideLearningReportPanel";
-import { GuidePrescriptionFeedbackNotice } from "./GuideLearningFeedbackPanel";
 import { GuideResourceArtifactPager } from "./GuideResourceArtifactPager";
 
 export function GuideCompleteStagePage({
-  highlightedSectionId,
   report,
   reportLoading,
   canSaveReport,
@@ -32,7 +30,6 @@ export function GuideCompleteStagePage({
   onExportReport,
   onOpenRouteMap,
   onOpenCoursePackage,
-  onGenerateResource,
   onReviewReport,
   onOpenMemory,
   onSaveArtifact,
@@ -62,91 +59,82 @@ export function GuideCompleteStagePage({
   onSaveArtifact: (artifact: GuideV2Artifact) => void;
   onSubmitQuiz: (artifact: GuideV2Artifact, answers: QuizResultItem[]) => void;
 }) {
+  const overview = report?.overview;
+  const score = typeof overview?.overall_score === "number" ? Math.round(overview.overall_score) : null;
+  const progress = typeof overview?.progress === "number" ? Math.round(overview.progress * 100) : null;
+
   return (
-    <section
-      id="guide-complete-section"
-      className={`rounded-lg border bg-white p-5 shadow-sm transition-all duration-500 ${
-        highlightedSectionId === "guide-complete-section"
-          ? "border-brand-purple ring-2 ring-brand-purple-300"
-          : "border-line"
-      }`}
-    >
-      <Badge tone="success">路线完成</Badge>
-      <h2 className="mt-3 text-xl font-semibold text-ink">你已经走完这条学习路线</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">先看总结，再决定下一轮学什么。</p>
-      <div className="mt-4">
-        <GuideLearningReportPanel
-          report={report}
-          loading={reportLoading}
-          canSave={canSaveReport}
-          saving={savingReport}
-          onSave={onSaveReport}
-          canExport={canExportReport}
-          onExport={onExportReport}
-          onOpenRouteMap={onOpenRouteMap}
-          onOpenCoursePackage={onOpenCoursePackage}
-          onGenerateResource={onGenerateResource}
-        />
+    <section id="guide-complete-section" className="flex h-full min-h-0 flex-col gap-3">
+      <div className="shrink-0 rounded-lg border border-line bg-white p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Trophy size={18} className="text-brand-purple" />
+          <Badge tone="success">路线完成</Badge>
+          {score !== null ? <Badge tone="brand">{score} 分</Badge> : null}
+          {progress !== null ? <Badge tone="neutral">{progress}% 进度</Badge> : null}
+        </div>
+        <h3 className="mt-3 line-clamp-2 text-xl font-semibold text-ink">{report?.title || "学习报告"}</h3>
+        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+          {reportLoading ? "正在整理学习报告..." : report?.summary || "这一轮学习已经结束，可以保存报告或查看课程成果。"}
+        </p>
       </div>
+
       {prescriptionFeedback ? (
-        <GuidePrescriptionFeedbackNotice
-          feedback={prescriptionFeedback}
-          onReviewReport={onReviewReport}
-          onOpenMemory={onOpenMemory}
-        />
-      ) : null}
-      {showPrescriptionResults ? (
-        <div
-          id="guide-prescription-results-section"
-          className={`mt-4 rounded-lg border bg-white p-4 transition-all duration-500 ${
-            highlightedSectionId === "guide-prescription-results-section"
-              ? "border-brand-purple ring-2 ring-brand-purple-300"
-              : "border-line"
-          }`}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-ink">处方产物</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {prescriptionTask?.title
-                  ? `围绕「${prescriptionTask.title}」生成，学完后回到报告继续调整。`
-                  : "围绕学习处方生成，完成后可以保存或提交。"}
-              </p>
-            </div>
-            <Badge tone={prescriptionArtifacts.length ? "success" : "neutral"}>
-              {prescriptionArtifacts.length ? `已生成 ${prescriptionArtifacts.length} 份` : "暂未开始"}
-            </Badge>
-          </div>
-          <div className="mt-3 space-y-3">
-            {generatingType && !prescriptionArtifacts.length ? (
-              <div className="flex items-center gap-2 rounded-lg border border-brand-purple-300 bg-tint-lavender p-3 text-sm text-charcoal">
-                <Loader2 size={16} className="animate-spin" />
-                正在准备中，完成后会直接出现在这里。
-              </div>
-            ) : null}
-            {prescriptionArtifacts.length ? (
-              <GuideResourceArtifactPager
-                artifacts={prescriptionArtifacts}
-                saveNotebookId={saveNotebookId}
-                saving={savingArtifact}
-                quizSubmitting={quizSubmitting}
-                onSave={onSaveArtifact}
-                onSubmitQuiz={onSubmitQuiz}
-                onCompleteTask={onReviewReport}
-                finalLabel="回到报告"
-                finalHint="看完产物后，继续按学习处方调整。"
-              />
-            ) : null}
-          </div>
+        <div className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <p className="line-clamp-1 text-sm font-semibold text-ink">{prescriptionFeedback.title || "处方练习已回写"}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+            {prescriptionFeedback.summary || "系统已根据处方练习更新学习报告和学习记录。"}
+          </p>
         </div>
       ) : null}
-      <button
-        type="button"
-        className="mt-4 w-full rounded-lg border border-line bg-canvas p-4 text-left transition hover:border-brand-purple-300 hover:bg-tint-lavender"
-        onClick={onOpenCoursePackage}
-      >
-        <span className="text-sm font-semibold text-ink">查看课程成果</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-500">项目、评分标准和复习重点放在单独页面里。</span>
+
+      <div className="min-h-0 flex-1 rounded-lg border border-line bg-canvas p-3">
+        {showPrescriptionResults && prescriptionArtifacts.length ? (
+          <GuideResourceArtifactPager
+            artifacts={prescriptionArtifacts}
+            saveNotebookId={saveNotebookId}
+            saving={savingArtifact}
+            quizSubmitting={quizSubmitting}
+            compact
+            onSave={onSaveArtifact}
+            onSubmitQuiz={onSubmitQuiz}
+            onCompleteTask={onReviewReport}
+            finalLabel="回到报告"
+            finalHint="看完产物后，继续按学习处方调整。"
+          />
+        ) : (
+          <div className="grid h-full place-items-center text-center">
+            <div>
+              {generatingType ? <Loader2 size={24} className="mx-auto animate-spin text-brand-purple" /> : <Trophy size={26} className="mx-auto text-brand-purple" />}
+              <p className="mt-3 text-sm font-semibold text-ink">
+                {prescriptionTask?.title || (generatingType ? "正在准备处方产物" : "这一轮可以收尾了")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {generatingType ? "完成后会出现在这里。" : "报告、路线和课程成果都可以单独查看。"}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid shrink-0 gap-2 sm:grid-cols-4">
+        <Button tone="secondary" disabled={!canSaveReport || savingReport} onClick={onSaveReport}>
+          {savingReport ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          保存
+        </Button>
+        <Button tone="secondary" disabled={!canExportReport} onClick={onExportReport}>
+          <Download size={16} />
+          导出
+        </Button>
+        <Button tone="secondary" onClick={onOpenRouteMap}>
+          看路线
+        </Button>
+        <Button tone="primary" onClick={onOpenCoursePackage}>
+          课程成果
+        </Button>
+      </div>
+
+      <button type="button" className="sr-only" onClick={onOpenMemory}>
+        查看记录
       </button>
     </section>
   );

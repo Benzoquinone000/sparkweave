@@ -355,7 +355,7 @@ export function AgentCollaborationPanel({
   if (!events.length) return null;
 
   return (
-    <div className="dt-dynamic-result mt-2 rounded-lg border border-line bg-white/90 px-3 py-2 text-xs" data-testid="agent-collaboration">
+    <div className="dt-agent-collaboration dt-dynamic-result mt-2 rounded-lg border border-line bg-white/90 px-3 py-2 text-xs" data-testid="agent-collaboration">
       <div className="flex items-start gap-2">
         <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-sm ${routeDotTone(collaborationStatus)}`} />
         <div className="min-w-0 flex-1">
@@ -370,32 +370,32 @@ export function AgentCollaborationPanel({
         </div>
       </div>
 
-      <div className="dt-dynamic-panel dt-flow-strip mt-2 rounded-md bg-canvas px-2.5 py-2" data-testid="agent-collaboration-route">
-        <div className="flex min-w-0 items-center gap-2 text-slate-500">
-          <span className="shrink-0 font-medium text-ink">处理路线</span>
-          <span className="min-w-0 truncate">{routeSummary}</span>
-        </div>
-        <AgentRelayTheater routeItems={routeItems} displayedSteps={displayedSteps} />
-        {profileGuidedPrompt ? (
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-            调整理由：{profileGuidedPrompt}
-          </p>
-        ) : null}
-        {structuredRoute.length ? (
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-            {structuredRoute
-              .map((item) => item.detail)
-              .filter(Boolean)
-              .slice(0, 2)
-              .join("；")}
-          </p>
-        ) : null}
-      </div>
-
       <details className="mt-2 border-t border-line pt-2 text-slate-500">
-        <summary className="dt-interactive cursor-pointer list-none font-medium text-slate-600">
-          过程明细 · {readableEvents.length || displayedSteps.length}
+        <summary className="dt-interactive flex min-h-7 cursor-pointer list-none items-center justify-between gap-2 font-medium text-slate-600 [&::-webkit-details-marker]:hidden">
+          <span>查看处理路线</span>
+          <span className="text-[11px] text-steel">{readableEvents.length || displayedSteps.length} 项</span>
         </summary>
+        <div className="dt-dynamic-panel dt-flow-strip mt-2 rounded-md bg-canvas px-2.5 py-2" data-testid="agent-collaboration-route">
+          <div className="flex min-w-0 items-center gap-2 text-slate-500">
+            <span className="shrink-0 font-medium text-ink">处理路线</span>
+            <span className="min-w-0 truncate">{routeSummary}</span>
+          </div>
+          <AgentRelayTheater routeItems={routeItems} displayedSteps={displayedSteps} />
+          {profileGuidedPrompt ? (
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+              调整理由：{profileGuidedPrompt}
+            </p>
+          ) : null}
+          {structuredRoute.length ? (
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+              {structuredRoute
+                .map((item) => item.detail)
+                .filter(Boolean)
+                .slice(0, 2)
+                .join("；")}
+            </p>
+          ) : null}
+        </div>
         <div className="mt-2 grid gap-1.5">
           {displayedSteps.map((step, index) => (
             <AgentStepRow key={step.key} step={step} index={index} />

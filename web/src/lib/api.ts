@@ -29,6 +29,7 @@ import type {
   GuideV2ResourceType,
   GuideV2StudyPlan,
   GuideV2TaskCompletionResult,
+  GuideResourceAgentStep,
   KnowledgeBase,
   KnowledgeBaseDetail,
   KnowledgeDocumentDeleteResult,
@@ -89,96 +90,30 @@ import type {
   SystemStatus,
   SystemTestResponse,
   ThemeOption,
-  SparkBotSummary,
-  SparkBotRecentItem,
-  SparkBotCronJob,
-  SparkBotCronResponse,
-  SparkBotFile,
-  SparkBotSkill,
-  SparkBotSchemas,
-  SparkBotSoul,
   VisionAnalyzeResponse,
 } from "@/lib/types";
+import {
+  ApiError,
+  apiUrl,
+  appendApiKeyQuery,
+  authorizedFetch,
+  fetchJson,
+  readSseResponse,
+  wsUrl,
+} from "@/lib/http";
+import type { SseEventHandler } from "@/lib/http";
 
-const DEFAULT_BACKEND_PORT = "8001";
-
-function normalizeBase(value: string) {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-export function getApiBase() {
-  const runtimeBase =
-    typeof window !== "undefined" ? window.__SPARKWEAVE_RUNTIME_CONFIG__?.apiBase : undefined;
-  const explicit =
-    runtimeBase ||
-    import.meta.env.VITE_API_BASE ||
-    import.meta.env.NEXT_PUBLIC_API_BASE_EXTERNAL ||
-    import.meta.env.NEXT_PUBLIC_API_BASE;
-  if (explicit && explicit.trim()) {
-    return normalizeBase(explicit.trim());
-  }
-  if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:${DEFAULT_BACKEND_PORT}`;
-  }
-  return `http://localhost:${DEFAULT_BACKEND_PORT}`;
-}
-
-function getClientApiKey() {
-  const runtimeKey =
-    typeof window !== "undefined" ? window.__SPARKWEAVE_RUNTIME_CONFIG__?.apiKey : undefined;
-  return (
-    runtimeKey ||
-    import.meta.env.VITE_SPARKWEAVE_API_KEY ||
-    import.meta.env.NEXT_PUBLIC_SPARKWEAVE_API_KEY ||
-    ""
-  ).trim();
-}
-
-function appendApiKeyQuery(url: string) {
-  const apiKey = getClientApiKey();
-  if (!apiKey) return url;
-  const hashIndex = url.indexOf("#");
-  const base = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
-  const hash = hashIndex >= 0 ? url.slice(hashIndex) : "";
-  const separator = base.includes("?") ? "&" : "?";
-  return `${base}${separator}sparkweave_api_key=${encodeURIComponent(apiKey)}${hash}`;
-}
-
-function withApiKeyHeader(headers?: HeadersInit) {
-  const next = new Headers(headers);
-  const apiKey = getClientApiKey();
-  if (apiKey && !next.has("x-sparkweave-api-key")) {
-    next.set("x-sparkweave-api-key", apiKey);
-  }
-  return next;
-}
-
-function authorizedFetch(input: RequestInfo | URL, init?: RequestInit) {
-  return fetch(input, {
-    ...init,
-    headers: withApiKeyHeader(init?.headers),
-  });
-}
-
-export function apiUrl(path: string) {
-  return `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
-export function authenticatedResourceUrl(url: string) {
-  const trimmed = url.trim();
-  if (!trimmed) return "";
-  if (/^(?:blob|data):/i.test(trimmed)) return trimmed;
-  const apiBase = getApiBase();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed === apiBase || trimmed.startsWith(`${apiBase}/`) ? appendApiKeyQuery(trimmed) : trimmed;
-  }
-  return appendApiKeyQuery(apiUrl(trimmed));
-}
-
-export function wsUrl(path: string) {
-  const base = getApiBase().replace(/^http:/, "ws:").replace(/^https:/, "wss:");
-  return appendApiKeyQuery(`${base}${path.startsWith("/") ? path : `/${path}`}`);
-}
+export {
+  ApiError,
+  apiUrl,
+  authenticatedResourceUrl,
+  fetchJson,
+  getApiBase,
+  readSseResponse,
+  wsUrl,
+} from "@/lib/http";
+export type { SseEventHandler } from "@/lib/http";
+export * from "@/lib/api/sparkbot";
 
 export function unifiedRuntimeSocketUrl() {
   return wsUrl("/api/v1/ws");
@@ -186,16 +121,6 @@ export function unifiedRuntimeSocketUrl() {
 
 export function guideSocketUrl(sessionId: string) {
   return wsUrl(`/api/v1/guide/ws/${encodeURIComponent(sessionId)}`);
-}
-
-const SPARKBOT_API_ROOT = "/api/v1/sparkbot";
-
-function sparkBotApiPath(path = "") {
-  return `${SPARKBOT_API_ROOT}${path}`;
-}
-
-export function sparkBotSocketUrl(botId: string) {
-  return wsUrl(sparkBotApiPath(`/${encodeURIComponent(botId)}/ws`));
 }
 
 export function questionGenerateSocketUrl() {
@@ -208,91 +133,6 @@ export function questionMimicSocketUrl() {
 
 export function visionSolveSocketUrl() {
   return wsUrl("/api/v1/vision/solve");
-}
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status = 0,
-  ) {
-    super(message);
-  }
-}
-
-export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response;
-  try {
-    const headers = new Headers(init?.headers);
-    if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-    response = await authorizedFetch(apiUrl(path), {
-      cache: "no-store",
-      ...init,
-      headers,
-    });
-  } catch (error) {
-    throw new ApiError(error instanceof Error ? error.message : "Network error");
-  }
-
-  if (!response.ok) {
-    let detail = `Request failed: ${response.status}`;
-    try {
-      const payload = (await response.json()) as { detail?: unknown };
-      if (payload?.detail) detail = String(payload.detail);
-    } catch {
-      // Keep the status text fallback.
-    }
-    throw new ApiError(detail, response.status);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-export type SseEventHandler = (event: string, payload: Record<string, unknown>) => void;
-
-export async function readSseResponse(
-  response: Response,
-  onEvent: SseEventHandler,
-  failureMessage = "Stream request failed",
-) {
-  if (!response.ok) {
-    throw new ApiError(`${failureMessage}: ${response.status}`, response.status);
-  }
-  if (!response.body) {
-    throw new ApiError("Stream response did not return a response body", response.status);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  const flushBlock = (block: string) => {
-    let event = "message";
-    const dataLines: string[] = [];
-    for (const line of block.split(/\r?\n/)) {
-      if (line.startsWith("event:")) event = line.slice(6).trim();
-      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
-    }
-    if (!dataLines.length) return;
-    const raw = dataLines.join("\n");
-    try {
-      onEvent(event, JSON.parse(raw) as Record<string, unknown>);
-    } catch {
-      onEvent(event, { text: raw });
-    }
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const blocks = buffer.split(/\n\n/);
-    buffer = blocks.pop() ?? "";
-    blocks.forEach(flushBlock);
-  }
-  buffer += decoder.decode();
-  if (buffer.trim()) flushBlock(buffer.trim());
 }
 
 function jsonBody(payload: unknown): RequestInit {
@@ -1173,194 +1013,6 @@ export function removeQuestionEntryFromCategory(input: { entryId: number; catego
   );
 }
 
-export async function listSparkBots() {
-  const data = await fetchJson<SparkBotSummary[] | { bots?: SparkBotSummary[] }>(sparkBotApiPath());
-  return Array.isArray(data) ? data : data.bots ?? [];
-}
-
-export async function listSparkBotRecent(limit = 5) {
-  return fetchJson<SparkBotRecentItem[]>(sparkBotApiPath(`/recent?limit=${limit}`));
-}
-
-export function getSparkBot(botId: string, includeSecrets = false) {
-  const query = includeSecrets ? "?include_secrets=true" : "";
-  return fetchJson<SparkBotSummary>(sparkBotApiPath(`/${encodeURIComponent(botId)}${query}`));
-}
-
-export function listSparkBotCronJobs(botId: string) {
-  return fetchJson<SparkBotCronResponse>(sparkBotApiPath(`/${encodeURIComponent(botId)}/cron?include_disabled=true`));
-}
-
-export function createSparkBotCronJob(input: {
-  botId: string;
-  payload: {
-    name?: string;
-    message: string;
-    kind: "every" | "cron" | "at";
-    every_seconds?: number;
-    cron_expr?: string;
-    at?: string;
-    tz?: string;
-    deliver?: boolean;
-    channel?: string | null;
-    to?: string | null;
-  };
-}) {
-  return fetchJson<SparkBotCronJob>(sparkBotApiPath(`/${encodeURIComponent(input.botId)}/cron`), jsonBody(input.payload));
-}
-
-export function updateSparkBotCronJob(input: { botId: string; jobId: string; enabled: boolean }) {
-  return fetchJson<SparkBotCronJob>(sparkBotApiPath(`/${encodeURIComponent(input.botId)}/cron/${encodeURIComponent(input.jobId)}`), {
-    method: "PATCH",
-    body: JSON.stringify({ enabled: input.enabled }),
-  });
-}
-
-export function deleteSparkBotCronJob(input: { botId: string; jobId: string }) {
-  return fetchJson<{ job_id: string; deleted: boolean }>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/cron/${encodeURIComponent(input.jobId)}`),
-    { method: "DELETE" },
-  );
-}
-
-export function runSparkBotCronJob(input: { botId: string; jobId: string }) {
-  return fetchJson<{ job_id: string; ran: boolean }>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/cron/${encodeURIComponent(input.jobId)}/run`),
-    { method: "POST" },
-  );
-}
-
-export function listSparkBotChannelSchemas() {
-  return fetchJson<SparkBotSchemas>(sparkBotApiPath("/channels/schema"));
-}
-
-export function listSparkBotSouls() {
-  return fetchJson<SparkBotSoul[]>(sparkBotApiPath("/souls"));
-}
-
-export function getSparkBotSoul(soulId: string) {
-  return fetchJson<SparkBotSoul>(sparkBotApiPath(`/souls/${encodeURIComponent(soulId)}`));
-}
-
-export function createSparkBotSoul(input: SparkBotSoul) {
-  return fetchJson<SparkBotSoul>(sparkBotApiPath("/souls"), jsonBody(input));
-}
-
-export function updateSparkBotSoul(input: { soulId: string; payload: Partial<Pick<SparkBotSoul, "name" | "content">> }) {
-  return fetchJson<SparkBotSoul>(sparkBotApiPath(`/souls/${encodeURIComponent(input.soulId)}`), {
-    method: "PUT",
-    body: JSON.stringify(input.payload),
-  });
-}
-
-export function deleteSparkBotSoul(soulId: string) {
-  return fetchJson<{ id: string; deleted?: boolean }>(sparkBotApiPath(`/souls/${encodeURIComponent(soulId)}`), {
-    method: "DELETE",
-  });
-}
-
-export function createSparkBot(input: {
-  bot_id: string;
-  name?: string;
-  description?: string;
-  persona?: string;
-  model?: string;
-  auto_start?: boolean;
-}) {
-  return fetchJson<SparkBotSummary>(sparkBotApiPath(), jsonBody(input));
-}
-
-export function updateSparkBot(input: {
-  botId: string;
-  payload: Partial<Pick<SparkBotSummary, "name" | "description" | "persona" | "model" | "auto_start">> & {
-    channels?: Record<string, unknown>;
-    tools?: Record<string, unknown>;
-    agent?: Record<string, unknown>;
-    heartbeat?: Record<string, unknown>;
-  };
-}) {
-  return fetchJson<SparkBotSummary>(sparkBotApiPath(`/${encodeURIComponent(input.botId)}`), {
-    method: "PATCH",
-    body: JSON.stringify(input.payload),
-  });
-}
-
-export function stopSparkBot(botId: string) {
-  return fetchJson<{ bot_id: string; stopped: boolean }>(sparkBotApiPath(`/${encodeURIComponent(botId)}`), {
-    method: "DELETE",
-  });
-}
-
-export function destroySparkBot(botId: string) {
-  return fetchJson<{ bot_id: string; destroyed: boolean }>(sparkBotApiPath(`/${encodeURIComponent(botId)}/destroy`), {
-    method: "DELETE",
-  });
-}
-
-export async function listSparkBotFiles(botId: string) {
-  const data = await fetchJson<Record<string, string> | { files?: SparkBotFile[] } | SparkBotFile[]>(
-    sparkBotApiPath(`/${encodeURIComponent(botId)}/files`),
-  );
-  if (Array.isArray(data)) return data;
-  if ("files" in data && Array.isArray(data.files)) return data.files;
-  return Object.entries(data).map(([filename, content]) => ({ filename, content: String(content ?? "") }));
-}
-
-export function readSparkBotFile(input: { botId: string; filename: string }) {
-  return fetchJson<SparkBotFile>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/files/${encodeURIComponent(input.filename)}`),
-  );
-}
-
-export function writeSparkBotFile(input: { botId: string; filename: string; content: string }) {
-  return fetchJson<{ filename: string; saved: boolean }>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/files/${encodeURIComponent(input.filename)}`),
-    {
-      method: "PUT",
-      body: JSON.stringify({ content: input.content }),
-    },
-  );
-}
-
-export async function listSparkBotSkills(botId: string) {
-  const data = await fetchJson<{ skills?: SparkBotSkill[] } | SparkBotSkill[]>(
-    sparkBotApiPath(`/${encodeURIComponent(botId)}/skills`),
-  );
-  return Array.isArray(data) ? data : data.skills ?? [];
-}
-
-export function readSparkBotSkill(input: { botId: string; skillName: string }) {
-  return fetchJson<SparkBotSkill>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/skills/${encodeURIComponent(input.skillName)}`),
-  );
-}
-
-export function writeSparkBotSkill(input: { botId: string; skillName: string; content: string }) {
-  return fetchJson<SparkBotSkill>(
-    sparkBotApiPath(`/${encodeURIComponent(input.botId)}/skills/${encodeURIComponent(input.skillName)}`),
-    {
-      method: "PUT",
-      body: JSON.stringify({ content: input.content }),
-    },
-  );
-}
-
-export function uploadSparkBotSkill(input: { botId: string; file: File; skillName?: string }) {
-  const form = new FormData();
-  form.append("file", input.file);
-  if (input.skillName?.trim()) form.append("skill_name", input.skillName.trim());
-  return fetchJson<SparkBotSkill>(sparkBotApiPath(`/${encodeURIComponent(input.botId)}/skills/upload`), {
-    method: "POST",
-    body: form,
-  });
-}
-
-export function getSparkBotHistory(botId: string) {
-  return fetchJson<Array<Record<string, unknown>> | { history?: Array<Record<string, unknown>>; messages?: Array<Record<string, unknown>> }>(
-    sparkBotApiPath(`/${encodeURIComponent(botId)}/history?limit=50`),
-  );
-}
-
 export function getGuideHealth() {
   return fetchJson<GuideHealth>("/api/v1/guide/health");
 }
@@ -1603,7 +1255,7 @@ export function generateGuideV2TaskResource(input: {
     jsonBody({
       resource_type: input.resourceType,
       prompt: input.prompt || "",
-      quality: input.quality || "low",
+      quality: input.quality || "high",
     }),
   );
 }
@@ -1620,12 +1272,13 @@ export function startGuideV2TaskResourceJob(input: {
     session_id: string;
     learning_task_id: string;
     resource_type: string;
+    agent_steps?: GuideResourceAgentStep[];
   }>(
     `/api/v1/guide/v2/sessions/${encodeURIComponent(input.sessionId)}/tasks/${encodeURIComponent(input.taskId)}/resources/jobs`,
     jsonBody({
       resource_type: input.resourceType,
       prompt: input.prompt || "",
-      quality: input.quality || "low",
+      quality: input.quality || "high",
     }),
   );
 }
@@ -1953,4 +1606,3 @@ export function evaluateSpeechAudio(input: {
     body: form,
   });
 }
-

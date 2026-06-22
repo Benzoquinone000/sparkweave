@@ -20,7 +20,7 @@ def main() -> int:
     for directory in TEMPLATE_DIRS:
         if not directory.exists():
             continue
-        for path in sorted(directory.glob("*.json")):
+        for path in sorted(directory.rglob("*.json")):
             checked += 1
             validate_template(path, seen_ids, errors)
     if errors:

@@ -25,10 +25,13 @@ REQUIRED_PATHS = (
     "pyproject.toml",
     ".github/workflows/ci.yml",
     ".github/pull_request_template.md",
-    "docs/README.md",
-    "docs/development-guide.md",
-    "docs/engineering-standards.md",
-    "docs/testing-guide.md",
+    "docs/markdown/README.md",
+    "docs/markdown/development-guide.md",
+    "docs/markdown/engineering-standards.md",
+    "docs/markdown/testing-guide.md",
+    "docs/html/README.html",
+    "docs/html/sparkweave-overview.html",
+    "docs/html/doc-style.css",
     "scripts/check_release_safety.py",
     "scripts/verify_project.py",
     "scripts/check_web_api_contract.py",
@@ -45,8 +48,10 @@ INDEXED_DOCUMENTS = (
     "data-storage-guide.md",
     "development-guide.md",
     "engineering-standards.md",
+    "feature-code-walkthrough.md",
     "frontend-design-guide.md",
     "learner-profile-memory-design.md",
+    "project-structure.md",
     "rag-system-design.md",
     "software-cup-delivery-checklist.md",
     "testing-guide.md",
@@ -130,17 +135,17 @@ def check_required_paths(root: Path) -> list[Finding]:
 
 
 def check_document_index(root: Path) -> list[Finding]:
-    index_path = root / "docs" / "README.md"
+    index_path = root / "docs" / "markdown" / "README.md"
     if not index_path.exists():
         return []
     index = index_path.read_text(encoding="utf-8")
     findings: list[Finding] = []
     for document in INDEXED_DOCUMENTS:
-        path = root / "docs" / document
+        path = root / "docs" / "markdown" / document
         if not path.exists():
-            findings.append(Finding("docs-index", f"indexed core document is missing: docs/{document}"))
+            findings.append(Finding("docs-index", f"indexed core document is missing: docs/markdown/{document}"))
         if f"./{document}" not in index:
-            findings.append(Finding("docs-index", f"docs/README.md does not link to {document}"))
+            findings.append(Finding("docs-index", f"docs/markdown/README.md does not link to {document}"))
     return findings
 
 
@@ -151,7 +156,7 @@ def check_markdown_links(root: Path) -> list[Finding]:
         root / "SECURITY.md",
         root / "sparkweave_cli" / "README.md",
         root / "web" / "README.md",
-        *(root / "docs").glob("*.md"),
+        *(root / "docs" / "markdown").glob("*.md"),
     ]
     findings: list[Finding] = []
     for source in candidates:

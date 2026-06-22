@@ -195,37 +195,14 @@ class GuideV2Manager:
         return templates
 
     def _builtin_course_templates(self) -> list[dict[str, Any]]:
-        profile = LearnerProfile(goal="系统学习机器学习基础", level="beginner", time_budget_minutes=45)
-        ml_metadata = self._ml_foundations_metadata(profile)
-        return [
-            {
-                "id": "ml_foundations",
-                "title": "完整课程：机器学习基础",
-                "course_id": ml_metadata.get("course_id"),
-                "course_name": ml_metadata.get("course_name"),
-                "description": "面向高校初学者的 8 周机器学习入门课程，覆盖数据、回归、优化、分类、评估、决策树和端到端项目。",
-                "target_learners": ml_metadata.get("target_learners"),
-                "level": "beginner",
-                "suggested_weeks": ml_metadata.get("suggested_weeks"),
-                "credits": ml_metadata.get("credits"),
-                "estimated_minutes": 505,
-                "tags": ["machine-learning", "ai", "project-based", "assessment"],
-                "default_goal": "我想系统学习机器学习基础，并完成一个端到端建模课程项目。",
-                "default_preferences": ["visual", "practice"],
-                "default_time_budget_minutes": 45,
-            "learning_outcomes": ml_metadata.get("learning_outcomes", []),
-            "assessment": ml_metadata.get("assessment", []),
-            "project_milestones": ml_metadata.get("project_milestones", []),
-            "demo_seed": ml_metadata.get("demo_seed", {}),
-        }
-        ]
+        return []
 
     def _load_course_template_files(self) -> list[dict[str, Any]]:
         templates: list[dict[str, Any]] = []
         for directory in self.template_dirs:
             if not directory.exists():
                 continue
-            for path in sorted(directory.glob("*.json")):
+            for path in sorted(directory.rglob("*.json")):
                 try:
                     payload = json.loads(path.read_text(encoding="utf-8"))
                 except Exception as exc:
@@ -258,6 +235,18 @@ class GuideV2Manager:
             "suggested_weeks": GuideV2Manager._coerce_int(payload.get("suggested_weeks"), default=0),
             "credits": GuideV2Manager._coerce_int(payload.get("credits"), default=0),
             "estimated_minutes": GuideV2Manager._coerce_int(payload.get("estimated_minutes"), default=0),
+            "knowledge_base_name": str(
+                payload.get("knowledge_base_name")
+                or payload.get("course_name")
+                or title
+            ).replace("完整课程：", "", 1).strip(),
+            "source_materials": [
+                str(item).strip()
+                for item in payload.get("source_materials", [])
+                if str(item).strip()
+            ]
+            if isinstance(payload.get("source_materials"), list)
+            else [],
             "tags": [
                 str(item).strip()
                 for item in payload.get("tags", [])
@@ -1995,7 +1984,7 @@ class GuideV2Manager:
         *,
         resource_type: str,
         prompt: str = "",
-        quality: str = "low",
+        quality: str = "high",
         event_sink: GuideResourceEventSink | None = None,
     ) -> dict[str, Any]:
         session = self._load_session(session_id)
@@ -2009,21 +1998,42 @@ class GuideV2Manager:
         if not normalized_type:
             return {"success": False, "error": f"Unsupported resource type: {resource_type}"}
         capability, config = self._resource_capability(normalized_type, task, quality)
-        if event_sink:
-            event_sink(
-                "status",
-                {
-                    "stage": "preparing",
-                    "message": f"Preparing {capability} for {normalized_type}.",
-                    "session_id": session_id,
-                    "learning_task_id": task_id,
-                    "resource_type": normalized_type,
-                    "capability": capability,
-                },
-            )
         node = next((item for item in session.course_map.nodes if item.node_id == task.node_id), None)
+        if event_sink:
+            self._emit_resource_agent_status(
+                event_sink,
+                stage="preparing",
+                message="学情分析智能体正在读取画像和当前任务。",
+                session_id=session_id,
+                task_id=task_id,
+                resource_type=normalized_type,
+                capability=capability,
+                active_step="profile",
+            )
         learner_profile_hints = self._resource_profile_hints(session, task, node)
+        if event_sink:
+            self._emit_resource_agent_status(
+                event_sink,
+                stage="retrieving",
+                message="资料检索智能体正在整理可用依据和生成约束。",
+                session_id=session_id,
+                task_id=task_id,
+                resource_type=normalized_type,
+                capability=capability,
+                active_step="retrieval",
+            )
         try:
+            if event_sink:
+                self._emit_resource_agent_status(
+                    event_sink,
+                    stage="generating",
+                    message=f"{self._resource_label(normalized_type)}生成智能体正在产出学习材料。",
+                    session_id=session_id,
+                    task_id=task_id,
+                    resource_type=normalized_type,
+                    capability=capability,
+                    active_step="generator",
+                )
             if normalized_type == "external_video":
                 result = await recommend_learning_videos(
                     topic=task.title,
@@ -2091,18 +2101,55 @@ class GuideV2Manager:
                 normalized_type,
                 exc,
             )
+            if event_sink:
+                self._emit_resource_agent_status(
+                    event_sink,
+                    stage="failed",
+                    message="资源生成没有完成，请稍后重试或换一种资源类型。",
+                    session_id=session_id,
+                    task_id=task_id,
+                    resource_type=normalized_type,
+                    capability=capability,
+                    active_step="generator",
+                    failed=True,
+                )
             return {"success": False, "error": str(exc)}
         if event_sink:
-            event_sink(
-                "status",
-                {
-                    "stage": "saving",
-                    "message": "Saving generated resource to the guide task.",
-                    "session_id": session_id,
-                    "learning_task_id": task_id,
-                    "resource_type": normalized_type,
-                    "capability": capability,
-                },
+            self._emit_resource_agent_status(
+                event_sink,
+                stage="reviewing",
+                message="质量评审智能体正在检查材料是否贴合画像和任务。",
+                session_id=session_id,
+                task_id=task_id,
+                resource_type=normalized_type,
+                capability=capability,
+                active_step="review",
+            )
+        quality_review = self._resource_quality_review(
+            resource_type=normalized_type,
+            task=task,
+            learner_profile_hints=learner_profile_hints,
+            result=result,
+        )
+        learning_package = self._resource_learning_package(
+            session=session,
+            task=task,
+            node=node,
+            resource_type=normalized_type,
+            prompt=prompt,
+            learner_profile_hints=learner_profile_hints,
+            quality_review=quality_review,
+        )
+        if event_sink:
+            self._emit_resource_agent_status(
+                event_sink,
+                stage="saving",
+                message="编排智能体正在把材料整理成学习包。",
+                session_id=session_id,
+                task_id=task_id,
+                resource_type=normalized_type,
+                capability=capability,
+                active_step="package",
             )
 
         artifact = {
@@ -2114,6 +2161,13 @@ class GuideV2Manager:
             "status": "ready",
             "config": config,
             "personalization": learner_profile_hints,
+            "agent_steps": self.describe_resource_agent_steps(
+                normalized_type,
+                capability=capability,
+                active_step="completed",
+            ),
+            "learning_package": learning_package,
+            "quality_review": quality_review,
             "result": result,
         }
         task.artifact_refs.append(artifact)
@@ -2121,6 +2175,17 @@ class GuideV2Manager:
         session.recommendations = self._build_session_recommendations(session)
         session.updated_at = time.time()
         self._save_session(session)
+        if event_sink:
+            self._emit_resource_agent_status(
+                event_sink,
+                stage="completed",
+                message="学习包已准备好，可以按顺序学习并提交反馈。",
+                session_id=session_id,
+                task_id=task_id,
+                resource_type=normalized_type,
+                capability=capability,
+                active_step="completed",
+            )
         return {
             "success": True,
             "artifact": artifact,
@@ -2329,7 +2394,7 @@ class GuideV2Manager:
         if resource_type == "visual":
             return "visualize", {"render_mode": "svg"}
         if resource_type == "video":
-            safe_quality = quality if quality in {"low", "medium", "high"} else "low"
+            safe_quality = quality if quality in {"low", "medium", "high"} else "high"
             return (
                 "math_animator",
                 {
@@ -2471,6 +2536,205 @@ class GuideV2Manager:
             "profile_context": profile.source_context_summary,
         }
         return {key: value for key, value in hints.items() if value not in ("", None, [], {})}
+
+    @classmethod
+    def describe_resource_agent_steps(
+        cls,
+        resource_type: str,
+        *,
+        capability: str = "",
+        active_step: str = "profile",
+        failed: bool = False,
+    ) -> list[dict[str, str]]:
+        normalized_type = cls._normalize_resource_type(resource_type) or (resource_type or "resource")
+        label = cls._resource_label(normalized_type)
+        capability_label = capability or "agent"
+        templates = [
+            {
+                "id": "profile",
+                "agent": "学情分析 Agent",
+                "title": "分析学习状态",
+                "detail": "读取画像、薄弱点、偏好和当前任务。",
+            },
+            {
+                "id": "retrieval",
+                "agent": "资料检索 Agent",
+                "title": "整理生成依据",
+                "detail": "对齐任务目标、知识点和可用资料线索。",
+            },
+            {
+                "id": "generator",
+                "agent": f"{label}生成 Agent",
+                "title": f"生成{label}",
+                "detail": f"调用 {capability_label} 产出面向学生的材料。",
+            },
+            {
+                "id": "review",
+                "agent": "质量评审 Agent",
+                "title": "检查质量",
+                "detail": "检查是否贴合画像、任务和学习顺序。",
+            },
+            {
+                "id": "package",
+                "agent": "编排 Agent",
+                "title": "整理学习包",
+                "detail": "合并推荐理由、学习顺序和下一步反馈。",
+            },
+        ]
+        ids = [item["id"] for item in templates]
+        if active_step == "completed":
+            active_index = len(templates)
+        else:
+            active_index = ids.index(active_step) if active_step in ids else -1
+        steps: list[dict[str, str]] = []
+        for index, item in enumerate(templates):
+            status = "waiting"
+            if active_step == "completed" or index < active_index:
+                status = "done"
+            elif index == active_index:
+                status = "failed" if failed else "active"
+            steps.append({**item, "status": status})
+        return steps
+
+    def _emit_resource_agent_status(
+        self,
+        event_sink: GuideResourceEventSink,
+        *,
+        stage: str,
+        message: str,
+        session_id: str,
+        task_id: str,
+        resource_type: str,
+        capability: str,
+        active_step: str,
+        failed: bool = False,
+    ) -> None:
+        event_sink(
+            "status",
+            {
+                "stage": stage,
+                "message": message,
+                "session_id": session_id,
+                "learning_task_id": task_id,
+                "resource_type": resource_type,
+                "capability": capability,
+                "agent_steps": self.describe_resource_agent_steps(
+                    resource_type,
+                    capability=capability,
+                    active_step=active_step,
+                    failed=failed,
+                ),
+            },
+        )
+
+    @classmethod
+    def _resource_quality_review(
+        cls,
+        *,
+        resource_type: str,
+        task: LearningTask,
+        learner_profile_hints: dict[str, Any],
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        result_keys = set(result.keys()) if isinstance(result, dict) else set()
+        has_media_payload = bool(
+            result_keys
+            & {
+                "code",
+                "artifacts",
+                "videos",
+                "audio",
+                "questions",
+                "items",
+                "response",
+                "script_text",
+            }
+        )
+        personalization_ready = bool(
+            learner_profile_hints.get("weak_points")
+            or learner_profile_hints.get("preferences")
+            or learner_profile_hints.get("mastery_status")
+        )
+        score = 82
+        if personalization_ready:
+            score += 6
+        if has_media_payload:
+            score += 5
+        if task.success_criteria:
+            score += 3
+        score = min(score, 96)
+        checks = [
+            {
+                "label": "任务贴合",
+                "status": "passed",
+                "detail": f"围绕「{task.title}」生成，保留当前任务的成功标准。",
+            },
+            {
+                "label": "画像适配",
+                "status": "passed" if personalization_ready else "attention",
+                "detail": "已使用薄弱点、偏好或掌握状态。" if personalization_ready else "画像信号较少，建议学习后提交反馈补强。",
+            },
+            {
+                "label": "可学习性",
+                "status": "passed" if has_media_payload else "attention",
+                "detail": "产物包含可直接学习的内容。" if has_media_payload else "产物较轻，建议补一轮练习或图解。",
+            },
+        ]
+        return {
+            "score": score,
+            "label": "可用" if score >= 85 else "需复核",
+            "checks": checks,
+            "reviewer": "质量评审 Agent",
+            "summary": f"这份{cls._resource_label(resource_type)}已完成基础质量检查。",
+        }
+
+    @classmethod
+    def _resource_learning_package(
+        cls,
+        *,
+        session: GuideSessionV2,
+        task: LearningTask,
+        node: CourseNode | None,
+        resource_type: str,
+        prompt: str,
+        learner_profile_hints: dict[str, Any],
+        quality_review: dict[str, Any],
+    ) -> dict[str, Any]:
+        label = cls._resource_label(resource_type)
+        weak_points = [str(item) for item in learner_profile_hints.get("weak_points") or [] if str(item).strip()]
+        preferences = [str(item) for item in learner_profile_hints.get("preferences") or [] if str(item).strip()]
+        avoid_mistakes = [str(item) for item in learner_profile_hints.get("avoid_mistakes") or [] if str(item).strip()]
+        reasons = [f"当前任务是「{task.title}」，适合先用{label}降低学习成本。"]
+        if weak_points:
+            reasons.append(f"优先照顾薄弱点：{'、'.join(weak_points[:2])}。")
+        if preferences:
+            reasons.append(f"结合你的学习偏好：{'、'.join(preferences[:2])}。")
+        if avoid_mistakes:
+            reasons.append(f"避免重复错因：{'、'.join(avoid_mistakes[:2])}。")
+        if prompt.strip():
+            reasons.append(f"已纳入你的补充要求：{prompt.strip()[:80]}。")
+        study_order = [
+            f"先看{label}，只抓住一个核心概念。",
+            "再用任务成功标准自查一次。",
+            "最后提交评分和一句反思，让系统调整下一步。",
+        ]
+        if resource_type == "quiz":
+            study_order = ["先独立作答，不急着看解析。", "再对照解析标记错因。", "最后提交结果，让系统更新掌握度。"]
+        elif resource_type in {"video", "external_video", "audio"}:
+            study_order = [f"先完整听/看一遍{label}。", "第二遍只暂停关键步骤。", "最后回到任务提交一句反思。"]
+        return {
+            "title": f"{label}学习包：{task.title}",
+            "summary": f"围绕「{node.title if node else task.title}」整理的一份轻量学习包。",
+            "why_recommended": reasons[:4],
+            "study_order": study_order,
+            "quality_score": quality_review.get("score"),
+            "next_action": "学完后提交当前任务反馈。",
+            "source": {
+                "session_id": session.session_id,
+                "task_id": task.task_id,
+                "node_id": task.node_id,
+            },
+        }
 
     @staticmethod
     def _resource_profile_prompt(
@@ -3216,192 +3480,17 @@ class GuideV2Manager:
         )
         return True
 
-    @staticmethod
-    def _ml_foundations_metadata(profile: LearnerProfile) -> dict[str, Any]:
-        """Metadata for the built-in complete university course template."""
-
-        weekly_schedule = [
-            {"week": 1, "topic": "课程导论与机器学习问题定义", "deliverable": "学习目标卡 + 任务类型辨析"},
-            {"week": 2, "topic": "数据集、特征、标签与数据划分", "deliverable": "一个真实场景的数据集方案"},
-            {"week": 3, "topic": "线性回归与损失函数", "deliverable": "手算 MSE 的最小例题"},
-            {"week": 4, "topic": "梯度下降与优化直觉", "deliverable": "梯度下降过程图解或短动画"},
-            {"week": 5, "topic": "分类任务与逻辑回归", "deliverable": "决策边界说明 + 混合题练习"},
-            {"week": 6, "topic": "模型评估、泛化与过拟合", "deliverable": "混淆矩阵指标计算表"},
-            {"week": 7, "topic": "决策树与可解释模型", "deliverable": "两层决策树案例图"},
-            {"week": 8, "topic": "课程项目整合与展示", "deliverable": "端到端建模报告提纲"},
-        ]
-        return {
-            "course_id": "ML101",
-            "course_name": "机器学习基础",
-            "course_type": "complete_university_course",
-            "credits": 2,
-            "suggested_weeks": 8,
-            "target_learners": "高校低年级或跨专业初学者",
-            "learner_time_budget_minutes": profile.time_budget_minutes,
-            "prerequisites": ["高等数学基础", "线性代数基础", "Python 或任意编程语言基本经验"],
-            "learning_outcomes": [
-                "能把真实问题表述为机器学习任务，并定义样本、特征和标签。",
-                "能解释线性回归、逻辑回归、梯度下降和决策树的核心直觉。",
-                "能使用准确率、精确率、召回率、F1 等指标评价模型。",
-                "能完成一份包含问题定义、数据方案、建模选择、评估和反思的课程项目报告。",
-            ],
-            "assessment": [
-                {"name": "过程练习与错因复盘", "weight": 30},
-                {"name": "多模态学习资源作品", "weight": 20},
-                {"name": "阶段测验", "weight": 20},
-                {"name": "端到端课程项目", "weight": 30},
-            ],
-            "weekly_schedule": weekly_schedule,
-            "project_milestones": [
-                {"stage": "问题定义", "checkpoint": "明确预测目标、输入数据和使用场景。"},
-                {"stage": "数据方案", "checkpoint": "列出字段、特征、标签、划分方式和潜在数据泄漏风险。"},
-                {"stage": "模型选择", "checkpoint": "至少比较一个线性模型和一个可解释模型。"},
-                {"stage": "评估反思", "checkpoint": "报告指标、错误案例、局限性和下一步改进。"},
-            ],
-            "demo_seed": GuideV2Manager._ml_foundations_demo_seed(profile),
-        }
-
-    @staticmethod
-    def _ml_foundations_demo_seed(profile: LearnerProfile) -> dict[str, Any]:
-        """Stable sample data for recording the built-in ML course demo."""
-
-        return {
-            "title": "机器学习基础稳定演示样例",
-            "scenario": "一名跨专业学生想在 7 分钟内体验从画像、导学、资源生成到学习报告的完整闭环。",
-            "persona": {
-                "name": "跨专业初学者",
-                "level": profile.level or "beginner",
-                "goal": "理解机器学习基础，并能解释梯度下降和模型评估。",
-                "weak_points": ["概念边界不清", "公式直觉不足", "指标容易混淆"],
-                "preferences": ["图解", "短练习", "分步讲解"],
-            },
-            "task_chain": [
-                {
-                    "task_id": "T1",
-                    "title": "建立机器学习全景图",
-                    "stage": "画像与路线",
-                    "show": "展示目标、偏好、薄弱点和知识地图。",
-                    "sample_score": 0.72,
-                    "sample_reflection": "我能区分监督学习和无监督学习，但还不确定特征、标签与样本的边界。",
-                },
-                {
-                    "task_id": "T4",
-                    "title": "画出梯度下降过程",
-                    "stage": "多模态资源",
-                    "resource_type": "visual",
-                    "prompt": "围绕梯度下降生成一张图解：损失曲线、当前位置、负梯度方向、学习率过大/过小的对比。",
-                    "sample_score": 0.58,
-                    "sample_reflection": "我知道要沿下降方向走，但容易把梯度方向和参数更新方向说反。",
-                },
-                {
-                    "task_id": "T6",
-                    "title": "从混淆矩阵计算指标",
-                    "stage": "交互练习",
-                    "resource_type": "quiz",
-                    "prompt": "生成一组模型评估混合题，包含准确率、精确率、召回率、F1 的选择、判断、填空和一道简答。",
-                    "sample_score": 0.86,
-                    "sample_reflection": "我能算出四个指标，也能解释召回率更适合漏诊代价高的场景。",
-                },
-            ],
-            "resource_prompts": [
-                {
-                    "type": "visual",
-                    "title": "梯度下降图解",
-                    "prompt": "用山坡或损失曲线比喻梯度下降，突出负梯度、学习率和收敛。",
-                },
-                {
-                    "type": "video",
-                    "title": "梯度下降短视频",
-                    "prompt": "用 Manim 分 4 步讲解梯度下降：目标、斜率、更新、学习率影响。",
-                },
-                {
-                    "type": "quiz",
-                    "title": "模型评估混合题",
-                    "prompt": "围绕混淆矩阵生成选择、判断、填空、简答各 1 道，并附答案解析。",
-                },
-            ],
-            "sample_artifacts": [
-                {
-                    "type": "visual",
-                    "title": "梯度下降图解兜底素材",
-                    "preview": "损失曲线、当前位置、负梯度方向、学习率过大/过小对比。",
-                    "demo_action": "模型较慢时直接展示这张图解结构，并说明图解智能体会按画像生成。",
-                    "talking_point": "把抽象优化过程变成学生能看懂的运动方向和步长变化。",
-                },
-                {
-                    "type": "video",
-                    "title": "梯度下降短视频兜底素材",
-                    "preview": "4 步讲解：目标函数、斜率含义、参数更新、学习率影响。",
-                    "demo_action": "Manim 渲染较慢时展示脚本结构或历史视频截图。",
-                    "talking_point": "短视频是加分项，核心是展示多模态生成链路可复现。",
-                },
-                {
-                    "type": "quiz",
-                    "title": "模型评估练习兜底素材",
-                    "preview": "准确率、精确率、召回率、F1 的选择、判断、填空、简答混合题。",
-                    "demo_action": "直接进入交互练习提交，展示对错反馈和画像回写。",
-                    "talking_point": "练习结果会进入学习效果评估，而不是只停留在题目展示。",
-                },
-            ],
-            "rehearsal_notes": [
-                "优先演示 T1 -> T4 -> T6，覆盖画像、图解/动画、练习反馈和学习报告。",
-                "如果现场时间不够，跳过完整课程项目，只展示课程产出包和演示就绪度。",
-                "如果模型响应慢，直接展示兜底包中的历史产物和提示词。",
-            ],
-        }
-
     def _build_template_plan(self, template_id: str, profile: LearnerProfile) -> dict[str, Any]:
         template = (template_id or "").strip().lower()
-        if template not in {"ml_foundations", "machine_learning_foundations"}:
-            external = next(
-                (
-                    item
-                    for item in self.list_course_templates()
-                    if str(item.get("id") or "").strip().lower() == template
-                ),
-                None,
-            )
-            return self._build_external_template_plan(external, profile) if external else {}
-        topic = "机器学习基础"
-        return {
-            "course_map": {
-                "title": f"{topic}完整课程导学",
-                "generated_by": "template:ml_foundations",
-                "metadata": self._ml_foundations_metadata(profile),
-                "nodes": [
-                    {"node_id": "ML1", "title": "课程导论与学习目标", "description": "理解机器学习要解决的问题、典型任务类型和学习路线。", "difficulty": "easy", "estimated_minutes": 30, "tags": ["orientation"], "mastery_target": "能区分监督学习、无监督学习和强化学习，并说出课程项目目标。", "resource_strategy": ["overview", "concept map"]},
-                    {"node_id": "ML2", "title": "数据集、特征与标签", "description": "掌握样本、特征、标签、训练集、验证集、测试集和数据泄漏。", "prerequisites": ["ML1"], "difficulty": "easy", "estimated_minutes": 45, "tags": ["data"], "mastery_target": "能为一个真实问题定义特征、标签和数据划分方案。", "resource_strategy": ["case study", "quiz"]},
-                    {"node_id": "ML3", "title": "线性回归与损失函数", "description": "理解线性模型、均方误差、参数学习和预测解释。", "prerequisites": ["ML2"], "difficulty": "medium", "estimated_minutes": 60, "tags": ["regression", "loss"], "mastery_target": "能手算一个小型线性回归例子，并解释损失函数意义。", "resource_strategy": ["worked example", "visual"]},
-                    {"node_id": "ML4", "title": "梯度下降与优化直觉", "description": "理解梯度、学习率、收敛、局部最优和训练曲线。", "prerequisites": ["ML3"], "difficulty": "medium", "estimated_minutes": 60, "tags": ["optimization"], "mastery_target": "能解释梯度下降为什么沿负梯度方向更新，并分析学习率问题。", "resource_strategy": ["animation", "practice"]},
-                    {"node_id": "ML5", "title": "分类、逻辑回归与决策边界", "description": "理解二分类、sigmoid、交叉熵和决策边界。", "prerequisites": ["ML4"], "difficulty": "medium", "estimated_minutes": 70, "tags": ["classification"], "mastery_target": "能解释逻辑回归输出概率的含义，并判断分类结果。", "resource_strategy": ["diagram", "mixed quiz"]},
-                    {"node_id": "ML6", "title": "模型评估与泛化", "description": "掌握准确率、精确率、召回率、F1、过拟合、欠拟合和交叉验证。", "prerequisites": ["ML5"], "difficulty": "medium", "estimated_minutes": 60, "tags": ["evaluation"], "mastery_target": "能根据混淆矩阵计算指标，并选择合适的模型评估方式。", "resource_strategy": ["table", "quiz"]},
-                    {"node_id": "ML7", "title": "决策树与可解释模型", "description": "理解树模型、信息增益、过拟合剪枝和可解释性。", "prerequisites": ["ML6"], "difficulty": "medium", "estimated_minutes": 60, "tags": ["tree", "interpretability"], "mastery_target": "能画出一个小型决策树并解释每次划分的含义。", "resource_strategy": ["visual", "case practice"]},
-                    {"node_id": "ML8", "title": "课程项目：端到端建模报告", "description": "完成从问题定义、数据处理、建模、评估到反思的完整小项目。", "prerequisites": ["ML7"], "difficulty": "hard", "estimated_minutes": 120, "tags": ["project", "report"], "mastery_target": "能提交一份包含数据、模型、指标、误差分析和改进方向的报告。", "resource_strategy": ["project checklist", "rubric"]},
-                ],
-            },
-            "learning_path": {
-                "title": f"{topic}八阶段学习路线",
-                "rationale": "先建立任务与数据意识，再学习核心模型和优化方法，最后通过项目形成迁移能力。",
-                "node_sequence": ["ML1", "ML2", "ML3", "ML4", "ML5", "ML6", "ML7", "ML8"],
-                "today_focus": "完成课程导论、数据定义和一个最小线性模型例子。",
-                "next_recommendation": "先完成 ML1 和 ML2，再生成一次混合题检查基本概念。",
-            },
-            "tasks": [
-                {"task_id": "T1", "node_id": "ML1", "type": "explain", "title": "建立机器学习全景图", "instruction": "用自己的话解释机器学习输入、输出、训练和预测的关系。", "estimated_minutes": 12, "success_criteria": ["区分三类学习任务", "说出一个课程项目方向"]},
-                {"task_id": "T2", "node_id": "ML2", "type": "practice", "title": "设计一个数据集方案", "instruction": "选择一个校园场景，写出样本、特征、标签和数据划分。", "estimated_minutes": 15, "success_criteria": ["特征和标签定义清楚", "说明如何避免数据泄漏"]},
-                {"task_id": "T3", "node_id": "ML3", "type": "practice", "title": "手算线性回归损失", "instruction": "给定 3 个样本，计算预测值、误差和均方误差。", "estimated_minutes": 18, "success_criteria": ["计算 MSE", "解释损失变大意味着什么"]},
-                {"task_id": "T4", "node_id": "ML4", "type": "visualize", "title": "画出梯度下降过程", "instruction": "用曲线和箭头解释参数如何沿损失下降方向移动。", "estimated_minutes": 15, "success_criteria": ["指出梯度方向", "解释学习率过大/过小"]},
-                {"task_id": "T5", "node_id": "ML5", "type": "practice", "title": "解释逻辑回归决策边界", "instruction": "用一个二维分类例子说明 sigmoid 概率和分类阈值。", "estimated_minutes": 18, "success_criteria": ["解释概率输出", "画出决策边界"]},
-                {"task_id": "T6", "node_id": "ML6", "type": "practice", "title": "从混淆矩阵计算指标", "instruction": "计算 accuracy、precision、recall、F1，并说明适用场景。", "estimated_minutes": 20, "success_criteria": ["四个指标计算正确", "能选择合适指标"]},
-                {"task_id": "T7", "node_id": "ML7", "type": "visualize", "title": "构建一个小型决策树", "instruction": "根据 6 条样本画出一个两层决策树，并解释每个节点。", "estimated_minutes": 20, "success_criteria": ["树结构清晰", "解释划分依据"]},
-                {"task_id": "T8", "node_id": "ML8", "type": "project", "title": "完成端到端建模报告提纲", "instruction": "写出项目问题、数据字段、模型选择、评估指标和误差分析计划。", "estimated_minutes": 25, "success_criteria": ["报告结构完整", "包含误差分析和改进方向"]},
-            ],
-            "recommendations": [
-                "先生成课程全景图，再进入数据集方案设计。",
-                "每完成一个阶段都留下分数和一句反思，系统会据此调整路径。",
-                "建议在 ML4 生成短视频讲解梯度下降，在 ML6 生成混合题检验指标计算。",
-            ],
-        }
+        external = next(
+            (
+                item
+                for item in self.list_course_templates()
+                if str(item.get("id") or "").strip().lower() == template
+            ),
+            None,
+        )
+        return self._build_external_template_plan(external, profile) if external else {}
 
     def _build_external_template_plan(self, template: dict[str, Any] | None, profile: LearnerProfile) -> dict[str, Any]:
         if not template:
@@ -3428,6 +3517,10 @@ class GuideV2Manager:
             "suggested_weeks": template.get("suggested_weeks") or 0,
             "credits": template.get("credits") or 0,
             "estimated_minutes": template.get("estimated_minutes") or 0,
+            "knowledge_base_name": template.get("knowledge_base_name") or course_name,
+            "source_material_count": len(template.get("source_materials") or [])
+            if isinstance(template.get("source_materials"), list)
+            else 0,
             "tags": template.get("tags") if isinstance(template.get("tags"), list) else [],
             "learning_outcomes": template.get("learning_outcomes") if isinstance(template.get("learning_outcomes"), list) else [],
             "assessment": template.get("assessment") if isinstance(template.get("assessment"), list) else [],

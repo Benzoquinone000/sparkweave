@@ -52,6 +52,7 @@ export function GuideResourceArtifactPager({
   saveNotebookId,
   saving,
   quizSubmitting,
+  compact = false,
   onSave,
   onSubmitQuiz,
   onCompleteTask,
@@ -62,6 +63,7 @@ export function GuideResourceArtifactPager({
   saveNotebookId: string;
   saving: boolean;
   quizSubmitting: boolean;
+  compact?: boolean;
   onSave: (artifact: GuideV2Artifact) => void;
   onSubmitQuiz: (artifact: GuideV2Artifact, answers: QuizResultItem[]) => void;
   onCompleteTask: () => void;
@@ -80,6 +82,65 @@ export function GuideResourceArtifactPager({
   }, [orderedArtifacts.length]);
 
   if (!activeArtifact) return null;
+
+  if (compact) {
+    return (
+      <div className="flex h-full min-h-0 flex-col rounded-lg border border-line bg-canvas p-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-steel">
+              材料 {activeIndex + 1}/{orderedArtifacts.length}
+            </p>
+            <h4 className="mt-1 line-clamp-1 text-sm font-semibold text-ink">
+              {activeArtifact.title || resourceLabel(String(activeArtifact.type))}
+            </h4>
+          </div>
+          <Badge tone="brand">{resourceLabel(String(activeArtifact.type))}</Badge>
+        </div>
+
+        <div className="my-3 min-h-0 flex-1 rounded-lg border border-line bg-white p-3">
+          <p className="line-clamp-5 text-sm leading-6 text-slate-600">{artifactPreview(activeArtifact)}</p>
+          {activeArtifact.learning_package?.study_order?.length ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {activeArtifact.learning_package.study_order.slice(0, 3).map((item) => (
+                <Badge key={item} tone="neutral">{item}</Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid shrink-0 gap-2 sm:grid-cols-3">
+          <Button
+            tone="secondary"
+            disabled={activeIndex <= 0}
+            onClick={() => setActiveIndex((index) => Math.max(0, index - 1))}
+          >
+            上一份
+          </Button>
+          <Button
+            tone="secondary"
+            disabled={activeIndex >= orderedArtifacts.length - 1}
+            onClick={() => setActiveIndex((index) => Math.min(orderedArtifacts.length - 1, index + 1))}
+          >
+            下一份
+          </Button>
+          <Button tone="primary" onClick={onCompleteTask}>
+            {finalLabel}
+          </Button>
+        </div>
+        <div className="mt-2 flex shrink-0 justify-end">
+          <Button
+            tone="quiet"
+            className="min-h-8 px-2 text-xs"
+            disabled={!saveNotebookId || saving || quizSubmitting}
+            onClick={() => onSave(activeArtifact)}
+          >
+            {saving ? "保存中" : "保存材料"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-line bg-canvas p-3">
@@ -130,6 +191,16 @@ export function GuideResourceArtifactPager({
         />
       </div>
     </div>
+  );
+}
+
+function artifactPreview(artifact: GuideV2Artifact) {
+  const result = asRecord(artifact.result);
+  return (
+    artifact.learning_package?.summary ||
+    artifact.learning_package?.why_recommended?.[0] ||
+    pickFirstText(result, ["response", "summary", "content", "script_text", "watch_plan", "reflection_prompt"]) ||
+    "这份材料已生成。按顺序看完后，回到提交页写一句反思。"
   );
 }
 
@@ -427,6 +498,7 @@ function ResourceArtifact({
       </div>
       <h3 className="mt-3 text-sm font-semibold text-ink">{artifact.title || "学习资源"}</h3>
       <ArtifactAgentChain artifact={artifact} personalization={personalization} />
+      <ArtifactLearningPackageSummary artifact={artifact} />
       {personalization ? <ArtifactPersonalizationCard personalization={personalization} /> : null}
       {showResponse ? <MarkdownRenderer className="markdown-body mt-3 text-sm text-slate-600">{response}</MarkdownRenderer> : null}
 
@@ -439,6 +511,34 @@ function ResourceArtifact({
       ) : null}
       {artifact.type === "quiz" && !questions.length ? <QuizFallback result={result} response={response} /> : null}
     </motion.article>
+  );
+}
+
+function ArtifactLearningPackageSummary({ artifact }: { artifact: GuideV2Artifact }) {
+  const learningPackage = artifact.learning_package;
+  if (!learningPackage) return null;
+  const reasons = (learningPackage.why_recommended ?? []).filter(Boolean).slice(0, 3);
+  const studyOrder = (learningPackage.study_order ?? []).filter(Boolean).slice(0, 3);
+  const qualityScore = typeof learningPackage.quality_score === "number" ? Math.round(learningPackage.quality_score) : null;
+  if (!reasons.length && !studyOrder.length && qualityScore === null) return null;
+
+  return (
+    <div className="mt-3 border-l-2 border-emerald-300 bg-white/80 px-3 py-2" data-testid="guide-learning-package-summary">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="success">学习包</Badge>
+        {qualityScore !== null ? <span className="text-xs font-medium text-slate-500">质量评审 {qualityScore}</span> : null}
+      </div>
+      {reasons.length ? <p className="mt-2 text-xs leading-5 text-charcoal">为什么推荐：{reasons[0]}</p> : null}
+      {studyOrder.length ? (
+        <ol className="mt-2 space-y-1 text-xs leading-5 text-slate-500">
+          {studyOrder.map((item, index) => (
+            <li key={`${item}-${index}`}>
+              {index + 1}. {item}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
   );
 }
 

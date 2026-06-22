@@ -22,7 +22,9 @@ def test_check_project_standards_current_repo() -> None:
     assert "Structure, documentation links" in result.stdout
 
 
-def test_check_project_standards_detects_missing_document_and_private_artifact(tmp_path: Path) -> None:
+def test_check_project_standards_detects_missing_document_and_private_artifact(
+    tmp_path: Path,
+) -> None:
     build_minimal_project(tmp_path)
     (tmp_path / "docs" / "configuration-guide.md").unlink()
     private_path = tmp_path / "data" / "user" / "profile.json"
@@ -70,7 +72,21 @@ def build_minimal_project(root: Path) -> None:
         encoding="utf-8",
     )
     (root / "web" / "package.json").write_text(
-        json.dumps({"scripts": {script: "true" for script in ("build", "check:api-contract", "check:design", "check:replacement", "lint", "verify")}}),
+        json.dumps(
+            {
+                "scripts": {
+                    script: "true"
+                    for script in (
+                        "build",
+                        "check:api-contract",
+                        "check:design",
+                        "check:replacement",
+                        "lint",
+                        "verify",
+                    )
+                }
+            }
+        ),
         encoding="utf-8",
     )
     indexed_docs = (
@@ -82,6 +98,7 @@ def build_minimal_project(root: Path) -> None:
         "engineering-standards.md",
         "frontend-design-guide.md",
         "learner-profile-memory-design.md",
+        "project-structure.md",
         "rag-system-design.md",
         "software-cup-delivery-checklist.md",
         "testing-guide.md",

@@ -1,22 +1,25 @@
-import { lazy } from "react";
+import { lazy, type ComponentType } from "react";
 
-const AgentsPageView = lazy(() => import("@/pages/AgentsPage").then((module) => ({ default: module.AgentsPage })));
-const ChatPageView = lazy(() => import("@/pages/ChatPage").then((module) => ({ default: module.ChatPage })));
-const CoWriterPageView = lazy(() => import("@/pages/CoWriterPage").then((module) => ({ default: module.CoWriterPage })));
-const GuidePageView = lazy(() => import("@/pages/GuidePage").then((module) => ({ default: module.GuidePage })));
-const KnowledgePageView = lazy(() =>
-  import("@/pages/KnowledgePage").then((module) => ({ default: module.KnowledgePage })),
-);
-const MemoryPageView = lazy(() => import("@/pages/MemoryPage").then((module) => ({ default: module.MemoryPage })));
-const NotebookPageView = lazy(() => import("@/pages/NotebookPage").then((module) => ({ default: module.NotebookPage })));
-const PlaygroundPageView = lazy(() =>
-  import("@/pages/PlaygroundPage").then((module) => ({ default: module.PlaygroundPage })),
-);
-const QuestionLabPageView = lazy(() =>
-  import("@/pages/QuestionLabPage").then((module) => ({ default: module.QuestionLabPage })),
-);
-const SettingsPageView = lazy(() => import("@/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
-const VisionPageView = lazy(() => import("@/pages/VisionPage").then((module) => ({ default: module.VisionPage })));
+type PageModule<TExport extends string> = Record<TExport, ComponentType>;
+
+function lazyPage<TExport extends string>(
+  loader: () => Promise<PageModule<TExport>>,
+  exportName: TExport,
+) {
+  return lazy(() => loader().then((module) => ({ default: module[exportName] })));
+}
+
+const AgentsPageView = lazyPage(() => import("@/pages/AgentsPage"), "AgentsPage");
+const ChatPageView = lazyPage(() => import("@/pages/ChatPage"), "ChatPage");
+const CoWriterPageView = lazyPage(() => import("@/pages/CoWriterPage"), "CoWriterPage");
+const GuidePageView = lazyPage(() => import("@/pages/GuidePage"), "GuidePage");
+const KnowledgePageView = lazyPage(() => import("@/pages/KnowledgePage"), "KnowledgePage");
+const MemoryPageView = lazyPage(() => import("@/pages/MemoryPage"), "MemoryPage");
+const NotebookPageView = lazyPage(() => import("@/pages/NotebookPage"), "NotebookPage");
+const PlaygroundPageView = lazyPage(() => import("@/pages/PlaygroundPage"), "PlaygroundPage");
+const QuestionLabPageView = lazyPage(() => import("@/pages/QuestionLabPage"), "QuestionLabPage");
+const SettingsPageView = lazyPage(() => import("@/pages/SettingsPage"), "SettingsPage");
+const VisionPageView = lazyPage(() => import("@/pages/VisionPage"), "VisionPage");
 
 export function AgentsRoute() {
   return <AgentsPageView />;

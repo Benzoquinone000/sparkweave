@@ -167,7 +167,7 @@ def _builtins() -> list[CapabilityManifest]:
             request_schema=_schema(MathAnimatorRequestConfig),
             config_defaults={
                 "output_mode": "video",
-                "quality": "medium",
+                "quality": "high",
                 "style_hint": "",
             },
         ),

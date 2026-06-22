@@ -167,7 +167,26 @@ class DocumentAdder:
                         total=total_files,
                     )
 
-                success = await pipeline.add_documents(self.kb_name, [str(doc_file)])
+                progress_kwargs = {}
+                if self.progress_tracker is not None:
+                    from sparkweave.knowledge.progress_tracker import ProgressStage
+
+                    def _on_progress(batch_num, total_batches, *, file_name=doc_file.name):
+                        self.progress_tracker.update(
+                            ProgressStage.PROCESSING_FILE,
+                            f"Embedding {file_name}: batch {batch_num}/{total_batches}",
+                            current=batch_num,
+                            total=total_batches,
+                            file_name=file_name,
+                        )
+
+                    progress_kwargs["progress_callback"] = _on_progress
+
+                success = await pipeline.add_documents(
+                    self.kb_name,
+                    [str(doc_file)],
+                    **progress_kwargs,
+                )
                 if success:
                     processed_files.append(doc_file)
                     self._record_successful_hash(doc_file)

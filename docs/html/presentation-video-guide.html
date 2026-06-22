@@ -1,0 +1,315 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PPT 与 7 分钟演示视频建议</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="ppt-与-7-分钟演示视频建议">PPT 与 7 分钟演示视频建议</h1>
+<p>本篇说明 SparkWeave 的 PPT 和 7 分钟演示视频可以怎样组织。原则只有一个：按学生完成一次学习的过程讲，不按代码模块讲。</p>
+<h2 id="一句话定位">一句话定位</h2>
+<p>SparkWeave 是面向高校课程的多智能体学习工作台。学生从学习目标出发，系统根据课程资料、学习记录和学习画像生成路径、资源、练习和反馈；资料问答会展示来源，学习结果会回到记录和画像中，影响下一步建议。</p>
+<p>这句话适合放在 PPT 第 1 页或视频开头 15 秒内。</p>
+<h2 id="答辩主张">答辩主张</h2>
+<p>PPT 里不要只写“我们用了大模型、多智能体、RAG”。更好讲的是：SparkWeave 把这些技术变成了一条学生能走完的学习路线。</p>
+<p>可以直接用下面这组表达：</p>
+<ul>
+<li>不是聊天框，而是课程学习闭环：课程目标、资料、资源、练习、记录和下一步建议连在一起。</li>
+<li>不是静态画像，而是证据画像：练习、导学任务、资源生成、笔记和学生校准会写进追加式证据账本，再聚合成画像。</li>
+<li>不是普通 RAG，而是 Agentic RAG：复杂问题会生成 query plan，多路并发检索后合并来源，用覆盖度和相关性质量门决定是否修复或回退。</li>
+<li>不是展示一堆 Agent，而是自动调度：<code>LearningCapabilityRouter</code> 根据任务、约束和画像提示，把请求交给解题、出题、图解、动画、研究或直接工具。</li>
+<li>不是只在网页里答疑，而是可延伸到真实学习入口：课程助教支持通道配置，代码层已有 QQ 私聊、群聊和定时提醒发送链路。</li>
+<li>不是把讯飞工具放在角落，而是嵌入学习环节：星火模型、Spark Embedding、ONE SEARCH、OCR/公式/图片理解、TTS/ASR/语音评测和星辰工作流分别进入资料、辅导、讲解和评估链路。</li>
+</ul>
+<h2 id="ppt-结构">PPT 结构</h2>
+<p>建议控制在 10 到 12 页，页数不必多，重点是每页都能对应真实系统。</p>
+<table>
+<thead>
+<tr class="header">
+<th>页码</th>
+<th>标题</th>
+<th>要讲清楚的事</th>
+<th>可用截图</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>项目定位</td>
+<td>SparkWeave 面向高校个性化学习，不是单点问答工具</td>
+<td>学习页</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>赛题对应</td>
+<td>对应画像、资源生成、路径规划、智能辅导、效果评估和讯飞工具</td>
+<td>软件杯交付检查清单</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>学习主线</td>
+<td>学生从课程目标进入，系统给出任务和路径</td>
+<td><code>web/screenshots-guide.png</code></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>学习画像</td>
+<td>目标、薄弱点、偏好和反馈沉淀成下一步建议</td>
+<td><code>web/screenshots-memory.png</code></td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Agentic RAG 证据链</td>
+<td>课程资料入库后，复杂问题会被拆分检索，回答保留来源和质量判断</td>
+<td><code>web/screenshots-knowledge.png</code></td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>智能辅导</td>
+<td>问问题页面展示资料问答、图解、练习或多模态结果</td>
+<td><code>web/screenshots-chat.png</code></td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>自动调度</td>
+<td>路由器尊重“不联网 / 不用工具”等约束，再把任务分给检索、解题、出题、图解、动画、语音等能力</td>
+<td>智能体编排设计</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>讯飞工具链</td>
+<td>星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和工作流的落点</td>
+<td><code>web/screenshots-settings.png</code></td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>课程助教</td>
+<td>长期助教保存课程资料、历史和提醒，并可通过 QQ 等通道进入学习场景</td>
+<td><code>web/screenshots-agents.png</code></td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>完整课程</td>
+<td>主课程是“深度学习”，包含 14 个学习节点和 14 个任务</td>
+<td>课程模板摘要</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>学习效果</td>
+<td>练习、反馈、资源使用记录进入学习报告和推荐</td>
+<td>学习页或记录页</td>
+</tr>
+<tr class="even">
+<td>12</td>
+<td>可运行与提交边界</td>
+<td>Docker Compose、课程模板、源码、配置示例、不可提交数据</td>
+<td>项目结构说明</td>
+</tr>
+<tr class="odd">
+<td>13</td>
+<td>总结</td>
+<td>作品价值：让资料、画像、资源和评估形成一次可操作的学习流程</td>
+<td>学习页或总览截图</td>
+</tr>
+</tbody>
+</table>
+<p>如果时间紧，可以压缩为 8 页：项目定位、赛题对应、学习页、资料页、问问题页、记录页、设置页、提交边界。</p>
+<h2 id="7-分钟视频讲稿">7 分钟视频讲稿</h2>
+<p>视频建议录真实前端，不要只放 PPT。下面时间只是参考，录制时可以略有浮动。</p>
+<table>
+<thead>
+<tr class="header">
+<th>时间</th>
+<th>页面</th>
+<th>讲法</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0:00-0:30</td>
+<td>学习</td>
+<td>“我们做的是一个面向高校课程的个性化学习工作台。学生进入后先看到学习、资料、记录、设置，而不是一堆陌生配置。”</td>
+</tr>
+<tr class="even">
+<td>0:30-1:10</td>
+<td>学习</td>
+<td>选择 <code>深度学习</code>，展示课程路线和当前任务，说明这是仓库内完整课程模板。</td>
+</tr>
+<tr class="odd">
+<td>1:10-1:50</td>
+<td>记录 / 画像</td>
+<td>展示薄弱点、偏好和下一步建议，说明画像来自学习记录和反馈，不是静态标签。</td>
+</tr>
+<tr class="even">
+<td>1:50-2:40</td>
+<td>资料</td>
+<td>打开资料库，展示课程资料、入库状态和资料来源，为后面的问答铺垫。</td>
+</tr>
+<tr class="odd">
+<td>2:40-3:40</td>
+<td>问问题</td>
+<td>围绕资料提问，重点展示 Agentic RAG 如何拆分问题、合并来源和判断证据强弱。</td>
+</tr>
+<tr class="even">
+<td>3:40-4:35</td>
+<td>问问题 / 学习</td>
+<td>生成图解、练习、语音讲解或资源建议，说明系统在后台自动调度智能体。</td>
+</tr>
+<tr class="odd">
+<td>4:35-5:20</td>
+<td>课程助教</td>
+<td>展示长期课程助教、提醒任务和通道入口，说明可接 QQ 私聊、群聊和定时提醒。</td>
+</tr>
+<tr class="even">
+<td>5:20-6:05</td>
+<td>学习</td>
+<td>完成一次任务或提交反馈，展示任务状态和学习建议变化。</td>
+</tr>
+<tr class="odd">
+<td>6:05-6:40</td>
+<td>设置</td>
+<td>展示讯飞相关配置：星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、TTS、ASR、语音评测、星辰工作流。</td>
+</tr>
+<tr class="even">
+<td>6:40-7:00</td>
+<td>记录 / 总结</td>
+<td>回到记录或学习页，总结“画像 -&gt; 路径 -&gt; Agentic RAG -&gt; 自动调度 -&gt; 评估”的连续体验。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="讲解重点">讲解重点</h2>
+<p>PPT 和视频都建议反复强调三件事：</p>
+<ul>
+<li>系统有完整课程主线：<code>data/course_templates/deep_learning/deep_learning_foundations.json</code>，并已接入第二门“智能机器人系统”课程。</li>
+<li>Agentic RAG 的 query plan、子查询结果、质量报告和修复/回退原因会返回到页面，回答有证据链。</li>
+<li>多智能体不是菜单，而是由 <code>LearningCapabilityRouter</code> 和默认 chat graph 根据学习任务自动调度。</li>
+<li>课程助教可以通过通道配置进入 QQ 等学习入口，支撑长期陪伴和提醒；没有真实凭据时也会明确停留在可演示的 Web/内存通道。</li>
+<li>学习行为会写入 <code>evidence.jsonl</code>，画像快照再以精简提示影响下一步任务与资源推荐。</li>
+</ul>
+<p>这三件事最能区分 SparkWeave 和普通聊天工具。</p>
+<h2 id="讯飞工具如何讲">讯飞工具如何讲</h2>
+<p>设置页不要只当配置页讲。可以按学习流程说明：</p>
+<table>
+<thead>
+<tr class="header">
+<th>学习环节</th>
+<th>可讲的讯飞能力</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>课程资料入库</td>
+<td>Spark Embedding、OCR</td>
+</tr>
+<tr class="even">
+<td>外部资料补充</td>
+<td>ONE SEARCH</td>
+</tr>
+<tr class="odd">
+<td>图片或公式题</td>
+<td>公式识别、图片理解</td>
+</tr>
+<tr class="even">
+<td>即时辅导</td>
+<td>星火大模型、MaaS Coding</td>
+</tr>
+<tr class="odd">
+<td>多模态讲解</td>
+<td>TTS、ASR</td>
+</tr>
+<tr class="even">
+<td>学习效果证据</td>
+<td>语音评测</td>
+</tr>
+<tr class="odd">
+<td>课程成果输出</td>
+<td>星辰工作流</td>
+</tr>
+</tbody>
+</table>
+<p>如果某项服务没有真实密钥，录制或说明时要说清楚它是替代结果，不要说成真实云端调用。</p>
+<h2 id="录制前检查">录制前检查</h2>
+<p>录屏前建议按下面顺序确认：</p>
+<ul>
+<li>Docker Compose 已启动，<code>http://127.0.0.1:3782</code> 可访问。</li>
+<li>学习页能看到 <code>深度学习</code>。</li>
+<li>资料页已有可公开展示的课程资料，或准备好现场上传文件。</li>
+<li>问问题页能得到带来源的回答。</li>
+<li>记录页能看到学习画像、薄弱点或下一步建议。</li>
+<li>设置页不会露出完整 API Key。</li>
+<li>使用的截图来自 <code>web/screenshots-*.png</code>，并与当前页面一致。</li>
+</ul>
+<h2 id="常见失分点">常见失分点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>问题</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>按技术模块逐个讲</td>
+<td>改成按学生学习过程讲</td>
+</tr>
+<tr class="even">
+<td>只展示问答，没有课程主线</td>
+<td>先选课程，再问资料</td>
+</tr>
+<tr class="odd">
+<td>只说用了大模型，没有证据来源</td>
+<td>展示资料来源和引用片段</td>
+</tr>
+<tr class="even">
+<td>讲画像但没有行为证据</td>
+<td>展示学习记录、反馈或练习结果</td>
+</tr>
+<tr class="odd">
+<td>讲讯飞工具但没有配置入口</td>
+<td>打开设置页和连接检测</td>
+</tr>
+<tr class="even">
+<td>视频时间超长</td>
+<td>保留主线，少讲边缘功能</td>
+</tr>
+<tr class="odd">
+<td>展示真实密钥</td>
+<td>提前遮罩或切换到安全配置</td>
+</tr>
+</tbody>
+</table>
+<h2 id="边界说明">边界说明</h2>
+<p>这篇不是论文式说明，而是给展示材料使用的提纲。正式视频和 PPT 应该以可运行系统为准，截图只作为辅助定位。录制时如果使用示例数据或替代结果，应当主动说明，避免被误解为真实学生数据或真实云端服务返回。</p>
+</main>
+</div>
+</body>
+</html>

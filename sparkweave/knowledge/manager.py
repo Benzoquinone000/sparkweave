@@ -914,12 +914,27 @@ class KnowledgeBaseManager:
         if name in self.config.get("knowledge_bases", {}):
             del self.config["knowledge_bases"][name]
 
-        # Update default if this was the default
+        # Persist the local registry removal before asking helpers to recompute
+        # remaining KBs. list_knowledge_bases() reloads from disk and would
+        # otherwise see the deleted entry in the stale file.
         if self.config.get("default") == name:
-            remaining = self.list_knowledge_bases()
+            remaining = sorted(self.config.get("knowledge_bases", {}).keys())
             self.config["default"] = remaining[0] if remaining else None
-
         self._save_config()
+
+        # Keep the canonical web/API registry in sync so deleted KBs do not
+        # remain visible as missing entries until a manual prune.
+        try:
+            from sparkweave.services.config import get_kb_config_service
+
+            kb_config_service = get_kb_config_service()
+            was_canonical_default = kb_config_service.get_default_kb() == name
+            kb_config_service.delete_kb_config(name)
+            if was_canonical_default:
+                remaining = self.list_knowledge_bases()
+                kb_config_service.set_default_kb(remaining[0] if remaining else None)
+        except Exception as e:
+            logger.warning(f"Failed to remove deleted KB from centralized config: {e}")
         return True
 
     def clean_rag_storage(self, name: str | None = None, backup: bool = True) -> bool:

@@ -139,6 +139,32 @@ def test_manager_delete_drops_http_milvus_collection_via_rest(
     assert "demo" not in manager._load_config().get("knowledge_bases", {})
 
 
+def test_manager_delete_removes_canonical_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sparkweave.services.kb_config import KnowledgeBaseConfigService
+
+    manager = KnowledgeBaseManager(base_dir=str(tmp_path / "knowledge_bases"))
+    kb_dir = tmp_path / "knowledge_bases" / "demo"
+    (kb_dir / "raw").mkdir(parents=True)
+    manager.update_kb_status("demo", "ready")
+
+    service = KnowledgeBaseConfigService(tmp_path / "knowledge_bases" / "kb_config.json")
+    service.set_kb_config("demo", {"path": "demo", "rag_provider": "milvus"})
+    service.set_default_kb("demo")
+    monkeypatch.setattr(
+        "sparkweave.services.config.get_kb_config_service",
+        lambda: service,
+    )
+
+    assert manager.delete_knowledge_base("demo", confirm=True) is True
+
+    service.reload()
+    assert "demo" not in service.get_all_configs().get("knowledge_bases", {})
+    assert service.get_default_kb() is None
+
+
 def test_manager_still_accepts_ready_llamaindex_storage(tmp_path: Path) -> None:
     manager = KnowledgeBaseManager(base_dir=str(tmp_path))
     kb_dir = tmp_path / "demo"

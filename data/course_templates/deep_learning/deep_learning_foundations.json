@@ -1,0 +1,446 @@
+{
+  "id": "deep_learning_foundations",
+  "title": "完整课程：深度学习",
+  "course_id": "DL301",
+  "course_name": "深度学习",
+  "description": "面向人工智能、计算机和相关专业本科高年级学生的 14 周专业课程。课程依据 ppts/深度学习 目录下的课件组织，从人工智能绪论、前馈神经网络、卷积神经网络、软硬件基础一路走到多模态学习、循环神经网络、注意力机制、Transformer、大模型应用、强化学习、无监督学习和深度生成模型。",
+  "target_learners": "具备线性代数、概率统计、Python 编程和机器学习基础，希望系统掌握深度学习主线并完成课程学习项目的本科生。",
+  "level": "intermediate",
+  "suggested_weeks": 14,
+  "credits": 3,
+  "estimated_minutes": 980,
+  "knowledge_base_name": "深度学习",
+  "tags": ["deep-learning", "neural-network", "cnn", "transformer", "llm", "multimodal", "generative-model"],
+  "source_materials": [
+    "ppts/深度学习/深度学习-chap1-绪论.pdf",
+    "ppts/深度学习/深度学习-chap2-前馈神经网络.pdf",
+    "ppts/深度学习/深度学习-chap3-卷积神经网络.pdf",
+    "ppts/深度学习/深度学习-chap4-深度学习软硬件.pdf",
+    "ppts/深度学习/chap5-卷积神经网络应用-图像检索.pdf",
+    "ppts/深度学习/深度学习-chap6-多模态学习.pdf",
+    "ppts/深度学习/深度学习-chap7-循环神经网络.pdf",
+    "ppts/深度学习/深度学习-chap9-注意力机制与外部记忆.pdf",
+    "ppts/深度学习/深度学习-chap9-Transformer-大模型.pdf",
+    "ppts/深度学习/深度学习-chap10-大模型及其应用.pdf",
+    "ppts/深度学习/深度学习-chap11-大模型及其应用.pdf",
+    "ppts/深度学习/深度学习-chap12-大模型强化学习.pdf",
+    "ppts/深度学习/深度学习-chap13-无监督学习.pdf",
+    "ppts/深度学习/深度学习-chap14-深度生成学习.pdf"
+  ],
+  "default_goal": "我想系统学习深度学习，从神经网络基础、CNN、RNN、注意力机制和 Transformer 学到大模型应用、无监督学习和生成模型，并完成一份课程学习项目报告。",
+  "default_preferences": ["visual", "practice", "external_video"],
+  "default_time_budget_minutes": 45,
+  "learning_outcomes": [
+    "能说明人工智能、机器学习和深度学习的关系，并解释数据、算法和算力三要素。",
+    "能读懂前馈神经网络的基本结构，解释神经元、激活函数、损失函数和参数学习的作用。",
+    "能说明卷积神经网络的局部连接、权值共享和池化机制，并把 CNN 特征用于图像检索流程。",
+    "能理解深度学习软硬件环境，知道 CPU、GPU、框架和训练流程分别解决什么问题。",
+    "能比较 RNN、注意力机制和 Transformer 在序列建模中的差异。",
+    "能解释大模型的预训练、监督微调、RLHF、RAG、Agent 和 CoT 等应用链路。",
+    "能区分聚类、PCA、VAE、GAN 等无监督与生成式方法的目标和适用场景。",
+    "能整理一份有资料依据、练习反馈和学习反思的课程项目报告。"
+  ],
+  "assessment": [
+    { "name": "章节小测", "weight": 20, "description": "每个主题完成一组概念题或判断题，检查基础概念是否过关。" },
+    { "name": "实践练习", "weight": 25, "description": "围绕 CNN、Transformer、RAG 或生成模型完成可解释的小练习。" },
+    { "name": "资料问答与证据记录", "weight": 15, "description": "使用课程课件或公开资料回答问题，并保留来源和错因。" },
+    { "name": "课程项目报告", "weight": 30, "description": "完成一份深度学习主题学习项目报告，包含模型路线、实验或案例分析、资料来源和复盘。" },
+    { "name": "学习反思", "weight": 10, "description": "记录薄弱点、资源使用体验和下一步补救计划。" }
+  ],
+  "project_milestones": [
+    { "week": 1, "topic": "人工智能与深度学习绪论", "deliverable": "AI、机器学习、深度学习关系图和个人学习目标卡" },
+    { "week": 2, "topic": "前馈神经网络", "deliverable": "神经元、层、激活函数和损失函数结构卡" },
+    { "week": 3, "topic": "卷积神经网络", "deliverable": "局部连接、卷积核和池化的图解说明" },
+    { "week": 4, "topic": "深度学习软硬件", "deliverable": "训练环境与算力角色说明" },
+    { "week": 5, "topic": "CNN 图像检索应用", "deliverable": "图像检索流程图和特征抽取说明" },
+    { "week": 6, "topic": "多模态学习", "deliverable": "文本、图像、语音模态对齐表" },
+    { "week": 7, "topic": "循环神经网络", "deliverable": "序列记忆与时间展开图" },
+    { "week": 8, "topic": "注意力机制与外部记忆", "deliverable": "注意力、外部记忆和 RAG 关系图" },
+    { "week": 9, "topic": "Transformer 与预训练模型", "deliverable": "Transformer 模块图和 BERT/GPT 对比卡" },
+    { "week": 10, "topic": "大模型训练与应用", "deliverable": "预训练、SFT、RLHF、RAG、Agent、CoT 流程卡" },
+    { "week": 11, "topic": "大模型应用案例复盘", "deliverable": "一个大模型应用场景的任务分解和风险说明" },
+    { "week": 12, "topic": "大模型强化学习", "deliverable": "奖励模型、PPO、DPO、GRPO 对比表" },
+    { "week": 13, "topic": "无监督学习", "deliverable": "聚类、PCA 和降维可视化练习报告" },
+    { "week": 14, "topic": "深度生成模型与课程项目", "deliverable": "VAE/GAN 对比说明和课程项目报告" }
+  ],
+  "nodes": [
+    {
+      "node_id": "DL1",
+      "title": "人工智能与深度学习绪论",
+      "description": "建立人工智能、机器学习、深度学习的整体框架，理解课程为什么从数据、模型和算力讲起。",
+      "difficulty": "easy",
+      "estimated_minutes": 45,
+      "tags": ["overview", "ai"],
+      "mastery_target": "能用一张图说明 AI、机器学习和深度学习的关系，并说出深度学习的三类支撑条件。",
+      "resource_strategy": ["concept map", "external_video"]
+    },
+    {
+      "node_id": "DL2",
+      "title": "前馈神经网络",
+      "description": "理解神经元、网络层、激活函数、损失函数和参数学习的基本作用。",
+      "prerequisites": ["DL1"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["feedforward", "neural-network"],
+      "mastery_target": "能解释一个前馈网络从输入到输出的计算路径。",
+      "resource_strategy": ["step-by-step", "practice"]
+    },
+    {
+      "node_id": "DL3",
+      "title": "卷积神经网络",
+      "description": "学习局部连接、权值共享、卷积核、池化和特征图，理解 CNN 为什么适合图像任务。",
+      "prerequisites": ["DL2"],
+      "difficulty": "medium",
+      "estimated_minutes": 80,
+      "tags": ["cnn", "vision"],
+      "mastery_target": "能画出卷积、池化和分类头之间的数据流。",
+      "resource_strategy": ["visual", "quiz"]
+    },
+    {
+      "node_id": "DL4",
+      "title": "深度学习软硬件",
+      "description": "理解 CPU、GPU、深度学习框架和训练流程在工程实践中的分工。",
+      "prerequisites": ["DL3"],
+      "difficulty": "medium",
+      "estimated_minutes": 60,
+      "tags": ["hardware", "framework"],
+      "mastery_target": "能说明为什么训练深度模型通常需要 GPU 和框架支持。",
+      "resource_strategy": ["comparison table", "practice"]
+    },
+    {
+      "node_id": "DL5",
+      "title": "CNN 图像检索应用",
+      "description": "把 CNN 特征抽取放入图像检索流程，比较传统特征与深度特征的差异。",
+      "prerequisites": ["DL3"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["cnn", "image-retrieval"],
+      "mastery_target": "能说清查询图像、特征抽取、相似度计算和结果排序之间的关系。",
+      "resource_strategy": ["case study", "visual"]
+    },
+    {
+      "node_id": "DL6",
+      "title": "多模态学习",
+      "description": "理解文本、图像、语音等多模态数据如何表达、对齐和融合。",
+      "prerequisites": ["DL2"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["multimodal"],
+      "mastery_target": "能举例说明跨模态检索或图文理解为什么需要对齐表示。",
+      "resource_strategy": ["concept map", "external_video"]
+    },
+    {
+      "node_id": "DL7",
+      "title": "循环神经网络",
+      "description": "学习序列建模、历史状态、时间展开和 RNN 的基本记忆机制。",
+      "prerequisites": ["DL2"],
+      "difficulty": "medium",
+      "estimated_minutes": 75,
+      "tags": ["rnn", "sequence"],
+      "mastery_target": "能解释 RNN 如何利用前一时刻状态处理序列数据。",
+      "resource_strategy": ["animation", "practice"]
+    },
+    {
+      "node_id": "DL8",
+      "title": "注意力机制与外部记忆",
+      "description": "理解注意力如何选择重点信息，并把外部记忆、记忆网络和 RAG 放在同一条认知主线中。",
+      "prerequisites": ["DL7"],
+      "difficulty": "hard",
+      "estimated_minutes": 85,
+      "tags": ["attention", "memory", "rag"],
+      "mastery_target": "能画出查询、键、值和外部知识之间的关系。",
+      "resource_strategy": ["visual", "evidence"]
+    },
+    {
+      "node_id": "DL9",
+      "title": "Transformer 与预训练模型",
+      "description": "学习 Transformer、Token、Embedding、位置编码、自注意力，以及 BERT 和 GPT 的差异。",
+      "prerequisites": ["DL8"],
+      "difficulty": "hard",
+      "estimated_minutes": 90,
+      "tags": ["transformer", "pretraining"],
+      "mastery_target": "能解释 Transformer 块中自注意力和前馈层分别在做什么。",
+      "resource_strategy": ["diagram", "comparison table"]
+    },
+    {
+      "node_id": "DL10",
+      "title": "大模型训练与应用",
+      "description": "理解预训练、监督微调、RLHF、RAG、Agent、CoT 和工具调用如何组成大模型应用链路。",
+      "prerequisites": ["DL9"],
+      "difficulty": "hard",
+      "estimated_minutes": 90,
+      "tags": ["llm", "sft", "rag", "agent"],
+      "mastery_target": "能按任务目标选择微调、检索增强、提示工程或智能体编排方案。",
+      "resource_strategy": ["agent route", "case study"]
+    },
+    {
+      "node_id": "DL11",
+      "title": "大模型应用案例复盘",
+      "description": "围绕真实应用场景分析任务拆分、资料来源、工具调用和风险边界。",
+      "prerequisites": ["DL10"],
+      "difficulty": "hard",
+      "estimated_minutes": 75,
+      "tags": ["llm-application", "risk"],
+      "mastery_target": "能为一个大模型应用写出任务流程、证据来源和安全边界。",
+      "resource_strategy": ["report", "rubric"]
+    },
+    {
+      "node_id": "DL12",
+      "title": "大模型强化学习",
+      "description": "理解奖励模型、强化学习基本概念、PPO、DPO 和 GRPO 在大模型对齐中的作用。",
+      "prerequisites": ["DL10"],
+      "difficulty": "hard",
+      "estimated_minutes": 80,
+      "tags": ["rlhf", "ppo", "dpo", "grpo"],
+      "mastery_target": "能比较 PPO、DPO、GRPO 的学习信号和适用场景。",
+      "resource_strategy": ["comparison table", "quiz"]
+    },
+    {
+      "node_id": "DL13",
+      "title": "无监督学习",
+      "description": "学习聚类、层次聚类、K-means、PCA 和降维可视化，理解无标签数据如何被组织。",
+      "prerequisites": ["DL2"],
+      "difficulty": "medium",
+      "estimated_minutes": 70,
+      "tags": ["unsupervised", "clustering", "pca"],
+      "mastery_target": "能说明聚类和 PCA 分别在解决什么问题。",
+      "resource_strategy": ["practice", "visual"]
+    },
+    {
+      "node_id": "DL14",
+      "title": "深度生成模型与课程项目",
+      "description": "学习 VAE、GAN 等生成模型的核心思想，并完成课程项目复盘。",
+      "prerequisites": ["DL13"],
+      "difficulty": "hard",
+      "estimated_minutes": 105,
+      "tags": ["vae", "gan", "project"],
+      "mastery_target": "能比较 VAE 和 GAN 的训练目标，并把课程学习证据整理成项目报告。",
+      "resource_strategy": ["comparison", "project checklist"]
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "D1",
+      "node_id": "DL1",
+      "type": "visualize",
+      "title": "画出 AI 到深度学习的关系图",
+      "instruction": "用一张图说明人工智能、机器学习、深度学习之间的包含关系，并标出数据、算法、算力三类支撑条件。",
+      "estimated_minutes": 12,
+      "success_criteria": ["能区分三个概念层级", "能说出深度学习发展的至少两个条件"]
+    },
+    {
+      "task_id": "D2",
+      "node_id": "DL2",
+      "type": "explain",
+      "title": "拆解一个前馈神经网络",
+      "instruction": "围绕输入层、隐藏层、激活函数、输出层和损失函数，解释一个前馈网络如何得到预测结果。",
+      "estimated_minutes": 18,
+      "success_criteria": ["计算路径清楚", "能解释激活函数和损失函数的作用"]
+    },
+    {
+      "task_id": "D3",
+      "node_id": "DL3",
+      "type": "visualize",
+      "title": "生成 CNN 结构图",
+      "instruction": "画出输入图像经过卷积、激活、池化、展平和分类头的流程，并说明局部连接和权值共享的好处。",
+      "estimated_minutes": 18,
+      "success_criteria": ["包含 CNN 关键层", "能解释局部连接与权值共享"]
+    },
+    {
+      "task_id": "D4",
+      "node_id": "DL4",
+      "type": "practice",
+      "title": "说明一次训练需要哪些软硬件角色",
+      "instruction": "列出一次深度学习训练中 CPU、GPU、数据加载、框架、优化器和日志分别承担什么工作。",
+      "estimated_minutes": 15,
+      "success_criteria": ["角色分工完整", "能解释 GPU 加速的原因"]
+    },
+    {
+      "task_id": "D5",
+      "node_id": "DL5",
+      "type": "case",
+      "title": "搭建 CNN 图像检索流程",
+      "instruction": "根据课件中的图像检索主题，写出查询图像、特征抽取、相似度计算、排序返回的完整流程。",
+      "estimated_minutes": 20,
+      "success_criteria": ["流程闭环完整", "能比较传统特征和 CNN 特征"]
+    },
+    {
+      "task_id": "D6",
+      "node_id": "DL6",
+      "type": "explain",
+      "title": "比较三类模态的表示方式",
+      "instruction": "选择文本、图像和语音三类数据，说明它们进入模型前通常如何表示，以及跨模态对齐为什么困难。",
+      "estimated_minutes": 16,
+      "success_criteria": ["至少覆盖三类模态", "能说明对齐困难"]
+    },
+    {
+      "task_id": "D7",
+      "node_id": "DL7",
+      "type": "visualize",
+      "title": "画出 RNN 的时间展开",
+      "instruction": "画出 RNN 在三个时间步上的状态传递，并解释历史状态如何影响当前输出。",
+      "estimated_minutes": 18,
+      "success_criteria": ["时间展开正确", "能说明历史状态的作用"]
+    },
+    {
+      "task_id": "D8",
+      "node_id": "DL8",
+      "type": "visualize",
+      "title": "把注意力机制和 RAG 放在一张图里",
+      "instruction": "用查询、键、值、外部记忆和资料检索几个元素，说明注意力与外部知识如何帮助模型选取有效信息。",
+      "estimated_minutes": 20,
+      "success_criteria": ["包含 Q/K/V 或等价元素", "能说明外部知识的作用"]
+    },
+    {
+      "task_id": "D9",
+      "node_id": "DL9",
+      "type": "compare",
+      "title": "比较 BERT 和 GPT",
+      "instruction": "从训练目标、上下文方向、典型任务和生成能力四个角度比较 BERT 与 GPT。",
+      "estimated_minutes": 18,
+      "success_criteria": ["比较维度清楚", "能举出至少两个任务场景"]
+    },
+    {
+      "task_id": "D10",
+      "node_id": "DL10",
+      "type": "agent_route",
+      "title": "拆解一个大模型应用链路",
+      "instruction": "围绕一个学习助手场景，写出预训练模型、SFT、RAG、工具调用、Agent 和 CoT 在系统中的位置。",
+      "estimated_minutes": 24,
+      "success_criteria": ["链路前后关系清楚", "能指出 RAG 和 Agent 的边界"]
+    },
+    {
+      "task_id": "D11",
+      "node_id": "DL11",
+      "type": "report",
+      "title": "复盘一个大模型应用场景",
+      "instruction": "选择一个教育、检索、代码或多模态场景，写出任务目标、资料来源、工具调用和潜在风险。",
+      "estimated_minutes": 24,
+      "success_criteria": ["包含资料来源", "能说明至少两个风险边界"]
+    },
+    {
+      "task_id": "D12",
+      "node_id": "DL12",
+      "type": "quiz",
+      "title": "比较 PPO、DPO 和 GRPO",
+      "instruction": "完成一组判断和简答题，区分奖励模型、策略优化、偏好对齐和组相对优化的思路。",
+      "estimated_minutes": 18,
+      "success_criteria": ["能解释奖励模型", "能说出 DPO 与 PPO 的差异"]
+    },
+    {
+      "task_id": "D13",
+      "node_id": "DL13",
+      "type": "practice",
+      "title": "完成聚类与 PCA 概念练习",
+      "instruction": "用一个二维样本例子说明 K-means 聚类和 PCA 降维分别在做什么，并写出适用场景。",
+      "estimated_minutes": 18,
+      "success_criteria": ["能区分聚类和降维", "能解释 PCA 主方向"]
+    },
+    {
+      "task_id": "D14",
+      "node_id": "DL14",
+      "type": "project",
+      "title": "完成深度学习课程项目报告",
+      "instruction": "整理课程中生成的图解、练习结果、资料问答来源和个人反思，完成一份深度学习学习项目报告。",
+      "estimated_minutes": 30,
+      "success_criteria": ["报告结构完整", "包含资料来源和错因复盘", "给出下一步学习计划"]
+    }
+  ],
+  "learning_path": {
+    "title": "深度学习 14 周课程路线",
+    "rationale": "先建立神经网络和 CNN 基础，再进入序列建模、注意力和 Transformer，随后学习大模型应用、强化学习、无监督学习和生成模型，最后收束到课程项目报告。",
+    "node_sequence": ["DL1", "DL2", "DL3", "DL4", "DL5", "DL6", "DL7", "DL8", "DL9", "DL10", "DL11", "DL12", "DL13", "DL14"],
+    "today_focus": "先完成 AI、机器学习、深度学习关系图，再进入前馈神经网络和 CNN。",
+    "next_recommendation": "如果 CNN 结构还不稳，优先生成卷积与池化图解；如果已经掌握，再进入图像检索案例。"
+  },
+  "recommendations": [
+    "先用图解建立神经网络和 CNN 主线，再用小测确认概念边界。",
+    "CNN、RNN、Transformer 容易混在一起，建议每学完一个结构就补一张数据流图。",
+    "大模型部分不要只背术语，重点看预训练、SFT、RAG、Agent 和 RLHF 在系统里的位置。",
+    "每次资料问答都保存来源和错因，最后课程项目报告会更扎实。"
+  ],
+  "demo_seed": {
+    "title": "深度学习课程学习样例",
+    "scenario": "从 CNN 图解开始，接入图像检索案例，再过渡到注意力、Transformer 和大模型应用，最后用学习记录生成课程项目报告。",
+    "persona": {
+      "goal": "系统学习深度学习，先补齐 CNN、注意力机制、Transformer 和大模型应用这几块薄弱点。",
+      "weak_points": ["CNN 结构和图像检索流程容易混淆", "注意力机制和 Transformer 的关系不清楚", "大模型应用链路里 RAG、Agent、RLHF 边界不稳"],
+      "preferences": ["visual", "practice", "external_video"],
+      "time_budget_minutes": 45
+    },
+    "task_chain": ["D3", "D5", "D8", "D9", "D10", "D12", "D14"],
+    "resource_prompts": {
+      "D3": "生成一张 CNN 结构图，展示卷积、激活、池化、展平和分类头的数据流。",
+      "D5": "生成一张 CNN 图像检索流程图，并配一组判断题区分传统特征和深度特征。",
+      "D8": "生成一张注意力机制与外部记忆关系图，解释 Q/K/V、外部资料和 RAG 的联系。",
+      "D10": "生成一条大模型学习助手应用链路，标出预训练、SFT、RAG、Agent、CoT 和评估环节。",
+      "D14": "根据本轮学习记录生成课程项目报告提纲，包含资料来源、错因和下一步计划。"
+    },
+    "sample_artifacts": [
+      {
+        "task_id": "D3",
+        "type": "visual",
+        "title": "CNN 结构图学习素材",
+        "preview": "输入图像依次经过卷积、激活、池化、展平和分类头，旁边标注局部连接与权值共享。",
+        "demo_action": "资源生成较慢时，直接展示这张结构图的节点，让评委看到系统会优先为视觉概念生成图解。",
+        "talking_point": "CNN 是深度学习课程的第一个高频卡点，用图解释比只讲公式更适合入门学习。",
+        "diagram_nodes": ["输入图像", "卷积核", "特征图", "激活函数", "池化层", "分类头"],
+        "key_takeaways": ["局部连接减少参数", "权值共享提取重复特征", "池化降低空间维度"],
+        "evidence_points": ["chap3 卷积神经网络课件", "学习任务 D3", "学生反馈和小测结果"]
+      },
+      {
+        "task_id": "D5",
+        "type": "case",
+        "title": "CNN 图像检索流程素材",
+        "preview": "查询图像进入 CNN 特征抽取，和图库特征计算相似度，再按相似度排序返回结果。",
+        "demo_action": "打开案例素材后，说明系统能从课程课件中的应用章节生成流程图和练习题。",
+        "talking_point": "图像检索能把 CNN 从抽象结构拉到真实应用，适合展示个性化资源生成。",
+        "diagram_nodes": ["查询图像", "CNN 特征抽取", "图库特征", "相似度计算", "排序返回", "结果反馈"],
+        "quiz_items": [
+          { "type": "choice", "question": "在 CNN 图像检索中，通常先比较什么？", "answer": "图像特征向量" },
+          { "type": "judgement", "question": "图像检索只需要分类标签，不需要特征表示。", "answer": "错误" }
+        ],
+        "key_takeaways": ["检索关注相似度", "CNN 特征替代手工特征", "排序结果可以继续反馈优化"]
+      },
+      {
+        "task_id": "D8",
+        "type": "visual",
+        "title": "注意力机制与 RAG 图解素材",
+        "preview": "学生问题形成 Query，课程资料形成外部记忆，系统检索证据后再组织回答。",
+        "demo_action": "展示 Q/K/V 与外部资料的关系，说明资料来源如何进入答疑结果。",
+        "talking_point": "这一页能自然连接深度学习课程内容和 SparkWeave 的资料问答证据链。",
+        "diagram_nodes": ["Query", "Key", "Value", "外部记忆", "课程资料", "检索结果", "带来源回答"],
+        "evidence_points": ["chap9 注意力机制与外部记忆课件", "资料问答来源", "学习记录"]
+      },
+      {
+        "task_id": "D14",
+        "type": "report",
+        "title": "深度学习课程项目报告素材",
+        "preview": "报告汇总 CNN、注意力、Transformer、大模型应用和生成模型的学习证据，给出错因和下一步计划。",
+        "demo_action": "在记录页展示学习证据后，打开报告提纲，说明学习评估不是一次分数，而是持续证据。",
+        "talking_point": "最终产出回到课程项目，比只生成一段答案更像真实学习。",
+        "report_sections": ["课程主题", "已完成任务", "资料来源", "薄弱点", "资源使用反馈", "下一步计划"],
+        "sample_prescription": {
+          "weak_point": "注意力机制和 Transformer 关系不稳",
+          "next_action": "先补一张自注意力图，再做 BERT/GPT 对比题",
+          "resource_type": "visual"
+        }
+      },
+      {
+        "task_id": "D10",
+        "type": "agent_route",
+        "title": "大模型学习助手链路素材",
+        "preview": "预训练模型负责基础能力，SFT 对齐任务风格，RAG 接入课程资料，Agent 调用工具，评估结果回写画像。",
+        "demo_action": "展示链路卡片，说明系统如何把大模型课程内容落到学习智能体应用。",
+        "talking_point": "这里既是课程知识，也是本项目的实现主线，评委容易把学习内容和系统能力对上。",
+        "agent_route": ["预训练模型", "监督微调", "RAG 检索", "工具调用", "Agent 编排", "学习评估", "画像更新"],
+        "report_sections": ["任务目标", "资料来源", "智能体分工", "风险边界", "学习反馈"]
+      }
+    ],
+    "sample_reflection": {
+      "score": 0.76,
+      "reflection": "我能看懂 CNN 图像检索流程，但注意力机制里的 Query、Key、Value 还需要结合 Transformer 再练一次。",
+      "mistake_types": ["concept_boundary", "model_structure"]
+    }
+  }
+}

@@ -29,6 +29,25 @@ class _FakeAdapter:
         )()
 
 
+class _FlakyAdapter:
+    instances: list["_FlakyAdapter"] = []
+
+    def __init__(self, config: dict[str, Any]):
+        self.config = config
+        self.calls = 0
+        _FlakyAdapter.instances.append(self)
+
+    async def embed(self, request):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("iFlytek Spark Embedding HTTP 500, message=licc failed, code=11202")
+        return type(
+            "Resp",
+            (),
+            {"embeddings": [[1.0] * (request.dimensions or 2) for _ in request.texts]},
+        )()
+
+
 def _build_config(binding: str) -> EmbeddingConfig:
     return EmbeddingConfig(
         model="text-embedding-3-small",
@@ -59,6 +78,28 @@ async def test_embedding_client_batches_requests(monkeypatch) -> None:
     assert len(adapter.calls[0].texts) == 2
     assert len(adapter.calls[1].texts) == 1
     assert adapter.config["dimensions"] == 8
+
+
+@pytest.mark.asyncio
+async def test_embedding_client_retries_transient_provider_error(monkeypatch) -> None:
+    _FlakyAdapter.instances = []
+    async def _noop_sleep(_delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "sparkweave.services.embedding_support.client._resolve_adapter_class",
+        lambda _b: _FlakyAdapter,
+    )
+    monkeypatch.setattr("sparkweave.services.embedding_support.client.asyncio.sleep", _noop_sleep)
+    config = _build_config("iflytek_spark")
+    config.batch_size = 1
+    config.batch_delay = 0
+
+    client = EmbeddingClient(config)
+    vectors = await client.embed(["a"])
+
+    assert vectors == [[1.0] * 8]
+    assert _FlakyAdapter.instances[0].calls == 2
 
 
 def test_resolve_adapter_class_supports_canonical_providers() -> None:

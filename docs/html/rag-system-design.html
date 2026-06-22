@@ -1,0 +1,472 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RAG 系统设计</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="rag-系统设计">RAG 系统设计</h1>
+<p>SparkWeave 的资料问答不只把问题交给大模型直接回答，也不是简单“搜一下资料”。它的核心是 Agentic RAG：学生先把课件、讲义、实验文档或课程资料放进资料库，系统把它们整理成可检索片段；提问时先判断问题是否需要拆分，再按多个查找视角检索、合并来源、判断证据覆盖度，最后把可用片段交给回答过程。回答旁边会展示来源，评委可以看到结论从哪份资料、哪个片段来。</p>
+<p>这部分对应赛题里的“多智能体协同的资源生成”和“智能辅导”。评委可以在 <a href="../../web/screenshots-knowledge.png">资料页</a> 和 <a href="../../web/screenshots-chat.png">问问题页</a> 看到它的前端呈现。</p>
+<h2 id="资料从哪里进入系统">资料从哪里进入系统</h2>
+<p>资料页承担三个学习动作：创建资料库、上传课程资料、用资料提问。</p>
+<table>
+<thead>
+<tr class="header">
+<th>动作</th>
+<th>系统处理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>创建资料库</td>
+<td>在 <code>data/knowledge_bases/</code> 下建立独立目录，并写入资料库配置</td>
+</tr>
+<tr class="even">
+<td>上传文件</td>
+<td>保存原始文件，按文件类型抽取文本、图片或 Markdown 内容</td>
+</tr>
+<tr class="odd">
+<td>建立索引</td>
+<td>把内容切成片段，生成向量，写入 Milvus 或本地索引</td>
+</tr>
+<tr class="even">
+<td>查看文档</td>
+<td>前端可以预览原文整理结果，确认资料是否处理成功</td>
+</tr>
+<tr class="odd">
+<td>重建索引</td>
+<td>当模型或 Embedding 配置变化时，可以重新处理资料</td>
+</tr>
+</tbody>
+</table>
+<p>资料库不是一次性样例数据。评委可以新增资料、重新索引，再用同一问题观察来源是否变化。</p>
+<h2 id="一次资料问答怎么发生">一次资料问答怎么发生</h2>
+<p>以“请结合课程资料解释梯度下降为什么会震荡”为例：</p>
+<table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>系统动作</th>
+<th>页面上能看到什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. 选择资料库</td>
+<td>本轮问题绑定课程资料库</td>
+<td>问问题页显示资料库名称</td>
+</tr>
+<tr class="even">
+<td>2. 规划查找方式</td>
+<td>根据问题类型决定快速查找，还是进入 Agentic RAG 多路查找</td>
+<td>来源卡片显示检索方式</td>
+</tr>
+<tr class="odd">
+<td>3. 拆分并查找片段</td>
+<td>复杂问题会拆成多个查找视角，并发检索相关片段</td>
+<td>展示来源数量、片段标题、页码和关键词</td>
+</tr>
+<tr class="even">
+<td>4. 合并与质量判断</td>
+<td>合并不同视角的来源，检查来源数量、相关性、覆盖度和回答材料长度</td>
+<td>页面显示“来源可用”“来源偏弱”或“无来源”</td>
+</tr>
+<tr class="odd">
+<td>5. 汇总回答</td>
+<td>把资料片段作为依据生成学习讲解</td>
+<td>回答旁保留资料来源</td>
+</tr>
+<tr class="even">
+<td>6. 继续学习</td>
+<td>学生可追问、保存记录或进入导学练习</td>
+<td>来源和学习记录可以继续被后续任务使用</td>
+</tr>
+</tbody>
+</table>
+<p>这样做的重点不是让学生理解检索参数，而是让学生知道：这次回答有没有查到资料，查到的资料强不强，关键结论能不能追溯。</p>
+<h2 id="agentic-rag-的实现链路">Agentic RAG 的实现链路</h2>
+<p>这条链路在代码里是能追到的。资料页或问问题页发起 <code>rag-test</code> 时，<code>knowledge_rag_ops.py</code> 会把 <code>agentic_rag</code>、最大上下文、最大来源数、最少来源数、覆盖度阈值、相关覆盖度阈值、最低上下文长度和最低分数这些参数整理成检索配置。之后由 <code>RagSupportService.search()</code> 进入真正的检索流程。</p>
+<table>
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>代码位置</th>
+<th>发生了什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>参数进入</td>
+<td><code>sparkweave/api/routers/knowledge_rag_ops.py</code></td>
+<td>把前端请求里的 <code>agentic_*</code> 参数转成搜索配置，并在返回结果中保留 <code>agentic_quality</code>、<code>agentic_repair</code>、<code>subquery_results</code> 等字段</td>
+</tr>
+<tr class="even">
+<td>查询规划</td>
+<td><code>sparkweave/services/rag_support/query_planner.py</code></td>
+<td><code>plan_rag_queries()</code> 判断是否需要多路查找，并生成若干 focused retrieval query</td>
+</tr>
+<tr class="odd">
+<td>并发检索</td>
+<td><code>sparkweave/services/rag_support/service.py</code></td>
+<td><code>_agentic_search()</code> 用并发限制执行多个 <code>_single_search()</code>，每个分支都能复用普通 RAG 的改写、检索和来源整理</td>
+</tr>
+<tr class="even">
+<td>来源合并</td>
+<td><code>sparkweave/services/rag_support/agentic_merge.py</code></td>
+<td>合并不同分支的来源，形成 <code>agentic_evidence_groups</code> 和 <code>agentic_context_pack</code>，避免同一片段重复占用上下文</td>
+</tr>
+<tr class="odd">
+<td>质量门</td>
+<td><code>sparkweave/services/rag_support/agentic_quality.py</code></td>
+<td>计算来源数、上下文长度、子查询覆盖率、相关覆盖率、最高分和平均分，给出 <code>weak</code> 或 <code>sufficient</code></td>
+</tr>
+<tr class="even">
+<td>分支修复</td>
+<td><code>sparkweave/services/rag_support/agentic_repair.py</code></td>
+<td>对没有证据或相关性弱的分支重新检索，只有候选结果更好时才接受</td>
+</tr>
+<tr class="odd">
+<td>保守回退</td>
+<td><code>sparkweave/services/rag_support/service.py</code></td>
+<td>修复后仍不足时，回到单路检索，并把 <code>agentic_fallback_reason</code> 和失败计划返回给前端</td>
+</tr>
+<tr class="even">
+<td>前端展示</td>
+<td><code>web/src/pages/knowledge/RagAgenticTrace.tsx</code></td>
+<td>展示质量指标、阈值、修复记录、子查询来源和下一步建议</td>
+</tr>
+</tbody>
+</table>
+<p>这也是 SparkWeave 把 RAG 做成“agentic”的地方：它不是多查几次就结束，而是让查询计划、证据覆盖、弱分支修复和回退原因都进入可见结果。评委可以把同一个问题分别用简单问法和复杂问法测试，观察 query plan、来源数量和质量状态是否发生变化。</p>
+<h2 id="证据链怎么展示">证据链怎么展示</h2>
+<p>问问题页的资料回答会带一个“资料来源”区域。它主要展示几类信息：</p>
+<table>
+<thead>
+<tr class="header">
+<th>信息</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>来源状态</td>
+<td>“来源可用”“来源偏弱”“无来源”，提醒学生回答可信度</td>
+</tr>
+<tr class="even">
+<td>检索过程</td>
+<td>展示问题是否被拆成多个查找视角，以及每个视角找到多少来源</td>
+</tr>
+<tr class="odd">
+<td>来源片段</td>
+<td>展示文件名、页码、片段内容、相关度和命中关键词</td>
+</tr>
+<tr class="even">
+<td>质量判断</td>
+<td>展示覆盖度、相关来源比例、是否触发弱分支补强或保守回退</td>
+</tr>
+<tr class="odd">
+<td>下一步建议</td>
+<td>如果来源不足，提示学生补资料、换问法或进入资料库预检</td>
+</tr>
+</tbody>
+</table>
+<p>当资料不足时，系统不会把回答包装成“有依据”。页面会明确提示本轮没有可展示来源，建议先检查资料库或补充资料。</p>
+<h2 id="普通检索与-agentic-rag">普通检索与 Agentic RAG</h2>
+<p>SparkWeave 同时支持两种资料查找方式：</p>
+<table>
+<thead>
+<tr class="header">
+<th>方式</th>
+<th>适合场景</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>快速查找</td>
+<td>问题集中，例如“什么是过拟合”</td>
+<td>直接按当前问题检索资料片段</td>
+</tr>
+<tr class="even">
+<td>Agentic RAG</td>
+<td>问题包含多个意图，例如“解释原理、给例子、比较优缺点”</td>
+<td>先拆成多个查找视角，分别查资料，再合并来源</td>
+</tr>
+<tr class="odd">
+<td>弱证据补强</td>
+<td>某些查找视角没有找到足够资料</td>
+<td>对薄弱分支重新检索，仍不够稳时回退到保守快速查找</td>
+</tr>
+</tbody>
+</table>
+<p>Agentic RAG 的价值在于“知道自己查得稳不稳”。它会留下查询计划、子问题结果、来源合并记录和质量报告。评委在资料页可以看到它不是简单把几个片段拼起来，而是先判断这些片段是否足以支撑回答；证据偏弱时，系统会尝试修复薄弱分支，修复失败再回到更保守的检索结果。</p>
+<h2 id="资料质量如何判断">资料质量如何判断</h2>
+<p>系统不会只看“有没有搜到东西”。它会同时看几类信号：</p>
+<table>
+<thead>
+<tr class="header">
+<th>信号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>来源数量</td>
+<td>是否至少有可展示的资料片段</td>
+</tr>
+<tr class="even">
+<td>覆盖度</td>
+<td>多个查找视角是否都找到材料</td>
+</tr>
+<tr class="odd">
+<td>相关性</td>
+<td>片段是否命中问题关键词或语义相近内容</td>
+</tr>
+<tr class="even">
+<td>回答材料长度</td>
+<td>给模型的资料上下文是否足够支撑回答</td>
+</tr>
+<tr class="odd">
+<td>片段去重</td>
+<td>避免同一段资料重复占据回答材料</td>
+</tr>
+</tbody>
+</table>
+<p>这些判断会变成前端的状态标签。评委可以展开“查看来源与检索过程”，看到它不是只给一个答案，而是把查找过程和可用性判断一起交出来。</p>
+<h2 id="与课程学习的关系">与课程学习的关系</h2>
+<p>RAG 不是独立的资料管理工具，它会进入学习主线：</p>
+<table>
+<thead>
+<tr class="header">
+<th>学习场景</th>
+<th>RAG 的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>学习页</td>
+<td>为导学任务提供课程资料依据，避免路线脱离课程内容</td>
+</tr>
+<tr class="even">
+<td>问问题页</td>
+<td>回答课程相关问题时给出引用片段</td>
+</tr>
+<tr class="odd">
+<td>练习生成</td>
+<td>出题时可以围绕课程资料里的知识点和表达方式</td>
+</tr>
+<tr class="even">
+<td>图解生成</td>
+<td>把资料里的概念关系转成结构图或流程图</td>
+</tr>
+<tr class="odd">
+<td>学习记录</td>
+<td>学生保存资料问答后，资源使用会影响学习画像</td>
+</tr>
+</tbody>
+</table>
+<p>因此，完整课程不只是一个 JSON 模板，还可以配套讲义、实验文档和参考资料，供资料问答和资源生成使用。</p>
+<p>SparkWeave 里的课程模板通过 <code>source_materials</code> 指向课件。仓库提供脚本把这些课件同步到课程资料库：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>sync_course_materials_to_kb<span class="op">.</span><span class="fu">py</span> <span class="op">--</span>stage<span class="op">-</span>only</span></code></pre></div>
+<p>这条命令会把深度学习和智能机器人系统的课件复制到 <code>data/knowledge_bases/&lt;课程名&gt;/raw/</code>，并把资料库状态标为需要重建索引。评审环境里启动 Docker Compose、Milvus 和 Embedding 后，可以继续执行：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>sync_course_materials_to_kb<span class="op">.</span><span class="fu">py</span> <span class="op">--</span>index</span></code></pre></div>
+<p>这样资料页和问问题页检索的就是当前课程课件，而不是旧样例或临时上传文件。</p>
+<h2 id="科大讯飞相关落点">科大讯飞相关落点</h2>
+<p>资料问答可以结合讯飞相关能力：</p>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>在 RAG 中的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>星火大模型</td>
+<td>用于资料问答、归纳解释和学习资源生成</td>
+</tr>
+<tr class="even">
+<td>Spark Embedding</td>
+<td>可作为资料向量化配置，支撑语义检索</td>
+</tr>
+<tr class="odd">
+<td>ONE SEARCH</td>
+<td>当课程资料不足时，可补充公开资料搜索</td>
+</tr>
+<tr class="even">
+<td>讯飞 OCR</td>
+<td>把扫描课件、图片题或讲义截图转成可检索文本</td>
+</tr>
+<tr class="odd">
+<td>公式识别</td>
+<td>数学题和公式截图可以先识别，再进入资料问答或解题</td>
+</tr>
+<tr class="even">
+<td>图片理解</td>
+<td>对板书、示意图和课程截图做多模态辅导</td>
+</tr>
+</tbody>
+</table>
+<p>这些能力在设置页配置，在工具层和资料处理链路中按需使用。</p>
+<h2 id="接口与代码落点">接口与代码落点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>模块</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>资料库接口</td>
+<td><code>sparkweave/api/routers/knowledge.py</code></td>
+</tr>
+<tr class="even">
+<td>RAG 查询与评测接口</td>
+<td><code>sparkweave/api/routers/knowledge_rag_ops.py</code></td>
+</tr>
+<tr class="odd">
+<td>资料库管理</td>
+<td><code>sparkweave/knowledge/manager.py</code></td>
+</tr>
+<tr class="even">
+<td>课程课件同步</td>
+<td><code>scripts/sync_course_materials_to_kb.py</code></td>
+</tr>
+<tr class="odd">
+<td>文件上传与处理</td>
+<td><code>sparkweave/api/routers/knowledge_uploads.py</code>、<code>sparkweave/knowledge/add_documents.py</code></td>
+</tr>
+<tr class="even">
+<td>RAG 服务入口</td>
+<td><code>sparkweave/services/rag_support/service.py</code></td>
+</tr>
+<tr class="odd">
+<td>检索策略</td>
+<td><code>sparkweave/services/rag_support/retrieval_policy.py</code></td>
+</tr>
+<tr class="even">
+<td>问题改写与拆分</td>
+<td><code>sparkweave/services/rag_support/query_transform.py</code>、<code>query_planner.py</code></td>
+</tr>
+<tr class="odd">
+<td>回答材料打包</td>
+<td><code>sparkweave/services/rag_support/context_pack.py</code></td>
+</tr>
+<tr class="even">
+<td>Agentic RAG 来源合并</td>
+<td><code>sparkweave/services/rag_support/agentic_merge.py</code></td>
+</tr>
+<tr class="odd">
+<td>多路查找质量判断</td>
+<td><code>sparkweave/services/rag_support/agentic_quality.py</code></td>
+</tr>
+<tr class="even">
+<td>弱分支补强与回退</td>
+<td><code>sparkweave/services/rag_support/agentic_repair.py</code></td>
+</tr>
+<tr class="odd">
+<td>前端资料页</td>
+<td><code>web/src/pages/KnowledgePage.tsx</code>、<code>web/src/pages/knowledge/</code></td>
+</tr>
+<tr class="even">
+<td>前端来源展示</td>
+<td><code>web/src/components/results/RagEvidenceChain.tsx</code>、<code>web/src/pages/knowledge/RagAgenticTrace.tsx</code></td>
+</tr>
+</tbody>
+</table>
+<p>主要接口包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /api/v1/knowledge/list</code></td>
+<td>查看资料库列表</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/knowledge/create</code></td>
+<td>创建资料库并上传文件</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/knowledge/{kb_name}/upload</code></td>
+<td>给已有资料库补充文件</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/knowledge/{kb_name}/documents</code></td>
+<td>查看资料库中的文档</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/knowledge/{kb_name}/documents/{document_id}/preview</code></td>
+<td>预览文档整理结果</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/knowledge/{kb_name}/rag-test</code></td>
+<td>单独测试一次资料检索，可传入 <code>agentic_rag</code>、上下文长度和来源数量等参数</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/knowledge/{kb_name}/rag-eval</code></td>
+<td>用题目集评估检索质量</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/knowledge/{kb_name}/reindex</code></td>
+<td>重新建立索引</td>
+</tr>
+</tbody>
+</table>
+<h2 id="演示时可以这样看">演示时可以这样看</h2>
+<ol type="1">
+<li>进入资料页，选择一门课程资料库。</li>
+<li>打开文档列表或预览，确认资料已经被系统整理。</li>
+<li>在资料页或问问题页提出一个课程相关问题。</li>
+<li>展开“资料来源”，查看文件名、页码、片段内容和命中关键词。</li>
+<li>换一个更宽的问题，观察系统是否拆成多个查找视角，并查看每个视角的来源数量。</li>
+<li>如果页面提示来源偏弱，查看是否触发弱分支补强；再补充资料或调整问题，观察来源状态是否改善。</li>
+</ol>
+<p>这条演示线能说明系统不是只有自然语言回答，而是有资料入库、检索、质量判断和来源展示。</p>
+<h2 id="边界说明">边界说明</h2>
+<ul>
+<li>资料问答质量取决于资料库内容、索引状态和 Embedding 配置。</li>
+<li>当没有可用来源时，页面会提示“无来源”，回答不能视为课程资料结论。</li>
+<li>修改 Embedding 模型或向量维度后，已有资料库需要重新索引。</li>
+<li>课程资料和运行索引位于 <code>data/knowledge_bases/</code> 下，提交时应区分课程样例、运行生成数据和个人资料。</li>
+<li>外部搜索只能作为补充来源，正式课程结论仍应优先来自课程资料库。</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

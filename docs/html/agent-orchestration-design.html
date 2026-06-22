@@ -1,0 +1,488 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>智能体编排设计</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="多智能体编排设计">多智能体编排设计</h1>
+<p>SparkWeave 的多智能体不是把很多按钮摆在页面上，而是让学生用一句自然语言提出学习任务后，由系统在后台自动调度合适的角色接力完成。学生不需要记住这些角色名称，只需要知道自己下一步要学什么、看什么资料、做什么练习；背后负责分工的是对话协调器、能力路由、Agentic RAG 和工具层。课程助教则把这种能力延长到一门课的持续陪伴里，并可通过 QQ 等消息通道进入学生常用入口。</p>
+<h2 id="一次学习请求如何流转">一次学习请求如何流转</h2>
+<p>以“我想补一下梯度下降的直观理解，先看图解再做练习”为例，系统会按下面的顺序处理：</p>
+<table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>系统动作</th>
+<th>学生能看到什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. 读取上下文</td>
+<td>合并当前问题、会话历史、课程资料、学习画像和记录</td>
+<td>回答会贴合当前课程和薄弱点</td>
+</tr>
+<tr class="even">
+<td>2. 自动判断任务类型</td>
+<td>判断这次更像解释、解题、出题、图解、研究、视频素材还是资料检索</td>
+<td>不需要学生手动选择智能体</td>
+</tr>
+<tr class="odd">
+<td>3. 分配给专业能力</td>
+<td>例如图解交给可视化能力，练习交给出题能力，资料依据交给 Agentic RAG</td>
+<td>前端展示“正在查资料、生成图解、生成练习”等过程</td>
+</tr>
+<tr class="even">
+<td>4. 调用工具</td>
+<td>按需使用资料库、联网搜索、讯飞公式识别、图片理解、工作流等工具</td>
+<td>结果里保留来源、工具记录或资源卡片</td>
+</tr>
+<tr class="odd">
+<td>5. 汇总为学习结果</td>
+<td>把图解、练习、答案、证据和下一步建议整理成可读结果</td>
+<td>学生获得一份能继续学习的材料</td>
+</tr>
+<tr class="even">
+<td>6. 写回记录</td>
+<td>学习行为、练习反馈和资源使用进入记录和画像</td>
+<td>下一次推荐会受这次学习影响</td>
+</tr>
+</tbody>
+</table>
+<p>这个流程服务赛题里的“多智能体协同资源生成”和“个性化学习路径规划”。系统重点不是展示有多少 Agent，而是把一次学习任务拆给合适的角色。</p>
+<h2 id="主要角色">主要角色</h2>
+<table>
+<thead>
+<tr class="header">
+<th>角色</th>
+<th>负责什么</th>
+<th>典型页面</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>对话协调器</td>
+<td>接收学生问题，判断是否需要资料、图解、练习、解题或研究</td>
+<td><a href="../../web/screenshots-chat.png">问问题页</a></td>
+</tr>
+<tr class="even">
+<td>资料检索</td>
+<td>从课程资料库和外部资料中找依据</td>
+<td><a href="../../web/screenshots-knowledge.png">资料页</a></td>
+</tr>
+<tr class="odd">
+<td>深度求解</td>
+<td>处理推导、证明、计算和步骤讲解</td>
+<td>问问题页</td>
+</tr>
+<tr class="even">
+<td>练习生成</td>
+<td>生成选择、判断、填空、简答等练习，并给出解析</td>
+<td>问问题页、学习页</td>
+</tr>
+<tr class="odd">
+<td>知识图解</td>
+<td>把抽象概念转成流程图、关系图或结构图</td>
+<td>问问题页</td>
+</tr>
+<tr class="even">
+<td>数学动画</td>
+<td>为公式、几何含义或变化过程生成动画素材</td>
+<td>问问题页</td>
+</tr>
+<tr class="odd">
+<td>学习研究</td>
+<td>拆解复杂主题，整理学习报告或学习路径</td>
+<td>问问题页</td>
+</tr>
+<tr class="even">
+<td>学习画像与评估服务</td>
+<td>读取目标、偏好、薄弱点和练习反馈，影响下一步推荐</td>
+<td><a href="../../web/screenshots-memory.png">记录与画像页</a></td>
+</tr>
+<tr class="odd">
+<td>课程助教</td>
+<td>围绕一门课程长期保存资料、提醒和问答上下文，可通过 QQ 等通道接入学生常用入口</td>
+<td><a href="../../web/screenshots-agents.png">课程助教页</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="当前内置能力">当前内置能力</h2>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>面向学生的说法</th>
+<th>产出</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>chat</code></td>
+<td>自动导学</td>
+<td>普通问答、资料问答、工具调用、智能体分配</td>
+</tr>
+<tr class="even">
+<td><code>deep_solve</code></td>
+<td>深度求解</td>
+<td>分步解题、证明、推导、验证</td>
+</tr>
+<tr class="odd">
+<td><code>deep_question</code></td>
+<td>练习生成</td>
+<td>题目、答案、解析、可反馈练习</td>
+</tr>
+<tr class="even">
+<td><code>deep_research</code></td>
+<td>学习研究</td>
+<td>主题拆解、资料整理、学习报告</td>
+</tr>
+<tr class="odd">
+<td><code>visualize</code></td>
+<td>知识图解</td>
+<td>Mermaid、SVG、图表或结构化图解</td>
+</tr>
+<tr class="even">
+<td><code>math_animator</code></td>
+<td>数学动画</td>
+<td>动画工程文件、动画素材、讲解摘要</td>
+</tr>
+</tbody>
+</table>
+<p>这些能力在后端由 <code>sparkweave/app/facade.py</code> 定义，在 <code>sparkweave/runtime/runner.py</code> 中执行到对应的图流程。</p>
+<h2 id="工具层">工具层</h2>
+<p>专业能力在需要时会调用工具。工具不直接决定学习流程，只负责完成一个明确动作。</p>
+<table>
+<thead>
+<tr class="header">
+<th>工具</th>
+<th>用途</th>
+<th>赛题价值</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>rag</code></td>
+<td>检索课程资料库</td>
+<td>让回答带有资料依据</td>
+</tr>
+<tr class="even">
+<td><code>web_search</code></td>
+<td>查找公开网页资料</td>
+<td>补充课程外背景</td>
+</tr>
+<tr class="odd">
+<td><code>external_video_search</code></td>
+<td>推荐公开学习视频</td>
+<td>支持多模态资源推荐</td>
+</tr>
+<tr class="even">
+<td><code>external_image_search</code></td>
+<td>推荐公开图片或示意图</td>
+<td>支持图解和视觉材料</td>
+</tr>
+<tr class="odd">
+<td><code>iflytek_workflow</code></td>
+<td>调用讯飞星辰工作流</td>
+<td>接入讯飞智能体工作流能力</td>
+</tr>
+<tr class="even">
+<td><code>iflytek_formula_ocr</code></td>
+<td>识别图片中的公式</td>
+<td>支持数学题图和手写公式辅导</td>
+</tr>
+<tr class="odd">
+<td><code>iflytek_image_understanding</code></td>
+<td>理解板书、截图、示意图</td>
+<td>支持图片输入后的学习辅导</td>
+</tr>
+<tr class="even">
+<td><code>code_execution</code></td>
+<td>执行 Python 计算</td>
+<td>辅助验证计算和代码题</td>
+</tr>
+<tr class="odd">
+<td><code>paper_search</code></td>
+<td>查找学术论文</td>
+<td>支持研究型学习任务</td>
+</tr>
+<tr class="even">
+<td><code>reason</code></td>
+<td>专门推理调用</td>
+<td>用于复杂推导或解释</td>
+</tr>
+</tbody>
+</table>
+<p>工具注册和别名集中在 <code>sparkweave/tools/builtin.py</code> 与 <code>sparkweave/tools/registry.py</code>。</p>
+<h2 id="自动调度怎么做">自动调度怎么做</h2>
+<p>自动调度不是把关键词硬匹配到菜单。一次请求进入后，<code>context_enrichment.py</code> 会先把用户问题、会话历史、课程资料、学习画像、笔记上下文和运行配置整理成 <code>UnifiedContext</code>。随后 <code>LearningCapabilityRouter.decide()</code> 先用规则做低成本判断：是否强制指定能力，是否关闭自动委派，是否已经委派过一次，是否明确说了“不联网 / 不用工具 / 不开画布”，以及本轮更像解释、解题、出题、图解、动画、研究还是外部资源搜索。</p>
+<p>规则判断置信度不够时，路由器还可以调用 LLM intent coordinator。它不会直接回答学生，而是返回严格 JSON：目标 capability、可用工具、是否使用画像提示、置信度、原因和可选的重写任务。这样做的好处是调度逻辑既有确定规则，也能处理“我想先补一下这个，再找点材料练一练”这类边界不清的学习请求。</p>
+<table>
+<thead>
+<tr class="header">
+<th>调度线索</th>
+<th>可能进入的能力</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>“解释、为什么、举例、比较”</td>
+<td>普通对话 + Agentic RAG 资料依据</td>
+</tr>
+<tr class="even">
+<td>“证明、推导、计算、步骤”</td>
+<td><code>deep_solve</code> 深度求解</td>
+</tr>
+<tr class="odd">
+<td>“出题、练习、测验、检查掌握”</td>
+<td><code>deep_question</code> 练习生成</td>
+</tr>
+<tr class="even">
+<td>“画图、结构图、流程图、关系图”</td>
+<td><code>visualize</code> 知识图解</td>
+</tr>
+<tr class="odd">
+<td>“动画、视频讲解素材、Manim”</td>
+<td><code>math_animator</code> 数学动画</td>
+</tr>
+<tr class="even">
+<td>“继续学习、下一步、薄弱点”</td>
+<td>学习画像 + 导学服务</td>
+</tr>
+</tbody>
+</table>
+<p>调度结果会继续进入 <code>delegated_context()</code>：系统把本轮任务、工具列表、重写后的 prompt 和路由原因写进 metadata，再交给 <code>deep_solve</code>、<code>deep_question</code>、<code>deep_research</code>、<code>visualize</code>、<code>math_animator</code> 或默认 <code>chat</code> 图流程。前端的 <code>AgentCollaborationPanel</code> 读取这些事件，展示“画像 -&gt; 协调器 -&gt; 专业智能体 -&gt; 工具”的协作过程。</p>
+<table>
+<thead>
+<tr class="header">
+<th>技术点</th>
+<th>代码里的处理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>显式约束优先</td>
+<td>用户说“不要联网”“不用工具”“不要画布”时，路由器会裁剪对应工具，而不是强行展示能力</td>
+</tr>
+<tr class="even">
+<td>直接工具与专业能力分开</td>
+<td>找公开视频、找参考图片走 <code>external_video_search</code> / <code>external_image_search</code>，生成图解或动画才交给 <code>visualize</code> / <code>math_animator</code></td>
+</tr>
+<tr class="odd">
+<td>画像只在有用时介入</td>
+<td>“继续学习”“下一步做什么”这类模糊请求会读取 <code>learner_profile_context</code>，证据弱时不强行个性化</td>
+</tr>
+<tr class="even">
+<td>协作路线可解释</td>
+<td><code>collaboration_route()</code> 会给前端返回画像、协调器和专业智能体的步骤说明</td>
+</tr>
+<tr class="odd">
+<td>RAG 内部继续 agentic</td>
+<td>资料相关任务进入 <code>rag</code> 工具后，复杂问题再由 Agentic RAG 拆分、合并、质检和回退</td>
+</tr>
+</tbody>
+</table>
+<h2 id="课程助教与-qq-通道">课程助教与 QQ 通道</h2>
+<p>课程助教负责更长周期的学习陪伴：它可以保存课程文件、助教人格、历史对话、技能、提醒任务和工作区笔记。Web 端用于创建和管理助教，消息通道层则把助教接到外部入口。当前通道配置包含 <code>qq</code>，代码里有 <code>QQChannel</code>，支持 QQ 私聊、群聊消息和定时提醒目标；如果没有配置真实 QQ 凭据，通道会退回到内存通道，保证系统管理能力仍可演示。</p>
+<p>更具体一点，<code>QQConfig</code> 定义 <code>enabled</code>、<code>app_id</code>、<code>secret</code>、<code>allow_from</code> 和 <code>msg_format</code>；<code>QQChannel</code> 启动时加载 <code>botpy</code>，监听私聊、直接消息和群 at 消息，收到内容后统一整理成 <code>session_key=qq:&lt;chat_id&gt;</code> 的助教会话。发送提醒时，定时任务可以指定 channel 和目标，QQ 通道再按群聊或私聊调用对应发送接口。这样网页里的长期助教、提醒任务和 QQ 入口没有分成两套系统。</p>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>代码位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>课程助教管理 API</td>
+<td><code>sparkweave/api/routers/sparkbot.py</code></td>
+</tr>
+<tr class="even">
+<td>助教运行管理</td>
+<td><code>sparkweave/services/sparkbot.py</code></td>
+</tr>
+<tr class="odd">
+<td>通道配置模型</td>
+<td><code>sparkweave/services/sparkbot_support/config_models.py</code></td>
+</tr>
+<tr class="even">
+<td>QQ 通道实现</td>
+<td><code>sparkweave/services/sparkbot_support/channels.py</code></td>
+</tr>
+<tr class="odd">
+<td>前端课程助教页面</td>
+<td><code>web/src/pages/agents/</code></td>
+</tr>
+<tr class="even">
+<td>课程助教依赖</td>
+<td><code>requirements/sparkbot.txt</code></td>
+</tr>
+</tbody>
+</table>
+<p>答辩时可以这样讲：网页是教师或团队维护助教的地方，QQ 是学生日常触达助教的入口。这样“智能辅导”不只停留在演示页面里，也能覆盖课后提醒、群内答疑和阶段复盘。</p>
+<h2 id="路由原则">路由原则</h2>
+<p>系统不会为了展示能力而强行走复杂流程。当前路由遵循几条朴素规则：</p>
+<ul>
+<li>学生只是问一个概念，优先直接解释。</li>
+<li>学生要求“证明、推导、计算”，进入深度求解。</li>
+<li>学生要求“出题、练习、测验”，进入练习生成。</li>
+<li>学生要求“画图、流程图、知识结构”，进入图解。</li>
+<li>学生要求“动画、视频讲解素材、Manim”，进入数学动画。</li>
+<li>学生要求“找公开视频、公开课、参考图片”，优先调用搜索工具。</li>
+<li>学生说“继续学习、下一步做什么”，系统会读取学习画像和当前课程状态。</li>
+<li>学生明确说“不用工具、直接回答、不联网”，本轮会尊重这个限制。</li>
+</ul>
+<p>路由策略主要在 <code>sparkweave/runtime/capability_router.py</code> 和 <code>sparkweave/graphs/chat.py</code> 中实现。</p>
+<h2 id="前端如何呈现协作过程">前端如何呈现协作过程</h2>
+<p>前端不会把处理过程拆成复杂面板。它主要呈现三类信息：</p>
+<table>
+<thead>
+<tr class="header">
+<th>信息</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>进度状态</td>
+<td>告诉学生系统正在查资料、生成练习、整理图解或写回答</td>
+</tr>
+<tr class="even">
+<td>证据来源</td>
+<td>让资料问答能追溯到课程文件或外部来源</td>
+</tr>
+<tr class="odd">
+<td>结果卡片</td>
+<td>展示题目、图解、视频推荐、图片推荐、语音或工具结果</td>
+</tr>
+</tbody>
+</table>
+<p>对应前端位置包括 <code>web/src/hooks/useChatRuntime.ts</code>、<code>web/src/components/chat/MessageBubble.tsx</code>、<code>web/src/components/results/</code> 和 <code>web/src/components/chat/AgentCollaborationPanel.tsx</code>。</p>
+<h2 id="与赛题的关系">与赛题的关系</h2>
+<table>
+<thead>
+<tr class="header">
+<th>赛题点</th>
+<th>多智能体编排中的对应</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>对话式学习画像</td>
+<td>画像内容进入请求上下文，影响继续学习和资源推荐</td>
+</tr>
+<tr class="even">
+<td>多智能体资源生成</td>
+<td>协调器按上下文自动把任务交给解题、出题、图解、动画、研究等能力</td>
+</tr>
+<tr class="odd">
+<td>个性化路径规划</td>
+<td>学习页和导学服务根据画像与课程状态生成当前任务</td>
+</tr>
+<tr class="even">
+<td>智能辅导</td>
+<td>问题进入对话协调器后，可同时使用资料、图解、公式识别、图片理解、练习和课程助教通道</td>
+</tr>
+<tr class="odd">
+<td>学习效果评估</td>
+<td>练习和反馈写入记录，影响后续路径和画像</td>
+</tr>
+<tr class="even">
+<td>讯飞工具使用</td>
+<td>讯飞工作流、公式识别、图片理解、语音和模型配置作为工具链接入</td>
+</tr>
+</tbody>
+</table>
+<h2 id="代码落点">代码落点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>模块</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>能力清单</td>
+<td><code>sparkweave/app/facade.py</code></td>
+</tr>
+<tr class="even">
+<td>执行入口</td>
+<td><code>sparkweave/runtime/runner.py</code></td>
+</tr>
+<tr class="odd">
+<td>默认对话协调器</td>
+<td><code>sparkweave/graphs/chat.py</code></td>
+</tr>
+<tr class="even">
+<td>路由策略</td>
+<td><code>sparkweave/runtime/capability_router.py</code></td>
+</tr>
+<tr class="odd">
+<td>工具执行</td>
+<td><code>sparkweave/runtime/tool_execution.py</code></td>
+</tr>
+<tr class="even">
+<td>工具注册</td>
+<td><code>sparkweave/tools/builtin.py</code>、<code>sparkweave/tools/registry.py</code></td>
+</tr>
+<tr class="odd">
+<td>Agentic RAG</td>
+<td><code>sparkweave/services/rag_support/service.py</code>、<code>sparkweave/services/rag_support/agentic_quality.py</code></td>
+</tr>
+<tr class="even">
+<td>课程助教与通道</td>
+<td><code>sparkweave/services/sparkbot.py</code>、<code>sparkweave/services/sparkbot_support/channels.py</code></td>
+</tr>
+<tr class="odd">
+<td>前端能力说明</td>
+<td><code>web/src/lib/capabilities.ts</code></td>
+</tr>
+<tr class="even">
+<td>前端流式对话</td>
+<td><code>web/src/hooks/useChatRuntime.ts</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="边界说明">边界说明</h2>
+<ul>
+<li>多智能体编排依赖当前仓库内置能力，不把第三方插件能力作为核心演示前提。</li>
+<li>自动路由会受本轮可用工具、用户明确限制和后端安全策略约束。</li>
+<li>QQ 等外部通道需要真实平台凭据和相应依赖；没有配置时，系统仍可在 Web 端展示课程助教管理、提醒和工作区能力。</li>
+<li>数学动画和多模态素材生成可能受本地依赖、模型配置和运行时间影响，演示时可准备已生成的图解或动画结果作为补充。</li>
+<li>资料问答的质量取决于课程资料和向量库状态；没有资料库时，系统会按普通问答呈现，不标注为资料引用。</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

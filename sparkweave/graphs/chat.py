@@ -1209,7 +1209,7 @@ class ChatGraph:
         output_mode = "video"
         if ChatGraph._contains_any(text, ("分镜", "插图", "图片", "image", "storyboard")):
             output_mode = "image"
-        config = {"output_mode": output_mode, "quality": "medium"}
+        config = {"output_mode": output_mode, "quality": "high"}
         hints = ChatGraph._learner_profile_hints(context)
         guidance = ChatGraph._learner_profile_guidance(context)
         if guidance:

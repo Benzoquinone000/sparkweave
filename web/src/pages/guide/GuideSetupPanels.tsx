@@ -201,7 +201,7 @@ export function CourseTemplateQuickPick({
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         {visibleTemplates.map((template) => {
           const selected = template.id === selectedTemplateId;
-          const competitionTemplate = template.id === "ai_learning_agents_systems";
+          const competitionTemplate = template.id === "deep_learning_foundations";
           const title = guideDisplayText(template.course_name || template.title, "内置课程");
           const minutes = template.default_time_budget_minutes || template.estimated_minutes || 0;
           return (
@@ -250,7 +250,7 @@ export function CourseTemplateQuickPick({
 }
 
 function courseTemplateQuickPickPriority(template: GuideV2CourseTemplate): number {
-  if (template.id === "ai_learning_agents_systems") return 0;
+  if (template.id === "deep_learning_foundations") return 0;
   if ((template.demo_seed?.task_chain ?? []).length > 0) return 1;
   return 2;
 }

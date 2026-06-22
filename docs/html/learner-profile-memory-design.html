@@ -1,0 +1,386 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>学习画像与记忆设计</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="学习画像与记忆设计">学习画像与记忆设计</h1>
+<p>SparkWeave 的学习画像不是让学生先填一张很长的表，而是在真实学习过程中慢慢形成：学生说出目标，完成导学任务，做题，保存笔记，修正系统判断，这些都会变成可追溯的学习记录。下一次系统给出学习建议时，会先看这些记录，再决定先补哪个点、用什么资源、安排多长时间。</p>
+<p>这部分对应赛题里的“对话式学习画像自主构建”和“学习效果评估”。评委可以在 <a href="../../web/screenshots-memory.png">记录与画像页</a> 看到它的前端呈现。</p>
+<h2 id="页面上能看到什么">页面上能看到什么</h2>
+<p>记录页默认不展示复杂数据表，而是先回答学生最关心的一句话：现在该做什么。</p>
+<table>
+<thead>
+<tr class="header">
+<th>页面区域</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>概览</td>
+<td>展示当前学习重点、优先卡点、下一步行动和建议稳定度</td>
+</tr>
+<tr class="even">
+<td>记录来源</td>
+<td>展示系统参考过哪些导学、练习、笔记和修正记录</td>
+</tr>
+<tr class="odd">
+<td>补充</td>
+<td>允许学生手动补充长期目标、背景或偏好</td>
+</tr>
+<tr class="even">
+<td>判断准确</td>
+<td>学生确认系统判断，让画像更稳定</td>
+</tr>
+<tr class="odd">
+<td>不准？一句话改掉</td>
+<td>学生直接修正画像，例如“我卡在公式含义，不是基础概念”</td>
+</tr>
+</tbody>
+</table>
+<p>这样做的目的很简单：画像不是藏在后台的标签，而是学生能看见、能质疑、能改正的学习依据。</p>
+<h2 id="画像记录哪些内容">画像记录哪些内容</h2>
+<p>画像快照主要分成四类信息：</p>
+<table>
+<thead>
+<tr class="header">
+<th>信息</th>
+<th>例子</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>学习目标</td>
+<td>“想补梯度下降的直观理解”</td>
+<td>决定导学路线和下一步任务</td>
+</tr>
+<tr class="even">
+<td>资源偏好</td>
+<td>图解、练习、短视频、代码示例</td>
+<td>影响资源生成和推荐形式</td>
+</tr>
+<tr class="odd">
+<td>薄弱点</td>
+<td>概念边界不清、推导步骤不稳、题型易错</td>
+<td>决定优先补哪里</td>
+</tr>
+<tr class="even">
+<td>掌握状态</td>
+<td>某个知识点已掌握、练习中、需要补基</td>
+<td>影响复习、练习和进阶安排</td>
+</tr>
+</tbody>
+</table>
+<p>这些信息不是只靠一次问答生成。系统会把多种来源合在一起，并保留每条判断来自哪里。</p>
+<h2 id="记录从哪里来">记录从哪里来</h2>
+<table>
+<thead>
+<tr class="header">
+<th>来源</th>
+<th>系统怎么使用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>对话与导学</td>
+<td>学生在导学页说出的目标、卡点、时间预算和偏好会进入画像</td>
+</tr>
+<tr class="even">
+<td>导学任务反馈</td>
+<td>任务完成情况、反思、得分和错因会更新薄弱点和掌握状态</td>
+</tr>
+<tr class="odd">
+<td>题目本</td>
+<td>练习作答、正确率、题型和知识点用于判断掌握度</td>
+</tr>
+<tr class="even">
+<td>学习笔记</td>
+<td>学生保存的资料、图解、问答和资源会作为学习兴趣与资源偏好的参考</td>
+</tr>
+<tr class="odd">
+<td>手动修正</td>
+<td>学生确认、否定或改写系统判断后，会形成一条更高可信度的记录</td>
+</tr>
+<tr class="even">
+<td>语音与多模态练习</td>
+<td>语音输入、口语练习或图片题结果也可以作为学习证据进入记录</td>
+</tr>
+</tbody>
+</table>
+<p>正式记录保存在追加式文件 <code>data/user/learner_profile/evidence.jsonl</code> 中；画像快照保存在 <code>data/user/learner_profile/profile.json</code> 中。这样评委既可以从页面看结果，也可以从文件看到记录确实落地。</p>
+<h2 id="证据账本到画像快照">证据账本到画像快照</h2>
+<p>画像链路分三层，不把所有学习记录直接塞给大模型。</p>
+<table>
+<thead>
+<tr class="header">
+<th>层次</th>
+<th>代码位置</th>
+<th>做什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>证据账本</td>
+<td><code>sparkweave/services/learner_evidence.py</code></td>
+<td>用追加式 JSONL 保存标准化事件，字段包括来源、动作、对象、课程、节点、任务、资源类型、得分、错因、置信度和元数据</td>
+</tr>
+<tr class="even">
+<td>画像聚合</td>
+<td><code>sparkweave/services/learner_profile.py</code></td>
+<td>从长期记忆、导学会话、题目本、笔记和证据账本里提取目标、偏好、薄弱点、掌握状态和下一步行动</td>
+</tr>
+<tr class="odd">
+<td>上下文注入</td>
+<td><code>sparkweave/services/profile_context.py</code>、<code>sparkweave/runtime/context_enrichment.py</code></td>
+<td>只提炼 <code>current_focus</code>、<code>weak_points</code>、<code>preferences</code>、<code>mastery_needs_attention</code>、<code>next_action</code> 等短提示，和会话上下文一起交给智能体</td>
+</tr>
+</tbody>
+</table>
+<p>这个分层能避免两个问题：一是模型看到过多原始记录导致回答不稳定；二是画像变成不可解释的“黑箱标签”。评委如果想核验，可以先看记录页的“记录来源”，再打开 <code>evidence.jsonl</code> 和 <code>profile.json</code>，两边能对得上。</p>
+<h2 id="一次画像更新怎么发生">一次画像更新怎么发生</h2>
+<p>以学生完成一次导学练习为例：</p>
+<table>
+<thead>
+<tr class="header">
+<th>步骤</th>
+<th>发生了什么</th>
+<th>后续影响</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. 学生提交答案</td>
+<td>系统记录题目、作答、得分、知识点和错因</td>
+<td>形成一条学习证据</td>
+</tr>
+<tr class="even">
+<td>2. 更新导学会话</td>
+<td>当前任务状态、掌握度和下一步建议刷新</td>
+<td>学习页能继续推进</td>
+</tr>
+<tr class="odd">
+<td>3. 写入记录</td>
+<td>练习结果进入统一证据记录</td>
+<td>记录页能看到来源</td>
+</tr>
+<tr class="even">
+<td>4. 刷新画像</td>
+<td>聚合目标、偏好、薄弱点和掌握状态</td>
+<td>下一次问答会更贴合学生</td>
+</tr>
+<tr class="odd">
+<td>5. 生成下一步行动</td>
+<td>可能推荐补基图解、诊断题、复测或继续学习</td>
+<td>学生回到可执行任务</td>
+</tr>
+</tbody>
+</table>
+<p>如果学生觉得判断不准，可以在记录页直接修正。系统会把这次修正当作明确反馈，而不是继续沿用旧判断。</p>
+<p>代码里这一步不是前端临时改文案。记录页点击“判断准确”或提交一句话修正后，会调用 <code>POST /api/v1/learner-profile/calibrations</code>。后端用 <code>build_profile_calibration_event()</code> 写入一条 <code>profile_calibration</code> 事件，再刷新画像。被学生否定的判断会进入 rejected claims，被修正的判断以更高置信度参与下一次聚合。</p>
+<h2 id="学习效果如何参与推荐">学习效果如何参与推荐</h2>
+<p>学习效果评估不会只看“最近一次回答好不好”。它会综合最近的学习证据，给出几个更接近学习现场的判断：</p>
+<table>
+<thead>
+<tr class="header">
+<th>判断</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>掌握度</td>
+<td>某个概念是否已掌握、正在练习或需要补基</td>
+</tr>
+<tr class="even">
+<td>错因状态</td>
+<td>最近是否还有未处理的错误信号</td>
+</tr>
+<tr class="odd">
+<td>资源行为</td>
+<td>学生是否看过图解、视频、资料或保存过笔记</td>
+</tr>
+<tr class="even">
+<td>趋势</td>
+<td>最近练习表现是变好、持平还是下降</td>
+</tr>
+<tr class="odd">
+<td>下一步动作</td>
+<td>建议诊断、补基、练习、复测、复习或进阶</td>
+</tr>
+</tbody>
+</table>
+<p>这些结果会进入学习页和问问题页。比如学生常在“极限定义”上答错，系统下一次不会急着推新章节，而是更可能安排一组低门槛练习，或者先给一张概念边界图。</p>
+<h2 id="对问答和资源生成的影响">对问答和资源生成的影响</h2>
+<p>画像会以简短提示进入后端运行上下文，帮助系统调整回答方式。它不会把完整记录原样塞给模型，而是提炼成几类提示：</p>
+<table>
+<thead>
+<tr class="header">
+<th>提示</th>
+<th>例子</th>
+<th>影响</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>当前重点</td>
+<td>正在学习“梯度下降”</td>
+<td>回答围绕当前课程展开</td>
+</tr>
+<tr class="even">
+<td>薄弱点</td>
+<td>“不理解学习率为什么会影响收敛”</td>
+<td>解释会先处理卡点</td>
+</tr>
+<tr class="odd">
+<td>偏好资源</td>
+<td>更喜欢图解和练习</td>
+<td>优先生成图解、题目或短任务</td>
+</tr>
+<tr class="even">
+<td>时间预算</td>
+<td>本轮只有 10 分钟</td>
+<td>建议会控制任务大小</td>
+</tr>
+<tr class="odd">
+<td>下一步建议</td>
+<td>先做诊断题或补基图解</td>
+<td>问答页能直接接上学习路径</td>
+</tr>
+</tbody>
+</table>
+<p>相关能力包括普通问答、资料问答、图解生成、数学动画、练习生成和导学路线。前端会用“已结合记录”“按你情况调整”等轻量提示说明系统确实使用了学习画像。</p>
+<h2 id="接口与代码落点">接口与代码落点</h2>
+<table>
+<thead>
+<tr class="header">
+<th>模块</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>画像接口</td>
+<td><code>sparkweave/api/routers/learner_profile.py</code></td>
+</tr>
+<tr class="even">
+<td>学习效果接口</td>
+<td><code>sparkweave/api/routers/learning_effect.py</code></td>
+</tr>
+<tr class="odd">
+<td>画像聚合</td>
+<td><code>sparkweave/services/learner_profile.py</code></td>
+</tr>
+<tr class="even">
+<td>学习证据记录</td>
+<td><code>sparkweave/services/learner_evidence.py</code></td>
+</tr>
+<tr class="odd">
+<td>学习效果评估</td>
+<td><code>sparkweave/services/learning_effect.py</code></td>
+</tr>
+<tr class="even">
+<td>画像提示注入</td>
+<td><code>sparkweave/services/profile_context.py</code>、<code>sparkweave/runtime/context_enrichment.py</code></td>
+</tr>
+<tr class="odd">
+<td>导学记录与路径调整</td>
+<td><code>sparkweave/services/guide_v2.py</code></td>
+</tr>
+<tr class="even">
+<td>前端记录页</td>
+<td><code>web/src/pages/MemoryPage.tsx</code>、<code>web/src/pages/memory/</code></td>
+</tr>
+</tbody>
+</table>
+<p>主要接口包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /api/v1/learner-profile</code></td>
+<td>读取当前画像快照</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/learner-profile/refresh</code></td>
+<td>从现有记录重新整理画像</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/learner-profile/evidence-preview</code></td>
+<td>读取页面展示用的记录来源</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/learner-profile/evidence</code></td>
+<td>查看标准化学习证据</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/learner-profile/calibrations</code></td>
+<td>记录学生对画像的确认或修正</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/learning-effect/report</code></td>
+<td>生成学习效果报告</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/learning-effect/next-actions</code></td>
+<td>获取下一步学习动作</td>
+</tr>
+</tbody>
+</table>
+<h2 id="演示时可以这样看">演示时可以这样看</h2>
+<ol type="1">
+<li>在学习页创建或继续一条导学路线，完成一次练习或反馈。</li>
+<li>进入记录页，观察当前重点、优先卡点和下一步行动是否变化。</li>
+<li>打开记录来源，查看建议参考了哪些导学、练习或笔记记录。</li>
+<li>在概览里点击“判断准确”或用一句话修正画像。</li>
+<li>回到学习页或问问题页，看系统是否按新的画像继续安排任务。</li>
+</ol>
+<p>这条演示线能体现“学生行为进入画像，画像影响资源与路径，新的学习结果再回到记录”。</p>
+<h2 id="边界说明">边界说明</h2>
+<ul>
+<li>画像依赖真实学习记录。刚启动系统时，如果记录很少，页面会引导学生先完成导学或练习。</li>
+<li>系统会显示建议稳定度，避免把证据不足的判断说成确定结论。</li>
+<li>手动补充和修正会进入正式记录，后续建议会参考学生自己的修正。</li>
+<li>画像用于学习推荐和资源生成，不用于课程外的用户评价。</li>
+<li>运行数据位于 <code>data/user/</code> 下，提交源码时可按交付要求保留样例数据，避免混入个人隐私记录。</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

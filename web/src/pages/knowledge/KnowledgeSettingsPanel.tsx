@@ -47,7 +47,7 @@ export function KnowledgeSettingsPanel({
               <TextInput
                 name="description"
                 defaultValue={String(activeConfig?.description || "")}
-                placeholder="例如：高数极限与连续专题资料"
+                placeholder="例如：深度学习 CNN 与 Transformer 专题资料"
               />
             </FieldShell>
           </div>

@@ -1,6 +1,6 @@
 # SparkWeave 贡献规范
 
-范围：说明当前仓库的协作入口、代码组织、质量门禁和文档维护规则。产品说明、部署和比赛交付入口见 [README.md](README.md)；具体开发细则见 [docs/development-guide.md](docs/development-guide.md)。
+范围：说明当前仓库的协作入口、代码组织、质量门禁和文档维护规则。产品说明、部署和比赛交付入口见 [README.md](README.md)；具体开发细则见 [docs/markdown/development-guide.md](docs/markdown/development-guide.md)。
 
 ## 1. 基本原则
 
@@ -47,7 +47,7 @@ git diff --check
 | `tests/` | Python 单元、服务、API、运行时和脚本测试 |
 | `docs/` | 稳定工程文档和架构图 |
 
-更完整的边界说明见 [docs/engineering-standards.md](docs/engineering-standards.md)。
+更完整的边界说明见 [docs/markdown/engineering-standards.md](docs/markdown/engineering-standards.md)。
 
 ## 4. 推荐检查
 
@@ -73,18 +73,18 @@ npm run check:api-contract
 npm run build
 ```
 
-完整测试根据改动范围选择，测试分层见 [docs/testing-guide.md](docs/testing-guide.md)。
+完整测试根据改动范围选择，测试分层见 [docs/markdown/testing-guide.md](docs/markdown/testing-guide.md)。
 
 ## 5. 文档变更
 
 - 新增功能时，同步更新 `README.md` 或 `docs/` 中对应稳定文档。
-- 新增文档后必须在 [docs/README.md](docs/README.md) 建索引。
+- 新增文档后必须在 [docs/markdown/README.md](docs/markdown/README.md) 建索引。
 - 文档中的相对链接、图片路径、命令和代码路径必须真实存在。
 - 未实现能力只能放到“限制与待实现”，不能写成当前能力。
 
 ## 6. 前端体验
 
-前端主线遵循 [AGENTS.md](AGENTS.md) 和 [docs/frontend-design-guide.md](docs/frontend-design-guide.md)：
+前端主线遵循 [AGENTS.md](AGENTS.md) 和 [docs/markdown/frontend-design-guide.md](docs/markdown/frontend-design-guide.md)：
 
 - 一级入口优先是学习、资料、记录、设置。
 - Agent、RAG、画像、诊断、演示等工程能力默认收进“更多工具”或页面内部。

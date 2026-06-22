@@ -1,0 +1,320 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>软件工程规范</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="软件工程规范">软件工程规范</h1>
+<p>本篇面向评委说明 SparkWeave 的工程边界。一个参赛作品不只要能运行，还要让评委能看清源码、课程、配置、数据和验证结果各自在哪里，哪些内容可以公开提交，哪些内容必须留在本地运行环境。</p>
+<h2 id="基本原则">基本原则</h2>
+<p>SparkWeave 的工程规范围绕四件事：</p>
+<table>
+<thead>
+<tr class="header">
+<th>原则</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>可运行</td>
+<td>提交包应能通过 Docker Compose 启动前端、后端和 Milvus</td>
+</tr>
+<tr class="even">
+<td>可核验</td>
+<td>课程模板、API 合同、前端构建和资料问答都有对应验证入口</td>
+</tr>
+<tr class="odd">
+<td>可追溯</td>
+<td>资料问答展示来源，学习画像保留证据，配置状态可以检查</td>
+</tr>
+<tr class="even">
+<td>有边界</td>
+<td>不把真实密钥、真实学生数据和本机运行数据混入提交包</td>
+</tr>
+</tbody>
+</table>
+<p>这四点比“功能数量多”更重要。评审时最怕的是页面很多、能力很多，但无法判断哪一部分真正运行、哪一部分只是静态材料。</p>
+<h2 id="目录职责">目录职责</h2>
+<table>
+<thead>
+<tr class="header">
+<th>目录或文件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sparkweave/</code></td>
+<td>后端 API、业务服务、多智能体运行时、RAG、学习画像和讯飞工具</td>
+</tr>
+<tr class="even">
+<td><code>web/</code></td>
+<td>React 前端工作台和页面截图</td>
+</tr>
+<tr class="odd">
+<td><code>data/course_templates/</code></td>
+<td>随项目提交的完整课程模板</td>
+</tr>
+<tr class="even">
+<td><code>data/user/</code></td>
+<td>运行后生成的学习记录、画像、设置和笔记</td>
+</tr>
+<tr class="odd">
+<td><code>data/knowledge_bases/</code></td>
+<td>资料页生成的知识库文件和索引信息</td>
+</tr>
+<tr class="even">
+<td><code>data/milvus/</code></td>
+<td>Milvus 本地运行数据</td>
+</tr>
+<tr class="odd">
+<td><code>scripts/</code></td>
+<td>项目验证、课程模板检查、API 合同检查和资料问答验收</td>
+</tr>
+<tr class="even">
+<td><code>tests/</code></td>
+<td>后端、服务层、RAG、API 和验证入口的自动测试</td>
+</tr>
+<tr class="odd">
+<td><code>docs/</code></td>
+<td>面向评委的设计、配置、数据和验证说明</td>
+</tr>
+<tr class="even">
+<td><code>.env.example</code></td>
+<td>可公开的配置模板</td>
+</tr>
+<tr class="odd">
+<td><code>.env</code></td>
+<td>本机真实密钥，不提交</td>
+</tr>
+</tbody>
+</table>
+<p>目录职责清楚后，评委可以快速判断：课程在哪里、页面在哪里、后端在哪里、运行数据为什么不一定随提交包出现。</p>
+<h2 id="前端体验边界">前端体验边界</h2>
+<p>SparkWeave 前端遵循一个约束：优先服务学习用户，而不是把所有能力铺成展示菜单。</p>
+<table>
+<thead>
+<tr class="header">
+<th>设计边界</th>
+<th>要求</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主入口</td>
+<td>默认保留学习、资料、记录、设置</td>
+</tr>
+<tr class="even">
+<td>更多工具</td>
+<td>问问题、练习、课程助教、图像解题等放在学习工具或高级工具中</td>
+</tr>
+<tr class="odd">
+<td>页面主动作</td>
+<td>每个页面先给出一个明确动作，例如继续学习、上传资料、查看建议</td>
+</tr>
+<tr class="even">
+<td>空状态</td>
+<td>不能只写“暂无数据”，要告诉用户下一步做什么</td>
+</tr>
+<tr class="odd">
+<td>技术名词</td>
+<td>能用学习动作表达时，不用资料检索、智能体、运行时这类技术词做入口</td>
+</tr>
+</tbody>
+</table>
+<p>这样处理后，评委看到的是一条完整学习流程，而不是一个功能展台。</p>
+<h2 id="后端能力边界">后端能力边界</h2>
+<p>后端能力按“页面能用、过程可见、数据能落地”组织。</p>
+<table>
+<thead>
+<tr class="header">
+<th>能力</th>
+<th>工程要求</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>学习路线</td>
+<td>读取课程模板，生成任务、资源建议和学习报告</td>
+</tr>
+<tr class="even">
+<td>学习画像</td>
+<td>学习行为进入证据记录，再生成画像和下一步建议</td>
+</tr>
+<tr class="odd">
+<td>资料问答</td>
+<td>上传资料后建立索引，回答时展示来源</td>
+</tr>
+<tr class="even">
+<td>多智能体资源生成</td>
+<td>长过程返回阶段进度，让前端展示处理过程</td>
+</tr>
+<tr class="odd">
+<td>讯飞工具链</td>
+<td>设置页可配置，系统状态可检测，调用结果可识别</td>
+</tr>
+<tr class="even">
+<td>课程助教</td>
+<td>与课程文件、历史记录和提醒任务保持边界</td>
+</tr>
+</tbody>
+</table>
+<p>新增能力时，应先确认它是否进入这些学习流程。如果只是为了展示技术名词，优先放到更多工具或扩展入口，不打断主路径。</p>
+<h2 id="数据与密钥边界">数据与密钥边界</h2>
+<p>正式提交应包含：</p>
+<ul>
+<li>源码、前端工程、Docker 配置和依赖说明。</li>
+<li><code>data/course_templates/</code> 中的完整课程模板。</li>
+<li><code>.env.example</code> 等不含密钥的配置示例。</li>
+<li>面向评委的文档和当前界面截图。</li>
+<li>可公开展示且来源清楚的少量示例资料。</li>
+</ul>
+<p>正式提交不应包含：</p>
+<ul>
+<li><code>.env</code>、真实 API Key、账号 Token、私有服务地址。</li>
+<li>真实学生姓名、聊天记录、学习记录、语音材料和个人画像。</li>
+<li>未获授权的教材、课件、论文全文或课程资料。</li>
+<li><code>data/milvus/</code>、<code>data/user/</code> 这类运行后生成的数据。</li>
+<li><code>node_modules/</code>、<code>.venv/</code>、构建产物、日志和临时压缩包。</li>
+</ul>
+<p>如果确实需要展示已有学习记录，应使用脱敏样例，并在文档中说明它是示例数据。</p>
+<h2 id="文档规范">文档规范</h2>
+<p><code>docs/markdown/README.md</code> 是文档入口。正式文档应回答评委会问的问题：</p>
+<table>
+<thead>
+<tr class="header">
+<th>问题</th>
+<th>对应文档</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>作品如何对应赛题</td>
+<td><code>software-cup-delivery-checklist.md</code></td>
+</tr>
+<tr class="even">
+<td>源码和提交物在哪里</td>
+<td><code>project-structure.md</code></td>
+</tr>
+<tr class="odd">
+<td>多智能体如何分工</td>
+<td><code>agent-orchestration-design.md</code></td>
+</tr>
+<tr class="even">
+<td>学习画像如何生成</td>
+<td><code>learner-profile-memory-design.md</code></td>
+</tr>
+<tr class="odd">
+<td>资料问答如何给来源</td>
+<td><code>rag-system-design.md</code></td>
+</tr>
+<tr class="even">
+<td>讯飞工具如何配置</td>
+<td><code>configuration-guide.md</code></td>
+</tr>
+<tr class="odd">
+<td>前端为什么这样设计</td>
+<td><code>frontend-design-guide.md</code></td>
+</tr>
+<tr class="even">
+<td>数据哪些能提交</td>
+<td><code>data-storage-guide.md</code></td>
+</tr>
+<tr class="odd">
+<td>怎么验证作品</td>
+<td><code>testing-guide.md</code></td>
+</tr>
+<tr class="even">
+<td>API 如何连接前后端</td>
+<td><code>api-development-guide.md</code></td>
+</tr>
+</tbody>
+</table>
+<p>文档应尽量用真实页面、真实路径和真实验证方式说话。不要把未实现计划写成已完成能力，也不要用大段口号替代系统行为。</p>
+<h2 id="质量门禁">质量门禁</h2>
+<p>项目提供几类验证入口：</p>
+<table>
+<thead>
+<tr class="header">
+<th>验证</th>
+<th>命令</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>项目结构、文档索引、提交边界</td>
+<td><code>python scripts/verify_project.py --profile quick</code></td>
+</tr>
+<tr class="even">
+<td>课程模板</td>
+<td><code>python scripts/check_course_templates.py</code></td>
+</tr>
+<tr class="odd">
+<td>前后端 API 合同</td>
+<td><code>python scripts/check_web_api_contract.py</code></td>
+</tr>
+<tr class="even">
+<td>发布前敏感内容</td>
+<td><code>python scripts/check_release_safety.py</code></td>
+</tr>
+<tr class="odd">
+<td>Python 编译</td>
+<td><code>python -m compileall -q sparkweave sparkweave_cli scripts</code></td>
+</tr>
+<tr class="even">
+<td>后端测试</td>
+<td><code>python -m pytest tests</code></td>
+</tr>
+<tr class="odd">
+<td>前端验证</td>
+<td><code>npm run verify</code>（在 <code>web/</code> 目录）</td>
+</tr>
+</tbody>
+</table>
+<p>这些检查不替代人工演示，但能证明提交包的基本结构、接口、课程模板和前端构建没有明显断裂。</p>
+<h2 id="赛题交付口径">赛题交付口径</h2>
+<p>面向 A3 赛题，SparkWeave 的交付口径应保持一致：</p>
+<ul>
+<li>主课程使用 <code>深度学习</code>，避免视频录制或核验时频繁切换主题。</li>
+<li>展示按“画像 -&gt; 路径 -&gt; 资料 -&gt; 辅导 -&gt; 评估 -&gt; 讯飞工具”组织。</li>
+<li>截图、视频、PPT 和现场系统使用同一套页面和课程数据。</li>
+<li>讯飞工具配置在设置页展示，未配置的服务要如实显示状态。</li>
+<li>AI Coding 工具只作为辅助说明，不把责任推给工具。</li>
+</ul>
+<h2 id="边界说明">边界说明</h2>
+<p>工程规范不是为了显得项目复杂，而是为了让交付更可信。评委拿到 SparkWeave 后，应当能看清三件事：源码和课程模板足以运行系统；运行后产生的数据有明确位置；密钥、个人数据和本机产物没有混入提交包。做到这三点，作品功能和工程交付才是同一件事。</p>
+</main>
+</div>
+</body>
+</html>

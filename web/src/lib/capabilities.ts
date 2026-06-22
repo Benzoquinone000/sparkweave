@@ -106,7 +106,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
     tools: [],
     config: {
       output_mode: "video",
-      quality: "medium",
+      quality: "high",
       enable_narration_audio: true,
       style_hint: "clean educational animation",
       max_retries: 4,

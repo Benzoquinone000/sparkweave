@@ -36,10 +36,10 @@ export function AgentWorkspaceTabs({
     count: number;
     icon: LucideIcon;
   }> = [
-    { id: "schedule", title: "定时提醒", detail: "主动跟进", count: jobs, icon: CalendarClock },
+    { id: "schedule", title: "提醒任务", detail: "到点自动执行", count: jobs, icon: CalendarClock },
     { id: "assistants", title: "我的助教", detail: "选择与启用", count: bots, icon: Bot },
-    { id: "workspace", title: "资料与群聊", detail: "资料和消息入口", count: files, icon: PlugZap },
-    { id: "advanced", title: "少用设置", detail: "必要时再改", count: 3, icon: Settings2 },
+    { id: "workspace", title: "接入群聊", detail: "QQ 等入口", count: files, icon: PlugZap },
+    { id: "advanced", title: "高级设置", detail: "必要时再改", count: 3, icon: Settings2 },
   ];
 
   return (

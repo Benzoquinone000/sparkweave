@@ -354,6 +354,38 @@ def test_embedding_iflytek_spark_provider_defaults(tmp_path: Path) -> None:
     assert resolved.extra_headers["domain"] == "para"
 
 
+def test_embedding_runtime_batch_env_options(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "iflytek_spark",
+            "base_url": "",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {},
+            "models": [{"id": "embedding-m", "name": "m", "model": "llm-embedding", "dimension": "2560"}],
+        }
+    )
+    env = _env(
+        tmp_path,
+        [
+            "IFLYTEK_EMBEDDING_APPID=iflytek-appid",
+            "IFLYTEK_EMBEDDING_API_KEY=iflytek-embedding-key",
+            "IFLYTEK_EMBEDDING_API_SECRET=iflytek-secret",
+            "EMBEDDING_REQUEST_TIMEOUT=90",
+            "EMBEDDING_BATCH_SIZE=1",
+            "EMBEDDING_BATCH_DELAY=0.5",
+        ],
+    )
+
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=env)
+
+    assert resolved.request_timeout == 90
+    assert resolved.batch_size == 1
+    assert resolved.batch_delay == 0.5
+
+
 def test_embedding_iflytek_alias_canonicalization(tmp_path: Path) -> None:
     catalog = _build_catalog(
         embedding_profile={

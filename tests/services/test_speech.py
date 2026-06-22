@@ -128,11 +128,11 @@ async def test_iflytek_speech_raises_on_provider_error(monkeypatch: pytest.Monke
 def test_speech_extractors_are_tolerant() -> None:
     result = {
         "ws": [
-            {"cw": [{"w": "高等"}]},
-            {"cw": [{"w": "数学"}]},
+            {"cw": [{"w": "深度"}]},
+            {"cw": [{"w": "学习"}]},
         ]
     }
-    assert extract_iflytek_asr_text(result) == "高等数学"
+    assert extract_iflytek_asr_text(result) == "深度学习"
     assert extract_speech_eval_scores('<read_chapter total_score="91" integrity_score="88" />') == {
         "total": 91.0,
         "integrity": 88.0,

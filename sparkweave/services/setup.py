@@ -77,21 +77,21 @@ DEFAULT_MAIN_SETTINGS = {
 
 DEFAULT_AGENTS_SETTINGS = {
     "capabilities": {
-        "solve": {"temperature": 0.3, "max_tokens": 8192},
-        "research": {"temperature": 0.5, "max_tokens": 12000},
-        "question": {"temperature": 0.7, "max_tokens": 4096},
+        "solve": {"temperature": 0.3, "max_tokens": 16192},
+        "research": {"temperature": 0.5, "max_tokens": 16192},
+        "question": {"temperature": 0.7, "max_tokens": 16192},
         "guide": {"temperature": 0.5, "max_tokens": 16192},
-        "co_writer": {"temperature": 0.7, "max_tokens": 4096},
+        "co_writer": {"temperature": 0.7, "max_tokens": 16192},
     },
     "tools": {
-        "brainstorm": {"temperature": 0.8, "max_tokens": 2048},
+        "brainstorm": {"temperature": 0.8, "max_tokens": 16192},
     },
     "services": {
-        "personalization": {"temperature": 0.5, "max_tokens": 8192},
+        "personalization": {"temperature": 0.5, "max_tokens": 16192},
     },
     "plugins": {
-        "vision_solver": {"temperature": 0.3, "max_tokens": 12000},
-        "math_animator": {"temperature": 0.4, "max_tokens": 12000},
+        "vision_solver": {"temperature": 0.3, "max_tokens": 16192},
+        "math_animator": {"temperature": 0.4, "max_tokens": 16192},
     },
     "diagnostics": {
         "llm_probe": {"max_tokens": 1024},

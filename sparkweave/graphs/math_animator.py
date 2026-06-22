@@ -873,11 +873,11 @@ class MathAnimatorGraph:
         context = state.get("context")
         overrides = dict(getattr(context, "config_overrides", {}) or {})
         output_mode = str(overrides.get("output_mode") or "video").strip().lower()
-        quality = str(overrides.get("quality") or "medium").strip().lower()
+        quality = str(overrides.get("quality") or "high").strip().lower()
         if output_mode not in {"video", "image"}:
             output_mode = "video"
         if quality not in {"low", "medium", "high"}:
-            quality = "medium"
+            quality = "high"
         try:
             max_retries = int(overrides.get("max_retries", 4))
         except (TypeError, ValueError):

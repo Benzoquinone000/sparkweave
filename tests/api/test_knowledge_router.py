@@ -764,6 +764,11 @@ def test_upload_ready_kb_returns_task_id(monkeypatch, tmp_path: Path) -> None:
     assert not (kb_path / "raw" / "demo.txt").exists()
     staged_files = list((kb_path / ".uploads").glob("*/demo.txt"))
     assert len(staged_files) == 1
+    progress = knowledge_router_module.ProgressTracker("ready-kb", tmp_path / "knowledge_bases").get_progress()
+    assert progress is not None
+    assert progress["task_id"] == body["task_id"]
+    assert progress["stage"] == "processing_documents"
+    assert "queued for indexing" in progress["message"]
 
 
 def test_upload_duplicate_filename_returns_400_and_rolls_back_staging(

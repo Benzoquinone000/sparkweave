@@ -96,7 +96,7 @@ export function buildGuideSessionActions({
     setCourseTemplateId(template.id);
     const demoPersona = template.demo_seed?.persona;
     if (mode === "demo" && demoPersona?.goal) {
-      setGoal(`${demoPersona.goal}。请按稳定 Demo 样例演示 T1 全景图、T4 梯度下降图解、T6 模型评估练习。`);
+      setGoal(`${demoPersona.goal}。请按演示样例展示学习画像、资源生成、导学反馈和学习评估闭环。`);
       setGoalTouched(true);
     } else if (template.default_goal) {
       setGoal(template.default_goal);
@@ -155,10 +155,10 @@ export function buildGuideSessionActions({
     const template = demoTemplate;
     if (!template) return;
     const demoPersona = template.demo_seed?.persona ?? {};
-    const demoGoal = `${demoPersona.goal || template.default_goal || "系统学习机器学习基础"}。请按稳定 Demo 样例演示 T1 全景图、T4 梯度下降图解、T6 模型评估练习。`;
+    const demoGoal = `${demoPersona.goal || template.default_goal || "系统学习深度学习"}。请按演示样例展示学习画像、资源生成、导学反馈和学习评估闭环。`;
     const demoWeakPoints = (demoPersona.weak_points ?? []).length
       ? demoPersona.weak_points ?? []
-      : ["概念边界不清", "公式直觉不足", "指标容易混淆"];
+      : ["赛题闭环不清", "多智能体协作拆分不足", "资源生成和评估联动不够"];
     applyCourseTemplate(template, "demo");
     const created = await mutations.create.mutateAsync({
       goal: demoGoal,

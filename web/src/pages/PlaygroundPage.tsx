@@ -28,6 +28,60 @@ import type { PlaygroundCapability, PlaygroundTool } from "@/lib/types";
 import { useKnowledgeBases, usePluginsList } from "@/hooks/useApiQueries";
 
 const LEGACY_TEXT_SEPARATOR = "\u001F";
+const PLAYGROUND_TOOL_LABELS: Record<string, string> = {
+  brainstorm: "头脑风暴",
+  rag: "资料查找",
+  rag_search: "资料查找",
+  web_search: "网页搜索",
+  external_video_search: "找学习视频",
+  external_image_search: "找图解素材",
+  iflytek_workflow: "讯飞工作流",
+  iflytek_formula_ocr: "公式识别",
+  iflytek_image_understanding: "图片理解",
+  canvas: "文档画布",
+  code_execution: "代码计算",
+  reason: "深度推理",
+  paper_search: "论文检索",
+  geogebra_analysis: "几何作图",
+};
+const PLAYGROUND_TOOL_HINTS: Record<string, string> = {
+  brainstorm: "为一个学习主题生成多种思路。",
+  rag: "从当前资料库里找可引用内容。",
+  rag_search: "从当前资料库里找可引用内容。",
+  web_search: "查找公开网页资料并整理来源。",
+  external_video_search: "筛选适合当前水平的学习视频。",
+  external_image_search: "查找图解、示意图或视觉参考。",
+  iflytek_workflow: "调用已发布的讯飞学习工作流。",
+  iflytek_formula_ocr: "识别截图或手写图片中的公式。",
+  iflytek_image_understanding: "理解截图、板书、图表和实验图片。",
+  canvas: "打开或更新右侧可编辑文档。",
+  code_execution: "运行一段受限 Python 计算。",
+  reason: "把复杂问题交给专门推理步骤。",
+  paper_search: "按关键词查找 arXiv 论文。",
+  geogebra_analysis: "把几何题图转换成作图指令。",
+};
+const PLAYGROUND_CAPABILITY_LABELS: Record<string, string> = {
+  chat: "学习对话",
+  deep_solve: "分步解题",
+  deep_question: "生成练习",
+  deep_research: "学习调研",
+  guided_learning: "导学流程",
+  guide_v2: "导学流程",
+  co_writer: "写作修改",
+  visualize: "图解生成",
+  math_animator: "动画讲解",
+};
+const PLAYGROUND_CAPABILITY_HINTS: Record<string, string> = {
+  chat: "围绕问题、资料和学习记录回答。",
+  deep_solve: "先规划，再推理，最后写成讲解。",
+  deep_question: "围绕知识点生成可作答练习。",
+  deep_research: "拆解主题并整理成学习报告。",
+  guided_learning: "按学习画像推进下一步任务。",
+  guide_v2: "按学习画像推进下一步任务。",
+  co_writer: "润色、扩写、压缩或批注文稿。",
+  visualize: "把概念关系转成图解。",
+  math_animator: "生成可渲染的动画讲解脚本。",
+};
 
 function withLegacyText(visible: string, legacy: string) {
   return `${visible}${LEGACY_TEXT_SEPARATOR}${legacy}`;
@@ -55,6 +109,25 @@ function defaultParams(tool: PlaygroundTool) {
     }
   }
   return JSON.stringify(params, null, 2);
+}
+
+function playgroundDisplayName(item: PlaygroundTool | PlaygroundCapability) {
+  return PLAYGROUND_TOOL_LABELS[item.name] || PLAYGROUND_CAPABILITY_LABELS[item.name] || item.name;
+}
+
+function playgroundDisplayDescription(item: PlaygroundTool | PlaygroundCapability) {
+  return (
+    PLAYGROUND_TOOL_HINTS[item.name] ||
+    PLAYGROUND_CAPABILITY_HINTS[item.name] ||
+    compactPlaygroundDescription(item.description)
+  );
+}
+
+function compactPlaygroundDescription(value?: string) {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  if (!text) return "暂无说明";
+  if (text.length <= 86) return text;
+  return `${text.slice(0, 82)}...`;
 }
 
 export function PlaygroundPage() {
@@ -266,7 +339,7 @@ export function PlaygroundPage() {
                         <span className="truncate text-sm font-semibold text-ink">{plugin.name}</span>
                       </div>
                       <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
-                        {plugin.description || "暂无说明"}
+                        {compactPlaygroundDescription(plugin.description)}
                       </p>
                     </motion.div>
                   ))}
@@ -428,9 +501,10 @@ function RegistryList({
     );
   }
   return (
-    <div className="mt-4 grid gap-2">
+    <div className="mt-4 grid max-h-[430px] gap-2 overflow-y-auto pr-1">
       {items.map((item) => {
         const active = activeName === item.name;
+        const displayName = playgroundDisplayName(item);
         return (
           <motion.button
             key={item.name}
@@ -446,10 +520,10 @@ function RegistryList({
           >
             <div className="flex items-center gap-2">
               <span className="text-brand-purple">{icon}</span>
-              <span className="min-w-0 truncate text-sm font-semibold text-ink">{item.name}</span>
+              <span className="min-w-0 truncate text-sm font-semibold text-ink">{displayName}</span>
             </div>
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
-              {item.description || "暂无描述"}
+              {playgroundDisplayDescription(item)}
             </p>
           </motion.button>
         );
@@ -490,8 +564,17 @@ function ToolRunner({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Badge tone="brand">单步</Badge>
-          <h2 className="mt-3 text-base font-semibold text-ink">{tool.name}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{tool.description || "暂无说明"}</p>
+          <h2 className="mt-3 text-base font-semibold text-ink">{playgroundDisplayName(tool)}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{playgroundDisplayDescription(tool)}</p>
+          <details className="mt-2 text-xs text-slate-500 [&>summary::-webkit-details-marker]:hidden">
+            <summary className="dt-interactive inline-flex cursor-pointer rounded-md border border-line bg-canvas px-2 py-1">
+              技术详情
+            </summary>
+            <p className="mt-2 leading-5">
+              <span className="font-medium text-slate-600">{tool.name}</span>
+              {tool.description ? ` / ${tool.description}` : ""}
+            </p>
+          </details>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button tone="secondary" onClick={onRunSync} disabled={running} data-testid="playground-tool-run-sync">
@@ -505,7 +588,7 @@ function ToolRunner({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+      <div className="mt-4 grid gap-3">
         <FieldShell label="输入内容" hint="结构化内容">
           <TextArea
             value={paramsJson}
@@ -517,11 +600,15 @@ function ToolRunner({
             使用模板
           </Button>
         </FieldShell>
-        <FieldShell label="结构说明">
-          <pre className="dt-code-surface min-h-44 overflow-auto rounded-lg p-3 text-xs leading-6">
+        <details className="rounded-lg border border-line bg-canvas p-3 [&>summary::-webkit-details-marker]:hidden">
+          <summary className="dt-interactive flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 py-1 text-sm font-semibold text-ink">
+            查看输入格式
+            <Badge tone="neutral">高级</Badge>
+          </summary>
+          <pre className="dt-code-surface mt-3 max-h-64 overflow-auto rounded-lg p-3 text-xs leading-6">
             {selectedToolParams}
           </pre>
-        </FieldShell>
+        </details>
       </div>
     </motion.section>
   );
@@ -567,8 +654,17 @@ function CapabilityRunner({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Badge tone="brand">流程</Badge>
-          <h2 className="mt-3 text-base font-semibold text-ink">{capability.name}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{capability.description || "暂无说明"}</p>
+          <h2 className="mt-3 text-base font-semibold text-ink">{playgroundDisplayName(capability)}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{playgroundDisplayDescription(capability)}</p>
+          <details className="mt-2 text-xs text-slate-500 [&>summary::-webkit-details-marker]:hidden">
+            <summary className="dt-interactive inline-flex cursor-pointer rounded-md border border-line bg-canvas px-2 py-1">
+              技术详情
+            </summary>
+            <p className="mt-2 leading-5">
+              <span className="font-medium text-slate-600">{capability.name}</span>
+              {capability.description ? ` / ${capability.description}` : ""}
+            </p>
+          </details>
         </div>
         <Button
           tone="primary"
@@ -609,7 +705,7 @@ function CapabilityRunner({
                   }`}
                 >
                   <Code2 size={12} className="mr-1 inline" />
-                  {tool.name}
+                  {playgroundDisplayName(tool)}
                 </motion.button>
               ))}
             </div>

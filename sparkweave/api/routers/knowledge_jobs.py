@@ -150,6 +150,12 @@ async def run_upload_processing_job(
 
             staged_files = adder.add_documents(uploaded_file_paths, allow_duplicates=False)
             _call_task_log(task_log, task_id, f"Staged {len(staged_files)} new file(s)")
+            progress_tracker.update(
+                ProgressStage.PROCESSING_DOCUMENTS,
+                f"Staged {len(staged_files)} new file(s), starting indexing...",
+                current=0,
+                total=max(len(staged_files), 1),
+            )
 
             if not staged_files:
                 _call_task_log(task_log, task_id, "No new files to process (all duplicates or invalid)")
@@ -169,6 +175,12 @@ async def run_upload_processing_job(
             _call_task_log(task_log, task_id, f"Indexed {len(processed_files)} file(s)")
             if staged_files and not processed_files:
                 raise DocumentIndexingError("No staged files were indexed successfully.")
+            progress_tracker.update(
+                ProgressStage.PROCESSING_DOCUMENTS,
+                "Finalizing document inventory and metadata...",
+                current=len(processed_files),
+                total=max(len(staged_files), 1),
+            )
 
             adder.update_metadata(len(processed_files) if processed_files else 0)
 

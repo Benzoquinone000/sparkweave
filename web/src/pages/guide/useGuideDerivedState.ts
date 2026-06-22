@@ -29,6 +29,7 @@ export function useGuideDerivedState({
   courseTemplateId,
   courseTemplatesData,
   diagnosticStatus,
+  dismissedFeedbackKey,
   generatingType,
   guideSubPage,
   learnerProfile,
@@ -43,6 +44,7 @@ export function useGuideDerivedState({
   courseTemplateId: string;
   courseTemplatesData?: GuideV2CourseTemplate[];
   diagnosticStatus?: string;
+  dismissedFeedbackKey: string;
   generatingType: GuideV2ResourceType | null;
   guideSubPage: GuideSubPage;
   learnerProfile?: LearnerProfileSnapshot;
@@ -57,7 +59,7 @@ export function useGuideDerivedState({
   const courseTemplates = courseTemplatesData ?? [];
   const selectedTemplate = courseTemplates.find((item) => item.id === courseTemplateId) ?? null;
   const demoTemplate =
-    courseTemplates.find((item) => item.id === "ml_foundations") ??
+    courseTemplates.find((item) => item.id === "deep_learning_foundations") ??
     courseTemplates.find((item) => (item.demo_seed?.task_chain ?? []).length > 0) ??
     null;
   const profileNextAction = learnerProfile?.next_action ?? null;
@@ -77,6 +79,10 @@ export function useGuideDerivedState({
     [currentTask?.task_id, session],
   );
   const activeLearningFeedback = learningFeedback ?? restoredLearningFeedback;
+  const activeFeedbackKey = activeLearningFeedback
+    ? `${activeLearningFeedback.task_id || currentTask?.task_id || ""}:${activeLearningFeedback.next_task_id || ""}:${activeLearningFeedback.summary || activeLearningFeedback.title || ""}`
+    : "";
+  const visibleLearningFeedback = activeFeedbackKey && activeFeedbackKey === dismissedFeedbackKey ? null : activeLearningFeedback;
   const referenceRecords = useMemo(
     () => (referenceNotebookRecords ?? []).slice(0, 6),
     [referenceNotebookRecords],
@@ -125,7 +131,7 @@ export function useGuideDerivedState({
   );
   const showPrescriptionResults = Boolean(prescriptionTaskId || generatingType || prescriptionArtifacts.length);
   const diagnosticDone = diagnosticStatus === "completed";
-  const guideStage: GuideStage = !session ? "create" : !diagnosticDone ? "diagnostic" : activeLearningFeedback ? "feedback" : currentTask ? "learn" : "complete";
+  const guideStage: GuideStage = !session ? "create" : !diagnosticDone ? "diagnostic" : visibleLearningFeedback ? "feedback" : currentTask ? "learn" : "complete";
   const demoRecordingCue = useMemo(
     () =>
       buildDemoRecordingCue({
@@ -140,8 +146,8 @@ export function useGuideDerivedState({
     [currentArtifacts.length, currentDemoStep, currentTask, generatingType, guideStage, guideSubPage, isDemoSeedSession],
   );
   const adaptiveGuideStrategy = useMemo(
-    () => buildAdaptiveGuideStrategy(learnerProfile, guideStage, currentTask?.title || "", activeLearningFeedback),
-    [activeLearningFeedback, currentTask?.title, guideStage, learnerProfile],
+    () => buildAdaptiveGuideStrategy(learnerProfile, guideStage, currentTask?.title || "", visibleLearningFeedback),
+    [currentTask?.title, guideStage, learnerProfile, visibleLearningFeedback],
   );
   const primaryActionLabel =
     guideStage === "create"
@@ -178,6 +184,7 @@ export function useGuideDerivedState({
 
   return {
     activeLearningFeedback,
+    activeFeedbackKey,
     adaptiveGuideStrategy,
     courseMetadata,
     courseTemplates,

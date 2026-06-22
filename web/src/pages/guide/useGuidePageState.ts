@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { GuideV2LearningFeedback, GuideV2ResourceType, NotebookRecord } from "@/lib/types";
+import type { GuideResourceJobSnapshot, GuideV2LearningFeedback, GuideV2ResourceType, NotebookRecord } from "@/lib/types";
 import type { GuideSubPage } from "./guideLearningStrategy";
 
 export function useGuidePageState() {
@@ -19,6 +19,7 @@ export function useGuidePageState() {
   const [score, setScore] = useState("0.85");
   const [generatingType, setGeneratingType] = useState<GuideV2ResourceType | null>(null);
   const [resourceJobId, setResourceJobId] = useState<string | null>(null);
+  const [resourceJobSnapshot, setResourceJobSnapshot] = useState<GuideResourceJobSnapshot | null>(null);
   const [prescriptionTaskId, setPrescriptionTaskId] = useState("");
   const [saveNotebookId, setSaveNotebookId] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -28,6 +29,7 @@ export function useGuidePageState() {
   const [guideSubPage, setGuideSubPage] = useState<GuideSubPage>("main");
   const [forceNewSession, setForceNewSession] = useState(false);
   const [sourceAction, setSourceAction] = useState<Record<string, unknown> | null>(null);
+  const [dismissedFeedbackKey, setDismissedFeedbackKey] = useState("");
 
   const updateGoal = (value: string) => {
     setGoalTouched(true);
@@ -50,6 +52,10 @@ export function useGuidePageState() {
     setForceNewSession(true);
     setSourceAction(null);
     setSelectedSessionId(null);
+    setGeneratingType(null);
+    setResourceJobId(null);
+    setResourceJobSnapshot(null);
+    setDismissedFeedbackKey("");
     setGuideSubPage("main");
     setSupportOpen(false);
   };
@@ -58,12 +64,17 @@ export function useGuidePageState() {
     setForceNewSession(false);
     setSourceAction(null);
     setSelectedSessionId(sessionId);
+    setGeneratingType(null);
+    setResourceJobId(null);
+    setResourceJobSnapshot(null);
+    setDismissedFeedbackKey("");
     setSupportOpen(false);
   };
 
   return {
     courseTemplateId,
     forceNewSession,
+    dismissedFeedbackKey,
     generatingType,
     goal,
     goalTouched,
@@ -77,6 +88,7 @@ export function useGuidePageState() {
     referenceNotebookId,
     reflection,
     resourceJobId,
+    resourceJobSnapshot,
     saveMessage,
     saveNotebookId,
     score,
@@ -90,6 +102,7 @@ export function useGuidePageState() {
     resetReferenceNotebook,
     selectExistingRoute,
     setCourseTemplateId,
+    setDismissedFeedbackKey,
     setForceNewSession,
     setGeneratingType,
     setGoal,
@@ -103,6 +116,7 @@ export function useGuidePageState() {
     setPrescriptionTaskId,
     setReflection,
     setResourceJobId,
+    setResourceJobSnapshot,
     setSaveMessage,
     setSaveNotebookId,
     setScore,

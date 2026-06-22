@@ -11,11 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_MAIN = ROOT / "sparkweave" / "api" / "main.py"
 BACKEND_ROUTERS = ROOT / "sparkweave" / "api" / "routers"
-FRONTEND_API = ROOT / "web" / "src" / "lib" / "api.ts"
+FRONTEND_API_ENTRY = ROOT / "web" / "src" / "lib" / "api.ts"
+FRONTEND_API_MODULE_DIR = ROOT / "web" / "src" / "lib" / "api"
 
 ROUTE_DECORATOR_RE = re.compile(
     r"@router\.(get|post|put|patch|delete|websocket)\(\s*[\"']([^\"']*)[\"']"
@@ -89,12 +91,29 @@ def route_matches(frontend_shape: str, backend_shape: str) -> bool:
     back_parts = backend_shape.strip("/").split("/")
     if len(front_parts) != len(back_parts):
         return False
-    return all(front == back or front == "{}" or back == "{}" for front, back in zip(front_parts, back_parts))
+    return all(
+        front == back or front == "{}" or back == "{}"
+        for front, back in zip(front_parts, back_parts)
+    )
+
+
+def load_router_prefixes() -> dict[str, str]:
+    """Load router prefixes from the registry, falling back to legacy main.py parsing."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    try:
+        from sparkweave.api.router_registry import API_ROUTER_SPECS
+
+        return {spec.module: spec.prefix for spec in API_ROUTER_SPECS}
+    except Exception:
+        pass
+
+    main_text = BACKEND_MAIN.read_text(encoding="utf-8")
+    return dict(INCLUDE_ROUTER_RE.findall(main_text))
 
 
 def load_backend_routes() -> list[Route]:
-    main_text = BACKEND_MAIN.read_text(encoding="utf-8")
-    prefixes = dict(INCLUDE_ROUTER_RE.findall(main_text))
+    prefixes = load_router_prefixes()
     routes: list[Route] = []
     for module, prefix in prefixes.items():
         router_file = BACKEND_ROUTERS / f"{module}.py"
@@ -106,10 +125,22 @@ def load_backend_routes() -> list[Route]:
     return sorted(routes, key=lambda route: (route.path, route.method))
 
 
+def load_frontend_api_files() -> list[Path]:
+    """Return frontend API facade and domain modules that may call backend routes."""
+    files = [FRONTEND_API_ENTRY]
+    if FRONTEND_API_MODULE_DIR.exists():
+        files.extend(sorted(FRONTEND_API_MODULE_DIR.rglob("*.ts")))
+    return [path for path in files if path.exists()]
+
+
 def load_frontend_api_shapes() -> list[str]:
-    text = FRONTEND_API.read_text(encoding="utf-8")
-    shapes = {normalize_route(match.group(2)) for match in FRONTEND_API_LITERAL_RE.finditer(text)}
-    if "SPARKBOT_API_ROOT" in text:
+    shapes: set[str] = set()
+    texts: list[str] = []
+    for path in load_frontend_api_files():
+        text = path.read_text(encoding="utf-8")
+        texts.append(text)
+        shapes.update(normalize_route(match.group(2)) for match in FRONTEND_API_LITERAL_RE.finditer(text))
+    if any("SPARKBOT_API_ROOT" in text for text in texts):
         shapes.update(SPARKBOT_DYNAMIC_SHAPES)
     return sorted(shape for shape in shapes if shape.startswith("/api/v1"))
 
@@ -126,7 +157,9 @@ def main() -> int:
     frontend_shapes = load_frontend_api_shapes()
 
     unknown_frontend = [
-        shape for shape in frontend_shapes if not any(route_matches(shape, backend) for backend in backend_shapes)
+        shape
+        for shape in frontend_shapes
+        if not any(route_matches(shape, backend) for backend in backend_shapes)
     ]
     uncovered_backend = [
         shape
@@ -142,7 +175,7 @@ def main() -> int:
         return 1
 
     if uncovered_backend:
-        print("[api-contract] Core sparkweave routes are not represented in web/src/lib/api.ts:")
+        print("[api-contract] Core sparkweave routes are not represented in web/src/lib/api.ts or domain API modules:")
         for shape in uncovered_backend:
             print(f"- {shape}")
         print("\nLegacy /chat/* and /solve/* compatibility routes are intentionally excluded.")
@@ -159,4 +192,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

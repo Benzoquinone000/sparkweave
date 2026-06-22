@@ -78,7 +78,7 @@ export function ExpandedSidebar({
           className="dt-interactive dt-notion-block mt-1.5 flex min-h-9 w-full items-center gap-2.5 px-2.5 text-left text-xs text-charcoal"
         >
           <MoreHorizontal size={15} />
-          <span className="min-w-0 truncate">更多入口</span>
+          <span className="min-w-0 truncate">更多工具</span>
         </button>
       </div>
 
@@ -143,8 +143,8 @@ export function CollapsedSidebar({
           type="button"
           onClick={onOpenMore}
           className="dt-interactive relative flex h-9 w-9 items-center justify-center rounded-lg text-steel hover:bg-white hover:text-ink"
-          aria-label="更多入口"
-          title="更多入口"
+          aria-label="更多工具"
+          title="更多工具"
         >
         <MoreHorizontal size={15} />
         </button>

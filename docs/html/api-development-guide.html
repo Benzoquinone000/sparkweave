@@ -1,0 +1,450 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API 开发规范</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="api-开发规范">API 开发规范</h1>
+<p>本篇面向评委说明 SparkWeave 的接口边界。前端页面看到的学习路线、资料问答、画像更新、讯飞工具配置和多智能体过程，都通过这些 API 与后端服务连接。</p>
+<h2 id="接口分层">接口分层</h2>
+<p>SparkWeave 后端使用 FastAPI。所有业务接口集中在 <code>/api/v1</code> 下，按学习场景拆分路由：</p>
+<table>
+<thead>
+<tr class="header">
+<th>路由前缀</th>
+<th>对应页面或能力</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/api/v1/ws</code></td>
+<td>问问题、多智能体对话</td>
+<td>统一 WebSocket 入口，返回可持续展示的执行过程</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/guide/v2</code></td>
+<td>学习页</td>
+<td>课程模板、学习路线、任务推进、资源生成、评估报告</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/knowledge</code></td>
+<td>资料页</td>
+<td>知识库创建、资料上传、索引、RAG 测试、来源检查</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/learner-profile</code></td>
+<td>记录 / 画像页</td>
+<td>学习证据、画像刷新、画像校准</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/learning-effect</code></td>
+<td>学习效果评估</td>
+<td>概念掌握度、下一步建议和行动完成状态</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/notebook</code></td>
+<td>笔记</td>
+<td>保存学习笔记和问答记录</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/settings</code></td>
+<td>设置页</td>
+<td>本地配置、模型目录、界面偏好和连接测试</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/system</code></td>
+<td>系统状态</td>
+<td>后端状态、模型状态、OCR、语音、讯飞工具检测</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/speech</code></td>
+<td>语音能力</td>
+<td>语音转写和口语评测</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/plugins</code></td>
+<td>扩展工具</td>
+<td>工具和能力的列表、调用和流式执行</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/sparkbot</code></td>
+<td>课程助教</td>
+<td>长期助教、资料同步、提醒任务、工作区文件和 QQ 等消息通道配置</td>
+</tr>
+</tbody>
+</table>
+<p>路由注册集中在 <code>sparkweave/api/router_registry.py</code>，应用创建入口是 <code>sparkweave/api/app_factory.py</code>。这样做的好处是评委可以从一个位置看到后端暴露了哪些能力，也方便用自动检查确认前端没有调用不存在的接口。</p>
+<h2 id="普通请求与长过程">普通请求与长过程</h2>
+<p>SparkWeave 不是所有功能都用同一种请求方式。</p>
+<p>普通读写使用 REST，例如课程模板列表、系统状态、知识库列表、画像读取和设置保存。这类接口返回 JSON，适合页面快速刷新。</p>
+<p>长过程使用 WebSocket 或 SSE，例如多智能体对话、资料索引进度、资源生成进度和工具流式结果。这类接口会持续返回阶段、内容、来源和最终结果，前端可以把“正在检索资料”“正在生成讲解”“已经得到来源”等过程展示出来。</p>
+<p>主要长过程入口：</p>
+<table>
+<thead>
+<tr class="header">
+<th>入口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/api/v1/ws</code></td>
+<td>统一对话和能力执行入口</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/knowledge/tasks/{task_id}/stream</code></td>
+<td>资料入库和索引任务进度</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/knowledge/{kb_name}/progress/ws</code></td>
+<td>指定知识库进度</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/guide/v2/resource-jobs/{job_id}/events</code></td>
+<td>学习资源生成进度</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/plugins/tools/{tool_name}/execute-stream</code></td>
+<td>工具流式调用</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/plugins/capabilities/{capability_name}/execute-stream</code></td>
+<td>扩展能力流式调用</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/sparkbot/{bot_id}/ws</code></td>
+<td>课程助教 WebSocket 试问和消息回传</td>
+</tr>
+</tbody>
+</table>
+<h2 id="统一-websocket">统一 WebSocket</h2>
+<p><code>/api/v1/ws</code> 是问问题页面和多智能体执行的核心入口。前端发起一次对话后，后端会创建执行记录，并把过程事件按顺序推回前端。</p>
+<p>这套设计让问答不只是“等一个最终回答”。评委可以看到检索、工具调用、专业能力处理、来源返回和最终答案的过程；如果页面刷新或网络短暂中断，也可以继续接收后续事件。</p>
+<h2 id="学习页接口">学习页接口</h2>
+<p>学习页主要使用 <code>/api/v1/guide/v2</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /templates</code></td>
+<td>读取课程模板</td>
+</tr>
+<tr class="even">
+<td><code>POST /sessions</code></td>
+<td>创建学习路线</td>
+</tr>
+<tr class="odd">
+<td><code>GET /sessions/{session_id}</code></td>
+<td>读取学习会话详情</td>
+</tr>
+<tr class="even">
+<td><code>GET /sessions/{session_id}/study-plan</code></td>
+<td>读取学习计划</td>
+</tr>
+<tr class="odd">
+<td><code>GET /sessions/{session_id}/diagnostic</code></td>
+<td>读取诊断题</td>
+</tr>
+<tr class="even">
+<td><code>POST /sessions/{session_id}/diagnostic</code></td>
+<td>提交诊断答案</td>
+</tr>
+<tr class="odd">
+<td><code>POST /sessions/{session_id}/tasks/{task_id}/complete</code></td>
+<td>完成任务并写入学习证据</td>
+</tr>
+<tr class="even">
+<td><code>POST /sessions/{session_id}/tasks/{task_id}/resources</code></td>
+<td>生成某个任务的学习资源</td>
+</tr>
+<tr class="odd">
+<td><code>GET /sessions/{session_id}/resource-recommendations</code></td>
+<td>读取个性化资源推荐</td>
+</tr>
+<tr class="even">
+<td><code>GET /sessions/{session_id}/report</code></td>
+<td>读取学习报告</td>
+</tr>
+</tbody>
+</table>
+<p>这些接口对应赛题中的个性化学习路径、资源生成和学习效果评估。完成任务后，学习证据会进入画像服务，下一步建议也会随之变化。</p>
+<h2 id="资料页接口">资料页接口</h2>
+<p>资料页主要使用 <code>/api/v1/knowledge</code>：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>POST /create</code></td>
+<td>创建知识库并上传资料</td>
+</tr>
+<tr class="even">
+<td><code>POST /{kb_name}/upload</code></td>
+<td>向已有知识库追加资料</td>
+</tr>
+<tr class="odd">
+<td><code>GET /{kb_name}/documents</code></td>
+<td>查看资料清单</td>
+</tr>
+<tr class="even">
+<td><code>GET /{kb_name}/vectors</code></td>
+<td>查看向量片段</td>
+</tr>
+<tr class="odd">
+<td><code>GET /{kb_name}/diagnostics</code></td>
+<td>检查知识库检索状态</td>
+</tr>
+<tr class="even">
+<td><code>POST /{kb_name}/rag-test</code></td>
+<td>进行资料检索问答测试</td>
+</tr>
+<tr class="odd">
+<td><code>POST /{kb_name}/rag-eval</code></td>
+<td>运行 RAG 评估</td>
+</tr>
+<tr class="even">
+<td><code>POST /{kb_name}/reindex</code></td>
+<td>重新建立索引</td>
+</tr>
+<tr class="odd">
+<td><code>DELETE /{kb_name}</code></td>
+<td>删除知识库</td>
+</tr>
+</tbody>
+</table>
+<p>资料问答必须能给出来源。接口返回的来源会进入前端展示，避免回答只是一段自然语言结论。</p>
+<p>当请求启用 Agentic RAG 时，<code>POST /api/v1/knowledge/{kb_name}/rag-test</code> 不只返回 <code>answer</code> 和 <code>sources</code>，还会返回一组可解释字段：<code>query_plan</code>、<code>subquery_results</code>、<code>agentic_evidence_groups</code>、<code>agentic_context_pack</code>、<code>agentic_quality</code>、<code>agentic_repair</code>、<code>agentic_fallback</code> 和 <code>agentic_fallback_reason</code>。前端资料页用这些字段展示多路检索、质量判断、弱分支修复和保守回退，方便评委核验资料问答不是普通“拼片段”。</p>
+<h2 id="画像与学习效果接口">画像与学习效果接口</h2>
+<p>画像接口负责把学习过程沉淀成可读结果：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /api/v1/learner-profile</code></td>
+<td>读取当前画像</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/learner-profile/refresh</code></td>
+<td>刷新画像</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/learner-profile/evidence-preview</code></td>
+<td>预览学习证据</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/learner-profile/evidence</code></td>
+<td>查看标准化学习证据账本</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/learner-profile/evidence</code></td>
+<td>写入一条学习证据</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/learner-profile/evidence/batch</code></td>
+<td>批量写入学习证据，导学和资源生成流程会用到</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/learner-profile/evidence/rebuild</code></td>
+<td>从当前画像预览重建正式证据账本</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/learner-profile/calibrations</code></td>
+<td>通过对话校准画像</td>
+</tr>
+</tbody>
+</table>
+<p>学习效果接口继续把画像和任务表现转成建议：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>/api/v1/learning-effect/concepts</code></td>
+<td>查看概念掌握状态</td>
+</tr>
+<tr class="even">
+<td><code>/api/v1/learning-effect/next-actions</code></td>
+<td>查看下一步行动建议</td>
+</tr>
+<tr class="odd">
+<td><code>/api/v1/learning-effect/report</code></td>
+<td>查看学习效果报告</td>
+</tr>
+</tbody>
+</table>
+<p>这两类接口共同支撑记录页：评委能看到证据、画像、薄弱点和建议之间的关系。</p>
+<h2 id="课程助教接口">课程助教接口</h2>
+<p>课程助教使用 <code>/api/v1/sparkbot</code>。它不是普通聊天接口，而是长期助教管理入口：可以创建助教、保存课程文件、查看历史、管理技能、设置提醒任务，并通过通道配置接入外部消息入口。</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>GET /api/v1/sparkbot</code></td>
+<td>查看课程助教列表</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/sparkbot</code></td>
+<td>创建并启动课程助教</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/sparkbot/channels/schema</code></td>
+<td>查看 Web、QQ、飞书、钉钉等通道的配置 schema</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/sparkbot/{bot_id}</code></td>
+<td>查看单个助教配置和运行状态</td>
+</tr>
+<tr class="odd">
+<td><code>PUT /api/v1/sparkbot/{bot_id}</code></td>
+<td>更新助教人格、模型、工具和通道配置</td>
+</tr>
+<tr class="even">
+<td><code>GET /api/v1/sparkbot/{bot_id}/files</code></td>
+<td>查看助教工作区文件</td>
+</tr>
+<tr class="odd">
+<td><code>GET /api/v1/sparkbot/{bot_id}/history</code></td>
+<td>查看助教历史消息</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/sparkbot/{bot_id}/cron</code></td>
+<td>创建提醒任务，可指定发送通道和对象</td>
+</tr>
+<tr class="odd">
+<td><code>WS /api/v1/sparkbot/{bot_id}/ws</code></td>
+<td>在网页中试问助教并接收回复</td>
+</tr>
+</tbody>
+</table>
+<p>如果配置了 QQ 平台凭据和 <code>qq-botpy</code> 依赖，<code>qq</code> 通道可以接收私聊、群聊消息，也可以作为提醒任务的发送目标。没有真实凭据时，Web 端仍能展示助教管理、工作区和提醒配置，不把未配置状态说成真实 QQ 调用。</p>
+<h2 id="设置与讯飞能力接口">设置与讯飞能力接口</h2>
+<p>设置页使用 <code>/api/v1/settings</code> 和 <code>/api/v1/system</code>。其中 <code>/api/v1/system/status</code> 会返回后端、LLM、Embedding、搜索、RAG、OCR、语音、公式识别、图片理解和讯飞工作流的状态。</p>
+<p>单项检测接口包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th>接口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>POST /api/v1/system/test/llm</code></td>
+<td>检测大模型配置</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/system/test/embeddings</code></td>
+<td>检测 Embedding 配置</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/system/test/search</code></td>
+<td>检测搜索配置</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/system/test/ocr</code></td>
+<td>检测 OCR 配置</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/system/test/tts</code></td>
+<td>检测语音合成配置</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/system/test/asr</code></td>
+<td>检测语音识别配置</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/system/test/speech_eval</code></td>
+<td>检测口语评测配置</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/system/test/iflytek_workflow</code></td>
+<td>检测讯飞工作流配置</td>
+</tr>
+<tr class="odd">
+<td><code>POST /api/v1/system/test/formula_ocr</code></td>
+<td>检测公式识别配置</td>
+</tr>
+<tr class="even">
+<td><code>POST /api/v1/system/test/image_understanding</code></td>
+<td>检测图片理解配置</td>
+</tr>
+</tbody>
+</table>
+<p>如果未配置真实密钥，接口应当明确返回未配置或带标记的替代结果，不能把未配置状态包装成真实服务调用成功。</p>
+<h2 id="前端调用边界">前端调用边界</h2>
+<p>前端 API 调用集中在 <code>web/src/lib/api.ts</code> 和 <code>web/src/lib/api/</code>。页面组件不直接散落拼接后端地址，而是通过统一客户端调用。</p>
+<p><code>web/src/lib/http.ts</code> 负责：</p>
+<ul>
+<li>解析后端地址，默认端口为 <code>8001</code>。</li>
+<li>为 REST 请求补齐认证头。</li>
+<li>为 WebSocket 和 SSE 地址追加必要参数。</li>
+<li>把非 2xx 响应转换成页面可以展示的错误。</li>
+<li>统一处理 JSON 和流式响应。</li>
+</ul>
+<p>这种方式让接口变更更容易被检查，也避免页面之间出现不同的错误处理方式。</p>
+<h2 id="接口核验">接口核验</h2>
+<p>项目提供静态合同检查：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/check_web_api_contract.py</span></code></pre></div>
+<p>它会读取后端 FastAPI 路由和前端 API 客户端，检查前端调用的 <code>/api/v1</code> 路径是否真实存在。发布前也可以运行：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/verify_project.py <span class="at">--profile</span> quick</span></code></pre></div>
+<p>这会连同项目结构、文档索引、课程模板、发布边界和 Python 编译一起检查。</p>
+<h2 id="边界说明">边界说明</h2>
+<p>API 文档说明的是系统边界，不替代可运行系统。评委在验收时应重点看三件事：前端页面是否能完成学习流程，接口是否能返回真实数据，长过程是否能展示来源和进度。只要这三件事能对上，SparkWeave 的多智能体能力就不是停留在架构图里，而是进入了可操作的学习场景。</p>
+</main>
+</div>
+</body>
+</html>

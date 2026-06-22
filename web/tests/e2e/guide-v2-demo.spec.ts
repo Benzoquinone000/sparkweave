@@ -7,14 +7,10 @@ test("guide start page exposes full course templates", async ({ page }, testInfo
   await mockGuideV2StableDemoApis(page);
 
   await page.goto("/guide");
-  await expect(page.getByTestId("guide-course-template-robotics_ros_foundations")).toBeVisible();
-  await expect(page.getByTestId("guide-course-template-higher_math_limits_derivatives")).toBeVisible();
-  await page.getByTestId("guide-course-template-robotics_ros_foundations").click();
+  await expect(page.getByTestId("guide-course-template-deep_learning_foundations")).toBeVisible();
+  await page.getByTestId("guide-course-template-deep_learning_foundations").click();
 
-  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/ROS|机器人|robot/i);
-
-  await page.getByTestId("guide-course-template-higher_math_limits_derivatives").click();
-  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/极限|导数|高等数学/i);
+  await expect(page.getByTestId("guide-goal-input")).toHaveValue(/深度学习|CNN|Transformer/i);
 });
 
 test("guide accepts learning effect next-action links as ready-to-start routes", async ({ page }, testInfo) => {
@@ -62,7 +58,7 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
 
   await page.getByTestId("guide-demo-cue-action").click();
   await expect.poll(() => guide.resourcePayload?.resource_type).toBe("visual");
-  await expect.poll(() => guide.resourcePayload?.prompt).toContain("gradient descent");
+  await expect.poll(() => guide.resourcePayload?.prompt).toContain("CNN");
   await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("学习流程");
   await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("学习记录");
   await expect(page.getByTestId("guide-artifact-agent-route")).toContainText("图解");
@@ -81,7 +77,7 @@ test("guide v2 stable demo runs from seed to wrap-up and course package", async 
   await page.getByTestId("guide-demo-open-course-package").click();
   await expect(page.getByTestId("guide-course-package-panel")).toBeVisible();
   await expect(page.getByTestId("guide-course-package-panel")).toContainText("稳定演示成果");
-  await expect(page.getByTestId("guide-course-package-panel")).not.toContainText("Stable demo course package");
+  await expect(page.getByTestId("guide-course-package-panel")).not.toContainText("待生成标题");
   await expect(page.getByTestId("guide-iflytek-toolchain-card")).toBeVisible();
   await expect(page.getByTestId("guide-iflytek-toolchain-card")).toContainText("科大讯飞工具链讲法");
   await expect(page.getByTestId("guide-iflytek-toolchain-card")).toContainText("OCR / 公式识别 / 图片理解");
@@ -288,12 +284,12 @@ async function mockGuideV2StableDemoApis(page: Page) {
     generated_at: "2026-05-01T00:00:00.000Z",
     confidence: 0.82,
     overview: {
-      current_focus: "Understand gradient descent intuitively",
+      current_focus: "理解 CNN 图像检索流程",
       preferred_time_budget_minutes: 45,
-      summary: "Demo learner is ready for a guided machine learning route.",
+      summary: "演示学习者适合从 CNN 图解进入深度学习路线。",
     },
     stable_profile: {
-      goals: ["Build a visible ML learning loop"],
+      goals: ["完成一条可展示的深度学习学习闭环"],
       preferences: ["visual", "practice"],
       strengths: ["Can follow examples"],
       constraints: ["Short recording window"],
@@ -309,42 +305,42 @@ async function mockGuideV2StableDemoApis(page: Page) {
   };
 
   const demoSeed = {
-    title: "Stable ML foundations demo",
-    scenario: "A beginner learner moves from profile to resource and feedback.",
+    title: "深度学习稳定演示",
+    scenario: "学习者从画像进入 CNN 图解资源，再提交反馈形成闭环。",
     persona: {
       name: "Demo learner",
       level: "beginner",
-      goal: "Understand gradient descent",
-      weak_points: ["Concept boundaries", "Formula intuition"],
+      goal: "理解 CNN 图像检索",
+      weak_points: ["CNN 结构和图像检索流程容易混淆", "特征抽取和相似度排序边界不清"],
       preferences: ["visual", "practice"],
     },
     task_chain: [
       {
-        task_id: "T4",
-        title: "Gradient descent intuition",
-        stage: "T4 visual",
+        task_id: "D5",
+        title: "CNN 图像检索流程",
+        stage: "D5 visual",
         show: "Generate a compact visual explanation.",
         resource_type: "visual",
-        prompt: "Create a visual explanation for gradient descent intuition.",
+        prompt: "Create a visual explanation for CNN image retrieval, feature extraction, similarity scoring and ranking.",
         sample_score: 0.7,
-        sample_reflection: "I understand gradient descent as moving downhill step by step, but I still need practice choosing the step size.",
+        sample_reflection: "我能看懂图像检索流程，但还需要练习区分特征抽取和分类。",
       },
       {
-        task_id: "T6",
-        title: "Model evaluation practice",
-        stage: "T6 practice",
+        task_id: "D9",
+        title: "Transformer 对比练习",
+        stage: "D9 practice",
         show: "Use a short quiz to validate understanding.",
         resource_type: "quiz",
-        prompt: "Create a short quiz about model evaluation.",
+        prompt: "Create a short quiz comparing CNN, attention and Transformer.",
         sample_score: 0.85,
-        sample_reflection: "I can distinguish accuracy and overfitting with examples.",
+        sample_reflection: "我能说清 CNN 和 Transformer 的主要差异。",
       },
     ],
     resource_prompts: [
       {
         type: "visual",
-        title: "Gradient descent visual",
-        prompt: "Create a visual explanation for gradient descent intuition.",
+        title: "CNN 图像检索图解",
+        prompt: "Create a visual explanation for CNN image retrieval.",
       },
     ],
     sample_artifacts: [
@@ -362,14 +358,14 @@ async function mockGuideV2StableDemoApis(page: Page) {
   };
 
   const task = {
-    task_id: "T4",
-    node_id: "N2",
+    task_id: "D5",
+    node_id: "DL5",
     type: "resource",
-    title: "Gradient descent intuition",
-    instruction: "Use a visual explanation, then submit a short reflection.",
+    title: "CNN 图像检索流程",
+    instruction: "Use a visual explanation, then explain feature extraction and similarity ranking.",
     status: "pending",
     estimated_minutes: 10,
-    success_criteria: ["Explain gradient descent as iterative improvement.", "Name one remaining uncertainty."],
+    success_criteria: ["Explain CNN feature extraction.", "Connect similarity ranking with retrieval results."],
     artifact_refs: [],
     metadata: {},
   };
@@ -378,13 +374,13 @@ async function mockGuideV2StableDemoApis(page: Page) {
     id: "artifact-visual",
     type: "visual",
     capability: "visualize",
-    title: "Gradient descent visual",
+    title: "CNN 图像检索图解",
     created_at: 1_700_000_120,
     result: {
-      response: "Use the slope as a direction hint, then move step by step toward a lower loss.",
+      response: "Use CNN features to represent images, then rank database images by similarity.",
       render_type: "mermaid",
       code: {
-        content: "graph LR\nA[Current point] --> B[Compute slope]\nB --> C[Take one step]\nC --> D[Lower loss]",
+        content: "graph LR\nA[Query image] --> B[CNN feature extractor]\nB --> C[Feature vector]\nC --> D[Similarity ranking]\nD --> E[Retrieved images]",
       },
       learner_profile_hints: {
         weak_points: ["Concept boundaries"],
@@ -398,7 +394,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
     id: "artifact-quiz",
     type: "quiz",
     capability: "deep_question",
-    title: "Gradient descent quick check",
+    title: "CNN 图像检索小测",
     created_at: 1_700_000_130,
     result: {
       response: "Complete the questions, then submit the group to update the route.",
@@ -411,24 +407,24 @@ async function mockGuideV2StableDemoApis(page: Page) {
         {
           question_id: "q1",
           question_type: "choice",
-          question: "What does gradient descent use to decide the next direction?",
+          question: "In CNN image retrieval, what is usually compared first?",
           options: {
-            A: "A random label",
-            B: "The gradient of the loss",
-            C: "The largest feature value",
-            D: "The test accuracy",
+            A: "Image filenames",
+            B: "Image feature vectors",
+            C: "Raw upload time",
+            D: "Only the final class label",
           },
           correct_answer: "B",
-          explanation: "The gradient gives the local direction for reducing the loss.",
-          concepts: ["gradient_descent"],
+          explanation: "Retrieval usually ranks images by similarity between feature vectors.",
+          concepts: ["cnn_retrieval"],
         },
         {
           question_id: "q2",
           question_type: "true_false",
-          question: "A smaller learning rate can make each update more cautious.",
+          question: "CNN retrieval can use feature vectors rather than only class labels.",
           correct_answer: "True",
-          explanation: "A smaller step usually changes parameters more conservatively.",
-          concepts: ["learning_rate"],
+          explanation: "Feature vectors keep richer similarity information for retrieval.",
+          concepts: ["cnn_features"],
         },
       ],
     },
@@ -438,13 +434,13 @@ async function mockGuideV2StableDemoApis(page: Page) {
     id: "artifact-external-video",
     type: "external_video",
     capability: "external_video_search",
-    title: "Gradient descent public videos",
+    title: "CNN 图像检索公开视频",
     created_at: 1_700_000_140,
     result: {
       response: "Pick one short public video, then return to the task.",
       videos: [
         {
-          title: "Gradient descent intuition",
+          title: "CNN 图像检索入门",
           url: "https://www.bilibili.com/video/BVdemo",
           platform: "Bilibili",
           summary: "A compact explanation for beginners.",
@@ -463,7 +459,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
 
   const session = {
     session_id: "guide-demo",
-    goal: "Stable demo route",
+    goal: "系统学习深度学习",
     status: "learning",
     created_at: 1_700_000_000,
     updated_at: 1_700_000_100,
@@ -473,17 +469,17 @@ async function mockGuideV2StableDemoApis(page: Page) {
       source_context_summary: "Unified learner profile included.",
     },
     course_map: {
-      title: "Machine Learning Foundations",
+      title: "深度学习",
       nodes: [
-        { node_id: "N1", title: "ML overview", description: "Frame the course.", status: "completed" },
-        { node_id: "N2", title: "Optimization", description: "Understand gradient descent.", status: "learning" },
+        { node_id: "DL1", title: "深度学习绪论", description: "建立课程全景。", status: "completed" },
+        { node_id: "DL5", title: "CNN 图像检索", description: "理解特征抽取和相似度排序。", status: "learning" },
       ],
-      edges: [{ source: "N1", target: "N2" }],
+      edges: [{ source: "DL1", target: "DL5" }],
       metadata: {
-        course_id: "ML101",
-        course_name: "Machine Learning Foundations",
-        suggested_weeks: 1,
-        credits: 1,
+        course_id: "DL301",
+        course_name: "深度学习",
+        suggested_weeks: 14,
+        credits: 3,
         source_action: { source: "demo_seed" },
         created_from: "demo_seed",
         demo_seed: demoSeed,
@@ -492,8 +488,8 @@ async function mockGuideV2StableDemoApis(page: Page) {
     tasks: [task],
     current_task: task,
     evidence: [],
-    mastery: { N2: { score: 0.48, status: "developing" } },
-    recommendations: ["Generate one visual resource."],
+    mastery: { DL5: { score: 0.48, status: "developing" } },
+    recommendations: ["先生成一张 CNN 图像检索流程图。"],
     plan_events: [],
     progress: 35,
   };
@@ -539,46 +535,20 @@ async function mockGuideV2StableDemoApis(page: Page) {
       json: {
         templates: [
           {
-            id: "ml_foundations",
-            title: "Machine Learning Foundations",
-            course_id: "ML101",
-            course_name: "Machine Learning Foundations",
-            level: "beginner",
-            suggested_weeks: 1,
-            default_goal: "Understand ML foundations.",
-            default_preferences: ["visual", "practice"],
+            id: "deep_learning_foundations",
+            title: "完整课程：深度学习",
+            course_id: "DL301",
+            course_name: "深度学习",
+            description: "从神经网络、CNN、注意力机制到 Transformer 和大模型应用，适合展示一门完整高校专业课程。",
+            level: "intermediate",
+            suggested_weeks: 14,
+            credits: 3,
+            estimated_minutes: 980,
+            default_goal: "系统学习深度学习，先补齐 CNN 图像检索、注意力机制、Transformer 和大模型应用。",
+            default_preferences: ["visual", "practice", "external_video"],
             default_time_budget_minutes: 45,
+            tags: ["深度学习", "CNN", "Transformer"],
             demo_seed: demoSeed,
-          },
-          {
-            id: "robotics_ros_foundations",
-            title: "智能机器人与 ROS 基础",
-            course_id: "ROBOT101",
-            course_name: "智能机器人与 ROS 基础",
-            description: "从机器人系统组成、ROS 通信到小项目实践，适合做一门可演示的完整课程。",
-            level: "beginner",
-            suggested_weeks: 4,
-            credits: 2,
-            estimated_minutes: 720,
-            default_goal: "系统学习智能机器人与 ROS 基础，完成话题通信、服务调用和导航入门实践。",
-            default_preferences: ["visual", "practice", "project"],
-            default_time_budget_minutes: 60,
-            tags: ["机器人", "ROS", "项目实践"],
-          },
-          {
-            id: "higher_math_limits_derivatives",
-            title: "高等数学极限与导数",
-            course_id: "MATH101",
-            course_name: "高等数学极限与导数",
-            description: "从函数直觉、极限定义到导数几何意义，适合展示公式、图解和 Manim 动画。",
-            level: "beginner",
-            suggested_weeks: 6,
-            credits: 2,
-            estimated_minutes: 420,
-            default_goal: "系统学习高等数学中的极限、连续和导数，并能用图像直觉解释典型题。",
-            default_preferences: ["visual", "practice", "video"],
-            default_time_budget_minutes: 40,
-            tags: ["高等数学", "极限", "导数"],
           },
         ],
       },
@@ -594,7 +564,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
     await route.fulfill({
       json: {
         sessions: state.created
-          ? [{ session_id: "guide-demo", goal: "Stable demo route", status: "learning", updated_at: 1_700_000_100, progress: 35 }]
+          ? [{ session_id: "guide-demo", goal: "系统学习深度学习", status: "learning", updated_at: 1_700_000_100, progress: 35 }]
           : [],
       },
     });
@@ -608,7 +578,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         success: true,
         session_id: "guide-demo",
         summary: "Follow the demo route.",
-        blocks: [{ id: "B1", title: "Demo block", status: "learning", task_ids: ["T4"], tasks: [task] }],
+        blocks: [{ id: "B1", title: "Demo block", status: "learning", task_ids: ["D5"], tasks: [task] }],
         checkpoints: [],
       },
     }),
@@ -624,18 +594,18 @@ async function mockGuideV2StableDemoApis(page: Page) {
         title: "Demo learning report",
         summary: "The demo learner has a visible feedback loop.",
         overview: { overall_score: 72, progress: 55, completed_tasks: 1, total_tasks: 2 },
-        node_cards: [{ node_id: "N2", title: "Optimization", mastery_score: 62, suggestion: "Do one short retest." }],
+        node_cards: [{ node_id: "DL5", title: "CNN 图像检索", mastery_score: 62, suggestion: "先做一次 CNN 图像检索小测。" }],
         feedback_digest: { count: state.completePayload ? 1 : 0, latest: { title: "Feedback recorded", summary: "Profile updated." } },
         learning_effect_report: {
           success: true,
           generated_at: 1_700_000_200,
-          course_id: "ML101",
+          course_id: "DL301",
           window: "14d",
           overall: {
             score: state.completePayload ? 72 : 58,
             label: state.completePayload ? "正在变稳" : "等待证据",
             summary: state.completePayload
-              ? "本次反思已经写入画像，下一步建议用短复测确认梯度下降直觉。"
+              ? "本次反思已经写入画像，下一步建议用短复测确认 CNN 图像检索流程。"
               : "完成一次任务后会形成更明确的学习处方。",
           },
           dimensions: [
@@ -644,8 +614,8 @@ async function mockGuideV2StableDemoApis(page: Page) {
           ],
           concepts: [
             {
-              concept_id: "gradient-descent",
-              title: "Gradient descent intuition",
+              concept_id: "cnn-retrieval",
+              title: "CNN 图像检索流程",
               score: 0.72,
               status: "developing",
               confidence: 0.82,
@@ -657,8 +627,8 @@ async function mockGuideV2StableDemoApis(page: Page) {
               open_mistake_count: 1,
               resource_count: 1,
               evidence_refs: ["ev-demo"],
-              common_mistakes: ["Direction versus objective"],
-              recommendation: "Do one short retest before moving on.",
+              common_mistakes: ["特征抽取和分类边界不清"],
+              recommendation: "进入 Transformer 前先做一次 CNN 图像检索小测。",
             },
           ],
           open_mistakes: [],
@@ -672,21 +642,21 @@ async function mockGuideV2StableDemoApis(page: Page) {
           visualization: {
             summary: "Evidence flows into profile assessment and then into the next prescription.",
             evidence_timeline: [
-              { id: "ev-demo", label: "Reflection submitted", detail: "task feedback · gradient descent", kind: "task", score: 70 },
+              { id: "ev-demo", label: "Reflection submitted", detail: "task feedback · CNN retrieval", kind: "task", score: 70 },
             ],
           },
           next_actions: [
             {
-              id: "guide-demo-retest-gradient",
+              id: "guide-demo-retest-cnn",
               type: "retest",
-              title: "Do a 3-question gradient descent retest",
-              reason: "Confirm the intuition after this reflection.",
-              target_concepts: ["gradient-descent"],
+              title: "做 3 道 CNN 图像检索复测题",
+              reason: "用小测确认图像检索流程是否真正掌握。",
+              target_concepts: ["cnn-retrieval"],
               estimated_minutes: 7,
               priority: 0.95,
-              href: "/chat?new=1&capability=deep_question&prompt=gradient%20descent%20retest",
+              href: "/chat?new=1&capability=deep_question&prompt=CNN%20image%20retrieval%20retest",
               capability: "deep_question",
-              prompt: "Generate a 3-question gradient descent retest.",
+              prompt: "Generate a 3-question CNN image retrieval retest.",
               config: { purpose: "retest" },
               writes_back: ["mastery"],
             },
@@ -728,20 +698,20 @@ async function mockGuideV2StableDemoApis(page: Page) {
       json: {
         success: true,
         session_id: "guide-demo",
-        title: "Stable demo course package",
-        summary: "Stable demo course package for a 7-minute recording.",
+        title: "深度学习课程产出包",
+        summary: "面向 7 分钟录屏的深度学习课程产出包。",
         markdown: "# 稳定演示产出包\n\n## 赛题五项对齐\n\n- 已准备录屏和答辩材料。\n",
-        course_metadata: { course_id: "ML101", course_name: "Machine Learning Foundations" },
+        course_metadata: { course_id: "DL301", course_name: "深度学习" },
         capstone_project: {
-          title: "Explain gradient descent",
-          scenario: "Build one visual resource and one feedback loop.",
-          deliverables: ["Route", "Visual", "Feedback"],
+          title: "解释 CNN 图像检索流程",
+          scenario: "生成一份 CNN 图解，并完成一次学习反馈闭环。",
+          deliverables: ["Route", "CNN Visual", "Feedback"],
           steps: ["Create route", "Generate visual", "Submit feedback"],
           estimated_minutes: 45,
         },
         rubric: [{ criterion: "Closed loop", weight: 60, baseline: "Shows profile to feedback." }],
         portfolio: [],
-        review_plan: [{ node_id: "N2", title: "Optimization", priority: "high", action: "Retest gradient descent." }],
+        review_plan: [{ node_id: "DL5", title: "CNN 图像检索", priority: "high", action: "做一次 CNN 图像检索复测。" }],
         demo_blueprint: {
           title: "7-minute demo route",
           duration_minutes: 7,
@@ -755,13 +725,13 @@ async function mockGuideV2StableDemoApis(page: Page) {
           title: "Recording fallback kit",
           summary: "Use stable artifacts if live generation is slow.",
           persona: demoSeed.persona,
-          assets: [{ type: "visual", title: "Gradient descent visual", status: "ready", show: "Use saved visual." }],
+          assets: [{ type: "visual", title: "CNN 图像检索图解", status: "ready", show: "Use saved visual." }],
           checklist: ["Open guide route before recording."],
         },
         demo_seed_pack: demoSeed,
         demo_preflight: {
           title: "赛前一键检查",
-          summary: "围绕机器学习基础检查录屏、答辩和提交材料是否成链。",
+          summary: "围绕深度学习课程检查录屏、答辩和提交材料是否成链。",
           status: "needs_attention",
           score: 75,
           ready_count: 5,
@@ -787,7 +757,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         presentation_outline: {
           title: "演示 PPT 骨架",
           summary: "按赛题评分点生成 7 页答辩大纲。",
-          course_name: "Machine Learning Foundations",
+          course_name: "深度学习",
           slide_count: 7,
           next_action: "把每页 evidence 转成截图或动图。",
           slides: [
@@ -817,7 +787,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         competition_submission: {
           title: "比赛提交清单",
           summary: "按赛题提交物检查当前课程产出。",
-          course_name: "Machine Learning Foundations",
+          course_name: "深度学习",
           ready_count: 3,
           seed_count: 1,
           total_count: 7,
@@ -909,8 +879,8 @@ async function mockGuideV2StableDemoApis(page: Page) {
         },
         competition_alignment: {
           title: "赛题五项对齐",
-          summary: "围绕机器学习课程把画像、路径、资源、辅导和评估映射成可录屏证据。",
-          course_name: "Machine Learning Foundations",
+          summary: "围绕深度学习课程把画像、路径、资源、辅导和评估映射成可录屏证据。",
+          course_name: "深度学习",
           coverage_score: 80,
           ready_count: 4,
           seed_count: 1,
@@ -957,8 +927,8 @@ async function mockGuideV2StableDemoApis(page: Page) {
         agent_collaboration_blueprint: {
           title: "多智能体协作蓝图",
           summary: "画像、路径、资源和评估智能体围绕当前任务接力。",
-          course_name: "Machine Learning Foundations",
-          current_task: "Understand gradient descent",
+          course_name: "深度学习",
+          current_task: "理解 CNN 图像检索流程",
           readiness: {
             label: "可排练展示",
             score: 80,
@@ -969,7 +939,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
               id: "coordinator",
               name: "对话协调智能体",
               responsibility: "把继续学习请求改写成当前任务。",
-              output: "当前任务：梯度下降直观理解",
+              output: "当前任务：CNN 图像检索流程",
             },
             {
               id: "profile",
@@ -1002,7 +972,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         defense_qa: {
           title: "答辩问答预案",
           summary: "把评委最可能追问的问题整理成可直接讲的回答。",
-          course_name: "Machine Learning Foundations",
+          course_name: "深度学习",
           question_count: 2,
           next_action: "每个问题准备一个页面定位。",
           questions: [
@@ -1037,7 +1007,7 @@ async function mockGuideV2StableDemoApis(page: Page) {
         ai_coding_statement: {
           title: "AI Coding 工具说明",
           summary: "开发过程中使用 AI 编程助手辅助调研、重构、实现、测试和文档整理；最终提交由项目维护者复核。",
-          course_name: "Machine Learning Foundations",
+          course_name: "深度学习",
           usage_scope: ["辅助实现导学、画像、资源生成和测试。"],
           human_review: ["人工阅读 diff 并运行测试。"],
           privacy_boundary: ["真实密钥不写入仓库。"],
@@ -1055,13 +1025,13 @@ async function mockGuideV2StableDemoApis(page: Page) {
       },
     }),
   );
-  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/T4/resources/jobs", async (route) => {
+  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/D5/resources/jobs", async (route) => {
     state.resourcePayload = route.request().postDataJSON() as typeof state.resourcePayload;
     await route.fulfill({
-      json: { task_id: "job-visual", session_id: "guide-demo", learning_task_id: "T4", resource_type: state.resourcePayload?.resource_type },
+      json: { task_id: "job-visual", session_id: "guide-demo", learning_task_id: "D5", resource_type: state.resourcePayload?.resource_type },
     });
   });
-  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/T4/artifacts/artifact-quiz/quiz-results", async (route) => {
+  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/D5/artifacts/artifact-quiz/quiz-results", async (route) => {
     state.quizPayload = route.request().postDataJSON() as typeof state.quizPayload;
     const answers = state.quizPayload?.answers ?? [];
     const scoreValue = answers.length ? answers.filter((answer) => answer.is_correct).length / answers.length : 0;
@@ -1070,14 +1040,14 @@ async function mockGuideV2StableDemoApis(page: Page) {
         success: true,
         session: sessionForRoute(),
         attempt: { score: scoreValue, answer_count: answers.length },
-        evidence: { evidence_id: "ev-quiz", task_id: "T4", score: scoreValue },
+        evidence: { evidence_id: "ev-quiz", task_id: "D5", score: scoreValue },
         learning_feedback: {
           title: "练习已回写",
           summary: "系统已把答题结果写回学习画像和导学路线。",
           tone: "brand",
           score_percent: Math.round(scoreValue * 100),
-          task_id: "T4",
-          task_title: "Gradient descent intuition",
+          task_id: "D5",
+          task_title: "CNN 图像检索流程",
           next_task_title: "Review weak answers or continue.",
           resource_actions: [],
         },
@@ -1086,22 +1056,22 @@ async function mockGuideV2StableDemoApis(page: Page) {
       },
     });
   });
-  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/T4/complete", async (route) => {
+  await page.route("**/api/v1/guide/v2/sessions/guide-demo/tasks/D5/complete", async (route) => {
     state.completePayload = route.request().postDataJSON() as typeof state.completePayload;
     await route.fulfill({
       json: {
         success: true,
         session: completedSession,
         completed_task: { ...task, status: "completed" },
-        evidence: { evidence_id: "ev-demo", task_id: "T4", score: state.completePayload?.score },
+        evidence: { evidence_id: "ev-demo", task_id: "D5", score: state.completePayload?.score },
         next_task: null,
         learning_feedback: {
           title: "Feedback recorded",
           summary: "The reflection has been written back to the learner profile.",
           tone: "brand",
           score_percent: Math.round(Number(state.completePayload?.score ?? 0) * 100),
-          task_id: "T4",
-          task_title: "Gradient descent intuition",
+          task_id: "D5",
+          task_title: "CNN 图像检索流程",
           next_task_title: "Open the route and course package",
           resource_actions: [],
         },
@@ -1120,72 +1090,72 @@ async function mockGuideV2ExternalDemoApis(page: Page) {
     generated_at: "2026-05-01T00:00:00.000Z",
     confidence: 0.78,
     overview: {
-      current_focus: "Understand derivative intuition",
-      preferred_time_budget_minutes: 30,
-      summary: "External course learner needs a short visual route.",
+      current_focus: "Understand CNN image retrieval",
+      preferred_time_budget_minutes: 45,
+      summary: "External course learner needs a compact visual route.",
     },
     stable_profile: {
-      goals: ["Build calculus intuition"],
-      preferences: ["visual", "video"],
-      strengths: ["Can read graphs"],
+      goals: ["Build deep learning intuition"],
+      preferences: ["visual", "practice"],
+      strengths: ["Can follow model diagrams"],
       constraints: ["Short study window"],
     },
     learning_state: {
-      weak_points: [{ label: "Formula intuition", confidence: 0.72, evidence_count: 2 }],
+      weak_points: [{ label: "CNN feature extraction", confidence: 0.72, evidence_count: 2 }],
       mastery: [],
     },
-    recommendations: ["Use a compact Manim explanation."],
+    recommendations: ["Use one compact CNN retrieval diagram."],
     sources: [],
     evidence_preview: [],
     data_quality: { source_count: 2, evidence_count: 3 },
   };
 
   const task = {
-    task_id: "M4",
-    node_id: "M2",
+    task_id: "D5",
+    node_id: "DL5",
     type: "resource",
-    title: "Derivative as instantaneous rate",
-    instruction: "Watch one compact animation, then explain the tangent slope in your own words.",
+    title: "CNN image retrieval pipeline",
+    instruction: "Study one compact diagram, then explain feature extraction and similarity ranking in your own words.",
     status: "pending",
-    estimated_minutes: 10,
-    success_criteria: ["Explain derivative as a tangent slope.", "Connect rate of change with a graph."],
+    estimated_minutes: 12,
+    success_criteria: ["Explain CNN feature extraction.", "Connect similarity ranking with retrieval results."],
     artifact_refs: [],
     metadata: {},
   };
 
   const demoSeed = {
-    title: "Calculus external template demo",
-    task_chain: ["M4"],
+    title: "Deep learning external template demo",
+    task_chain: ["D5"],
     resource_prompts: {
-      M4: "Create a Manim animation explaining derivatives as tangent slope and instantaneous rate of change.",
+      D5: "Create a visual explanation of CNN image retrieval with feature extraction, similarity scoring and ranking.",
     },
     sample_reflection: {
       score: 0.74,
-      reflection: "I can see derivative as a tangent slope, but I still confuse average and instantaneous rate.",
+      reflection: "I can follow the image retrieval pipeline, but I still confuse feature extraction and classification.",
     },
   };
 
   const session = {
-    session_id: "math-demo",
-    goal: "Learn derivative intuition",
+    session_id: "deep-demo",
+    goal: "Learn CNN image retrieval",
     status: "learning",
     created_at: 1_700_000_000,
     updated_at: 1_700_000_100,
     profile: {
-      preferences: ["visual", "video"],
-      weak_points: ["Formula intuition"],
+      preferences: ["visual", "practice"],
+      weak_points: ["CNN feature extraction"],
       source_context_summary: "Unified learner profile included.",
     },
     course_map: {
-      title: "Higher Math Limits and Derivatives",
+      title: "Deep Learning",
       nodes: [
-        { node_id: "M1", title: "Limits", description: "Build limit intuition.", status: "completed" },
-        { node_id: "M2", title: "Derivatives", description: "Understand tangent slope.", status: "learning" },
+        { node_id: "DL3", title: "Convolutional Neural Networks", description: "Understand convolution and pooling.", status: "completed" },
+        { node_id: "DL5", title: "CNN Image Retrieval", description: "Understand feature retrieval workflow.", status: "learning" },
       ],
-      edges: [{ source: "M1", target: "M2" }],
+      edges: [{ source: "DL3", target: "DL5" }],
       metadata: {
-        course_id: "MATH101",
-        course_name: "Higher Math Limits and Derivatives",
+        course_id: "DL301",
+        course_name: "Deep Learning",
         source_action: { source: "demo_seed" },
         created_from: "demo_seed",
         demo_seed: demoSeed,
@@ -1194,8 +1164,8 @@ async function mockGuideV2ExternalDemoApis(page: Page) {
     tasks: [task],
     current_task: task,
     evidence: [],
-    mastery: { M2: { score: 0.5, status: "developing" } },
-    recommendations: ["Generate one short animation."],
+    mastery: { DL5: { score: 0.5, status: "developing" } },
+    recommendations: ["Generate one CNN retrieval diagram."],
     plan_events: [],
     progress: 30,
   };
@@ -1221,15 +1191,15 @@ async function mockGuideV2ExternalDemoApis(page: Page) {
       json: {
         templates: [
           {
-            id: "higher_math_limits_derivatives",
-            title: "Higher Math Limits and Derivatives",
-            course_id: "MATH101",
-            course_name: "Higher Math Limits and Derivatives",
-            level: "beginner",
-            suggested_weeks: 6,
-            default_goal: "Build calculus intuition.",
-            default_preferences: ["visual", "video"],
-            default_time_budget_minutes: 30,
+            id: "deep_learning_foundations",
+            title: "Deep Learning Foundations",
+            course_id: "DL301",
+            course_name: "Deep Learning",
+            level: "intermediate",
+            suggested_weeks: 14,
+            default_goal: "Build deep learning intuition from CNNs to Transformers.",
+            default_preferences: ["visual", "practice"],
+            default_time_budget_minutes: 45,
             demo_seed: demoSeed,
           },
         ],
@@ -1239,63 +1209,63 @@ async function mockGuideV2ExternalDemoApis(page: Page) {
   await page.route(/\/api\/v1\/guide\/v2\/sessions(?:\?.*)?$/, (route) =>
     route.fulfill({
       json: {
-        sessions: [{ session_id: "math-demo", goal: "Learn derivative intuition", status: "learning", updated_at: 1_700_000_100, progress: 30 }],
+        sessions: [{ session_id: "deep-demo", goal: "Learn CNN image retrieval", status: "learning", updated_at: 1_700_000_100, progress: 30 }],
       },
     }),
   );
-  await page.route(/\/api\/v1\/guide\/v2\/sessions\/math-demo$/, (route) => route.fulfill({ json: session }));
-  await page.route("**/api/v1/guide/v2/sessions/math-demo/study-plan", (route) =>
+  await page.route(/\/api\/v1\/guide\/v2\/sessions\/deep-demo$/, (route) => route.fulfill({ json: session }));
+  await page.route("**/api/v1/guide/v2/sessions/deep-demo/study-plan", (route) =>
     route.fulfill({
       json: {
         success: true,
-        session_id: "math-demo",
-        summary: "Follow one focused calculus task.",
-        blocks: [{ id: "B1", title: "Derivative intuition", status: "learning", task_ids: ["M4"], tasks: [task] }],
+        session_id: "deep-demo",
+        summary: "Follow one focused deep learning task.",
+        blocks: [{ id: "B1", title: "CNN retrieval intuition", status: "learning", task_ids: ["D5"], tasks: [task] }],
         checkpoints: [],
       },
     }),
   );
-  await page.route("**/api/v1/guide/v2/sessions/math-demo/diagnostic", (route) =>
-    route.fulfill({ json: { success: true, session_id: "math-demo", status: "completed", summary: "Already calibrated.", questions: [] } }),
+  await page.route("**/api/v1/guide/v2/sessions/deep-demo/diagnostic", (route) =>
+    route.fulfill({ json: { success: true, session_id: "deep-demo", status: "completed", summary: "Already calibrated.", questions: [] } }),
   );
-  await page.route("**/api/v1/guide/v2/sessions/math-demo/report", (route) =>
+  await page.route("**/api/v1/guide/v2/sessions/deep-demo/report", (route) =>
     route.fulfill({
       json: {
         success: true,
-        session_id: "math-demo",
-        title: "Calculus learning report",
-        summary: "The learner is ready for a focused animation.",
+        session_id: "deep-demo",
+        title: "Deep learning report",
+        summary: "The learner is ready for a focused CNN retrieval diagram.",
         overview: { overall_score: 68, progress: 30, completed_tasks: 0, total_tasks: 1 },
         node_cards: [],
         feedback_digest: { count: 0 },
         action_brief: {
-          title: "Generate the current animation",
+          title: "Generate the current diagram",
           summary: "Use the stable prompt from the external template.",
-          primary_action: { kind: "resource", label: "Generate video", target_task_id: "M4", resource_type: "video", prompt: demoSeed.resource_prompts.M4 },
+          primary_action: { kind: "resource", label: "Generate diagram", target_task_id: "D5", resource_type: "visual", prompt: demoSeed.resource_prompts.D5 },
           secondary_actions: [],
           signals: [],
         },
       },
     }),
   );
-  await page.route("**/api/v1/guide/v2/sessions/math-demo/course-package", (route) =>
+  await page.route("**/api/v1/guide/v2/sessions/deep-demo/course-package", (route) =>
     route.fulfill({
       json: {
         success: true,
-        session_id: "math-demo",
-        title: "Calculus package",
+        session_id: "deep-demo",
+        title: "Deep learning package",
         summary: "External template package.",
-        course_metadata: { course_id: "MATH101", course_name: "Higher Math Limits and Derivatives" },
+        course_metadata: { course_id: "DL301", course_name: "Deep Learning" },
         portfolio: [],
         review_plan: [],
         demo_seed_pack: demoSeed,
       },
     }),
   );
-  await page.route("**/api/v1/guide/v2/sessions/math-demo/tasks/M4/resources/jobs", async (route) => {
+  await page.route("**/api/v1/guide/v2/sessions/deep-demo/tasks/D5/resources/jobs", async (route) => {
     state.resourcePayload = route.request().postDataJSON() as typeof state.resourcePayload;
     await route.fulfill({
-      json: { task_id: "job-video", session_id: "math-demo", learning_task_id: "M4", resource_type: state.resourcePayload?.resource_type },
+      json: { task_id: "job-visual", session_id: "deep-demo", learning_task_id: "D5", resource_type: state.resourcePayload?.resource_type },
     });
   });
 

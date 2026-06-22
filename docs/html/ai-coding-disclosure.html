@@ -1,0 +1,142 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Coding 使用说明</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="ai-coding-使用说明">AI Coding 使用说明</h1>
+<p>本篇用于回应赛题中的“如若使用 AI Coding 工具，给出相关说明”。SparkWeave 在开发过程中使用过 AI 编程助手，但作品的需求取舍、系统设计、密钥配置、真实服务开通、运行验证、视频录制和最终提交由团队负责。</p>
+<h2 id="使用范围">使用范围</h2>
+<p>AI 编程助手主要参与了这些工作：</p>
+<table>
+<thead>
+<tr class="header">
+<th>范围</th>
+<th>具体用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>代码梳理</td>
+<td>帮助阅读后端服务、前端页面、资料检索、学习画像和配置相关代码</td>
+</tr>
+<tr class="even">
+<td>前端优化</td>
+<td>辅助整理学习、资料、记录、设置这条主路径，减少页面噪声</td>
+</tr>
+<tr class="odd">
+<td>讯飞工具接入</td>
+<td>辅助梳理星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和工作流的配置位置</td>
+</tr>
+<tr class="even">
+<td>测试修复</td>
+<td>辅助定位 API 合同、课程模板、资料问答和前端构建中的问题</td>
+</tr>
+<tr class="odd">
+<td>文档整理</td>
+<td>辅助把赛题要求、运行方式、数据边界、测试方式和提交材料写成可核验文档</td>
+</tr>
+</tbody>
+</table>
+<p>这些工作都需要人工确认。AI 工具给出的建议不会直接作为最终结论，必须能对应真实代码、真实页面、真实配置或真实验证结果。</p>
+<h2 id="未交给-ai-工具决定的内容">未交给 AI 工具决定的内容</h2>
+<p>以下内容由团队自行判断和确认：</p>
+<ul>
+<li>赛题理解、作品定位和展示主线。</li>
+<li>选择哪一门课程作为主课程。</li>
+<li>科大讯飞账号、模型权限和服务开通。</li>
+<li><code>.env</code> 中的真实密钥和本地配置。</li>
+<li>是否使用真实云端服务或带标记的替代结果。</li>
+<li>Docker 环境是否可运行。</li>
+<li>7 分钟视频录制、PPT 取舍和最终提交包内容。</li>
+</ul>
+<p>换句话说，AI 工具参与的是开发辅助，不替代团队对作品真实性和可运行性的责任。</p>
+<h2 id="人工复核方式">人工复核方式</h2>
+<p>团队对 AI 辅助内容按以下方式复核：</p>
+<table>
+<thead>
+<tr class="header">
+<th>复核内容</th>
+<th>复核方式</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>文档中的路径</td>
+<td>对照仓库真实文件和页面截图</td>
+</tr>
+<tr class="even">
+<td>文档中的接口</td>
+<td>对照 FastAPI 路由和前端 API 客户端</td>
+</tr>
+<tr class="odd">
+<td>课程模板</td>
+<td>运行 <code>python scripts/check_course_templates.py</code></td>
+</tr>
+<tr class="even">
+<td>API 合同</td>
+<td>运行 <code>python scripts/check_web_api_contract.py</code></td>
+</tr>
+<tr class="odd">
+<td>项目结构和文档链接</td>
+<td>运行 <code>python scripts/check_project_standards.py</code></td>
+</tr>
+<tr class="even">
+<td>前端页面</td>
+<td>使用当前前端截图和可运行页面核对</td>
+</tr>
+<tr class="odd">
+<td>提交边界</td>
+<td>检查 <code>.env</code>、真实用户数据和本地运行数据不进入提交包</td>
+</tr>
+</tbody>
+</table>
+<p>如果某段文档不能对应项目里的真实文件、真实接口或真实页面，就不作为最终说明。</p>
+<h2 id="密钥与隐私边界">密钥与隐私边界</h2>
+<p>AI 编程助手不应接触或生成真实密钥。提交包中不应包含：</p>
+<ul>
+<li><code>.env</code>。</li>
+<li>API Key、API Secret、APIPassword、账号 Token。</li>
+<li>本地下载的账号 JSON。</li>
+<li>真实学生姓名、联系方式、语音材料、学习记录和个人画像。</li>
+<li>未脱敏截图或未授权课程资料。</li>
+</ul>
+<p>如果提交材料需要展示学习记录，应使用脱敏样例，只保留课程、知识点、任务、分数和反馈类型。</p>
+<h2 id="结果归属">结果归属</h2>
+<p>SparkWeave 最终提交的是团队作品。AI 编程助手提供的是阅读、修改、检查和文档辅助；项目是否满足赛题要求，要以可运行系统、源码、课程模板、配置说明、测试结果、演示视频和提交材料为准。</p>
+<h2 id="可放入提交材料的简短版本">可放入提交材料的简短版本</h2>
+<p>本项目开发过程中使用 AI 编程助手辅助代码梳理、前端优化、讯飞工具接入、测试修复和文档整理。需求判断、赛题取舍、密钥配置、真实服务开通、运行验证、视频录制和最终提交由团队负责。AI 工具不生成或提交真实密钥；<code>.env</code>、账号凭证、真实学生数据和未脱敏材料不进入提交包。</p>
+</main>
+</div>
+</body>
+</html>

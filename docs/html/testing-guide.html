@@ -1,0 +1,268 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>测试规范</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="测试与验证说明">测试与验证说明</h1>
+<p>本篇面向评委说明 SparkWeave 如何验证。这里不把测试目录逐个展开，而是围绕验收时最关心的几件事：系统能不能启动，课程能不能选用，资料问答有没有来源，学习记录能不能影响画像，前后端接口是否一致。</p>
+<h2 id="验证思路">验证思路</h2>
+<p>SparkWeave 的验证分成两层。</p>
+<p>第一层是现场操作。评委可以从前端进入学习、资料、问问题、记录、设置，直接确认作品是不是围绕真实学习流程展开。</p>
+<p>第二层是自动检查。项目提供课程模板、API 合同、前端构建、后端编译、发布边界和 RAG 验收等验证入口，用来证明页面背后的代码、接口和数据结构没有脱节。</p>
+<h2 id="启动验证">启动验证</h2>
+<p>从仓库根目录启动完整服务：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+<p>服务启动后，评委可访问：</p>
+<table>
+<thead>
+<tr class="header">
+<th>地址</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>http://127.0.0.1:3782</code></td>
+<td>前端工作台</td>
+</tr>
+<tr class="even">
+<td><code>http://127.0.0.1:8001/api/v1/system/status</code></td>
+<td>后端状态和模型配置状态</td>
+</tr>
+<tr class="odd">
+<td><code>http://127.0.0.1:8001/api/v1/knowledge/health</code></td>
+<td>资料库服务状态</td>
+</tr>
+<tr class="even">
+<td><code>http://127.0.0.1:8001/api/v1/guide/v2/health</code></td>
+<td>学习路径服务状态</td>
+</tr>
+</tbody>
+</table>
+<p>如果前端可以进入工作台、后端状态接口返回 JSON，并且学习页能看到课程模板，就可以继续做功能验收。</p>
+<h2 id="现场验收主线">现场验收主线</h2>
+<p>建议按这条顺序检查，能覆盖赛题的大部分要求：</p>
+<ol type="1">
+<li>进入学习页，选择 <code>深度学习</code>，生成学习路线。</li>
+<li>打开一个学习任务，查看系统给出的学习目标、资源建议和练习。</li>
+<li>在资料页创建知识库并上传可公开的课程材料。</li>
+<li>在问问题页基于资料提问，检查回答里是否带有资料来源。</li>
+<li>完成一个任务或提交学习反馈，再到记录页查看画像、薄弱点和下一步建议。</li>
+<li>打开课程助教页，查看长期助教、提醒任务和 QQ 等通道入口。</li>
+<li>打开设置页，查看模型、Embedding、搜索、OCR、语音、讯飞工作流等配置入口和连接状态。</li>
+</ol>
+<p>这条路径重点验证作品是否真的把“画像、路径、资源、辅导、评估”连在一起，而不是只做了单点问答。</p>
+<h2 id="自动验证入口">自动验证入口</h2>
+<table>
+<thead>
+<tr class="header">
+<th>验证内容</th>
+<th>命令</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>项目结构、文档链接和提交边界</td>
+<td><code>python scripts/verify_project.py --profile quick</code></td>
+<td>综合检查项目基础质量</td>
+</tr>
+<tr class="even">
+<td>课程模板完整性</td>
+<td><code>python scripts/check_course_templates.py</code></td>
+<td>验证课程 <code>id</code>、节点、任务和学习样例</td>
+</tr>
+<tr class="odd">
+<td>前后端 API 是否一致</td>
+<td><code>python scripts/check_web_api_contract.py</code></td>
+<td>检查前端调用的接口是否存在于后端</td>
+</tr>
+<tr class="even">
+<td>发布前敏感内容检查</td>
+<td><code>python scripts/check_release_safety.py</code></td>
+<td>检查本地密钥和旧项目名等不应提交内容</td>
+</tr>
+<tr class="odd">
+<td>Python 源码编译</td>
+<td><code>python -m compileall -q sparkweave sparkweave_cli scripts</code></td>
+<td>快速发现语法错误</td>
+</tr>
+<tr class="even">
+<td>后端单元测试</td>
+<td><code>python -m pytest tests</code></td>
+<td>覆盖 API、RAG、画像、能力路由和服务层</td>
+</tr>
+<tr class="odd">
+<td>前端验证</td>
+<td><code>npm run verify</code>（在 <code>web/</code> 目录）</td>
+<td>覆盖设计约束、API 合同、Lint、构建和轻量页面检查</td>
+</tr>
+<tr class="even">
+<td>前端构建</td>
+<td><code>npm run build</code>（在 <code>web/</code> 目录）</td>
+<td>验证生产构建是否成功</td>
+</tr>
+</tbody>
+</table>
+<p>如果时间有限，建议优先跑：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/verify_project.py <span class="at">--profile</span> quick</span></code></pre></div>
+<p>再进入 <code>web/</code> 运行：</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run verify</span></code></pre></div>
+<p>这两步能覆盖课程模板、文档索引、API 合同、前端设计约束和构建结果。</p>
+<h2 id="资料问答验收">资料问答验收</h2>
+<p>资料问答是赛题里“资源生成”和“智能辅导”的关键证据。项目提供独立的 RAG 验收入口：</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/rag_e2e_acceptance.py <span class="at">--base-url</span> http://127.0.0.1:8001 <span class="at">--provider</span> milvus <span class="at">--cleanup</span></span></code></pre></div>
+<p>这个验证会走和前端一致的路径：创建知识库、上传材料、等待索引、检查文档清单、检查向量结果、进行资料检索，并要求结果中带有来源。若加上 <code>--chat-check</code>，还会验证问答 WebSocket 能使用同一个资料库。</p>
+<p>这项检查依赖后端和 Milvus 已经启动。若本机没有配置 Embedding 或外部模型服务，结果会反映在系统状态和 RAG 诊断中，不能把它当作真实资料问答已通过。</p>
+<h2 id="前端页面验收">前端页面验收</h2>
+<p>前端验证重点不是页面是否“炫”，而是学习路径是否清楚、入口是否服务真实学习。对应检查包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th>页面</th>
+<th>验收点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>学习</td>
+<td>能选择完整课程，能生成路线，能推进任务</td>
+</tr>
+<tr class="even">
+<td>资料</td>
+<td>能创建知识库，上传材料，查看资料状态</td>
+</tr>
+<tr class="odd">
+<td>问问题</td>
+<td>能基于资料或学习上下文回答，能展示来源和 Agentic RAG 过程</td>
+</tr>
+<tr class="even">
+<td>记录 / 画像</td>
+<td>能看到学习证据、薄弱点、偏好和建议</td>
+</tr>
+<tr class="odd">
+<td>设置</td>
+<td>能看到讯飞相关服务配置和状态</td>
+</tr>
+<tr class="even">
+<td>课程助教</td>
+<td>能展示长期课程助教、资料同步、提醒能力和 QQ 等通道配置；真实 QQ 收发需要平台凭据</td>
+</tr>
+</tbody>
+</table>
+<p>当前文档和提交材料引用的截图位于 <code>web/screenshots-*.png</code>。它们只作为阅读辅助，最终验收仍以可运行系统为准。</p>
+<h2 id="测试覆盖重点">测试覆盖重点</h2>
+<p>后端测试主要覆盖这些模块：</p>
+<table>
+<thead>
+<tr class="header">
+<th>范围</th>
+<th>代表目录</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>API 路由</td>
+<td><code>tests/api/</code></td>
+</tr>
+<tr class="even">
+<td>多智能体能力与路由</td>
+<td><code>tests/ng/</code>、<code>tests/capabilities/</code></td>
+</tr>
+<tr class="odd">
+<td>RAG 与知识库</td>
+<td><code>tests/services/rag/</code>、<code>tests/knowledge/</code></td>
+</tr>
+<tr class="even">
+<td>学习路径和画像</td>
+<td><code>tests/services/test_guide_v2.py</code>、<code>tests/api/test_learner_profile_router.py</code></td>
+</tr>
+<tr class="odd">
+<td>讯飞相关适配</td>
+<td><code>tests/services/llm/</code>、<code>tests/services/config/</code>、<code>tests/services/test_iflytek_formula.py</code>、<code>tests/services/test_iflytek_vision.py</code></td>
+</tr>
+<tr class="even">
+<td>命令行与验证入口</td>
+<td><code>tests/cli/</code>、<code>tests/scripts/</code></td>
+</tr>
+</tbody>
+</table>
+<p>前端测试和检查主要覆盖：</p>
+<table>
+<thead>
+<tr class="header">
+<th>范围</th>
+<th>代表入口</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>类型和构建</td>
+<td><code>npm run build</code></td>
+</tr>
+<tr class="even">
+<td>代码规则</td>
+<td><code>npm run lint</code></td>
+</tr>
+<tr class="odd">
+<td>页面设计约束</td>
+<td><code>npm run check:design</code></td>
+</tr>
+<tr class="even">
+<td>API 调用边界</td>
+<td><code>npm run check:api-contract</code></td>
+</tr>
+<tr class="odd">
+<td>页面轻量验收</td>
+<td><code>npm run test:e2e:isolated</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="结果判断">结果判断</h2>
+<p>一次较完整的验收应满足：</p>
+<ul>
+<li>Docker Compose 能启动前端、后端和 Milvus。</li>
+<li>学习页能选择至少一门完整高校课程。</li>
+<li>资料页能完成材料入库，问答结果能展示来源。</li>
+<li>记录页能看到学习证据进入画像，并影响后续建议。</li>
+<li>设置页能看到讯飞相关模型、搜索、OCR、语音和工作流配置。</li>
+<li>自动验证能通过课程模板、API 合同、前端构建和发布边界检查。</li>
+</ul>
+<p>如果某个外部服务没有真实密钥，应该在设置页或系统状态中明确显示未配置，而不是把未配置状态说成真实调用成功。</p>
+<h2 id="边界说明">边界说明</h2>
+<p>测试不能替代评委的实际体验。自动检查更擅长发现接口、路径、模板、构建和发布边界问题；学习效果、资源质量和答疑体验仍需要通过学习主线观察。SparkWeave 的验证目标是让这些证据能相互印证：页面能操作，接口能返回，数据能落盘，资料问答有来源，学习画像会变化。</p>
+</main>
+</div>
+</body>
+</html>

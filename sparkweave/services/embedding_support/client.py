@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -22,6 +23,21 @@ _ADAPTER_MAP: dict[str, type[BaseEmbeddingAdapter]] = {
     "jina": JinaEmbeddingAdapter,
     "ollama": OllamaEmbeddingAdapter,
 }
+
+
+_TRANSIENT_ERROR_MARKERS = (
+    "licc failed",
+    "rate limit",
+    "too many requests",
+    "timeout",
+    "temporarily",
+    "temporarily unavailable",
+    "connection reset",
+    "server disconnected",
+    "502",
+    "503",
+    "504",
+)
 
 
 def _resolve_adapter_class(binding: str) -> type[BaseEmbeddingAdapter]:
@@ -61,13 +77,45 @@ class EmbeddingClient:
             f"(model: {self.config.model}, dimensions: {self.config.dim})"
         )
 
+    def _max_attempts(self) -> int:
+        if self.config.binding == "iflytek_spark":
+            return 4
+        return 2
+
+    @staticmethod
+    def _is_transient_embedding_error(exc: Exception) -> bool:
+        text = str(exc).lower()
+        return any(marker in text for marker in _TRANSIENT_ERROR_MARKERS)
+
+    async def _embed_batch_with_retry(self, request: EmbeddingRequest):
+        attempts = self._max_attempts()
+        delay = max(0.5, self.config.batch_delay or 0.0)
+        last_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                return await self.adapter.embed(request)
+            except Exception as exc:
+                last_error = exc
+                if attempt >= attempts or not self._is_transient_embedding_error(exc):
+                    raise
+                wait_seconds = delay * attempt
+                self.logger.warning(
+                    "Embedding batch failed on attempt %s/%s; retrying in %.1fs: %s",
+                    attempt,
+                    attempts,
+                    wait_seconds,
+                    exc,
+                )
+                await asyncio.sleep(wait_seconds)
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Embedding request failed without an error.")
+
     async def embed(
         self, texts: List[str], progress_callback=None, input_type: str | None = None
     ) -> List[List[float]]:
         if not texts:
             return []
-
-        import asyncio
 
         batch_size = max(1, self.config.batch_size)
         all_embeddings: List[List[float]] = []
@@ -83,7 +131,7 @@ class EmbeddingClient:
                     dimensions=self.config.dim,
                     input_type=input_type,
                 )
-                response = await self.adapter.embed(request)
+                response = await self._embed_batch_with_retry(request)
                 all_embeddings.extend(response.embeddings)
 
                 # Report progress after each batch

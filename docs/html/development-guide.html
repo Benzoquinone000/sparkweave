@@ -1,0 +1,225 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>开发指南</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="开发与本地运行指南">开发与本地运行指南</h1>
+<p>本篇面向评委、助教和需要复现实验环境的同学，说明 SparkWeave 如何在本机运行、如何定位主要功能代码、如何做修改后的基本验证。推荐优先使用 Docker Compose，因为它同时启动前端、后端和 Milvus，最接近完整运行环境。</p>
+<h2 id="推荐运行方式">推荐运行方式</h2>
+<p>从仓库根目录复制配置文件：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> .env.example .env</span></code></pre></div>
+<p>Windows PowerShell 可使用：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span> <span class="op">.</span><span class="fu">env</span><span class="op">.</span><span class="fu">example</span> <span class="op">.</span><span class="fu">env</span></span></code></pre></div>
+<p>填写至少一组 LLM 与 Embedding 配置后启动：</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+<p>启动后访问：</p>
+<table>
+<thead>
+<tr class="header">
+<th>入口</th>
+<th>地址</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>前端工作台</td>
+<td><code>http://127.0.0.1:3782</code></td>
+</tr>
+<tr class="even">
+<td>后端 API</td>
+<td><code>http://127.0.0.1:8001</code></td>
+</tr>
+<tr class="odd">
+<td>后端状态</td>
+<td><code>http://127.0.0.1:8001/api/v1/system/status</code></td>
+</tr>
+<tr class="even">
+<td>API 文档</td>
+<td><code>http://127.0.0.1:8001/docs</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果只想确认系统是否已通，可以先看学习页是否能加载课程模板，再看资料页是否能创建知识库。</p>
+<h2 id="本地联调方式">本地联调方式</h2>
+<p>Docker 是推荐路线；本地联调适合需要改代码、看单元测试或单独查看前后端行为的场景。</p>
+<p>后端环境：</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">.venv\Scripts\activate</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-r</span> requirements/server.txt</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-e</span> .</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">sparkweave</span> serve <span class="at">--port</span> 8001 <span class="at">--reload</span></span></code></pre></div>
+<p>macOS / Linux 激活环境可使用：</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span></code></pre></div>
+<p>前端环境：</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> web</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run dev</span></code></pre></div>
+<p>前端默认读取 <code>VITE_API_BASE</code>。若后端端口不是 <code>8001</code>，可以在 <code>web/.env.local</code> 或启动环境里指定：</p>
+<pre class="env"><code>VITE_API_BASE=http://127.0.0.1:8001</code></pre>
+<h2 id="配置要点">配置要点</h2>
+<p><code>.env.example</code> 已按端口、LLM、Embedding、RAG、讯飞工具和安全设置分组。运行前建议至少确认：</p>
+<table>
+<thead>
+<tr class="header">
+<th>配置</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>LLM_BINDING</code>、<code>LLM_MODEL</code>、<code>LLM_API_KEY</code>、<code>LLM_HOST</code></td>
+<td>对话、资源生成、学习报告</td>
+</tr>
+<tr class="even">
+<td><code>EMBEDDING_BINDING</code>、<code>EMBEDDING_MODEL</code>、<code>EMBEDDING_API_KEY</code>、<code>EMBEDDING_HOST</code></td>
+<td>资料入库和 RAG 检索</td>
+</tr>
+<tr class="odd">
+<td><code>RAG_PROVIDER=milvus</code></td>
+<td>使用 Docker 中的 Milvus</td>
+</tr>
+<tr class="even">
+<td><code>DOCKER_MILVUS_URI=http://milvus:19530</code></td>
+<td>容器内访问 Milvus</td>
+</tr>
+<tr class="odd">
+<td><code>IFLYTEK_APPID</code>、<code>IFLYTEK_API_KEY</code>、<code>IFLYTEK_API_SECRET</code></td>
+<td>讯飞共享凭据</td>
+</tr>
+<tr class="even">
+<td><code>IFLYTEK_WORKFLOW_*</code></td>
+<td>星辰工作流</td>
+</tr>
+</tbody>
+</table>
+<p>如果模型服务运行在宿主机，Docker 容器里不要写 <code>localhost</code>。Windows 和 macOS 通常使用 <code>host.docker.internal</code>，Linux 可使用宿主机局域网 IP。</p>
+<h2 id="功能定位">功能定位</h2>
+<table>
+<thead>
+<tr class="header">
+<th>想看什么</th>
+<th>主要位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>后端应用如何启动</td>
+<td><code>sparkweave/api/app_factory.py</code>、<code>sparkweave/api/main.py</code></td>
+</tr>
+<tr class="even">
+<td>API 路由如何注册</td>
+<td><code>sparkweave/api/router_registry.py</code></td>
+</tr>
+<tr class="odd">
+<td>问问题和多智能体事件</td>
+<td><code>sparkweave/api/routers/unified_ws.py</code>、<code>sparkweave/runtime/</code></td>
+</tr>
+<tr class="even">
+<td>学习路线与资源生成</td>
+<td><code>sparkweave/api/routers/guide_v2.py</code>、<code>sparkweave/services/guide_v2.py</code></td>
+</tr>
+<tr class="odd">
+<td>学习画像</td>
+<td><code>sparkweave/services/learner_profile.py</code>、<code>sparkweave/services/learner_evidence.py</code></td>
+</tr>
+<tr class="even">
+<td>资料库与 RAG</td>
+<td><code>sparkweave/api/routers/knowledge.py</code>、<code>sparkweave/knowledge/manager.py</code>、<code>sparkweave/services/rag_support/</code></td>
+</tr>
+<tr class="odd">
+<td>讯飞工具接入</td>
+<td><code>sparkweave/services/iflytek_*.py</code>、<code>sparkweave/services/speech.py</code>、<code>sparkweave/services/tts.py</code></td>
+</tr>
+<tr class="even">
+<td>前端入口和路由</td>
+<td><code>web/src/router.tsx</code>、<code>web/src/routeConfig.ts</code></td>
+</tr>
+<tr class="odd">
+<td>前端页面</td>
+<td><code>web/src/pages/</code></td>
+</tr>
+<tr class="even">
+<td>前端 API 客户端</td>
+<td><code>web/src/lib/api.ts</code>、<code>web/src/lib/http.ts</code></td>
+</tr>
+<tr class="odd">
+<td>完整课程模板</td>
+<td><code>data/course_templates/</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="修改功能时的顺序">修改功能时的顺序</h2>
+<p>如果新增或调整功能，建议按这条顺序做：</p>
+<ol type="1">
+<li>先确认它服务哪条用户路径：学习、资料、记录、设置，还是更多学习工具。</li>
+<li>后端先补接口或服务，再让前端通过 <code>web/src/lib/api.ts</code> 调用。</li>
+<li>长时间任务使用 WebSocket 或 SSE 返回进度，避免页面只能等待最终结果。</li>
+<li>涉及学习行为的操作，要考虑是否写入学习证据和画像。</li>
+<li>涉及资料问答的操作，要考虑是否能展示来源。</li>
+<li>涉及讯飞工具的能力，要在设置页或系统状态里能看到配置与检测结果。</li>
+</ol>
+<p>这个顺序能帮助作品保持“学习体验优先”，而不是把每个工具都暴露成一个独立入口。</p>
+<h2 id="常用验证">常用验证</h2>
+<p>后端和项目结构：</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/verify_project.py <span class="at">--profile</span> quick</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/check_course_templates.py</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/check_web_api_contract.py</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> compileall <span class="at">-q</span> sparkweave sparkweave_cli scripts</span></code></pre></div>
+<p>前端：</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> web</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run lint</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run check:design</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run check:api-contract</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run build</span></code></pre></div>
+<p>完整前端验证：</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> web</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run verify</span></code></pre></div>
+<p>资料问答验收需要后端和 Milvus 已启动：</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/rag_e2e_acceptance.py <span class="at">--base-url</span> http://127.0.0.1:8001 <span class="at">--provider</span> milvus <span class="at">--cleanup</span></span></code></pre></div>
+<h2 id="提交前确认">提交前确认</h2>
+<p>提交或打包前，建议确认：</p>
+<ul>
+<li><code>.env</code>、真实密钥、账号 Token 不在提交包里。</li>
+<li><code>data/user/</code> 中没有真实学生记录、聊天记录或个人画像。</li>
+<li><code>data/course_templates/</code> 至少保留一门完整课程。</li>
+<li><code>web/screenshots-*.png</code> 与当前前端页面一致。</li>
+<li><code>docs/markdown/README.md</code> 中列出的文档都真实存在。</li>
+<li>Docker Compose 能启动前端、后端和 Milvus。</li>
+</ul>
+<h2 id="边界说明">边界说明</h2>
+<p>开发指南不是演示稿，也不是论文式架构说明。它只回答一个朴素问题：拿到项目的人如何把 SparkWeave 运行起来，并从代码里找到学习路线、资料问答、学习画像、多智能体和讯飞工具链的实现位置。真正的功能价值仍应回到前端学习流程中验证。</p>
+</main>
+</div>
+</body>
+</html>

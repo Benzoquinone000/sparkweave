@@ -1183,8 +1183,8 @@ test("sparkbot workspace files create and save through backend", async ({ page }
   await page.goto("/agents/math_bot/chat");
   await page.getByTestId("agent-workspace-tab-workspace").click();
   await expect(page.getByTestId("assistant-artifacts-panel")).toBeVisible();
-  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("高等数学资料库");
-  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("导数小测");
+  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("深度学习资料库");
+  await expect(page.getByTestId("assistant-artifacts-panel")).toContainText("CNN 小测");
   await expect(page.getByTestId("assistant-collaboration-route")).toContainText("学习记录");
   await expect(page.getByTestId("assistant-collaboration-route")).toContainText("讯飞多模态");
   await expect(page.getByTestId("assistant-collaboration-route")).toContainText("评估回写");
@@ -1202,17 +1202,17 @@ test("sparkbot workspace files create and save through backend", async ({ page }
 
   await page.getByTestId("assistant-multimodal-action-ocr").click();
   await page.getByTestId("assistant-ocr-file-input").setInputFiles({
-    name: "derivative-note.png",
+    name: "cnn-note.png",
     mimeType: "image/png",
     buffer: Buffer.from("fake-png"),
   });
-  await expect(page.getByTestId("assistant-ocr-preview")).toContainText("识别出的导数讲义内容");
+  await expect(page.getByTestId("assistant-ocr-preview")).toContainText("识别出的 CNN 讲义内容");
   await page.getByTestId("assistant-ocr-send").click();
-  await expect(page.getByTestId("sparkbot-chat-input")).toHaveValue(/识别出的导数讲义内容/);
+  await expect(page.getByTestId("sparkbot-chat-input")).toHaveValue(/识别出的 CNN 讲义内容/);
   await page.getByTestId("agent-workspace-tab-workspace").click();
   await page.getByTestId("sparkbot-files-toggle").click();
   await expect(page.getByTestId("sparkbot-files-toggle")).toContainText("课程资料");
-  await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/高等数学：极限与导数/);
+  await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/深度学习/);
   await page.getByTestId("sparkbot-file-SOUL.md").click();
   await expect(page.getByTestId("sparkbot-file-content")).toHaveValue(/# Math Bot/);
   await page.getByTestId("sparkbot-file-content").fill("# Math Bot\n\nUpdated prompt");
@@ -1240,23 +1240,23 @@ test("sparkbot create wizard builds a course assistant preset", async ({ page },
   const sparkbot = await mockSparkBotApis(page);
 
   await page.goto("/agents/math_bot/chat");
-  await expect(page.getByTestId("assistant-create-step-0")).toContainText("大模型与智能学习系统");
-  await page.getByTestId("assistant-course-higher_math_limits_derivatives").click();
+  await expect(page.getByTestId("assistant-create-step-0")).toContainText("深度学习");
+  await page.getByTestId("assistant-course-deep_learning_foundations").click();
   await page.getByTestId("assistant-create-next-style").click();
   await page.getByTestId("assistant-style-practice").click();
   await page.getByTestId("assistant-create-next-confirm").click();
-  await expect(page.getByTestId("assistant-create-bot-id")).toHaveValue("higher_math_derivatives_tutor");
-  await expect(page.getByTestId("assistant-create-name")).toHaveValue("高数导数助教");
+  await expect(page.getByTestId("assistant-create-bot-id")).toHaveValue("deep_learning_foundations_tutor");
+  await expect(page.getByTestId("assistant-create-name")).toHaveValue("深度学习助教");
   await expect(page.getByTestId("assistant-create-persona")).toHaveValue(/短练习/);
   await page.getByTestId("assistant-create-submit").click();
 
   await expect.poll(() => sparkbot.startPayload).toEqual(
     expect.objectContaining({
-      bot_id: "higher_math_derivatives_tutor",
-      name: "高数导数助教",
+      bot_id: "deep_learning_foundations_tutor",
+      name: "深度学习助教",
       description: expect.stringContaining("错因复盘"),
       auto_start: true,
-      persona: expect.stringContaining("高等数学：极限与导数"),
+      persona: expect.stringContaining("深度学习"),
     }),
   );
 });
@@ -5027,30 +5027,30 @@ async function mockMemoryApis(page: import("@playwright/test").Page) {
     generated_at: "2026-05-02T00:00:00.000Z",
     confidence: 0.82,
     overview: {
-      current_focus: "极限概念回顾",
-      preferred_time_budget_minutes: 10,
-      summary: "先把极限直觉补清楚，再继续做题。",
+      current_focus: "CNN 图像检索",
+      preferred_time_budget_minutes: 12,
+      summary: "先把 CNN 特征抽取补清楚，再继续看 Transformer。",
     },
     stable_profile: {
-      goals: ["高等数学复习"],
+      goals: ["深度学习复习"],
       preferences: ["短例题", "图解"],
       strengths: ["能根据步骤复盘"],
       constraints: ["希望一次只做一件事"],
     },
     learning_state: {
-      weak_points: [{ label: "左右极限辨析", confidence: 0.7, evidence_count: 2, severity: "medium", source_ids: [] }],
+      weak_points: [{ label: "CNN 特征抽取", confidence: 0.7, evidence_count: 2, severity: "medium", source_ids: [] }],
       mastery: [],
     },
     next_action: {
       kind: "weak_point",
-      title: "前测补基：左右极限辨析",
-      summary: "用 10 分钟做一个小诊断，确认左右极限的判断边界。",
+      title: "前测补基：CNN 特征抽取",
+      summary: "用 12 分钟做一个小诊断，确认卷积特征和检索排序的关系。",
       primary_label: "进入导学",
       estimated_minutes: 10,
       source_type: "weak_point",
-      source_label: "左右极限辨析",
+      source_label: "CNN 特征抽取",
       confidence: 0.8,
-      suggested_prompt: "左右极限辨析",
+      suggested_prompt: "CNN 特征抽取",
     },
     recommendations: ["先看图解，再做两道判断题。"],
     sources: [],
@@ -5553,12 +5553,12 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
     skillWritePayload?: { botId: string; skillName: string; content: string };
   } = {};
   const mathFiles: Record<string, string> = {
-    "SOUL.md": "# Math Bot",
-    "COURSE.md": "# 高等数学：极限与导数\n\n课程资料包用于演示助教默认打开真实课程材料。",
-    "LESSONS.md": "# Lessons\n\n1. 极限直观理解\n2. 导数与切线斜率",
-    "QUESTION_BANK.md": "# Question Bank\n\n1. 判断导数是否表示瞬时变化率。",
-    "RUBRIC.md": "# Rubric\n\n能解释切线斜率并完成小测。",
-    "RESOURCES.md": "# Resources\n\n高等数学导数章节讲义。",
+    "SOUL.md": "# Deep Learning Bot",
+    "COURSE.md": "# 深度学习\n\n课程资料包用于演示助教默认打开真实课程材料。",
+    "LESSONS.md": "# Lessons\n\n1. CNN 图像检索\n2. 注意力机制与 Transformer",
+    "QUESTION_BANK.md": "# Question Bank\n\n1. 判断 CNN 图像检索是否只依赖分类标签。",
+    "RUBRIC.md": "# Rubric\n\n能解释 CNN 特征抽取并完成小测。",
+    "RESOURCES.md": "# Resources\n\n深度学习 CNN 与 Transformer 章节讲义。",
   };
   const skills: Record<string, string> = {
     cron: "---\ndescription: Cron helper\n---\n# Cron\n\nUse scheduled tasks.",
@@ -5589,7 +5589,7 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
     await route.fulfill({
       json: {
         success: true,
-        text: "识别出的导数讲义内容：瞬时变化率等于切线斜率。",
+        text: "识别出的 CNN 讲义内容：卷积特征可以用于图像检索相似度排序。",
         provider: "iflytek",
         model: "iflytek:ocr",
       },
@@ -5605,17 +5605,17 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
         generated_at: "2026-05-14T10:00:00",
         confidence: 0.72,
         overview: {
-          current_focus: "导数与变化率",
+          current_focus: "CNN 图像检索",
           suggested_level: "巩固",
           preferred_time_budget_minutes: 12,
-          summary: "最近适合用小练习巩固概念。",
+          summary: "最近适合用小练习巩固模型结构。",
         },
-        stable_profile: { goals: ["完成高数复习"], preferences: ["图解", "小测"] },
-        learning_state: { weak_points: [{ label: "切线斜率", severity: "medium", source_ids: [], evidence_count: 2, confidence: 0.7 }], mastery: [] },
+        stable_profile: { goals: ["完成深度学习复习"], preferences: ["图解", "小测"] },
+        learning_state: { weak_points: [{ label: "CNN 特征抽取", severity: "medium", source_ids: [], evidence_count: 2, confidence: 0.7 }], mastery: [] },
         next_action: {
-          title: "先做一次导数小测",
-          summary: "依据最近的错题记录，先确认瞬时变化率。",
-          suggested_prompt: "请带我完成一次导数小测，并在最后复盘错因。",
+          title: "先做一次 CNN 小测",
+          summary: "依据最近的错题记录，先确认卷积特征和检索排序。",
+          suggested_prompt: "请带我完成一次 CNN 图像检索小测，并在最后复盘错因。",
         },
         recommendations: [],
         sources: [],
@@ -5626,16 +5626,16 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
   );
   const learningActions = [
     {
-      id: "le_derivative_quiz",
+      id: "le_cnn_quiz",
       type: "generate_practice",
-      title: "完成导数小测",
-      reason: "最近对切线斜率的解释还不稳定。",
-      target_concepts: ["导数"],
+      title: "完成 CNN 小测",
+      reason: "最近对 CNN 特征抽取的解释还不稳定。",
+      target_concepts: ["CNN"],
       estimated_minutes: 8,
       priority: 90,
       href: "/question",
       capability: "deep_question",
-      prompt: "请生成 3 道导数小测，并等我作答后分析错因。",
+      prompt: "请生成 3 道 CNN 图像检索小测，并等我作答后分析错因。",
       writes_back: ["mastery", "mistake_review"],
     },
   ];
@@ -5644,29 +5644,29 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
       json: {
         success: true,
         generated_at: 1_779_000_000,
-        course_id: "math",
+        course_id: "deep_learning",
         window: "14d",
-        overall: { score: 66, label: "巩固中", summary: "最近证据显示导数概念需要再练一次。" },
+        overall: { score: 66, label: "巩固中", summary: "最近证据显示 CNN 图像检索需要再练一次。" },
         dimensions: [],
         concepts: [],
         open_mistakes: [],
         remediation_loop: { total: 0, pending_remediation_count: 0, ready_for_retest_count: 0, closed_count: 0, items: [] },
         study_brief: {
-          headline: "今天先做导数小测",
-          summary: "用 8 分钟确认瞬时变化率和切线斜率。",
+          headline: "今天先做 CNN 小测",
+          summary: "用 8 分钟确认卷积特征和检索排序。",
           timebox_minutes: 8,
-          agenda: [{ label: "小测", minutes: 8, detail: "完成 3 道题", prompt: "请生成 3 道导数小测，并等我作答后分析错因。" }],
+          agenda: [{ label: "小测", minutes: 8, detail: "完成 3 道题", prompt: "请生成 3 道 CNN 图像检索小测，并等我作答后分析错因。" }],
           knowledge_evidence: {
-            title: "高等数学资料库",
-            kb_name: "calculus",
-            summary: "导数章节资料已可引用，今天优先围绕切线斜率组织小测和图解。",
+            title: "深度学习资料库",
+            kb_name: "deep_learning",
+            summary: "CNN 与图像检索章节资料已可引用，今天优先围绕特征抽取组织小测和图解。",
             status_label: "可引用",
-            focus_query: "导数与变化率",
+            focus_query: "CNN 图像检索",
             ready: true,
             metrics: [
               { label: "资料", value: "3 份" },
               { label: "状态", value: "可引用" },
-              { label: "焦点", value: "切线斜率" },
+              { label: "焦点", value: "CNN 特征" },
             ],
           },
         },
@@ -5675,17 +5675,17 @@ async function mockSparkBotApis(page: import("@playwright/test").Page) {
           ready: true,
           status: "ready",
           status_label: "可引用",
-          kb_name: "calculus",
+          kb_name: "deep_learning",
           provider: "milvus",
           document_count: 3,
-          focus_query: "导数与变化率",
-          summary: "导数章节资料已就绪，可以作为助教答疑和练习生成的依据。",
+          focus_query: "CNN 图像检索",
+          summary: "深度学习章节资料已就绪，可以作为助教答疑和练习生成的依据。",
           action_label: "打开资料库",
           action_href: "/knowledge",
           can_ground_actions: true,
         },
         next_actions: learningActions,
-        evidence_refs: [{ id: "ev-derivative-quiz", title: "导数小测", summary: "最近小测暴露切线斜率薄弱。", resource_type: "quiz" }],
+        evidence_refs: [{ id: "ev-cnn-quiz", title: "CNN 小测", summary: "最近小测暴露特征抽取薄弱。", resource_type: "quiz" }],
         summary: { event_count: 3 },
       },
     }),

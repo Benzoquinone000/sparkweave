@@ -1,0 +1,347 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>软件杯交付检查清单</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+<div class='doc-shell'>
+<aside class='doc-sidebar'>
+  <div class='doc-brand'><span class='doc-brand-mark'>S</span><span>SparkWeave 文档</span></div>
+  <nav>
+    <a href="./README.html">文档中心</a>
+    <a href="./software-cup-delivery-checklist.html">交付清单</a>
+    <a href="./project-structure.html">项目结构</a>
+    <a href="./feature-code-walkthrough.html">代码链路</a>
+    <a href="./course-template-guide.html">完整课程</a>
+    <a href="./presentation-video-guide.html">PPT 与视频</a>
+    <a href="./submission-package-guide.html">提交包</a>
+    <a href="./agent-orchestration-design.html">智能体编排</a>
+    <a href="./rag-system-design.html">RAG 资料问答</a>
+    <a href="./learner-profile-memory-design.html">学习画像</a>
+    <a href="./configuration-guide.html">配置指南</a>
+    <a href="./iflytek-toolchain-guide.html">讯飞工具链</a>
+    <a href="./frontend-design-guide.html">前端设计</a>
+    <a href="./data-storage-guide.html">数据存储</a>
+    <a href="./testing-guide.html">测试验证</a>
+    <a href="./api-development-guide.html">API 规范</a>
+    <a href="./development-guide.html">开发指南</a>
+    <a href="./engineering-standards.html">工程规范</a>
+    <a href="./ai-coding-disclosure.html">AI Coding</a>
+  </nav>
+</aside>
+<main class='doc-main'>
+<a class="back-link" href="./sparkweave-overview.html">返回项目说明</a>
+<h1 id="软件杯交付检查清单">软件杯交付检查清单</h1>
+<p>SparkWeave 面向 A3 赛题“基于大模型的个性化资源生成与学习多智能体系统开发”。作品把高校课程学习拆成一条可核验的主线：学生先说明目标和卡点，系统形成学习画像；随后围绕课程资料生成学习路径、图解、练习和讲解资源；学习结果再回到记录和画像里，影响下一步推荐。</p>
+<p>本文用于评委快速核对赛题要求、演示入口和提交材料。</p>
+<h2 id="答辩时可以突出什么">答辩时可以突出什么</h2>
+<p>SparkWeave 最值得讲的 idea 是“把教育智能体从功能展示变成学习闭环”。系统不要求学生先理解 RAG、Agent 或模型配置，而是把这些能力藏在学习动作后面：继续学习时读画像，问资料时走 Agentic RAG 查证据，卡住时由编排器自动调度图解、练习、动画或语音讲解，完成任务后把结果写回记录。课程助教还能通过通道配置接入 QQ，让系统从网页扩展到学生真实会用的入口。</p>
+<p>答辩时可以把技术主张说得更具体一点：<code>RagSupportService</code> 会对复杂问题生成多路查询计划，并用质量门判断证据够不够；<code>LearningCapabilityRouter</code> 会在规则和可选 LLM intent coordinator 之间做调度，而不是让学生挑 Agent；<code>LearnerEvidenceService</code> 用追加式账本保存学习行为，<code>ProfileContextInjector</code> 再把精简画像提示送回下一轮问答；<code>QQChannel</code> 让课程助教可以从 Web 管理页延伸到 QQ 私聊、群聊和提醒。</p>
+<table>
+<thead>
+<tr class="header">
+<th>创新点</th>
+<th>现场怎么证明</th>
+<th>代码依据</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>课程主线是真实的</td>
+<td>选择“深度学习”，展示 14 周课程、任务和课件资料</td>
+<td><code>data/course_templates/deep_learning/</code>、<code>scripts/check_course_templates.py</code></td>
+</tr>
+<tr class="even">
+<td>画像是带证据更新的</td>
+<td>提交反馈或练习后，到记录页看薄弱点和下一步建议</td>
+<td><code>learner_evidence.py</code>、<code>learner_profile.py</code>、<code>profile_context.py</code></td>
+</tr>
+<tr class="odd">
+<td>Agentic RAG 有质量门</td>
+<td>在资料页或问问题页展开来源，展示问题拆分、来源合并、覆盖度判断和弱证据补强</td>
+<td><code>rag_support/service.py</code>、<code>agentic_quality.py</code>、<code>agentic_repair.py</code></td>
+</tr>
+<tr class="even">
+<td>多智能体会自动调度</td>
+<td>同一个问题可以触发检索、图解、出题、动画或语音讲解，不要求学生手动挑 Agent</td>
+<td><code>runtime/capability_router.py</code>、<code>graphs/chat.py</code></td>
+</tr>
+<tr class="odd">
+<td>资源生成服务路径规划</td>
+<td>生成的图解、练习和讲解不是孤立素材，会回到当前任务里</td>
+<td><code>guide_v2.py</code> 的任务、资源和证据写回接口</td>
+</tr>
+<tr class="even">
+<td>课程助教能进 QQ</td>
+<td>课程助教页展示长期助教、提醒任务和通道配置</td>
+<td><code>sparkbot_support/channels.py</code>、<code>sparkbot.py</code></td>
+</tr>
+<tr class="odd">
+<td>讯飞工具不是摆设</td>
+<td>设置页能看到讯飞模型、Embedding、搜索、OCR、图片理解和语音入口，相关能力进入资料和辅导流程</td>
+<td><code>iflytek_spark_ws.py</code>、<code>embedding_support/adapters/iflytek_spark.py</code>、<code>iflytek_formula.py</code>、<code>iflytek_vision.py</code>、<code>speech.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="赛题要求对应关系">赛题要求对应关系</h2>
+<table>
+<thead>
+<tr class="header">
+<th>赛题要求</th>
+<th>SparkWeave 中的呈现</th>
+<th>评审时可查看</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>对话式学习画像自主构建</td>
+<td>学生目标、偏好、薄弱点、练习反馈和学习记录沉淀为画像；系统给出下一步建议，并保留证据来源</td>
+<td><a href="../../web/screenshots-memory.png">记录与画像页</a>、<a href="./learner-profile-memory-design.html">学习画像与记忆设计</a></td>
+</tr>
+<tr class="even">
+<td>多智能体协同的资源生成</td>
+<td>对话协调器根据任务自动调度解题、出题、检索、图解、动画、研究和课程助教等能力；复杂资料问题先进入 Agentic RAG 证据链</td>
+<td><a href="../../web/screenshots-chat.png">问问题页</a>、<a href="./agent-orchestration-design.html">智能体编排设计</a>、<a href="./rag-system-design.html">RAG 系统设计</a></td>
+</tr>
+<tr class="odd">
+<td>个性化学习路径规划和资源推送</td>
+<td>学习页按目标、时间预算和薄弱点生成当前任务、学习材料和提交反馈入口</td>
+<td><a href="../../web/screenshots-guide.png">学习页</a></td>
+</tr>
+<tr class="even">
+<td>智能辅导</td>
+<td>资料问答、图解、练习生成、公开视频推荐、图片/公式理解、语音讲解和可接 QQ 的课程助教用于即时答疑</td>
+<td><a href="../../web/screenshots-chat.png">问问题页</a>、<a href="../../web/screenshots-knowledge.png">资料页</a>、<a href="../../web/screenshots-agents.png">课程助教页</a></td>
+</tr>
+<tr class="odd">
+<td>学习效果评估</td>
+<td>练习结果、资源使用、反思和记录进入学习报告，生成薄弱点和下一步学习处方</td>
+<td><a href="../../web/screenshots-memory.png">记录与画像页</a></td>
+</tr>
+<tr class="even">
+<td>科大讯飞相关工具</td>
+<td>支持星火模型、MaaS Coding、星火 Embedding、ONE SEARCH、OCR、公式识别、图片理解、TTS、ASR、语音评测和星辰工作流</td>
+<td><a href="../../web/screenshots-settings.png">设置页</a>、<a href="./iflytek-toolchain-guide.html">科大讯飞工具链说明</a>、<a href="./configuration-guide.html">配置指南</a></td>
+</tr>
+<tr class="odd">
+<td>至少一门完整高校专业课程</td>
+<td>仓库内提供完整课程模板，主课程为“深度学习”，另接入“智能机器人系统”</td>
+<td><code>data/course_templates/deep_learning/deep_learning_foundations.json</code>、<code>data/course_templates/intelligent_robot_systems/intelligent_robot_systems.json</code>、<a href="./course-template-guide.html">完整课程样例说明</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="展示主线">展示主线</h2>
+<p>7 分钟视频建议按学生视角展开，不按技术模块堆功能。</p>
+<table>
+<thead>
+<tr class="header">
+<th>时间</th>
+<th>页面</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0:00-0:50</td>
+<td>学习</td>
+<td>选择课程目标，展示当前任务和学习路径</td>
+</tr>
+<tr class="even">
+<td>0:50-1:40</td>
+<td>记录 / 画像</td>
+<td>展示系统如何根据目标、薄弱点和偏好给出下一步建议</td>
+</tr>
+<tr class="odd">
+<td>1:40-2:40</td>
+<td>资料</td>
+<td>打开课程资料库，展示资料入库状态和可引用资料</td>
+</tr>
+<tr class="even">
+<td>2:40-3:50</td>
+<td>问问题</td>
+<td>围绕资料提问，展示 Agentic RAG 的问题拆分、证据来源和智能辅导回答</td>
+</tr>
+<tr class="odd">
+<td>3:50-5:00</td>
+<td>问问题 / 学习</td>
+<td>生成图解、练习、语音讲解或短视频讲解素材，体现智能体自动调度</td>
+</tr>
+<tr class="even">
+<td>5:00-6:00</td>
+<td>记录 / 画像</td>
+<td>提交练习或反馈，展示学习效果评估和下一步处方</td>
+</tr>
+<tr class="odd">
+<td>6:00-7:00</td>
+<td>设置 / 课程助教</td>
+<td>展示讯飞工具链配置、课程助教、QQ 通道和提交材料完整性</td>
+</tr>
+</tbody>
+</table>
+<p>这条路线的重点是证明“学习行为会改变系统下一步动作”，而不是只停留在一次问答。</p>
+<h2 id="完整课程">完整课程</h2>
+<p>推荐主课程使用：</p>
+<table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>模板文件</td>
+<td><code>data/course_templates/deep_learning/deep_learning_foundations.json</code></td>
+</tr>
+<tr class="even">
+<td>课程名称</td>
+<td>深度学习</td>
+</tr>
+<tr class="odd">
+<td>课程定位</td>
+<td>面向高校 AI / 计算机相关专业的 14 周、3 学分课程</td>
+</tr>
+<tr class="even">
+<td>课件来源</td>
+<td><code>ppts/深度学习/</code></td>
+</tr>
+<tr class="odd">
+<td>RAG 资料库</td>
+<td><code>data/knowledge_bases/深度学习/raw/</code>，由 <code>scripts/sync_course_materials_to_kb.py</code> 从课程模板同步</td>
+</tr>
+<tr class="even">
+<td>课程主线</td>
+<td>绪论、前馈神经网络、CNN、图像检索、多模态、RNN、注意力、Transformer、大模型应用、强化学习、无监督学习、生成模型</td>
+</tr>
+<tr class="odd">
+<td>适合使用原因</td>
+<td>课程本身足够完整，又自然需要图解、资料证据、练习反馈、路径规划和学习评估</td>
+</tr>
+</tbody>
+</table>
+<p>课程的周次、节点、任务和考核方式见 <a href="./course-template-guide.html">完整课程样例说明</a>。</p>
+<p>仓库还提供 <code>data/course_templates/intelligent_robot_systems/intelligent_robot_systems.json</code>，对应 <code>ppts/智能机器人系统/</code> 下的 11 章课件。视频主线建议仍用深度学习，机器人课程可作为答辩时的补充验证。</p>
+<p>同步课程资料库时运行：</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>sync_course_materials_to_kb<span class="op">.</span><span class="fu">py</span> <span class="op">--</span>stage<span class="op">-</span>only</span></code></pre></div>
+<p>如果要现场演示资料问答命中课件来源，需要在 Docker Compose、Milvus 和 Embedding 可用后重建索引：</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>python scripts<span class="op">/</span>sync_course_materials_to_kb<span class="op">.</span><span class="fu">py</span> <span class="op">--</span>index</span></code></pre></div>
+<h2 id="科大讯飞工具链">科大讯飞工具链</h2>
+<table>
+<thead>
+<tr class="header">
+<th>讯飞能力</th>
+<th>系统落点</th>
+<th>学习价值</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>星火大模型</td>
+<td>模型配置入口</td>
+<td>对话式辅导、资源生成、学习路径解释</td>
+</tr>
+<tr class="even">
+<td>MaaS Coding / Astron Code</td>
+<td>模型配置入口</td>
+<td>工程化实现、代码智能体和工具编排</td>
+</tr>
+<tr class="odd">
+<td>星火 Embedding</td>
+<td>向量模型配置入口</td>
+<td>课程资料向量化和资料问答</td>
+</tr>
+<tr class="even">
+<td>ONE SEARCH</td>
+<td>搜索服务配置入口</td>
+<td>公开资料、公开视频和外部材料补充</td>
+</tr>
+<tr class="odd">
+<td>OCR for LLM</td>
+<td>文档和图片解析</td>
+<td>扫描讲义、图片资料入库</td>
+</tr>
+<tr class="even">
+<td>公式识别</td>
+<td><code>iflytek_formula_ocr</code></td>
+<td>数学题图、手写公式进入解题和辅导链路</td>
+</tr>
+<tr class="odd">
+<td>图片理解</td>
+<td><code>iflytek_image_understanding</code></td>
+<td>板书、实验图、截图先被解释，再进入答疑</td>
+</tr>
+<tr class="even">
+<td>TTS</td>
+<td>语音讲解</td>
+<td>为短视频讲解或音频辅导生成旁白</td>
+</tr>
+<tr class="odd">
+<td>ASR</td>
+<td>语音输入</td>
+<td>学生口述问题、课堂录音转文字</td>
+</tr>
+<tr class="even">
+<td>语音评测</td>
+<td>学习效果证据</td>
+<td>口语或朗读类任务可写入评估记录</td>
+</tr>
+<tr class="odd">
+<td>星辰工作流</td>
+<td><code>iflytek_workflow</code></td>
+<td>接入已发布工作流，生成课程资源或诊断报告</td>
+</tr>
+</tbody>
+</table>
+<h2 id="提交材料清单">提交材料清单</h2>
+<table>
+<thead>
+<tr class="header">
+<th>提交物</th>
+<th>SparkWeave 对应内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>演示 PPT</td>
+<td>建议围绕“画像 -&gt; 资源生成 -&gt; 路径规划 -&gt; 智能辅导 -&gt; 效果评估”五段组织</td>
+</tr>
+<tr class="even">
+<td>可运行源码</td>
+<td><code>sparkweave/</code>、<code>sparkweave_cli/</code>、<code>web/</code>、<code>scripts/</code>、<code>requirements/</code>、<code>docker-compose.yml</code></td>
+</tr>
+<tr class="odd">
+<td>数据集 / 课程数据</td>
+<td><code>data/course_templates/</code> 中的完整课程模板</td>
+</tr>
+<tr class="even">
+<td>模型部署配置</td>
+<td><code>.env.example</code>、<code>docker-compose.yml</code>、<code>Dockerfile</code>、设置页模型与工具配置</td>
+</tr>
+<tr class="odd">
+<td>演示视频</td>
+<td>7 分钟内按上方演示主线录制</td>
+</tr>
+<tr class="even">
+<td>配套文档</td>
+<td>根目录 README、<code>docs/</code> 下各设计说明和<a href="./submission-package-guide.html">提交包整理说明</a></td>
+</tr>
+<tr class="odd">
+<td>AI Coding 说明</td>
+<td>见 <a href="./ai-coding-disclosure.html">AI Coding 使用说明</a>，说明辅助范围、人工复核、密钥和隐私边界</td>
+</tr>
+</tbody>
+</table>
+<h2 id="边界说明">边界说明</h2>
+<ul>
+<li>展示环境不提交真实 API Key、账号凭证和用户私有资料。</li>
+<li>真实讯飞服务需要在本地环境中配置密钥；未配置密钥时，相关工具会返回明确标记的替代结果，避免把展示材料误认为真实服务调用。</li>
+<li>画像和学习效果评估基于学习行为证据，不等同于正式教育测量模型。</li>
+<li>多智能体协作以当前项目内可运行能力为准，第三方插件能力不作为核心评分依赖。</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

@@ -57,6 +57,7 @@ export function useGuideActions({
     setPrescriptionTaskId,
     setReflection,
     setResourceJobId,
+    setResourceJobSnapshot,
     setSaveMessage,
     setSelectedSessionId,
     setSourceAction,
@@ -108,6 +109,7 @@ export function useGuideActions({
     refetchSessions,
     refetchStudyPlan,
     setGeneratingType,
+    setResourceJobSnapshot,
     setResourceJobId,
     setSaveMessage,
   });
@@ -161,6 +163,7 @@ export function useGuideActions({
     setPrescriptionFeedback,
     setPrescriptionTaskId,
     setResourceJobId,
+    setResourceJobSnapshot,
     setSaveMessage,
   });
   const runDemoRecordingCue = buildGuideDemoCueAction({

@@ -80,7 +80,7 @@ export function MobileNavigation({
         >
           <summary className="dt-interactive flex min-h-9 cursor-pointer list-none items-center gap-2 text-xs font-semibold text-charcoal [&::-webkit-details-marker]:hidden">
             <MoreHorizontal size={16} />
-            更多入口
+            更多工具
           </summary>
           <div className="mt-2.5 space-y-3 border-t border-line pt-2.5">
             {MORE_MOBILE_GROUPS.map((group) => (

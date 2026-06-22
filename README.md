@@ -5,401 +5,211 @@
 <h1 align="center">SparkWeave 星火织学</h1>
 
 <p align="center">
-  <strong>面向真实学习场景的 Agent-Native 智能学习工作台</strong>
+  面向高校课程学习的多智能体学习工作台
 </p>
 
 <p align="center">
-  SparkWeave 把课程资料、问答、练习、学习记录、学习画像和多智能体能力收进一个低噪声的学习入口，让用户先完成学习任务，而不是先理解工程系统。
-</p>
-
-<p align="center">
-  <a href="https://github.com/Benzoquinone000/sparkweave/actions/workflows/ci.yml">
-    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Benzoquinone000/sparkweave/ci.yml?branch=main&label=CI&style=flat-square" />
-  </a>
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-2563EB?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-TypeScript-0F766E?style=flat-square" />
   <img alt="Docker" src="https://img.shields.io/badge/Deploy-Docker_Compose-0F766E?style=flat-square" />
   <img alt="License" src="https://img.shields.io/badge/License-Apache--2.0-111827?style=flat-square" />
 </p>
 
-<p align="center">
-  <a href="#功能说明">功能说明</a> ·
-  <a href="#页面截图">页面截图</a> ·
-  <a href="#docker-部署">Docker 部署</a> ·
-  <a href="#参赛交付">参赛交付</a> ·
-  <a href="#系统架构">系统架构</a> ·
-  <a href="#项目结构">项目结构</a>
-</p>
+## 项目是什么
 
-## 项目定位
+SparkWeave 做的是一个可以运行的个性化学习系统，而不是单独的聊天页面。学生从一门课程开始，系统根据目标、资料、练习反馈和学习记录生成学习路径、学习资源和下一步建议；资料问答会保留来源，学习行为会回到记录和画像里。
 
-SparkWeave 是一个个性化学习工作台。默认入口保持简洁：学习、资料、记录、设置。Agent、RAG、画像、诊断、演示和调试能力默认后台化，真正暴露给用户的是继续学习、上传资料、问资料、做练习和复盘记录。
+前端入口尽量保持简单：学习、资料、记录、设置。智能体、RAG、画像、图解、语音、公式识别这些能力不抢主入口，而是在学习过程中被调用。
 
-后端使用 FastAPI、LangGraph、Milvus 和统一的 Agent Runtime；前端使用 React、TypeScript、TanStack Router 和 Vite。项目当前推荐且唯一写入 README 的启动方式是 Docker Compose。
+项目面向软件杯 A3 赛题“基于大模型的个性化资源生成与学习多智能体系统开发”，重点覆盖：
 
-## 功能说明
+| 赛题要求 | SparkWeave 中的落点 |
+| --- | --- |
+| 对话式学习画像 | 目标、偏好、薄弱点、练习反馈和学习记录进入画像 |
+| 多智能体资源生成 | 对话协调器调度资料检索、出题、解题、图解、动画、语音等能力 |
+| 个性化路径规划 | 学习页按课程目标、时间预算和画像生成当前任务 |
+| 智能辅导 | 问问题页和资料页支持带来源的答疑、多模态输入和学习资源生成 |
+| 学习效果评估 | 练习、反思和资源使用反馈进入记录页，影响下一步建议 |
+| 科大讯飞工具 | 星火、MaaS Coding、Embedding、ONE SEARCH、OCR、公式识别、图片理解、TTS、ASR、语音评测和星辰工作流都有配置或工具落点 |
 
-| 功能 | 用户看到的价值 | 后台能力 |
+## 核心创新点
+
+下面这些点都能从页面追到代码，不是只写在答辩稿里的概念。SparkWeave 的核心设计是把“画像 -> 资料证据 -> 智能体调度 -> 资源生成 -> 评估回写”做成一条学习链路：前端保持学习入口简单，后端用路由器、Agentic RAG、证据账本和通道层把复杂能力接起来。
+
+| 创新点 | 技术实现 | 在系统里怎么看 |
 | --- | --- | --- |
-| 个性化学习路线 | 打开首页就知道今天下一步学什么 | Guide、Learning Effect、Learner Profile |
-| 资料库 | 上传课程 PDF、笔记或资料后用于问答 | Milvus、Embedding、RAG 入库与检索 |
-| 问资料 | 围绕资料直接提问，回答保留证据链 | Chat Graph、Agentic Evidence RAG、Context Pack |
-| 练习生成 | 根据主题生成练习并沉淀错题 | Deep Question、Question Notebook |
-| 学习记录 | 保存对话、笔记、题目和资料引用 | Notebook、Session Store |
-| 学习画像 | 查看系统为什么这样推荐，并校准偏好 | Memory、Evidence Ledger、Learner Profile |
-| 课程助教 | 用课程文件驱动一个长期课程助手 | SparkBot、课程文件、历史对话 |
-| 写作助手 | 对选中文本做润色、扩写和改写 | Co-writer tool chain |
-| 图像解题 | 上传题图，提取结构并生成解题结果 | Vision pipeline、GeoGebra command |
-| 设置与诊断 | 配置模型、Embedding、搜索、OCR、TTS | Provider catalog、健康检查 |
-| 调试台 | 给开发者检查工具、能力和运行状态 | Plugin / capability playground |
+| Agentic RAG 质量门 | `rag_support/service.py` 会先生成 query plan，再并发执行多路检索；`agentic_quality.py` 按来源数、覆盖度、相关覆盖度、上下文长度和分数给出质量报告；证据弱时由 `agentic_repair.py` 修复分支或保守回退 | 资料页、`RagAgenticTrace.tsx`、RAG 设计文档 |
+| 证据化学习画像 | `learner_evidence.py` 使用追加式 `evidence.jsonl` 保存导学、练习、资源和校准事件；`learner_profile.py` 聚合成画像快照；`profile_context.py` 只把精简提示注入运行上下文 | 记录 / 画像页、学习画像设计文档 |
+| 自动调度的多智能体 | `LearningCapabilityRouter` 先按规则判断解释、解题、出题、图解、动画、研究和外部资源搜索，置信度不足时可用 LLM intent coordinator 细分；同时尊重“不要联网 / 不用工具 / 不开画布”等约束 | 问问题页、智能体编排文档 |
+| 课程模板和 RAG 同源 | 课程 JSON 通过 `source_materials` 指向真实课件，`sync_course_materials_to_kb.py` 把课件同步到课程资料库，学习路径和资料问答围绕同一门课展开 | 深度学习课程、资料页、课程模板说明 |
+| QQ 可接入课程助教 | `sparkbot_support/config_models.py` 定义 `qq` 通道，`channels.py` 的 `QQChannel` 处理私聊、群聊和提醒发送；未配置凭据时退回内存通道，管理能力仍可演示 | 课程助教页、`sparkweave/services/sparkbot_support/` |
+| 讯飞能力嵌入场景 | 星火模型、Spark Embedding、ONE SEARCH、OCR、公式识别、图片理解、TTS、ASR、语音评测和星辰工作流分别接在模型、资料、搜索、多模态输入、语音讲解和评估链路上 | 设置页、资料页、问问题页、讯飞工具链文档 |
+| 学习闭环优先 | 工程能力默认后台化，一级入口仍是学习、资料、记录、设置；结果回到任务和画像，而不是停留在一次问答结果 | 学习页、记录页、前端设计文档 |
 
-## 页面截图
+## 快速运行
 
-以下截图由当前前端重新生成，保存在 `web/` 目录。
-
-| 学习 | 资料 |
-| --- | --- |
-| <img src="web/screenshots-guide.png" alt="学习页面截图" /> | <img src="web/screenshots-knowledge.png" alt="资料页面截图" /> |
-| 个性化学习入口，聚焦下一步任务、学习路线和反馈。 | 管理资料库、上传资料、查看索引状态并进入资料问答。 |
-
-| 记录 | 设置 |
-| --- | --- |
-| <img src="web/screenshots-notebook.png" alt="记录页面截图" /> | <img src="web/screenshots-settings.png" alt="设置页面截图" /> |
-| 复盘笔记、题目、对话结果和资料引用。 | 管理模型、Embedding、搜索、OCR、TTS 与工作台偏好。 |
-
-| 问问题 | 练习 |
-| --- | --- |
-| <img src="web/screenshots-chat.png" alt="问问题页面截图" /> | <img src="web/screenshots-question.png" alt="练习页面截图" /> |
-| 简洁对话输入，支持资料上下文和智能体结果。 | 生成练习、查看题目记录并追踪答题结果。 |
-
-| 学习画像 | 课程助教 |
-| --- | --- |
-| <img src="web/screenshots-memory.png" alt="学习画像页面截图" /> | <img src="web/screenshots-agents.png" alt="课程助教页面截图" /> |
-| 展示偏好、薄弱点、证据来源和画像校准入口。 | 管理课程助教、课程文件、渠道与历史消息。 |
-
-| 写作助手 | 图像解题 |
-| --- | --- |
-| <img src="web/screenshots-co-writer.png" alt="写作助手页面截图" /> | <img src="web/screenshots-vision.png" alt="图像解题页面截图" /> |
-| 对学习材料和答案文本进行改写、润色、扩写。 | 上传题图，生成结构化分析和可复用命令。 |
-
-| 调试台 | 移动端入口 |
-| --- | --- |
-| <img src="web/screenshots-playground.png" alt="调试台页面截图" /> | <img src="web/screenshots-mobile-guide.png" alt="移动端学习页面截图" /> |
-| 面向开发者的工具、能力和运行状态检查入口。 | 移动端保持学习入口优先，适合随手继续学习。 |
-
-## Docker 部署
-
-### 1. 准备环境
-
-- Git
-- Docker Desktop，或 Docker Engine + Docker Compose v2
-- 一个可用的 LLM API Key
-- 一个可用的 Embedding API Key，资料库和 RAG 需要它
-
-Windows PowerShell：
+推荐用 Docker Compose 启动完整环境。它会同时拉起前端、后端和 Milvus，最接近评审时的运行方式。
 
 ```powershell
-git clone https://github.com/Benzoquinone000/sparkweave.git
-cd sparkweave
 copy .env.example .env
-```
-
-macOS / Linux：
-
-```bash
-git clone https://github.com/Benzoquinone000/sparkweave.git
-cd sparkweave
-cp .env.example .env
-```
-
-### 2. 配置 `.env`
-
-最小可运行配置如下：
-
-```dotenv
-BACKEND_PORT=8001
-FRONTEND_PORT=3782
-
-LLM_BINDING=openai
-LLM_MODEL=gpt-5.4-mini
-LLM_API_KEY=your-llm-key
-LLM_HOST=https://api.openai.com/v1
-
-EMBEDDING_BINDING=openai
-EMBEDDING_MODEL=text-embedding-3-large
-EMBEDDING_API_KEY=your-embedding-key
-EMBEDDING_HOST=https://api.openai.com/v1
-EMBEDDING_DIMENSION=3072
-
-RAG_PROVIDER=milvus
-DOCKER_MILVUS_URI=http://milvus:19530
-```
-
-也可以先用 Docker 启动后进入 `设置 -> 模型配置`，在 OpenAI、科大讯飞、DeepSeek、Gemini、通义千问、智谱、Kimi、Claude、硅基流动等预设中选择模型；如果供应商刚发布新模型，直接在模型名称里输入新的模型 ID 即可。
-
-如果 LLM 或 Embedding 服务跑在宿主机，例如 LM Studio、Ollama、vLLM，不要在容器里写 `localhost`。Windows / macOS 使用：
-
-```dotenv
-LLM_HOST=http://host.docker.internal:1234/v1
-EMBEDDING_HOST=http://host.docker.internal:1234/v1
-```
-
-Linux 可以改成宿主机局域网 IP，例如 `http://192.168.1.100:1234/v1`。
-
-### 3. 启动
-
-前台启动，适合首次部署和看日志：
-
-```powershell
 docker compose up --build
 ```
 
-后台启动：
+启动后访问：
 
-```powershell
-docker compose up -d --build
-```
-
-启动完成后访问：
-
-| 服务 | 地址 |
+| 入口 | 地址 |
 | --- | --- |
-| 前端工作台 | http://localhost:3782 |
-| 后端 API | http://localhost:8001 |
-| API 文档 | http://localhost:8001/docs |
-| Milvus Web UI | http://localhost:9091/webui/ |
+| 前端工作台 | http://127.0.0.1:3782 |
+| 后端 API | http://127.0.0.1:8001 |
+| API 文档 | http://127.0.0.1:8001/docs |
+| 系统状态 | http://127.0.0.1:8001/api/v1/system/status |
 
-### 4. 运维命令
+`.env.example` 已列出模型、Embedding、搜索、OCR、语音和讯飞工作流等配置项。至少需要配置一组可用的 LLM 和 Embedding，资料库问答才有完整效果。如果模型服务在宿主机运行，容器里不要写 `localhost`，Windows 和 macOS 通常用 `host.docker.internal`。
 
-```powershell
-docker compose ps
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose restart backend
-docker compose restart frontend
-docker compose down
-```
+## 建议核验路线
 
-重新构建：
+评委或老师拿到项目后，可以按下面这条路线看，不需要先读代码：
 
-```powershell
-docker compose build --no-cache
-docker compose up -d
-```
+1. 打开学习页，选择主课程“深度学习”。
+2. 生成学习路线，查看当前任务、学习资源和任务反馈入口。
+3. 打开资料页，创建资料库或查看已有课程资料。
+4. 在问问题页围绕课件内容提问，展开回答旁边的来源。
+5. 完成一次练习或提交反馈，再到记录页查看画像、薄弱点和下一步建议。
+6. 打开设置页，查看星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和星辰工作流的配置入口与连接检测。
 
-清理容器和 Compose volume：
+这条路线能同时看到课程主线、资料证据、多智能体协作、学习画像和讯飞工具链。
 
-```powershell
-docker compose down -v
-```
+## 主要页面
 
-`down -v` 会删除 Compose 管理的 volume，例如前端 `node_modules` 缓存；项目目录下的 `data/` 仍由本地文件夹保存。
-
-### 5. Docker 服务说明
-
-| 服务 | 作用 | 默认端口 |
+| 页面 | 作用 | 截图 |
 | --- | --- | --- |
-| `backend` | FastAPI 后端，`uvicorn --reload` 热更新 | `8001` |
-| `frontend` | Vite 前端，HMR 热更新 | `3782` |
-| `milvus` | 向量数据库，资料库检索默认依赖 | `19530`, `9091` |
-| `milvus-etcd` | Milvus 元数据服务 | 内部端口 |
-| `milvus-minio` | Milvus 对象存储 | 内部端口 |
+| 学习 | 选择课程、生成路线、推进任务和反馈学习效果 | [web/screenshots-guide.png](web/screenshots-guide.png) |
+| 资料 | 上传课程资料、管理知识库、查看资料处理状态 | [web/screenshots-knowledge.png](web/screenshots-knowledge.png) |
+| 问问题 | 基于资料或学习上下文提问，查看来源和多智能体结果 | [web/screenshots-chat.png](web/screenshots-chat.png) |
+| 记录 / 画像 | 查看学习证据、薄弱点、偏好和下一步建议 | [web/screenshots-memory.png](web/screenshots-memory.png) |
+| 设置 | 配置模型、Embedding、搜索、OCR、语音和讯飞工具 | [web/screenshots-settings.png](web/screenshots-settings.png) |
+| 课程助教 | 管理长期课程助教、课程资料、提醒任务和 QQ 等消息通道 | [web/screenshots-agents.png](web/screenshots-agents.png) |
 
-数据落点：
+更多前端设计取舍见 [前端设计说明](docs/markdown/frontend-design-guide.md)。
 
-| 路径 | 内容 |
-| --- | --- |
-| `data/user/` | 用户设置、记忆、画像、会话相关数据 |
-| `data/knowledge_bases/` | 本地资料库文件与处理结果 |
-| `data/milvus/` | Milvus etcd、minio、standalone 数据 |
-| `sparkweave_node_modules` | Docker Compose 管理的前端依赖缓存 |
+## 完整课程
 
-### 6. 常见问题
+评审演示建议仍固定使用主课程“深度学习”，模板位于 `data/course_templates/deep_learning/deep_learning_foundations.json`。它是一门 14 周、3 学分的高校专业课程，依据 `ppts/深度学习/` 下的课件组织，覆盖绪论、前馈神经网络、CNN、深度学习软硬件、CNN 图像检索、多模态学习、RNN、注意力机制、Transformer、大模型应用、强化学习、无监督学习和深度生成模型。
 
-| 问题 | 处理 |
-| --- | --- |
-| 前端第一次启动较慢 | `frontend` 容器会先执行 `npm ci`，首次等待即可 |
-| 端口被占用 | 在 `.env` 改 `BACKEND_PORT` 或 `FRONTEND_PORT` |
-| 容器访问不到本机模型 | 把 `localhost` 改为 `host.docker.internal` 或宿主机局域网 IP |
-| 上传资料后无法检索 | 确认 Embedding 配置和 Milvus 服务状态 |
-| Milvus 启动慢 | 首次启动需要初始化，查看 `docker compose logs -f milvus` |
-| `.env` 修改不生效 | 执行 `docker compose up -d --force-recreate` |
+仓库还接入了第二门课程“智能机器人系统”，模板位于 `data/course_templates/intelligent_robot_systems/intelligent_robot_systems.json`，课件放在 `ppts/智能机器人系统/`。这门课覆盖机器人概论、运动、控制与规划、传感、导航定位、ROS 基础、ROS 通信、roscpp/rospy、常用工具、TF/URDF 和基于 ROS 的导航应用，可用于展示系统对不同专业课程的迁移能力。
+
+课程模板中的 `source_materials` 会同步到对应资料库：`深度学习` 对应 `data/knowledge_bases/深度学习/raw/`，`智能机器人系统` 对应 `data/knowledge_bases/智能机器人系统/raw/`。新增或替换课件后，先运行：
+
+```powershell
+python scripts/sync_course_materials_to_kb.py --stage-only
+```
+
+如果 Docker Compose、Milvus 和 Embedding 服务已经可用，再重建索引，让资料问答真正检索到新课件：
+
+```powershell
+python scripts/sync_course_materials_to_kb.py --index
+```
+
+课程模板可用下面的命令校验：
+
+```powershell
+python scripts/check_course_templates.py
+```
+
+完整说明见 [完整课程样例说明](docs/markdown/course-template-guide.md)。
 
 ## 科大讯飞工具链
 
-比赛场景建议优先使用讯飞相关能力形成一条可展示链路：
+SparkWeave 把讯飞能力放在学习流程里，而不是单独做一个展示菜单：
 
-| 讯飞能力 | SparkWeave 落点 | 演示价值 |
-| --- | --- | --- |
-| 星火大模型 | LLM provider `iflytek_spark_ws` | 对话式辅导、资源生成、学习处方 |
-| MaaS Coding / Astron Code | LLM provider `iflytek_maas_coding` | 代码智能体、工具编排、赛题工程化实现 |
-| 星火 Embedding | Embedding provider `iflytek_spark` | 课程资料向量化与 RAG 检索 |
-| ONE SEARCH | Search provider `iflytek_spark` | 外部资料补充和视频/公开资料发现 |
-| OCR for LLM | 图片文字识别 / 扫描 PDF 入库 | 讲义截图、题图、扫描件转资料 |
-| 公式识别 | 工具 `iflytek_formula_ocr` | 手写公式、题图公式先转文本，再进入解题 / RAG / 验证链路 |
-| 图片理解 | 工具 `iflytek_image_understanding` | 板书、截图、示意图和实验图先被解释，再进入智能辅导 |
-| 超拟人 TTS | 语音讲解预览与短视频旁白 | 多模态讲解成品 |
-| 语音听写 ASR | 聊天语音输入 | 学生口述问题、课堂录音转写 |
-| 语音评测 ISE | 口语练习评分并写入证据 | 学习效果评估闭环 |
-| 星辰工作流 | 工具 `iflytek_workflow` | 接入讯飞智能体工作流，生成 PPT 大纲、课程资源或诊断报告 |
+| 能力 | 系统落点 |
+| --- | --- |
+| 星火大模型 | 对话辅导、资源生成、学习路径解释 |
+| MaaS Coding / Astron Code | 代码类任务、工具编排和代码讲解 |
+| Spark Embedding | 课程资料向量化和资料问答 |
+| ONE SEARCH | 公开资料、公开视频和外部学习资源补充 |
+| OCR for LLM | 扫描讲义、图片资料、题图文字入库 |
+| 公式识别 | 手写公式和题图公式进入解题或资料问答 |
+| 图片理解 | 板书、示意图、实验截图进入多模态辅导 |
+| TTS / ASR / 语音评测 | 语音讲解、口述提问和学习效果证据 |
+| 星辰工作流 | 接入已发布工作流，生成课程资源或诊断报告 |
 
-7 分钟录屏建议按三句话展开：
+配置细节见 [配置指南](docs/markdown/configuration-guide.md) 和 [科大讯飞工具链说明](docs/markdown/iflytek-toolchain-guide.md)。
 
-- 开场：打开“学习”页的比赛演示驾驶舱，说明项目已把星火、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和星辰工作流接到同一条学习链。
-- 中段：展示资料上传 / 问资料 / 图片或公式题解析，强调多模态输入会先被讯飞能力结构化，再进入 Agentic RAG、智能辅导和资源生成。
-- 收尾：展示学习报告、练习反馈、语音讲解或星辰工作流结果，说明系统把过程记录转成学习效果评估和下一步资源推送。
+## 代码结构
 
-如果已经在讯飞星辰平台发布了工作流，在 `.env` 中填写 `IFLYTEK_WORKFLOW_API_KEY`、`IFLYTEK_WORKFLOW_API_SECRET` 和 `IFLYTEK_WORKFLOW_FLOW_ID`，然后在聊天页打开“讯飞工作流”工具即可调用。
+| 路径 | 说明 |
+| --- | --- |
+| `sparkweave/` | 后端服务、多智能体运行时、RAG、学习画像和讯飞工具 |
+| `sparkweave_cli/` | Typer 命令行入口 |
+| `web/` | React + TypeScript 前端工作台 |
+| `data/course_templates/` | 完整课程模板 |
+| `ppts/深度学习/` | 主课程参考课件 |
+| `ppts/智能机器人系统/` | 智能机器人系统课程参考课件 |
+| `scripts/` | 项目检查、课程模板校验、课程资料入库、API 合同和资料问答验收 |
+| `requirements/` | Python 依赖分层 |
+| `docs/markdown/` | Markdown 源文档 |
+| `docs/html/` | HTML 阅读版文档 |
 
-讯飞 MaaS Coding / Astron Code 可作为问答模型或代码智能体模型使用。在 `.env` 中设置：
+更细的目录说明见 [项目结构说明](docs/markdown/project-structure.md)。
 
-```env
-LLM_BINDING=iflytek_maas_coding
-LLM_MODEL=astron-code-latest
-LLM_HOST=https://maas-coding-api.cn-huabei-1.xf-yun.com/v2
-IFLYTEK_MAAS_API_PASSWORD=your-maas-apipassword
-```
+## 文档入口
 
-也可以把 MaaS APIPassword 直接写入 `LLM_API_KEY`。如需使用 Anthropic-compatible 入口，
-可在自定义供应商中填写 `https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic`。
+HTML 版适合直接阅读和放进提交材料，Markdown 版适合维护。
 
-公式识别可复用共享的 `IFLYTEK_APPID`、`IFLYTEK_API_KEY`、`IFLYTEK_API_SECRET`，
-也可以单独填写 `IFLYTEK_FORMULA_APPID`、`IFLYTEK_FORMULA_API_KEY`、
-`IFLYTEK_FORMULA_API_SECRET`。聊天页打开“讯飞公式识别”后，题图会先被转成公式文本，
-再交给智能体解题或检索。
+| 文档 | 入口 |
+| --- | --- |
+| 一页版项目说明 | [docs/html/sparkweave-overview.html](docs/html/sparkweave-overview.html) |
+| HTML 文档中心 | [docs/html/README.html](docs/html/README.html) |
+| Markdown 文档中心 | [docs/markdown/README.md](docs/markdown/README.md) |
+| 功能代码链路说明 | [docs/markdown/feature-code-walkthrough.md](docs/markdown/feature-code-walkthrough.md) |
+| 软件杯交付检查清单 | [docs/markdown/software-cup-delivery-checklist.md](docs/markdown/software-cup-delivery-checklist.md) |
+| 提交包整理说明 | [docs/markdown/submission-package-guide.md](docs/markdown/submission-package-guide.md) |
+| AI Coding 使用说明 | [docs/markdown/ai-coding-disclosure.md](docs/markdown/ai-coding-disclosure.md) |
 
-图片理解可复用共享的 `IFLYTEK_APPID`、`IFLYTEK_API_KEY`、`IFLYTEK_API_SECRET`，
-也可以单独填写 `IFLYTEK_VISION_APPID`、`IFLYTEK_VISION_API_KEY`、
-`IFLYTEK_VISION_API_SECRET`。默认使用星火图片理解 `spark_image` 协议，
-需要切换星辰 MaaS 多模态接口时可把 `IFLYTEK_VISION_PROTOCOL` 改为 `maas_vl` 并配置对应 URL。
+## 提交边界
 
-讯飞能力默认带本地离线替补：当密钥、网络或产品权限不可用时，OCR / 公式识别 / 图片理解 /
-星辰工作流 / TTS / ASR / 语音评测会继续返回带 `fallback: true` 的占位结果，保证演示流程不中断。
-如需严格只使用真实讯飞服务，把 `SPARKWEAVE_IFLYTEK_OFFLINE_FALLBACK=0`。
+建议随项目提交：
 
-## 参赛交付
+- 源码、前端工程、Docker 配置和依赖说明。
+- `data/course_templates/` 中的完整课程模板。
+- `.env.example` 等不含密钥的配置示例。
+- 当前前端截图和配套文档。
 
-SparkWeave 面向“高等教育个性化学习资源体系 + 智能学习智能体系统”赛题整理为一条可演示主线：
+不应提交：
 
-| 赛题要求 | SparkWeave 对应能力 | 演示入口 |
-| --- | --- | --- |
-| 对话式学习画像自主构建 | 目标、薄弱点、偏好、历史证据进入 Learner Profile 与 Evidence Ledger | 学习页、学习画像页 |
-| 多智能体协同资源生成 | Orchestrator 调度 RAG、搜索、图解、公式、语音、工作流等工具 | 学习页、问问题页、课程助教 |
-| 个性化学习路径规划与资源推送 | Guide 根据画像、任务提交、练习反馈生成下一步资源 | 学习页 |
-| 智能辅导加分项 | Agentic RAG、图片理解、公式识别、TTS、数学动画和可追溯回答 | 问问题页、资料页、图像解题页 |
-| 学习效果评估加分项 | 练习提交、掌握分、错因、资源使用反馈进入学习报告和补救任务 | 学习页、记录页 |
-| 科大讯飞工具使用 | 星火、MaaS、Embedding、ONE SEARCH、OCR、公式识别、图片理解、语音和星辰工作流 | 设置页、学习页 |
+- `.env`、真实 API Key、账号 Token、私有服务地址。
+- 真实学生姓名、聊天记录、学习记录、语音材料和个人画像。
+- 未获授权的教材、课件、论文全文或课程资料。
+- `data/user/`、`data/milvus/`、`.venv/`、`node_modules/`、`web/dist/` 等本机生成内容。
 
-### 完整课程样例
+## 常用检查
 
-推荐主打 `data/course_templates/ai_learning_agents_systems.json`，主题贴合智能教育和多智能体系统；备用课程为 `higher_math_limits_derivatives.json` 与 `robotics_ros_foundations.json`。正式提交时建议固定一门课程，把课程模板、资料库文件、练习样例、学习报告和演示录屏使用同一套数据，避免答辩时主线分散。
-
-### 提交物清单
-
-| 提交物 | 当前仓库基础 | 提交前确认 |
-| --- | --- | --- |
-| 演示 PPT | 学习页课程产出包可生成 PPT 骨架，README 已给 7 分钟讲法 | 补截图、讯飞工具链图、评分点对齐页 |
-| 可运行源码与部署配置 | Docker Compose、`.env.example`、Milvus、前后端源码 | 提交前重跑质量检查，不提交 `.env` |
-| 7 分钟演示视频 | 学习页比赛演示驾驶舱、资料问答、练习反馈、报告 | 固定课程样例和兜底材料，按三段式录制 |
-| 配套文档 | README、docs 三条核心设计线、课程模板和截图 | 保持文档链接真实存在，避免堆临时计划文档 |
-| AI Coding 说明 | 下方说明可直接放入 PPT 或提交文档 | 标明人工复核、密钥边界和测试验证 |
-
-### AI Coding 工具说明
-
-本项目开发过程中使用 AI 编程助手辅助代码梳理、前端优化、讯飞工具接入、测试修复和文档整理。需求判断、赛题取舍、密钥配置、真实服务开通、运行验证、演示录制和最终提交由项目维护者负责。AI 工具不应生成或提交真实密钥；`.env`、本地下载的账号 JSON、临时凭证和未脱敏截图不进入仓库。
-
-## 系统架构
-
-### Agentic RAG 亮点
-
-SparkWeave 的资料问答不是简单向量召回。复杂问题会按需进入 Agentic Evidence RAG：先判断是否需要深度检索，再进行 HyDE 改写、多路子问题召回、结果合并、质量门检查和弱分支修复；如果证据不足，会回退到更稳的单路检索，避免把弱证据直接写进答案。
-
-```text
-学习入口 / 资料入口 / 记录入口 / 设置入口
-  -> React Web Workbench
-  -> FastAPI / WebSocket API
-  -> SparkWeaveApp / ChatOrchestrator
-  -> ToolRegistry + CapabilityRegistry
-  -> LangGraph capability graph
-  -> StreamEvent / Notebook / Memory / Milvus
-```
-
-<p align="center">
-  <img src="docs/assets/agent-orchestration-overview.png" alt="SparkWeave 智能体编排主链路图" />
-</p>
-
-<p align="center">
-  <img src="docs/assets/rag-system-overview.png" alt="SparkWeave Evidence RAG 系统图" />
-</p>
-
-## 质量检查
-
-在 Docker 环境内检查：
-
-```powershell
-docker compose exec backend python scripts/check_release_safety.py
-docker compose exec backend python -m compileall -q sparkweave tests
-docker compose exec frontend npm run lint
-docker compose exec frontend npm run check:design
-docker compose exec frontend npm run check:api-contract
-docker compose exec frontend npm run build
-```
-
-本地开发环境可以先跑与 CI 对齐的轻量检查：
+后端和项目结构：
 
 ```powershell
 python scripts/verify_project.py --profile quick
-python scripts/check_course_templates.py
 python scripts/check_project_standards.py
-python scripts/check_release_safety.py
+python scripts/check_course_templates.py
+python scripts/check_web_api_contract.py
+python -m compileall -q sparkweave sparkweave_cli scripts
+```
 
+前端：
+
+```powershell
 cd web
 npm run lint
 npm run check:design
 npm run check:api-contract
-npm run check:replacement
 npm run build
 ```
 
-Provider auth (`openai-codex` OAuth login; `github-copilot` validates an existing Copilot auth session).
-如果使用 `openai-codex` 或 `github-copilot` 等 Provider，请在本机完成对应登录或校验，并确认 CI 不依赖本地 OAuth 会话。
-
-只更新前端截图时：
+资料问答端到端验收需要后端和 Milvus 已启动：
 
 ```powershell
-cd web
-npm run screenshots
+python scripts/rag_e2e_acceptance.py --base-url http://127.0.0.1:8001 --provider milvus --cleanup
 ```
-
-## 项目结构
-
-```text
-sparkweave/        后端服务、Agent Runtime、LangGraph 能力图与业务服务
-sparkweave_cli/    Typer CLI 入口，供内部能力复用
-web/               Vite + React + TypeScript 前端
-scripts/           检查、维护、截图和开发辅助脚本
-requirements/      后端依赖分层
-docs/              稳定设计文档和 PNG 架构图
-assets/            Logo 与项目素材
-data/              本地知识库、Milvus、记忆和用户数据
-```
-
-## 设计文档
-
-| 文档 | 说明 |
-| --- | --- |
-| [docs/README.md](docs/README.md) | 文档中心 |
-| [docs/agent-orchestration-design.md](docs/agent-orchestration-design.md) | 智能体编排设计 |
-| [docs/rag-system-design.md](docs/rag-system-design.md) | Evidence RAG 系统设计 |
-| [docs/learner-profile-memory-design.md](docs/learner-profile-memory-design.md) | 学习画像与记忆设计 |
-| [docs/engineering-standards.md](docs/engineering-standards.md) | 软件工程边界、目录规范、文档治理和自动化门禁 |
-| [docs/development-guide.md](docs/development-guide.md) | 开发流程、质量检查和文档规范 |
-| [docs/configuration-guide.md](docs/configuration-guide.md) | 环境变量、供应商配置和讯飞工具链 |
-| [docs/api-development-guide.md](docs/api-development-guide.md) | 后端 API、WebSocket 和前后端契约规范 |
-| [docs/testing-guide.md](docs/testing-guide.md) | 测试分层、运行命令和提交前验证规范 |
-| [docs/frontend-design-guide.md](docs/frontend-design-guide.md) | 前端信息架构、视觉约束和动效规范 |
-| [docs/data-storage-guide.md](docs/data-storage-guide.md) | 本地数据目录、持久化边界和提交规范 |
-| [docs/software-cup-delivery-checklist.md](docs/software-cup-delivery-checklist.md) | 软件杯提交前的源码、文档、质量、安全和演示检查清单 |
 
 ## License
 

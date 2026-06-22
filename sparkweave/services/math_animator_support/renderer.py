@@ -30,6 +30,7 @@ QUALITY_FLAG_MAP = {
     "medium": "-qm",
     "high": "-qh",
 }
+DEFAULT_RENDER_QUALITY = "high"
 DEFAULT_RENDER_TIMEOUT_SECONDS = 900.0
 DEFAULT_RENDER_LOG_TAIL_LINES = 400
 
@@ -54,6 +55,11 @@ def _positive_int_from_env(name: str, default: int) -> int:
     except ValueError:
         return default
     return value if value > 0 else default
+
+
+def normalize_render_quality(value: str | None) -> str:
+    quality = str(value or "").strip().lower()
+    return quality if quality in QUALITY_FLAG_MAP else DEFAULT_RENDER_QUALITY
 
 
 class ManimRenderError(RuntimeError):
@@ -99,6 +105,7 @@ class ManimRenderService:
             path.mkdir(parents=True, exist_ok=True)
 
     async def render(self, *, code: str, output_mode: str, quality: str) -> RenderResult:
+        quality = normalize_render_quality(quality)
         await self._emit_progress(
             f"Preparing {output_mode} render workspace (quality={quality})."
         )
@@ -179,7 +186,10 @@ class ManimRenderService:
         quality: str,
         save_last_frame: bool,
     ) -> None:
-        quality_flag = QUALITY_FLAG_MAP.get(quality, "-qm")
+        quality_flag = QUALITY_FLAG_MAP.get(
+            normalize_render_quality(quality),
+            QUALITY_FLAG_MAP[DEFAULT_RENDER_QUALITY],
+        )
         command = [
             self.python_executable,
             "-m",

@@ -12,8 +12,8 @@ import { KNOWLEDGE_PANEL_LOOSE_CLASS } from "./styles";
 export function KnowledgeCreatePanel({
   name,
   files,
-  provider,
-  providers,
+  provider = "",
+  providers = [],
   creating,
   error,
   onNameChange,
@@ -24,16 +24,18 @@ export function KnowledgeCreatePanel({
 }: {
   name: string;
   files: File[];
-  provider: string;
-  providers: RagProvider[];
+  provider?: string;
+  providers?: RagProvider[];
   creating: boolean;
   error?: unknown;
   onNameChange: (value: string) => void;
   onFilesChange: (files: File[]) => void;
-  onProviderChange: (value: string) => void;
+  onProviderChange?: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onBack: () => void;
 }) {
+  const showProviderSelect = Boolean(providers.length && onProviderChange);
+
   return (
     <section className={KNOWLEDGE_PANEL_LOOSE_CLASS} data-testid="knowledge-create-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -59,19 +61,17 @@ export function KnowledgeCreatePanel({
             data-testid="knowledge-create-name"
           />
         </FieldShell>
-        <FieldShell label="查找服务">
-          <SelectInput value={provider} onChange={(event) => onProviderChange(event.target.value)}>
-            {providers.length ? (
-              providers.map((item) => (
+        {showProviderSelect ? (
+          <FieldShell label="查找服务">
+            <SelectInput value={provider} onChange={(event) => onProviderChange?.(event.target.value)}>
+              {providers.map((item) => (
                 <option key={item.name} value={item.name}>
                   {item.label || item.name}
                 </option>
-              ))
-            ) : (
-              <option value="">使用默认</option>
-            )}
-          </SelectInput>
-        </FieldShell>
+              ))}
+            </SelectInput>
+          </FieldShell>
+        ) : null}
         <FieldShell label="初始资料" hint="支持 PDF、Markdown、文本、代码等资料">
           <FileInput
             multiple

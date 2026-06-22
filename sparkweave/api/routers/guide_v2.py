@@ -107,7 +107,7 @@ class SubmitGuideV2ProfileDialogueRequest(BaseModel):
 class GenerateGuideV2ResourceRequest(BaseModel):
     resource_type: str = Field(default="visual", min_length=1)
     prompt: str = ""
-    quality: str = "low"
+    quality: str = "high"
 
 
 class SaveGuideV2ArtifactRequest(BaseModel):
@@ -587,7 +587,11 @@ async def start_task_resource_job(
             "learning_task_id": task_id,
             "resource_type": request.resource_type,
             "stage": "queued",
-            "message": "Resource generation queued.",
+            "message": "学习包生成已排队。",
+            "agent_steps": manager.describe_resource_agent_steps(
+                request.resource_type,
+                active_step="queued",
+            ),
         },
     )
     background_tasks.add_task(
@@ -604,6 +608,10 @@ async def start_task_resource_job(
         "session_id": session_id,
         "learning_task_id": task_id,
         "resource_type": request.resource_type,
+        "agent_steps": manager.describe_resource_agent_steps(
+            request.resource_type,
+            active_step="queued",
+        ),
     }
 
 
@@ -934,7 +942,11 @@ async def _run_resource_generation_job(
         {
             "stage": "running",
             "resource_type": resource_type,
-            "message": "Resource generation started.",
+            "message": "学习包生成已开始。",
+            "agent_steps": get_guide_v2_manager().describe_resource_agent_steps(
+                resource_type,
+                active_step="profile",
+            ),
         },
     )
     try:

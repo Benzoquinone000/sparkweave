@@ -1,11 +1,9 @@
 import type { FormEvent } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Settings2, Sparkles } from "lucide-react";
 
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldShell, TextArea } from "@/components/ui/Field";
 import type { GuideV2CourseTemplate } from "@/lib/types";
-import { DemoQuickStartCard } from "./GuideDemoCards";
 import { CourseTemplateQuickPick, SourceActionNotice } from "./GuideSetupPanels";
 
 export function GuideCreateRoutePanel({
@@ -13,7 +11,6 @@ export function GuideCreateRoutePanel({
   sourceAction,
   profileSuggestedPrompt,
   goal,
-  demoTemplate,
   templatesLoading,
   creating,
   courseTemplates,
@@ -39,58 +36,56 @@ export function GuideCreateRoutePanel({
   onPickTemplate: (template: GuideV2CourseTemplate) => void;
   onOpenSetup: () => void;
 }) {
+  const demoTemplate = courseTemplates.find((template) => template.id === "deep_learning_foundations") ?? null;
+
   return (
-    <section id="guide-create-section" className="rounded-lg border border-line bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Badge tone="brand">先做这一件事</Badge>
-          <h2 className="mt-3 text-xl font-semibold text-ink">{primaryActionLabel}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            写下目标、时间和偏好即可。路线、前测、资源和反馈都会在后面自动接上，不需要你自己找入口。
-          </p>
-        </div>
-      </div>
-      <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+    <section id="guide-create-section" className="flex h-full min-h-0 flex-col">
+      <form className="flex h-full min-h-0 flex-col gap-3" onSubmit={onSubmit}>
         <SourceActionNotice action={sourceAction} />
+
         {!sourceAction && profileSuggestedPrompt && goal.trim() === profileSuggestedPrompt ? (
-          <p className="rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs leading-5 text-charcoal">
-            已根据学习记录填好目标。你可以直接开始，也可以改成自己的说法。
+          <p className="line-clamp-1 rounded-lg border border-brand-purple-300 bg-tint-lavender px-3 py-2 text-xs text-charcoal">
+            已按学习记录填好目标，可以直接开始。
           </p>
         ) : null}
-        <DemoQuickStartCard
-          template={demoTemplate}
-          loading={templatesLoading}
-          busy={creating}
-          onStart={onStartDemo}
-        />
-        <CourseTemplateQuickPick
-          templates={courseTemplates}
-          demoTemplateId={demoTemplate?.id ?? ""}
-          selectedTemplateId={courseTemplateId}
-          busy={creating}
-          onPick={onPickTemplate}
-        />
-        <FieldShell label="你想学什么">
-          <TextArea
-            value={goal}
-            onChange={(event) => onGoalChange(event.target.value)}
-            data-testid="guide-goal-input"
-            className="min-h-28 text-sm leading-6"
-            placeholder="例如：我想在 30 分钟内理解梯度下降，并做几道题确认掌握。"
-          />
-        </FieldShell>
-        <Button tone="primary" type="submit" className="min-h-12 w-full text-base" disabled={!goal.trim() || creating}>
-          {creating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-          帮我安排学习
-        </Button>
 
-        <button
-          type="button"
-          className="mx-auto flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 transition hover:bg-canvas hover:text-brand-purple"
-          onClick={onOpenSetup}
-        >
-          需要更细设置
-        </button>
+        <div className="min-h-0 flex-1 rounded-lg border border-line bg-white p-4">
+          <FieldShell label={primaryActionLabel || "你想学什么？"}>
+            <TextArea
+              value={goal}
+              onChange={(event) => onGoalChange(event.target.value)}
+              data-testid="guide-goal-input"
+              className="min-h-28 text-sm leading-6"
+              placeholder="例如：我想用 45 分钟梳理 CNN 图像检索、注意力机制和 Transformer。"
+            />
+          </FieldShell>
+
+          <div className="mt-4 max-h-40 overflow-hidden">
+            <CourseTemplateQuickPick
+              templates={courseTemplates.slice(0, 4)}
+              demoTemplateId={demoTemplate?.id ?? ""}
+              selectedTemplateId={courseTemplateId}
+              busy={creating || templatesLoading}
+              onPick={onPickTemplate}
+            />
+          </div>
+        </div>
+
+        <div className="grid shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <Button tone="primary" type="submit" className="min-h-12 text-base" disabled={!goal.trim() || creating}>
+            {creating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+            帮我安排学习
+          </Button>
+          <Button tone="secondary" className="min-h-12" disabled={creating} onClick={onOpenSetup}>
+            <Settings2 size={17} />
+            设置
+          </Button>
+          {demoTemplate ? (
+            <Button tone="quiet" className="min-h-12" disabled={creating} onClick={onStartDemo}>
+              演示课程
+            </Button>
+          ) : null}
+        </div>
       </form>
     </section>
   );

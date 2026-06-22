@@ -200,7 +200,7 @@ def test_context_and_runtime_facades_are_importable():
         {"output_mode": "video", "max_retries": 0, "enable_visual_review": True},
     ) == {
         "output_mode": "video",
-        "quality": "medium",
+        "quality": "high",
         "style_hint": "",
         "max_retries": 0,
         "enable_visual_review": True,

@@ -136,7 +136,7 @@ export function CapabilityConfigPanel({
                 </SelectInput>
               </FieldShell>
               <FieldShell label="质量">
-                <SelectInput value={String(config.quality ?? "medium")} onChange={(event) => patch({ quality: event.target.value })}>
+                <SelectInput value={String(config.quality ?? "high")} onChange={(event) => patch({ quality: event.target.value })}>
                   <option value="low">低</option>
                   <option value="medium">中</option>
                   <option value="high">高</option>

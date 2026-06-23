@@ -13,6 +13,7 @@ const AgentsPageView = lazyPage(() => import("@/pages/AgentsPage"), "AgentsPage"
 const ChatPageView = lazyPage(() => import("@/pages/ChatPage"), "ChatPage");
 const CoWriterPageView = lazyPage(() => import("@/pages/CoWriterPage"), "CoWriterPage");
 const GuidePageView = lazyPage(() => import("@/pages/GuidePage"), "GuidePage");
+const HomePageView = lazyPage(() => import("@/pages/HomePage"), "HomePage");
 const KnowledgePageView = lazyPage(() => import("@/pages/KnowledgePage"), "KnowledgePage");
 const MemoryPageView = lazyPage(() => import("@/pages/MemoryPage"), "MemoryPage");
 const NotebookPageView = lazyPage(() => import("@/pages/NotebookPage"), "NotebookPage");
@@ -35,6 +36,10 @@ export function CoWriterRoute() {
 
 export function GuideRoute() {
   return <GuidePageView />;
+}
+
+export function HomeRoute() {
+  return <HomePageView />;
 }
 
 export function KnowledgeRoute() {

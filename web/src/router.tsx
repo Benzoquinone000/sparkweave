@@ -52,8 +52,8 @@ const indexRoute = createRoute({
     if (sessionId) {
       throw redirect({ to: "/chat/$sessionId", params: { sessionId } });
     }
-    throw redirect({ to: "/guide" });
   },
+  component: ROUTE_VIEWS.home,
 });
 
 const chatRoute = pageRoute("/chat", ROUTE_VIEWS.chat);

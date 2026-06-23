@@ -532,8 +532,8 @@ function ProgressPanel({
         </div>
         <Badge tone={busy ? "warning" : "success"}>{stage}</Badge>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${busy ? Math.max(percent, 8) : percent}%` }} />
+      <div className="mt-3 h-2 overflow-hidden rounded-lg bg-slate-100">
+        <div className="h-full rounded-lg bg-ink transition-all" style={{ width: `${busy ? Math.max(percent, 8) : percent}%` }} />
       </div>
     </section>
   );

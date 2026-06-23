@@ -133,8 +133,8 @@ export function GuideDiagnosticPanel({
             </span>
             <span>已答 {answerCount} 题</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-brand-purple transition-all" style={{ width: `${progress}%` }} />
+          <div className="mt-2 h-1.5 overflow-hidden rounded-lg bg-slate-100">
+            <div className="h-full rounded-lg bg-brand-purple transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
       </div>

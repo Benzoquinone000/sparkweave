@@ -42,7 +42,7 @@ export function GuideStepFrame({
           {Array.from({ length: total }, (_item, index) => (
             <span
               key={index}
-              className={`h-2 rounded-full transition-all ${
+              className={`h-2 rounded-lg transition-all ${
                 index + 1 === step ? "w-6 bg-ink" : index + 1 < step ? "w-2 bg-brand-purple" : "w-2 bg-slate-200"
               }`}
             />

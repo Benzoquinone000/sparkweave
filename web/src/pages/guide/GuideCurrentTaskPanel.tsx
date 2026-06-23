@@ -180,7 +180,7 @@ function ResourceAgentStepRow({ step }: { step: GuideResourceAgentStep }) {
   const failed = status === "failed";
   return (
     <li className="flex items-start gap-3 text-sm">
-      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${agentStepIconTone(status)}`}>
+      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-lg ${agentStepIconTone(status)}`}>
         {active ? (
           <Loader2 size={12} className="animate-spin" />
         ) : failed ? (
@@ -188,7 +188,7 @@ function ResourceAgentStepRow({ step }: { step: GuideResourceAgentStep }) {
         ) : done ? (
           <CheckCircle2 size={12} />
         ) : (
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+          <span className="h-1.5 w-1.5 rounded-sm bg-current" />
         )}
       </span>
       <span className="min-w-0">

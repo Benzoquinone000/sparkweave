@@ -57,9 +57,9 @@ export function GuideRouteMapPage({
             </div>
             <Badge tone={loading ? "neutral" : "brand"}>{loading ? "读取中" : `${completedCount}/${orderedTasks.length} 完成`}</Badge>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-lg bg-slate-100">
             <div
-              className="h-full rounded-full bg-brand-purple transition-all"
+              className="h-full rounded-lg bg-brand-purple transition-all"
               style={{ width: `${orderedTasks.length ? (completedCount / orderedTasks.length) * 100 : 0}%` }}
             />
           </div>

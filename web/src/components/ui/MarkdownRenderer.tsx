@@ -159,6 +159,10 @@ function ensureMermaidConfigured(mermaid: typeof import("mermaid")["default"]) {
     startOnLoad: false,
     securityLevel: "strict",
     theme: "base",
+    htmlLabels: false,
+    flowchart: {
+      htmlLabels: false,
+    },
     themeVariables: {
       primaryColor: "#F7FAFC",
       primaryBorderColor: "#0F766E",

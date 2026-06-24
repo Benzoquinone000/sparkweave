@@ -82,6 +82,14 @@ DEFAULT_IFLYTEK_VISION_PROTOCOL = "spark_image"
 DEFAULT_IFLYTEK_VISION_DOMAIN = "imagev3"
 
 
+def _coerce_iflytek_ocr_url(url: Any) -> str:
+    candidate = str(url or "").strip() or DEFAULT_IFLYTEK_OCR_URL
+    host = urlparse(candidate).netloc.lower()
+    if "siliconflow" in host:
+        return DEFAULT_IFLYTEK_OCR_URL
+    return candidate
+
+
 ENV_KEY_ORDER = (
     "BACKEND_PORT",
     "FRONTEND_PORT",
@@ -311,6 +319,7 @@ class EnvStore:
             "deepseekocr",
             "deepseek_ocr",
         }
+        iflytek_ocr_url = _coerce_iflytek_ocr_url(value("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL))
         return ConfigSummary(
             backend_port=_safe_int(value("BACKEND_PORT"), 8001),
             frontend_port=_safe_int(value("FRONTEND_PORT"), 3782),
@@ -350,7 +359,7 @@ class EnvStore:
                 if ocr_is_siliconflow
                 else (value("IFLYTEK_OCR_API_KEY") or iflytek_api_key),
                 "api_secret": value("IFLYTEK_OCR_API_SECRET") or iflytek_api_secret,
-                "url": value("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL),
+                "url": iflytek_ocr_url,
                 "service_id": value("IFLYTEK_OCR_SERVICE_ID", DEFAULT_IFLYTEK_OCR_SERVICE_ID),
                 "category": value("IFLYTEK_OCR_CATEGORY", DEFAULT_IFLYTEK_OCR_CATEGORY),
                 "siliconflow_api_key": value("SILICONFLOW_OCR_API_KEY") or siliconflow_api_key,
@@ -621,9 +630,9 @@ class EnvStore:
                 or ("" if iflytek_api_secret else current.get("IFLYTEK_OCR_API_SECRET", ""))
             ),
             "IFLYTEK_OCR_URL": str(
-                current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
+                _coerce_iflytek_ocr_url(current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL))
                 if ocr_is_siliconflow
-                else (
+                else _coerce_iflytek_ocr_url(
                     (ocr_profile or {}).get("base_url")
                     or current.get("IFLYTEK_OCR_URL", DEFAULT_IFLYTEK_OCR_URL)
                 )
@@ -2564,6 +2573,17 @@ def _to_headers(value: Any) -> dict[str, str]:
     return {}
 
 
+def _merge_non_empty_headers(*headers: dict[str, str] | None) -> dict[str, str]:
+    merged: dict[str, str] = {}
+    for header in headers:
+        for key, value in (header or {}).items():
+            normalized_key = str(key).strip()
+            normalized_value = str(value).strip()
+            if normalized_key and normalized_value:
+                merged[normalized_key] = normalized_value
+    return merged
+
+
 def _is_local_base_url(base_url: str | None) -> bool:
     if not base_url:
         return False
@@ -3108,7 +3128,11 @@ def resolve_embedding_runtime_config(
             "api_secret": _as_str(iflytek_credentials.get("api_secret")),
         }
         credential_headers = {key: value for key, value in credential_headers.items() if value}
-        extra_headers = {**_iflytek_embedding_env(env), **credential_headers, **extra_headers}
+        extra_headers = _merge_non_empty_headers(
+            _iflytek_embedding_env(env),
+            credential_headers,
+            extra_headers,
+        )
 
     if spec.is_local and not api_key:
         api_key = "sk-no-key-required"

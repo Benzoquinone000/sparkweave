@@ -107,7 +107,7 @@ class SubmitGuideV2ProfileDialogueRequest(BaseModel):
 class GenerateGuideV2ResourceRequest(BaseModel):
     resource_type: str = Field(default="visual", min_length=1)
     prompt: str = ""
-    quality: str = "high"
+    quality: str = "medium"
 
 
 class SaveGuideV2ArtifactRequest(BaseModel):

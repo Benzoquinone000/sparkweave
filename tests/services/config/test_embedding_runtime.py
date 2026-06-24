@@ -354,6 +354,69 @@ def test_embedding_iflytek_spark_provider_defaults(tmp_path: Path) -> None:
     assert resolved.extra_headers["domain"] == "para"
 
 
+def test_embedding_iflytek_shared_credentials_survive_blank_profile_placeholders(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "iflytek_spark",
+            "base_url": "",
+            "api_key": "",
+            "api_version": "",
+            "extra_headers": {"app_id": "", "api_secret": "", "domain": "para"},
+            "models": [{"id": "embedding-m", "name": "m", "model": "llm-embedding", "dimension": "2560"}],
+        }
+    )
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-key",
+            "api_secret": "shared-secret",
+        }
+    }
+
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=_env(tmp_path, []))
+
+    assert resolved.provider_name == "iflytek_spark"
+    assert resolved.api_key == "shared-key"
+    assert resolved.extra_headers["app_id"] == "shared-appid"
+    assert resolved.extra_headers["api_secret"] == "shared-secret"
+    assert resolved.extra_headers["domain"] == "para"
+
+
+def test_embedding_iflytek_profile_headers_override_shared_credential_headers(tmp_path: Path) -> None:
+    catalog = _build_catalog(
+        embedding_profile={
+            "id": "embedding-p",
+            "name": "Embedding",
+            "binding": "iflytek_spark",
+            "base_url": "",
+            "api_key": "profile-key",
+            "api_version": "",
+            "extra_headers": {
+                "app_id": "profile-appid",
+                "api_secret": "profile-secret",
+                "domain": "query",
+            },
+            "models": [{"id": "embedding-m", "name": "m", "model": "llm-embedding", "dimension": "2560"}],
+        }
+    )
+    catalog["provider_credentials"] = {
+        "iflytek": {
+            "app_id": "shared-appid",
+            "api_key": "shared-key",
+            "api_secret": "shared-secret",
+        }
+    }
+
+    resolved = resolve_embedding_runtime_config(catalog=catalog, env_store=_env(tmp_path, []))
+
+    assert resolved.api_key == "shared-key"
+    assert resolved.extra_headers["app_id"] == "profile-appid"
+    assert resolved.extra_headers["api_secret"] == "profile-secret"
+    assert resolved.extra_headers["domain"] == "query"
+
+
 def test_embedding_runtime_batch_env_options(tmp_path: Path) -> None:
     catalog = _build_catalog(
         embedding_profile={

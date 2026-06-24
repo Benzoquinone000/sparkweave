@@ -1010,6 +1010,56 @@ class SQLiteSessionStore:
     async def delete_notebook_entry(self, entry_id: int) -> bool:
         return await self._run(self._delete_notebook_entry_sync, entry_id)
 
+    def _clear_notebook_entries_sync(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            entry_count = int(
+                conn.execute("SELECT COUNT(*) AS cnt FROM notebook_entries").fetchone()["cnt"]
+            )
+            category_count = int(
+                conn.execute("SELECT COUNT(*) AS cnt FROM notebook_categories").fetchone()["cnt"]
+            )
+            conn.execute("DELETE FROM notebook_entry_categories")
+            conn.execute("DELETE FROM notebook_entries")
+            conn.execute("DELETE FROM notebook_categories")
+            conn.commit()
+        return {
+            "cleared": True,
+            "removed_entries": entry_count,
+            "removed_categories": category_count,
+        }
+
+    async def clear_notebook_entries(self) -> dict[str, Any]:
+        return await self._run(self._clear_notebook_entries_sync)
+
+    def _clear_all_sessions_sync(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            session_count = int(conn.execute("SELECT COUNT(*) AS cnt FROM sessions").fetchone()["cnt"])
+            message_count = int(conn.execute("SELECT COUNT(*) AS cnt FROM messages").fetchone()["cnt"])
+            turn_count = int(conn.execute("SELECT COUNT(*) AS cnt FROM turns").fetchone()["cnt"])
+            event_count = int(conn.execute("SELECT COUNT(*) AS cnt FROM turn_events").fetchone()["cnt"])
+            notebook_count = int(
+                conn.execute("SELECT COUNT(*) AS cnt FROM notebook_entries").fetchone()["cnt"]
+            )
+            category_count = int(
+                conn.execute("SELECT COUNT(*) AS cnt FROM notebook_categories").fetchone()["cnt"]
+            )
+            conn.execute("DELETE FROM sessions")
+            conn.execute("DELETE FROM notebook_entry_categories")
+            conn.execute("DELETE FROM notebook_categories")
+            conn.commit()
+        return {
+            "cleared": True,
+            "removed_sessions": session_count,
+            "removed_messages": message_count,
+            "removed_turns": turn_count,
+            "removed_turn_events": event_count,
+            "removed_question_notebook_entries": notebook_count,
+            "removed_question_notebook_categories": category_count,
+        }
+
+    async def clear_all_sessions(self) -> dict[str, Any]:
+        return await self._run(self._clear_all_sessions_sync)
+
     # Notebook categories
 
     def _create_category_sync(self, name: str) -> dict[str, Any]:

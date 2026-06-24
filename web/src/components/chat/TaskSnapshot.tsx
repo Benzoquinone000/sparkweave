@@ -104,7 +104,7 @@ export function TaskSnapshot({
         <Button
           tone="primary"
           className="mt-3 w-full"
-          onClick={() => onSaveMessage({ ...assistant, content: displayContent })}
+          onClick={() => onSaveMessage({ ...assistant, content: displayContent || assistant.content })}
           aria-label="保存当前结果"
         >
           <CheckCircle2 size={16} />

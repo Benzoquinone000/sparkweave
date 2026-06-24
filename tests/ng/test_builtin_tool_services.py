@@ -256,6 +256,106 @@ async def test_vision_solver_agent_uses_ng_llm_stream(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_vision_solver_agent_uses_image_understanding_for_text_only_model(monkeypatch):
+    responses = iter(
+        [
+            '{"elements":[{"type":"point","label":"A"}]}',
+            '{"image_reference_detected":true,"constraints":[{"kind":"point"}],"geometric_relations":[{"description":"A is visible"}]}',
+            '{"commands":[{"sequence":1,"command":"A=(0,0)","description":"point A"}]}',
+            '{"issues_found":[],"corrected_commands":[{"sequence":1,"command":"A=(0,0)","description":"point A"}]}',
+        ]
+    )
+    calls: list[dict] = []
+
+    async def fake_stream(**kwargs):
+        calls.append(kwargs)
+        yield next(responses)
+
+    async def fake_understand_image_with_fallback(image, **kwargs):
+        assert image == b"abc"
+        return {"content": "The image shows a labeled point A near the origin."}
+
+    monkeypatch.setattr(
+        vision_service,
+        "get_llm_config",
+        lambda: SimpleNamespace(
+            model="deepseek-chat",
+            api_key="key",
+            base_url="https://example.test/v1",
+            api_version=None,
+            binding="custom",
+        ),
+    )
+    monkeypatch.setattr(vision_service, "llm_stream", fake_stream)
+    monkeypatch.setattr(
+        vision_service,
+        "understand_image_with_fallback",
+        fake_understand_image_with_fallback,
+    )
+
+    result = await vision_service.analyze_geogebra_image(
+        question="Locate point A",
+        image_base64="data:image/png;base64,YWJj",
+        language="en",
+    )
+
+    assert result["result"]["image_context_source"] == "image_understanding"
+    assert result["result"]["final_ggb_commands"][0]["command"] == "A=(0,0)"
+    assert len(calls) == 4
+    assert all(call.get("messages") is None for call in calls)
+    assert "Image facts:" in calls[0]["prompt"]
+    assert calls[0]["model"] == "deepseek-chat"
+    assert calls[0]["binding"] == "custom"
+
+
+@pytest.mark.asyncio
+async def test_vision_solver_agent_uses_direct_image_input_for_gpt5_custom(monkeypatch):
+    responses = iter(
+        [
+            '{"elements":[{"type":"point","label":"A"}]}',
+            '{"image_reference_detected":false,"constraints":[{"kind":"point"}],"geometric_relations":[{"description":"A is a point"}]}',
+            '{"commands":[{"sequence":1,"command":"A=(0,0)","description":"point A"}]}',
+            '{"issues_found":[],"corrected_commands":[{"sequence":1,"command":"A=(0,0)","description":"point A"}]}',
+        ]
+    )
+    calls: list[dict] = []
+
+    async def fake_stream(**kwargs):
+        calls.append(kwargs)
+        yield next(responses)
+
+    async def fail_image_understanding(*_args, **_kwargs):
+        raise AssertionError("gpt-5 custom model should use direct image input")
+
+    monkeypatch.setattr(
+        vision_service,
+        "get_llm_config",
+        lambda: SimpleNamespace(
+            model="gpt-5.5",
+            api_key="key",
+            base_url="https://example.test/v1",
+            api_version=None,
+            binding="custom",
+        ),
+    )
+    monkeypatch.setattr(vision_service, "llm_stream", fake_stream)
+    monkeypatch.setattr(vision_service, "understand_image_with_fallback", fail_image_understanding)
+
+    result = await vision_service.analyze_geogebra_image(
+        question="Locate point A",
+        image_base64="data:image/png;base64,abc",
+        language="en",
+    )
+
+    assert result["result"]["image_context_source"] == "direct_vision_model"
+    assert result["result"]["final_ggb_commands"][0]["command"] == "A=(0,0)"
+    assert len(calls) == 4
+    assert calls[0]["model"] == "gpt-5.5"
+    assert calls[0]["binding"] == "custom"
+    assert calls[0]["messages"][0]["content"][1]["image_url"]["url"].startswith("data:image")
+
+
+@pytest.mark.asyncio
 async def test_brainstorm_and_reason_tools_use_ng_reasoning_service(monkeypatch):
     async def fake_brainstorm(**kwargs):
         assert kwargs["topic"] == "topic"

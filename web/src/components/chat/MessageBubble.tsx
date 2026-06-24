@@ -57,12 +57,12 @@ export function MessageBubble({
   const externalVideoResult = !isUser ? extractExternalVideoResult(resultEvent?.metadata) : null;
   const externalImageResult = !isUser ? extractExternalImageResult(resultEvent?.metadata) : null;
   const hasNarratedMathVideo = Boolean(mathAnimatorResult?.audio_narration?.video?.asset_url);
-  const canSaveAsset = !isUser && hasNotebookAssetOutput(message);
+  const canSaveAsset = hasNotebookAssetOutput(message);
   const canvasDocument = useMemo(
     () => (!isUser ? getCanvasDocumentFromMessage(message, { mode: "manual" }) : null),
     [isUser, message],
   );
-  const showAssistantActions = !isUser && (Boolean(displayContent) || canSaveAsset || Boolean(canvasDocument));
+  const showMessageActions = Boolean(displayContent) || canSaveAsset || Boolean(canvasDocument);
   const assistantStatusClass = !isUser
     ? message.status === "streaming"
       ? "dt-message-card-streaming"
@@ -105,7 +105,7 @@ export function MessageBubble({
             {effectiveCapability ? <Badge tone="neutral">{capabilityLabel(effectiveCapability)}</Badge> : null}
             {hasNarratedMathVideo ? <Badge tone="success">带旁白成片</Badge> : null}
             {message.attachments?.length ? <Badge tone="warning">{message.attachments.length} 个附件</Badge> : null}
-            {showAssistantActions ? (
+            {showMessageActions ? (
               <div className="dt-message-actions ml-auto flex flex-wrap justify-end gap-2">
                 {onOpenCanvas && canvasDocument ? (
                   <button
@@ -123,7 +123,7 @@ export function MessageBubble({
                   <button
                     type="button"
                     onClick={() => onSave({ ...message, content: displayContent || message.content })}
-                    aria-label="保存当前结果"
+                    aria-label={isUser ? "保存当前消息" : "保存当前结果"}
                     className="inline-flex min-h-7 items-center gap-1 rounded-md border border-line bg-white px-2 text-xs text-steel transition hover:border-[#c8c4be] hover:text-brand-purple"
                   >
                     <Save size={13} />

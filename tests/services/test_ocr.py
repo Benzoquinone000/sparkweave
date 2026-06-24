@@ -174,6 +174,21 @@ def test_iflytek_auth_url_does_not_embed_secret_values() -> None:
     assert "apisecret" not in url
 
 
+def test_iflytek_ocr_config_ignores_siliconflow_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sparkweave.services import ocr as ocr_module
+
+    monkeypatch.setenv("SPARKWEAVE_OCR_PROVIDER", "iflytek")
+    monkeypatch.setenv("IFLYTEK_OCR_APPID", "appid")
+    monkeypatch.setenv("IFLYTEK_OCR_API_KEY", "apikey")
+    monkeypatch.setenv("IFLYTEK_OCR_API_SECRET", "apisecret")
+    monkeypatch.setenv("IFLYTEK_OCR_URL", "https://api.siliconflow.cn/v1")
+
+    config = XfyunOcrConfig.from_env()
+
+    assert config is not None
+    assert config.url == ocr_module.XFYUN_OCR_URL
+
+
 def test_extract_siliconflow_openai_compatible_text() -> None:
     response = {
         "choices": [

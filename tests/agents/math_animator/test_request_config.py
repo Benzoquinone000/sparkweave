@@ -10,8 +10,9 @@ from sparkweave.services.validation import (
 def test_validate_math_animator_request_config_defaults() -> None:
     config = validate_math_animator_request_config(None)
     assert config.output_mode == "video"
-    assert config.quality == "high"
+    assert config.quality == "medium"
     assert config.style_hint == ""
+    assert config.max_retries == 2
 
 
 def test_validate_math_animator_request_config_accepts_narration_flag() -> None:

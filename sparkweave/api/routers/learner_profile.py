@@ -11,7 +11,11 @@ from sparkweave.services.learner_evidence import (
     build_profile_calibration_event,
     get_learner_evidence_service,
 )
+from sparkweave.services.guide_v2 import GuideV2Manager
 from sparkweave.services.learner_profile import get_learner_profile_service
+from sparkweave.services.memory import get_memory_service
+from sparkweave.services.notebook import get_notebook_manager
+from sparkweave.services.session_store import get_sqlite_session_store
 
 router = APIRouter()
 
@@ -66,6 +70,16 @@ class LearnerProfileCalibrationRequest(BaseModel):
     source_id: str = Field(default="")
 
 
+class LearnerProfileResetRequest(BaseModel):
+    clear_memory: bool = True
+    clear_evidence: bool = True
+    clear_guide_state: bool = True
+    clear_chat_history: bool = True
+    clear_question_notebook: bool = True
+    clear_saved_notebook_records: bool = True
+    clear_profile_cache: bool = True
+
+
 @router.get("")
 async def get_learner_profile() -> dict[str, Any]:
     """Return the current unified learner profile snapshot."""
@@ -81,6 +95,44 @@ async def refresh_learner_profile(request: LearnerProfileRefreshRequest) -> dict
         include_sources=request.include_sources,
         force=request.force,
     )
+
+
+@router.post("/reset")
+async def reset_learner_profile(request: LearnerProfileResetRequest | None = None) -> dict[str, Any]:
+    """Clear learner-state data without touching course files or knowledge bases."""
+
+    options = request or LearnerProfileResetRequest()
+    result: dict[str, Any] = {
+        "cleared": True,
+        "scope": {
+            "memory": options.clear_memory,
+            "evidence": options.clear_evidence,
+            "guide_state": options.clear_guide_state,
+            "chat_history": options.clear_chat_history,
+            "question_notebook": options.clear_question_notebook,
+            "saved_notebook_records": options.clear_saved_notebook_records,
+            "profile_cache": options.clear_profile_cache,
+        },
+    }
+    if options.clear_memory:
+        snap = get_memory_service().clear_memory()
+        result["memory"] = {
+            "summary": bool(snap.summary),
+            "profile": bool(snap.profile),
+        }
+    if options.clear_evidence:
+        result["evidence"] = get_learner_evidence_service().clear()
+    if options.clear_guide_state:
+        result["guide_state"] = GuideV2Manager().clear_learning_state()
+    if options.clear_chat_history:
+        result["chat_history"] = await get_sqlite_session_store().clear_all_sessions()
+    elif options.clear_question_notebook:
+        result["question_notebook"] = await get_sqlite_session_store().clear_notebook_entries()
+    if options.clear_saved_notebook_records:
+        result["saved_notebook_records"] = get_notebook_manager().clear_all_records()
+    if options.clear_profile_cache:
+        result["profile_cache"] = get_learner_profile_service().clear_snapshot()
+    return result
 
 
 @router.get("/evidence-preview")

@@ -256,7 +256,7 @@ MODEL_OVERRIDES: dict[str, dict[str, object]] = {
     "qwen": {"has_thinking_tags": True},
     "qwq": {"has_thinking_tags": True},
     "minimax": {"supports_response_format": False},
-    "gpt-5": {"forced_temperature": 1.0},
+    "gpt-5": {"forced_temperature": 1.0, "supports_vision": True},
     "o1": {"forced_temperature": 1.0},
     "o3": {"forced_temperature": 1.0},
     "gpt-4o": {"supports_vision": True},

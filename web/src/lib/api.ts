@@ -62,6 +62,7 @@ import type {
   LearnerProfileCalibrationRequest,
   LearnerProfileCalibrationResponse,
   LearnerProfileEvidencePreviewResponse,
+  LearnerProfileResetResponse,
   LearnerProfileSnapshot,
   MemoryFile,
   MemorySnapshot,
@@ -683,6 +684,29 @@ export function refreshLearnerProfile(input?: { includeSources?: string[] | null
   );
 }
 
+export function resetLearnerProfile(input?: {
+  clearMemory?: boolean;
+  clearEvidence?: boolean;
+  clearGuideState?: boolean;
+  clearChatHistory?: boolean;
+  clearQuestionNotebook?: boolean;
+  clearSavedNotebookRecords?: boolean;
+  clearProfileCache?: boolean;
+}) {
+  return fetchJson<LearnerProfileResetResponse>(
+    "/api/v1/learner-profile/reset",
+    jsonBody({
+      clear_memory: input?.clearMemory ?? true,
+      clear_evidence: input?.clearEvidence ?? true,
+      clear_guide_state: input?.clearGuideState ?? true,
+      clear_chat_history: input?.clearChatHistory ?? true,
+      clear_question_notebook: input?.clearQuestionNotebook ?? true,
+      clear_saved_notebook_records: input?.clearSavedNotebookRecords ?? true,
+      clear_profile_cache: input?.clearProfileCache ?? true,
+    }),
+  );
+}
+
 export function getLearnerProfileEvidencePreview(input?: { source?: string | null; limit?: number }) {
   const params = new URLSearchParams();
   if (input?.source) params.set("source", input.source);
@@ -1255,7 +1279,7 @@ export function generateGuideV2TaskResource(input: {
     jsonBody({
       resource_type: input.resourceType,
       prompt: input.prompt || "",
-      quality: input.quality || "high",
+      quality: input.quality || "medium",
     }),
   );
 }
@@ -1278,7 +1302,7 @@ export function startGuideV2TaskResourceJob(input: {
     jsonBody({
       resource_type: input.resourceType,
       prompt: input.prompt || "",
-      quality: input.quality || "high",
+      quality: input.quality || "medium",
     }),
   );
 }

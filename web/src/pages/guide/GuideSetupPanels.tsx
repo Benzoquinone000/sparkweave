@@ -170,19 +170,16 @@ export function CourseTemplatePreview({
 
 export function CourseTemplateQuickPick({
   templates,
-  demoTemplateId,
   selectedTemplateId,
   busy,
   onPick,
 }: {
   templates: GuideV2CourseTemplate[];
-  demoTemplateId: string;
   selectedTemplateId: string;
   busy: boolean;
   onPick: (template: GuideV2CourseTemplate) => void;
 }) {
   const visibleTemplates = templates
-    .filter((template) => template.id !== demoTemplateId)
     .sort((left, right) => courseTemplateQuickPickPriority(left) - courseTemplateQuickPickPriority(right))
     .slice(0, 3);
   if (!visibleTemplates.length) {

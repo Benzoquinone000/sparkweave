@@ -1984,7 +1984,7 @@ class GuideV2Manager:
         *,
         resource_type: str,
         prompt: str = "",
-        quality: str = "high",
+        quality: str = "medium",
         event_sink: GuideResourceEventSink | None = None,
     ) -> dict[str, Any]:
         session = self._load_session(session_id)
@@ -2295,6 +2295,24 @@ class GuideV2Manager:
             return {"success": True, "session_id": session_id}
         return {"success": False, "error": "Session not found"}
 
+    def clear_learning_state(self) -> dict[str, Any]:
+        """Clear guided-learning sessions and cross-session learner memory."""
+        removed_sessions = 0
+        for path in list(self.output_dir.glob("session_*.json")):
+            if path.is_file():
+                path.unlink()
+                removed_sessions += 1
+        memory_path = self._memory_path()
+        memory_cleared = memory_path.exists()
+        if memory_cleared:
+            memory_path.unlink()
+        self._sessions.clear()
+        return {
+            "cleared": True,
+            "removed_sessions": removed_sessions,
+            "learner_memory_cleared": memory_cleared,
+        }
+
     def _build_resource_context(
         self,
         *,
@@ -2394,7 +2412,7 @@ class GuideV2Manager:
         if resource_type == "visual":
             return "visualize", {"render_mode": "svg"}
         if resource_type == "video":
-            safe_quality = quality if quality in {"low", "medium", "high"} else "high"
+            safe_quality = quality if quality in {"low", "medium", "high"} else "medium"
             return (
                 "math_animator",
                 {

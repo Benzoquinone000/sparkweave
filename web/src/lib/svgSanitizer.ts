@@ -9,24 +9,47 @@ function stripCodeFences(source: string) {
   return fenced ? fenced[1].trim() : trimmed;
 }
 
+function extractSvgFragment(source: string) {
+  const trimmed = stripCodeFences(source).trim();
+  const start = trimmed.search(/<svg(?:\s|>)/i);
+  if (start < 0) return "";
+  const end = trimmed.toLowerCase().lastIndexOf("</svg>");
+  if (end < start) return trimmed.slice(start).trim();
+  return trimmed.slice(start, end + "</svg>".length).trim();
+}
+
+function localTagName(element: Element) {
+  return (element.localName || element.tagName || "").toLowerCase();
+}
+
+function isSvgRoot(element: Element | null) {
+  return Boolean(element && localTagName(element) === "svg");
+}
+
+function parseSvgRoot(svg: string) {
+  const xmlParsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (!xmlParsed.querySelector("parsererror") && isSvgRoot(xmlParsed.documentElement)) {
+    return xmlParsed.documentElement;
+  }
+
+  const htmlParsed = new DOMParser().parseFromString(svg, "text/html");
+  const htmlRoot = htmlParsed.querySelector("svg");
+  return isSvgRoot(htmlRoot) ? htmlRoot : null;
+}
+
 export function sanitizeSvgMarkup(svg: string) {
-  const trimmed = stripCodeFences(svg).trim();
-  if (!/^<svg(?:\s|>)/i.test(trimmed) || typeof DOMParser === "undefined" || typeof XMLSerializer === "undefined") {
+  const fragment = extractSvgFragment(svg);
+  if (!fragment || typeof DOMParser === "undefined" || typeof XMLSerializer === "undefined") {
     return "";
   }
 
-  const parsed = new DOMParser().parseFromString(trimmed, "image/svg+xml");
-  if (parsed.querySelector("parsererror")) {
-    return "";
-  }
-
-  const root = parsed.documentElement;
-  if (root.tagName.toLowerCase() !== "svg") {
+  const root = parseSvgRoot(fragment);
+  if (!root) {
     return "";
   }
 
   for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
-    if (BLOCKED_SVG_TAGS.has(element.tagName.toLowerCase())) {
+    if (BLOCKED_SVG_TAGS.has(localTagName(element))) {
       element.remove();
       continue;
     }

@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from sparkweave.core.contracts import StreamBus, StreamEventType, UnifiedContext
+from sparkweave.core.contracts import Attachment, StreamBus, StreamEventType, UnifiedContext
+from sparkweave.core.state import context_to_state
 from sparkweave.core.tool_protocol import ToolResult
 from sparkweave.graphs.deep_solve import DeepSolveGraph
 
@@ -13,12 +14,14 @@ class FakeModel:
     def __init__(self, responses):
         self.responses = list(responses)
         self.bound_tools = None
+        self.messages = []
 
     def bind_tools(self, tools):
         self.bound_tools = tools
         return self
 
     async def ainvoke(self, _messages):
+        self.messages.append(_messages)
         return self.responses.pop(0)
 
 
@@ -120,5 +123,38 @@ async def test_deep_solve_graph_executes_selected_tool_call():
     assert state["final_answer"] == "An eigenvalue is a scalar lambda where Av = lambda v."
     assert any(event.type == StreamEventType.TOOL_CALL for event in bus._history)
     assert any(event.type == StreamEventType.TOOL_RESULT for event in bus._history)
+
+
+def test_deep_solve_messages_keep_image_attachments() -> None:
+    graph = DeepSolveGraph(model=FakeModel([]))
+    context = UnifiedContext(
+        user_message="Solve the attached problem.",
+        attachments=[
+            Attachment(
+                type="image",
+                mime_type="image/png",
+                base64="YWJj",
+                filename="problem.png",
+            ),
+            Attachment(
+                type="file",
+                mime_type="application/pdf",
+                base64="ZG9j",
+                filename="notes.pdf",
+            ),
+        ],
+    )
+    state = context_to_state(context, stream=StreamBus(), system_prompt="System")
+
+    messages = graph._messages_for_state(system="System", user="Question", state=state)
+
+    content = messages[-1].content
+    assert isinstance(content, list)
+    assert content[0] == {"type": "text", "text": "Question"}
+    assert content[1] == {
+        "type": "image_url",
+        "image_url": {"url": "data:image/png;base64,YWJj"},
+    }
+    assert len(content) == 2
 
 

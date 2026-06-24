@@ -206,6 +206,53 @@
 </tr>
 </tbody>
 </table>
+<h2 id="前端录制导览脚本">前端录制导览脚本</h2>
+<p>仓库里提供了一个辅助录屏脚本，作用不是替你生成视频，而是把真实前端按演示顺序打开、停顿、滚动，并在页面左下角放一条讲解提示。录制时你可以开着 OBS 或系统录屏，让脚本带着浏览器走，自己按提示讲。</p>
+<p>推荐先启动完整服务：</p>
+<pre><code class="language-powershell">docker compose up --build
+</code></pre>
+<p>确认 <code>http://127.0.0.1:3782</code> 能访问后，在另一个终端运行：</p>
+<pre><code class="language-powershell">cd web
+npm run record:tour
+</code></pre>
+<p>默认路线会从项目首页开始，再进入学习、资料、问问题、练习、记录、画像、设置、课程助教，最后回到学习页收束。每一步都会停留一段时间，并显示这一页该讲什么。</p>
+<p>如果想自己控制节奏，用手动模式：</p>
+<pre><code class="language-powershell">cd web
+npm run record:tour -- --manual
+</code></pre>
+<p>每讲完一页，在终端按 Enter 继续。这个模式最适合正式录制，因为可以避开讲快或讲慢的问题。</p>
+<p>常用参数：</p>
+<table>
+<thead>
+<tr class="header">
+<th>命令</th>
+<th>适合场景</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>npm run record:tour</code></td>
+<td>7 分钟视频的默认路线</td>
+</tr>
+<tr class="even">
+<td><code>npm run record:tour -- --manual</code></td>
+<td>正式录制，自己控制翻页</td>
+</tr>
+<tr class="odd">
+<td><code>npm run record:tour -- --profile=short</code></td>
+<td>快速检查首页、学习、资料、问问题、画像、设置、助教</td>
+</tr>
+<tr class="even">
+<td><code>npm run record:tour -- --profile=full --step-ms=22000</code></td>
+<td>展示更多页面，并给每页更长讲解时间</td>
+</tr>
+<tr class="odd">
+<td><code>npm run record:tour -- --url=http://127.0.0.1:3782 --no-start-server</code></td>
+<td>只使用已经启动的 Docker 前端，不自动拉起 dev server</td>
+</tr>
+</tbody>
+</table>
+<p>脚本只做页面跳转、滚动、输入框预填和临时提示，不会替你提交表单、上传文件、删除数据或创建助教。问问题页会预填一个 CNN 讲解问题，正式录制时可以停在那里手动点击发送，展示真实模型返回和来源证据。</p>
 <h2 id="讲解重点">讲解重点</h2>
 <p>PPT 和视频都建议反复强调三件事：</p>
 <ul>

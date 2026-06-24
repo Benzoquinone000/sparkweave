@@ -63,7 +63,6 @@ export function GuideCreateRoutePanel({
           <div className="mt-4 max-h-40 overflow-hidden">
             <CourseTemplateQuickPick
               templates={courseTemplates.slice(0, 4)}
-              demoTemplateId={demoTemplate?.id ?? ""}
               selectedTemplateId={courseTemplateId}
               busy={creating || templatesLoading}
               onPick={onPickTemplate}

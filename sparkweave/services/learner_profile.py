@@ -184,6 +184,21 @@ class LearnerProfileService:
             "total": len(evidence),
         }
 
+    def clear_snapshot(self) -> dict[str, Any]:
+        """Remove the cached learner profile projection.
+
+        Source data is owned by the memory, evidence, guide, notebook, and
+        session services. This method only clears the generated profile cache.
+        """
+        existed = self._profile_path.exists()
+        if existed:
+            self._profile_path.unlink()
+        return {
+            "cleared": True,
+            "profile_cache_cleared": existed,
+            "path": str(self._profile_path),
+        }
+
     def _collect_memory(self, builder: "_ProfileBuilder") -> None:
         try:
             snapshot = self._memory_service.read_snapshot()

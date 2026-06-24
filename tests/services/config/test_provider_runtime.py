@@ -823,6 +823,38 @@ def test_env_store_does_not_force_optional_ocr_knobs(tmp_path: Path) -> None:
     assert rendered["SPARKWEAVE_OCR_MIN_TEXT_CHARS"] == ""
 
 
+def test_env_store_coerces_misrouted_iflytek_ocr_url(tmp_path: Path) -> None:
+    env = _empty_env(tmp_path)
+    catalog = _build_catalog()
+    catalog["services"]["ocr"] = {
+        "active_profile_id": "ocr-p",
+        "profiles": [
+            {
+                "id": "ocr-p",
+                "name": "OCR",
+                "provider": "iflytek",
+                "strategy": "iflytek_first",
+                "base_url": "https://api.siliconflow.cn/v1",
+                "api_key": "ocr-key",
+                "extra_headers": {
+                    "app_id": "ocr-app",
+                    "api_secret": "ocr-secret",
+                },
+                "models": [],
+            }
+        ],
+    }
+
+    rendered = env.render_from_catalog(catalog)
+
+    assert rendered["SPARKWEAVE_OCR_PROVIDER"] == "iflytek"
+    assert (
+        rendered["IFLYTEK_OCR_URL"]
+        == "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+    )
+    assert rendered["SILICONFLOW_OCR_BASE_URL"] == "https://api.siliconflow.cn/v1"
+
+
 def test_env_store_renders_siliconflow_ocr_catalog_settings(tmp_path: Path) -> None:
     env = _empty_env(tmp_path)
     catalog = _build_catalog()

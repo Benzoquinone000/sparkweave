@@ -20,7 +20,7 @@ from sparkweave.graphs._answer_now import (
     skip_notice,
 )
 from sparkweave.graphs.rag_overrides import apply_rag_overrides
-from sparkweave.llm import chat_messages, create_chat_model
+from sparkweave.llm import chat_messages, chat_messages_with_attachments, create_chat_model
 from sparkweave.runtime.tool_execution import GraphToolExecutor
 from sparkweave.tools import LangChainToolRegistry
 
@@ -111,9 +111,10 @@ class DeepSolveGraph:
                 system=(
                     "Create a compact, sufficient plan for solving the problem. "
                     'Return strict JSON: {"analysis": str, "steps": '
-                    '[{"id": "S1", "goal": str}]}.'
+                    "[{\"id\": \"S1\", \"goal\": str}]}."
                 ),
                 user=self._question_block(state),
+                state=state,
             )
             raw = message_text(response)
             plan = self._parse_plan(raw, state["user_message"])
@@ -157,7 +158,7 @@ class DeepSolveGraph:
                     metadata={"trace_kind": "call_status", "call_state": "running"},
                 )
                 response = await model.ainvoke(
-                    chat_messages(
+                    self._messages_for_state(
                         system=(
                             "Decide whether external tools are needed before solving. "
                             "Call at most three tools. If the plan can be solved "
@@ -173,6 +174,7 @@ class DeepSolveGraph:
                             f"{self._question_block(state)}\n\n"
                             f"Plan:\n{self._format_plan(state.get('plan', {}))}"
                         ),
+                        state=state,
                     )
                 )
                 calls = self._extract_tool_calls(response)[: self.max_tool_calls]
@@ -227,6 +229,7 @@ class DeepSolveGraph:
                     "not write polished final prose yet."
                 ),
                 user=self._solve_context(state),
+                state=state,
             )
             draft = message_text(response).strip()
             await stream.thinking(
@@ -262,6 +265,7 @@ class DeepSolveGraph:
                     f"{self._solve_context(state)}\n\n"
                     f"Draft solution:\n{state.get('draft_answer', '')}"
                 ),
+                state=state,
             )
             verification = message_text(response).strip()
             await stream.observation(
@@ -292,6 +296,7 @@ class DeepSolveGraph:
                     f"Draft solution:\n{state.get('draft_answer', '')}\n\n"
                     f"Verification notes:\n{state.get('verification', '')}"
                 ),
+                state=state,
             )
             final_answer = message_text(response).strip()
             if not final_answer:
@@ -347,6 +352,7 @@ class DeepSolveGraph:
                         "Produce the final user-facing answer using only this context."
                     ),
                 ),
+                state=state,
             )
             final_answer = message_text(response).strip()
             if not final_answer:
@@ -379,8 +385,56 @@ class DeepSolveGraph:
     def _route_after_tool_selection(self, state: TutorState) -> str:
         return "tools" if state.get("pending_tool_calls") else "solve"
 
-    async def _ainvoke(self, *, system: str, user: str) -> Any:
-        return await self._get_model().ainvoke(chat_messages(system=system, user=user))
+    async def _ainvoke(
+        self,
+        *,
+        system: str,
+        user: str,
+        state: TutorState | None = None,
+    ) -> Any:
+        return await self._get_model().ainvoke(
+            self._messages_for_state(system=system, user=user, state=state)
+        )
+
+    def _messages_for_state(
+        self,
+        *,
+        system: str,
+        user: str,
+        state: TutorState | None = None,
+    ) -> list[Any]:
+        attachments = self._image_attachments(state)
+        if attachments:
+            return chat_messages_with_attachments(
+                system=system,
+                user=user,
+                attachments=attachments,
+            )
+        return chat_messages(system=system, user=user)
+
+    @staticmethod
+    def _image_attachments(state: TutorState | None) -> list[Any]:
+        if state is None:
+            return []
+        context = state.get("context")
+        if context is None:
+            return []
+        attachments = getattr(context, "attachments", []) or []
+        return [
+            attachment
+            for attachment in attachments
+            if DeepSolveGraph._is_image_attachment(attachment)
+        ]
+
+    @staticmethod
+    def _is_image_attachment(attachment: Any) -> bool:
+        if isinstance(attachment, dict):
+            type_ = str(attachment.get("type") or "").lower()
+            mime_type = str(attachment.get("mime_type") or "").lower()
+        else:
+            type_ = str(getattr(attachment, "type", "") or "").lower()
+            mime_type = str(getattr(attachment, "mime_type", "") or "").lower()
+        return type_ == "image" or mime_type.startswith("image/")
 
     def _get_model(self) -> Any:
         if self.model is not None:

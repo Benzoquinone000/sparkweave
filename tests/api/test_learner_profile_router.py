@@ -9,6 +9,7 @@ from sparkweave.api.routers import learner_profile
 class _Service:
     def __init__(self) -> None:
         self.refreshed = False
+        self.cleared = False
 
     async def read_profile(self, *, auto_refresh: bool = True):
         return {
@@ -42,10 +43,15 @@ class _Service:
     async def list_evidence_preview(self, *, source=None, limit: int = 30):
         return {"items": [{"source_id": source or "memory", "title": "证据"}], "total": 1}
 
+    def clear_snapshot(self):
+        self.cleared = True
+        return {"cleared": True, "profile_cache_cleared": True}
+
 
 class _EvidenceService:
     def __init__(self) -> None:
         self.events: list[dict] = []
+        self.cleared = False
 
     def list_events(self, **kwargs):
         source = kwargs.get("source")
@@ -67,6 +73,11 @@ class _EvidenceService:
             self.events.clear()
         self.events.append({"id": "ev_rebuilt", "source": "memory", "title": profile["overview"]["current_focus"]})
         return {"added": 1, "skipped": 0, "events": self.events[-1:]}
+
+    def clear(self):
+        self.cleared = True
+        self.events.clear()
+        return {"cleared": True}
 
 
 def _client(service: _Service, monkeypatch) -> TestClient:
@@ -183,3 +194,84 @@ def test_learner_profile_router_accepts_overview_correction(monkeypatch) -> None
     assert body["event"]["verb"] == "corrected_profile"
     assert body["event"]["metadata"]["claim_type"] == "profile_overview"
     assert body["event"]["metadata"]["corrected_value"] == "I mainly need help understanding formulas and application scenarios."
+
+
+def test_learner_profile_router_resets_learning_state(monkeypatch) -> None:
+    service = _Service()
+    evidence_service = _EvidenceService()
+
+    class _MemoryService:
+        def __init__(self) -> None:
+            self.cleared = False
+
+        def clear_memory(self):
+            self.cleared = True
+            return type("Snapshot", (), {"summary": "", "profile": ""})()
+
+    class _GuideManager:
+        def clear_learning_state(self):
+            return {"cleared": True, "removed_sessions": 2, "learner_memory_cleared": True}
+
+    class _SessionStore:
+        def __init__(self) -> None:
+            self.cleared_sessions = False
+            self.cleared_notebook = False
+
+        async def clear_all_sessions(self):
+            self.cleared_sessions = True
+            return {
+                "cleared": True,
+                "removed_sessions": 3,
+                "removed_messages": 8,
+                "removed_question_notebook_entries": 4,
+            }
+
+        async def clear_notebook_entries(self):
+            self.cleared_notebook = True
+            return {"cleared": True, "removed_entries": 4}
+
+    class _NotebookManager:
+        def __init__(self) -> None:
+            self.cleared = False
+
+        def clear_all_records(self):
+            self.cleared = True
+            return {"cleared": True, "removed_records": 5, "kept_notebooks": 2}
+
+    memory_service = _MemoryService()
+    session_store = _SessionStore()
+    notebook_manager = _NotebookManager()
+    app = FastAPI()
+    app.include_router(learner_profile.router, prefix="/api/v1/learner-profile")
+    monkeypatch.setattr(learner_profile, "get_learner_profile_service", lambda: service)
+    monkeypatch.setattr(learner_profile, "get_learner_evidence_service", lambda: evidence_service)
+    monkeypatch.setattr(learner_profile, "get_memory_service", lambda: memory_service)
+    monkeypatch.setattr(learner_profile, "GuideV2Manager", _GuideManager)
+    monkeypatch.setattr(learner_profile, "get_sqlite_session_store", lambda: session_store)
+    monkeypatch.setattr(learner_profile, "get_notebook_manager", lambda: notebook_manager)
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/learner-profile/reset", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cleared"] is True
+    assert body["scope"] == {
+        "memory": True,
+        "evidence": True,
+        "guide_state": True,
+        "chat_history": True,
+        "question_notebook": True,
+        "saved_notebook_records": True,
+        "profile_cache": True,
+    }
+    assert memory_service.cleared is True
+    assert evidence_service.cleared is True
+    assert service.cleared is True
+    assert session_store.cleared_sessions is True
+    assert session_store.cleared_notebook is False
+    assert notebook_manager.cleared is True
+    assert body["guide_state"]["removed_sessions"] == 2
+    assert body["chat_history"]["removed_sessions"] == 3
+    assert body["chat_history"]["removed_question_notebook_entries"] == 4
+    assert body["saved_notebook_records"]["removed_records"] == 5

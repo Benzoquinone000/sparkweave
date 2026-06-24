@@ -49,7 +49,7 @@ export function buildGuideResourceGenerationActions({
         taskId: targetTaskId,
         resourceType: type,
         prompt: promptOverride,
-        quality: "high",
+        quality: "medium",
       });
       setResourceJobId(job.task_id);
       setResourceJobSnapshot({

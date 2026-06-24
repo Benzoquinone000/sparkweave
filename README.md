@@ -79,6 +79,17 @@ docker compose up --build
 
 这条路线能同时看到课程主线、资料证据、多智能体协作、学习画像和讯飞工具链。
 
+## 录制演示视频
+
+录屏时可以使用前端导览脚本，让浏览器从项目首页开始，按演示顺序逐页打开真实界面，并在页面上显示讲解提示：
+
+```powershell
+cd web
+npm run record:tour -- --manual
+```
+
+推荐先用 `docker compose up --build` 启动完整服务，再运行上面的命令。脚本默认使用 `http://127.0.0.1:3782`，会依次展示首页、学习、资料、问问题、练习、记录、画像、设置和课程助教；手动模式下每讲完一页，在终端按 Enter 继续。更详细的录制顺序见 [PPT 与 7 分钟演示视频建议](docs/markdown/presentation-video-guide.md)。
+
 ## 主要页面
 
 | 页面 | 作用 | 截图 |

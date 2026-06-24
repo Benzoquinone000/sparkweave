@@ -34,6 +34,18 @@ DEFAULT_DPI = 200
 DEFAULT_SILICONFLOW_MAX_TOKENS = 8192
 
 
+def _coerce_iflytek_ocr_url(url: str | None) -> str:
+    candidate = (url or "").strip() or XFYUN_OCR_URL
+    host = urlparse(candidate).netloc.lower()
+    if "siliconflow" in host:
+        logger.warning(
+            "Ignoring non-iFlytek OCR URL for iFlytek provider: %s",
+            candidate,
+        )
+        return XFYUN_OCR_URL
+    return candidate
+
+
 def _make_smoke_test_png() -> bytes:
     width = 340
     height = 96
@@ -153,7 +165,7 @@ class XfyunOcrConfig:
             app_id=app_id.strip(),
             api_key=api_key.strip(),
             api_secret=api_secret.strip(),
-            url=_env("IFLYTEK_OCR_URL", XFYUN_OCR_URL).strip() or XFYUN_OCR_URL,
+            url=_coerce_iflytek_ocr_url(_env("IFLYTEK_OCR_URL", XFYUN_OCR_URL)),
             service_id=_env("IFLYTEK_OCR_SERVICE_ID", XFYUN_OCR_SERVICE).strip() or XFYUN_OCR_SERVICE,
             category=_env("IFLYTEK_OCR_CATEGORY", "ch_en_public_cloud").strip() or "ch_en_public_cloud",
             timeout=max(timeout, 1.0),

@@ -124,7 +124,7 @@ class DefaultMathRenderer:
         source: str,
         repair_callback: Callable[[str, str, int], Awaitable[Any]] | None = None,
         review_callback: Callable[[str, Any], Awaitable[Any]] | None = None,
-        max_retries: int = 4,
+        max_retries: int = 2,
     ) -> tuple[str, dict[str, Any]]:
         manim_python = _resolve_manim_python()
         if manim_python is None:
@@ -873,15 +873,15 @@ class MathAnimatorGraph:
         context = state.get("context")
         overrides = dict(getattr(context, "config_overrides", {}) or {})
         output_mode = str(overrides.get("output_mode") or "video").strip().lower()
-        quality = str(overrides.get("quality") or "high").strip().lower()
+        quality = str(overrides.get("quality") or "medium").strip().lower()
         if output_mode not in {"video", "image"}:
             output_mode = "video"
         if quality not in {"low", "medium", "high"}:
-            quality = "high"
+            quality = "medium"
         try:
-            max_retries = int(overrides.get("max_retries", 4))
+            max_retries = int(overrides.get("max_retries", 2))
         except (TypeError, ValueError):
-            max_retries = 4
+            max_retries = 2
         max_retries = min(max(max_retries, 0), 8)
         return {
             "output_mode": output_mode,

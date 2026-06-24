@@ -870,6 +870,26 @@ export interface LearnerProfileCalibrationResponse {
   profile: LearnerProfileSnapshot;
 }
 
+export interface LearnerProfileResetResponse {
+  cleared: boolean;
+  scope?: {
+    memory?: boolean;
+    evidence?: boolean;
+    guide_state?: boolean;
+    chat_history?: boolean;
+    question_notebook?: boolean;
+    saved_notebook_records?: boolean;
+    profile_cache?: boolean;
+  };
+  memory?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  guide_state?: Record<string, unknown>;
+  chat_history?: Record<string, unknown>;
+  question_notebook?: Record<string, unknown>;
+  saved_notebook_records?: Record<string, unknown>;
+  profile_cache?: Record<string, unknown>;
+}
+
 export interface LearnerEvidenceEvent {
   id: string;
   source: string;

@@ -8,10 +8,30 @@ from pathlib import Path
 from typing import Any
 
 from sparkweave.core.json import parse_json_response
-from sparkweave.services.llm import get_llm_config
+from sparkweave.services.iflytek_vision import (
+    IflytekVisionUnavailable,
+    decode_image_base64,
+    understand_image_with_fallback,
+)
+from sparkweave.services.llm import get_llm_config, supports_vision
 from sparkweave.services.llm import stream as llm_stream
 
 logger = logging.getLogger(__name__)
+
+IMAGE_DESCRIPTION_PROMPT = """You are the image-understanding stage for a math tutor.
+Describe the uploaded problem image as accurately as possible so that a text-only LLM can solve it later.
+
+Include:
+- all visible text, formulas, labels, numbers, coordinates, and symbols;
+- geometric objects, charts, tables, arrows, highlighted regions, and their relative positions;
+- relationships that are visually clear, such as parallel/perpendicular lines, equal marks, angle marks, axes, or intersections;
+- anything uncertain, marked explicitly as uncertain.
+
+Do not invent hidden facts. Do not solve the problem yet.
+
+User question:
+{question_text}
+"""
 
 
 def _empty_bbox_output() -> dict[str, Any]:
@@ -101,12 +121,83 @@ class VisionSolverAgent:
             template = template.replace(placeholder, replacement)
         return template
 
+    def _can_call_direct_vision_model(self) -> bool:
+        return supports_vision(self.binding, self.vision_model)
+
+    async def _describe_image_for_text_model(
+        self,
+        *,
+        question_text: str,
+        image_base64: str,
+    ) -> str:
+        try:
+            image_bytes, mime_type = decode_image_base64(image_base64)
+            result = await understand_image_with_fallback(
+                image_bytes,
+                prompt=IMAGE_DESCRIPTION_PROMPT.format(question_text=question_text),
+                mime_type=mime_type,
+            )
+        except IflytekVisionUnavailable:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive provider guard
+            raise IflytekVisionUnavailable(f"Image understanding failed: {exc}") from exc
+
+        description = str(result.get("content") or "").strip()
+        if not description:
+            raise IflytekVisionUnavailable("Image understanding returned empty content")
+        return description
+
+    async def _prepare_image_context(self, state: dict[str, Any]) -> None:
+        if self._can_call_direct_vision_model():
+            state["image_context_source"] = "direct_vision_model"
+            return
+        description = await self._describe_image_for_text_model(
+            question_text=state["question_text"],
+            image_base64=state["image_base64"],
+        )
+        state["image_context_source"] = "image_understanding"
+        state["image_description"] = description
+
+    @staticmethod
+    def _prompt_with_image_description(prompt: str, image_description: str) -> str:
+        return (
+            "The configured chat model is text-only. A separate image-understanding service "
+            "has extracted the following facts from the uploaded image. Use these facts as "
+            "the visual evidence for this stage; do not assume you can still see the image.\n\n"
+            "Image facts:\n"
+            f"{image_description}\n\n"
+            "Stage instruction:\n"
+            f"{prompt}"
+        )
+
     async def _call_vision_llm(
         self,
         prompt: str,
         image_base64: str,
         temperature: float = 0.3,
+        image_description: str | None = None,
     ) -> str:
+        chunks: list[str] = []
+        if not self._can_call_direct_vision_model():
+            if not image_description:
+                raise IflytekVisionUnavailable(
+                    "The active chat model does not accept image_url messages, and image "
+                    "understanding is not available. Configure image_understanding or choose a "
+                    "vision-capable chat model."
+                )
+            async for chunk in llm_stream(
+                prompt=self._prompt_with_image_description(prompt, image_description),
+                system_prompt="",
+                temperature=temperature,
+                model=self.model,
+                api_key=self.api_key,
+                base_url=self.base_url,
+                api_version=self.api_version,
+                binding=self.binding,
+            ):
+                chunks.append(chunk)
+            return "".join(chunks)
+
         messages = [
             {
                 "role": "user",
@@ -116,7 +207,6 @@ class VisionSolverAgent:
                 ],
             }
         ]
-        chunks: list[str] = []
         async for chunk in llm_stream(
             prompt="",
             system_prompt="",
@@ -140,7 +230,12 @@ class VisionSolverAgent:
         try:
             prompt = self._render_prompt("bbox", {"question_text": state["question_text"]})
             return self._parse_json(
-                await self._call_vision_llm(prompt, state["image_base64"], temperature=0.3)
+                await self._call_vision_llm(
+                    prompt,
+                    state["image_base64"],
+                    temperature=0.3,
+                    image_description=state.get("image_description"),
+                )
             ) or _empty_bbox_output()
         except Exception:
             logger.exception("BBox stage failed")
@@ -156,7 +251,12 @@ class VisionSolverAgent:
                 },
             )
             output = self._parse_json(
-                await self._call_vision_llm(prompt, state["image_base64"], temperature=0.3)
+                await self._call_vision_llm(
+                    prompt,
+                    state["image_base64"],
+                    temperature=0.3,
+                    image_description=state.get("image_description"),
+                )
             ) or _empty_analysis_output()
             return output, bool(output.get("image_reference_detected", False))
         except Exception:
@@ -174,7 +274,12 @@ class VisionSolverAgent:
                 },
             )
             return self._parse_json(
-                await self._call_vision_llm(prompt, state["image_base64"], temperature=0.3)
+                await self._call_vision_llm(
+                    prompt,
+                    state["image_base64"],
+                    temperature=0.3,
+                    image_description=state.get("image_description"),
+                )
             ) or _empty_ggbscript_output()
         except Exception:
             logger.exception("GGBScript stage failed")
@@ -192,7 +297,12 @@ class VisionSolverAgent:
                 },
             )
             output = self._parse_json(
-                await self._call_vision_llm(prompt, state["image_base64"], temperature=0.3)
+                await self._call_vision_llm(
+                    prompt,
+                    state["image_base64"],
+                    temperature=0.3,
+                    image_description=state.get("image_description"),
+                )
             ) or _empty_reflection_output()
             final_commands = output.get("corrected_commands") or state["ggbscript_output"].get(
                 "commands",
@@ -218,6 +328,7 @@ class VisionSolverAgent:
             "image_base64": image_base64,
             "has_image": True,
         }
+        await self._prepare_image_context(state)
         state["bbox_output"] = await self._process_bbox(state)
         state["analysis_output"], state["image_is_reference"] = await self._process_analysis(state)
         state["ggbscript_output"] = await self._process_ggbscript(state)
@@ -232,6 +343,8 @@ class VisionSolverAgent:
             "reflection_output": state["reflection_output"],
             "final_ggb_commands": state["final_ggb_commands"],
             "image_is_reference": state["image_is_reference"],
+            "image_context_source": state.get("image_context_source", ""),
+            "image_description": state.get("image_description", ""),
         }
 
     async def stream_process(
@@ -255,6 +368,7 @@ class VisionSolverAgent:
         question_text: str,
         final_ggb_commands: list[dict[str, Any]],
         analysis_output: dict[str, Any] | None = None,
+        image_description: str | None = None,
         session_id: str = "default",
     ) -> AsyncGenerator[str, None]:
         """Stream a tutor answer grounded in the image-analysis result."""
@@ -278,6 +392,8 @@ class VisionSolverAgent:
                 "image_is_reference": "yes" if image_is_reference else "no",
             },
         )
+        if image_description:
+            tutor_prompt = self._prompt_with_image_description(tutor_prompt, image_description)
         system_prompt = (
             "你是一位专业的数学教师，善于结合可视化过程讲解数学题。"
             if self.language == "zh"
@@ -327,6 +443,16 @@ class VisionSolverAgent:
             "has_image": True,
         }
         yield {"event": "analysis_start", "data": {"session_id": session_id}}
+        await self._prepare_image_context(state)
+        if state.get("image_context_source") == "image_understanding":
+            yield {
+                "event": "image_understanding_complete",
+                "data": {
+                    "stage": "image_understanding",
+                    "source": "configured_image_understanding",
+                    "content_preview": str(state.get("image_description", ""))[:240],
+                },
+            }
 
         state["bbox_output"] = await self._process_bbox(state)
         elements = state["bbox_output"].get("elements", [])
@@ -405,6 +531,7 @@ class VisionSolverAgent:
                 if ggb_script_content
                 else None,
                 "analysis_summary": {
+                    "image_context_source": state.get("image_context_source", ""),
                     "constraints": constraints[:10] if isinstance(constraints, list) else [],
                     "relations": [
                         relation.get("description", str(relation))
@@ -423,6 +550,7 @@ class VisionSolverAgent:
             question_text=question_text,
             final_ggb_commands=state["final_ggb_commands"],
             analysis_output=state["analysis_output"],
+            image_description=state.get("image_description"),
             session_id=session_id,
         ):
             yield {"event": "text", "data": {"content": chunk}}

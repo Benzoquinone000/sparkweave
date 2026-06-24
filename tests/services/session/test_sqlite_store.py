@@ -199,6 +199,33 @@ def test_entries_cascade_on_session_delete(store: SQLiteSessionStore) -> None:
     assert asyncio.run(store.list_notebook_entries())["total"] == 0
 
 
+def test_clear_all_sessions_resets_chat_and_question_notebook(store: SQLiteSessionStore) -> None:
+    session = asyncio.run(store.create_session(title="Reset me"))
+    asyncio.run(store.add_message(session["id"], "user", "hello"))
+    asyncio.run(store.add_message(session["id"], "assistant", "hi"))
+    turn = asyncio.run(store.create_turn(session["id"], capability="chat"))
+    asyncio.run(store.append_turn_event(turn["id"], {"type": "content", "content": "hi"}))
+    asyncio.run(store.update_turn_status(turn["id"], "completed"))
+    asyncio.run(store.upsert_notebook_entries(session["id"], _make_items(("q1", "Q?", False))))
+    category = asyncio.run(store.create_category("Mistakes"))
+    entry_id = asyncio.run(store.list_notebook_entries())["items"][0]["id"]
+    asyncio.run(store.add_entry_to_category(entry_id, category["id"]))
+
+    result = asyncio.run(store.clear_all_sessions())
+
+    assert result["removed_sessions"] == 1
+    assert result["removed_messages"] == 2
+    assert result["removed_turns"] == 1
+    assert result["removed_turn_events"] == 1
+    assert result["removed_question_notebook_entries"] == 1
+    assert result["removed_question_notebook_categories"] == 1
+    assert asyncio.run(store.list_sessions()) == []
+    assert asyncio.run(store.get_messages(session["id"])) == []
+    assert asyncio.run(store.get_turn_events(turn["id"])) == []
+    assert asyncio.run(store.list_notebook_entries())["total"] == 0
+    assert asyncio.run(store.list_categories()) == []
+
+
 # ── Categories ────────────────────────────────────────────────────
 
 def test_category_crud(store: SQLiteSessionStore) -> None:

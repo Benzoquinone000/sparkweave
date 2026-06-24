@@ -381,6 +381,33 @@ class NotebookManager:
         self._touch_index_entry(notebook_id, notebook)
         return True
 
+    def clear_all_records(self) -> dict:
+        """Remove saved notebook records while keeping notebook containers."""
+        notebooks = self.list_notebooks()
+        removed_records = 0
+        touched_notebooks = 0
+        now = time.time()
+        for nb_info in notebooks:
+            notebook_id = str(nb_info.get("id") or "")
+            notebook = self._load_notebook(notebook_id)
+            if not notebook:
+                continue
+            records = list(notebook.get("records") or [])
+            if not records:
+                continue
+            removed_records += len(records)
+            touched_notebooks += 1
+            notebook["records"] = []
+            notebook["updated_at"] = now
+            self._save_notebook(notebook)
+            self._touch_index_entry(notebook_id, notebook)
+        return {
+            "cleared": True,
+            "removed_records": removed_records,
+            "touched_notebooks": touched_notebooks,
+            "kept_notebooks": len(notebooks),
+        }
+
     def get_statistics(self) -> dict:
         notebooks = self.list_notebooks()
 

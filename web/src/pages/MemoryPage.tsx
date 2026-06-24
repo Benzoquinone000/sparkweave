@@ -11,6 +11,7 @@ import {
   Loader2,
   RefreshCw,
   Target,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { lazy, Suspense, useState, type ReactNode } from "react";
@@ -74,6 +75,7 @@ export function MemoryPage() {
   const mode = getMemoryMode(pathname);
   const [notice, setNotice] = useState("");
   const [quickCorrection, setQuickCorrection] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
   const profile = useLearnerProfile();
   const profileMutations = useLearnerProfileMutations();
   const memory = useMemory();
@@ -93,9 +95,23 @@ export function MemoryPage() {
   ].join(":");
 
   const refreshProfile = async () => {
+    setConfirmClear(false);
     setNotice("");
     await profileMutations.refresh.mutateAsync({ force: true });
     setNotice("学习建议已重新整理。");
+  };
+
+  const clearLearningState = async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setNotice("再点一次“确认清空”，会删除聊天记录、题目本、学习状态、记忆、证据和导学路线；资料库不会受影响。");
+      return;
+    }
+    setNotice("");
+    await profileMutations.reset.mutateAsync({});
+    setConfirmClear(false);
+    setQuickCorrection("");
+    setNotice("已恢复到初始学习状态。资料库和课程内容保留。");
   };
 
   const calibrateProfile: CalibrateProfile = async (input) => {
@@ -138,7 +154,18 @@ export function MemoryPage() {
   return (
     <div className="dt-dynamic-page h-full overflow-y-auto px-3.5 py-3.5 pb-20 lg:px-4 lg:pb-4">
       <div className="mx-auto flex min-h-full max-w-[1080px] flex-col gap-3.5">
-        <MemoryHeader mode={mode} refreshing={profileMutations.refresh.isPending} onRefresh={() => void refreshProfile()} />
+        <MemoryHeader
+          mode={mode}
+          refreshing={profileMutations.refresh.isPending}
+          clearing={profileMutations.reset.isPending}
+          confirmClear={confirmClear}
+          onRefresh={() => void refreshProfile()}
+          onClear={() => void clearLearningState()}
+          onCancelClear={() => {
+            setConfirmClear(false);
+            setNotice("");
+          }}
+        />
         <MemoryRouteNav activeMode={mode} />
 
         <div className="min-h-0 flex-1">
@@ -182,11 +209,19 @@ export function MemoryPage() {
 function MemoryHeader({
   mode,
   refreshing,
+  clearing,
+  confirmClear,
   onRefresh,
+  onClear,
+  onCancelClear,
 }: {
   mode: MemoryPageMode;
   refreshing: boolean;
+  clearing: boolean;
+  confirmClear: boolean;
   onRefresh: () => void;
+  onClear: () => void;
+  onCancelClear: () => void;
 }) {
   const copy = {
     overview: {
@@ -228,10 +263,21 @@ function MemoryHeader({
           <h1 className="mt-1 text-xl font-semibold leading-tight text-ink">{copy.title}</h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">{copy.detail}</p>
         </div>
-        <Button tone="secondary" onClick={onRefresh} disabled={refreshing} data-testid="learner-profile-refresh">
-          {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-          重新整理
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {confirmClear ? (
+            <Button tone="quiet" onClick={onCancelClear} disabled={clearing} data-testid="learner-profile-clear-cancel">
+              取消
+            </Button>
+          ) : null}
+          <Button tone="danger" onClick={onClear} disabled={clearing || refreshing} data-testid="learner-profile-clear">
+            {clearing ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            {confirmClear ? "确认清空" : "清空"}
+          </Button>
+          <Button tone="secondary" onClick={onRefresh} disabled={refreshing || clearing} data-testid="learner-profile-refresh">
+            {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            重新整理
+          </Button>
+        </div>
       </div>
     </motion.header>
   );

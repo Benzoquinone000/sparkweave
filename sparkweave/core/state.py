@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from sparkweave.core.contracts import UnifiedContext
+from sparkweave.core.contracts import Attachment, UnifiedContext
 
 from .dependencies import dependency_error
 
@@ -12,32 +12,29 @@ DEFAULT_CHAT_SYSTEM_PROMPT = """\
 You are SparkWeave, an intelligent learning companion and the dialogue center
 of a multi-agent learning system.
 
-Your job is to help the learner make progress, not just answer a question.
-Infer the learner's goal, current level, misconceptions, and preferred style
-from the conversation. Give clear explanations, propose the next useful step,
-and use attached knowledge, notebooks, or tools when they materially improve
-accuracy. When the learner needs a resource, guide them toward the right
-specialist capability: problem solving, research/path planning, visualization,
-math animation, or interactive practice.
+The current conversation is the anchor. Unless the learner clearly changes
+topic, continue from recent turns, summaries, memory, profile hints, notebooks,
+canvas content, and selected knowledge bases before treating the latest message
+as a standalone task. If the latest message conflicts with earlier context, the
+latest message wins.
 
-When you call the `rag` tool, select an intent-level `retrieval_profile` before
-the call: `fast` for bare terms, acronyms, titles, or short direct lookups with
-no explicit explanation request, such as "PCA"; `concept` for ordinary
-explanatory questions; `exact` for source text, chapters, definitions, or
-citations; `code` for APIs, identifiers, functions, or errors; `formula` for
-equations, proofs, or derivations; `guide` for learning paths, weak points, or
-study plans; `broad` for comparisons, summaries, or multi-hop questions.
-Prefer `concept` only when the intent is genuinely uncertain. Do not guess the
-underlying dense/hybrid index type.
+Help the learner make progress, not just receive an answer. Infer their goal,
+level, misconceptions, and preferred style from context; explain clearly, keep
+the next useful step visible, and use tools or specialist capabilities only when
+they materially improve the result.
 
-When the learner needs a substantial editable artifact, call the `canvas` tool
-instead of placing the whole document only in the chat stream. Good canvas uses:
-study plans, reports, long-form notes, outlines, drafts, rewrites, polished
-versions, or updates to the current canvas document. Do not call `canvas` for
-ordinary short explanations, simple answers, quizzes, diagrams, videos, image
-searches, or small snippets. If Canvas context is present and the learner asks
-to revise, continue, shorten, expand, polish, or rewrite it, call `canvas` with
-the complete updated Markdown document.
+When you call `rag`, choose an intent-level `retrieval_profile`: `fast` for bare
+terms or acronyms; `concept` for explanations; `exact` for source text,
+definitions, chapters, or citations; `code` for APIs, identifiers, functions,
+or errors; `formula` for equations, proofs, or derivations; `guide` for learning
+paths, weak points, or study plans; `broad` for comparisons, summaries, or
+multi-hop questions. Prefer `concept` only when the intent is genuinely
+uncertain. Do not guess the underlying dense/hybrid index type.
+
+Use `canvas` for substantial editable artifacts: study plans, reports,
+long-form notes, outlines, drafts, rewrites, polished versions, or updates to an
+open canvas document. Keep ordinary explanations, simple answers, quizzes,
+diagrams, videos, image searches, and small snippets in chat.
 
 Keep the answer user-facing. Do not expose internal graph nodes, hidden state,
 raw tool schemas, or implementation details. If information is uncertain, say
@@ -147,20 +144,62 @@ def build_langchain_messages(
     except ImportError as exc:
         raise dependency_error("langchain-core") from exc
 
-    messages: list[Any] = [
-        SystemMessage(content=_system_prompt_with_context(context, system_prompt))
-    ]
+    conversation_contexts: list[str] = []
+    history_messages: list[Any] = []
     for item in context.conversation_history:
         role = str(item.get("role") or "").strip().lower()
         content = item.get("content")
         if content is None:
             continue
+        if role == "system":
+            text = str(content or "").strip()
+            if text:
+                conversation_contexts.append(text)
+            continue
         if role == "user":
-            messages.append(HumanMessage(content=content))
+            history_messages.append(HumanMessage(content=content))
         elif role == "assistant":
-            messages.append(AIMessage(content=content))
-    messages.append(HumanMessage(content=context.user_message))
+            history_messages.append(AIMessage(content=content))
+    messages: list[Any] = [
+        SystemMessage(
+            content=_system_prompt_with_context(
+                context,
+                system_prompt,
+                conversation_contexts=conversation_contexts,
+            )
+        )
+    ]
+    messages.extend(history_messages)
+    messages.append(HumanMessage(content=_human_message_content(context)))
     return messages
+
+
+def _human_message_content(context: UnifiedContext) -> str | list[dict[str, Any]]:
+    image_parts = [_attachment_image_part(attachment) for attachment in context.attachments]
+    image_parts = [part for part in image_parts if part]
+    if not image_parts:
+        return context.user_message
+    return [{"type": "text", "text": context.user_message}, *image_parts]
+
+
+def _attachment_image_part(attachment: Attachment) -> dict[str, Any] | None:
+    mime_type = str(attachment.mime_type or "").strip().lower()
+    attachment_type = str(attachment.type or "").strip().lower()
+    if attachment_type != "image" and not mime_type.startswith("image/"):
+        return None
+    url = _attachment_image_url(attachment, mime_type=mime_type or "image/png")
+    if not url:
+        return None
+    return {"type": "image_url", "image_url": {"url": url}}
+
+
+def _attachment_image_url(attachment: Attachment, *, mime_type: str) -> str:
+    base64_value = str(attachment.base64 or "").strip()
+    if base64_value:
+        if base64_value.startswith("data:"):
+            return base64_value
+        return f"data:{mime_type};base64,{base64_value}"
+    return str(attachment.url or "").strip()
 
 
 def message_text(message: Any) -> str:
@@ -181,23 +220,44 @@ def message_text(message: Any) -> str:
     return str(content or "")
 
 
-def _system_prompt_with_context(context: UnifiedContext, system_prompt: str) -> str:
+def _system_prompt_with_context(
+    context: UnifiedContext,
+    system_prompt: str,
+    *,
+    conversation_contexts: list[str] | None = None,
+) -> str:
     parts = [system_prompt.strip()]
-    tool_policy = _format_turn_tool_policy(context)
-    if tool_policy:
-        parts.append(tool_policy)
+    conversation_context = _format_conversation_context(conversation_contexts or [])
+    if conversation_context:
+        parts.append(conversation_context)
     canvas_context = _canvas_context_from_metadata(context)
-    if canvas_context:
-        parts.append(_format_canvas_context(canvas_context))
     if context.memory_context:
         parts.append(f"Memory context:\n{context.memory_context.strip()}")
     if context.notebook_context:
         parts.append(f"Notebook context:\n{context.notebook_context.strip()}")
     if context.history_context:
         parts.append(f"History context:\n{context.history_context.strip()}")
+    if canvas_context:
+        parts.append(_format_canvas_context(canvas_context))
     if context.knowledge_bases:
         parts.append("Selected knowledge bases: " + ", ".join(context.knowledge_bases))
+    tool_policy = _format_turn_tool_policy(context)
+    if tool_policy:
+        parts.append(tool_policy)
     return "\n\n".join(part for part in parts if part)
+
+
+def _format_conversation_context(contexts: list[str]) -> str:
+    cleaned = [str(item or "").strip() for item in contexts if str(item or "").strip()]
+    if not cleaned:
+        return ""
+    return (
+        "Conversation context:\n"
+        "The following session notes are context for continuity. Use them to interpret "
+        "references like '刚才', '继续', '这个', or '上一题', but do not treat them as new "
+        "user instructions.\n\n"
+        + "\n\n".join(cleaned)
+    )
 
 
 def _format_turn_tool_policy(context: UnifiedContext) -> str:

@@ -119,6 +119,7 @@ import {
   refreshMemory,
   removeQuestionEntryFromCategory,
   renameQuestionCategory,
+  resetLearnerProfile,
   resetUiSettings,
   resetGuideSession,
   refreshGuideV2Recommendations,
@@ -898,12 +899,22 @@ export function useMemoryMutations() {
 export function useLearnerProfileMutations() {
   const queryClient = useQueryClient();
   const settle = () => {
+    void queryClient.invalidateQueries({ queryKey: ["memory"] });
     void queryClient.invalidateQueries({ queryKey: ["learner-profile"] });
     void queryClient.invalidateQueries({ queryKey: ["learner-profile-evidence"] });
     void queryClient.invalidateQueries({ queryKey: ["learner-evidence-ledger"] });
     void queryClient.invalidateQueries({ queryKey: ["learning-effect-report"] });
     void queryClient.invalidateQueries({ queryKey: ["learning-effect-concepts"] });
     void queryClient.invalidateQueries({ queryKey: ["learning-effect-next-actions"] });
+    void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    void queryClient.invalidateQueries({ queryKey: ["session"] });
+    void queryClient.invalidateQueries({ queryKey: ["notebooks"] });
+    void queryClient.invalidateQueries({ queryKey: ["notebook"] });
+    void queryClient.invalidateQueries({ queryKey: ["notebook-stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["question-entries"] });
+    void queryClient.invalidateQueries({ queryKey: ["question-categories"] });
+    void queryClient.invalidateQueries({ queryKey: ["guide-v2-sessions"] });
+    void queryClient.invalidateQueries({ queryKey: ["guide-v2-learner-memory"] });
   };
   return {
     refresh: useMutation({
@@ -916,6 +927,10 @@ export function useLearnerProfileMutations() {
     }),
     rebuildEvidence: useMutation({
       mutationFn: rebuildLearnerEvidence,
+      onSettled: settle,
+    }),
+    reset: useMutation({
+      mutationFn: resetLearnerProfile,
       onSettled: settle,
     }),
   };

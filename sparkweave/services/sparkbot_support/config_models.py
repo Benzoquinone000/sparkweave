@@ -161,7 +161,7 @@ class ChannelConfigModel(SparkBotConfigModel):
 
 class WebConfig(ChannelConfigModel):
     enabled: bool = True
-    welcome_text: str = "我会先看你的学习画像和深度学习课件，再给出今天最应该完成的一步。"
+    welcome_text: str = "我会先看学习画像和课程资料，再给出今天最应该完成的一步。"
     rate_limit: int = 8
 
 

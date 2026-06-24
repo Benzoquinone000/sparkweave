@@ -164,6 +164,10 @@ SparkWeave 把讯飞能力放在学习流程里，而不是单独做一个展示
 
 更细的目录说明见 [项目结构说明](docs/markdown/project-structure.md)。
 
+## CLI 提供方认证
+
+Provider auth (`openai-codex` OAuth login; `github-copilot` validates an existing Copilot auth session)。`openai-codex` 会走 OAuth 登录，`github-copilot` 只校验本机已经存在的 Copilot 认证是否可用。
+
 ## 文档入口
 
 HTML 版适合直接阅读和放进提交材料，Markdown 版适合维护。
